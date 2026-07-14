@@ -646,10 +646,31 @@ pub extern "C" fn cartan_file_read_tokens(tensor_ptr: *mut Tensor, count: f32, f
     }
 }
 
+static mut CURRENT_FILE: *mut libc::FILE = std::ptr::null_mut();
+static mut CURRENT_FILENAME: String = String::new();
+
 #[unsafe(no_mangle)]
 pub extern "C" fn cartan_file_read_batch(context_ptr: *mut Tensor, target_ptr: *mut Tensor, count: f32, file_ptr: *mut std::os::raw::c_void) -> f32 {
     unsafe {
         if context_ptr.is_null() || target_ptr.is_null() || file_ptr.is_null() { return 0.0; }
+        
+        let filename = std::ffi::CStr::from_ptr(file_ptr as *const i8).to_string_lossy().into_owned();
+        
+        if CURRENT_FILE.is_null() || filename != CURRENT_FILENAME {
+            if !CURRENT_FILE.is_null() {
+                libc::fclose(CURRENT_FILE);
+            }
+            CURRENT_FILENAME = filename.clone();
+            let c_mode = std::ffi::CString::new("rb").unwrap();
+            let c_name = std::ffi::CString::new(filename.clone()).unwrap();
+            CURRENT_FILE = libc::fopen(c_name.as_ptr(), c_mode.as_ptr());
+            if CURRENT_FILE.is_null() {
+                println!("[GEOMIND FS] Error: Could not open dataset {}", filename);
+                return 0.0;
+            }
+            println!("[GEOMIND FS] Dataset opened successfully. Ready to stream raw binary tokens...");
+        }
+
         let c = &mut *context_ptr;
         let t = &mut *target_ptr;
         let num_tokens = count as usize;
@@ -660,10 +681,11 @@ pub extern "C" fn cartan_file_read_batch(context_ptr: *mut Tensor, target_ptr: *
             buffer.as_mut_ptr() as *mut libc::c_void,
             4,
             read_count + 1,
-            file_ptr as *mut libc::FILE
+            CURRENT_FILE
         );
         
         if items_read < read_count + 1 {
+            libc::fseek(CURRENT_FILE, 0, libc::SEEK_SET); // Loop dataset
             return items_read as f32;
         }
         
@@ -675,10 +697,9 @@ pub extern "C" fn cartan_file_read_batch(context_ptr: *mut Tensor, target_ptr: *
             t_data[i] = buffer[i + 1] as f32;
         }
         
-        libc::fseek(file_ptr as *mut libc::FILE, -4, libc::SEEK_CUR);
-        libc::fflush(std::ptr::null_mut());
+        libc::fseek(CURRENT_FILE, -4, libc::SEEK_CUR);
         
-        read_count as f32
+        return read_count as f32;
     }
 }
 
@@ -830,3 +851,97 @@ pub extern "C" fn cartan_tensor_mse_loss(output_ptr: *mut Tensor, target_ptr: *m
         loss
     }
 }
+#[unsafe(no_mangle)]
+pub extern "C" fn cartan_alloc_sequence(size: i32) -> *mut Tensor {
+    cartan_tensor_alloc(size as u32)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn cartan_detect_hardware() -> f32 {
+    println!("[GPU RUNTIME] Detecting hardware... WGPU backend active.");
+    1.0
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn cartan_get_arg_float(key_ptr: *const std::ffi::c_char, default_val: f32) -> f32 {
+    unsafe {
+        if key_ptr.is_null() { return default_val; }
+        let key = std::ffi::CStr::from_ptr(key_ptr).to_string_lossy().to_string();
+        let mut iter = std::env::args();
+        while let Some(arg) = iter.next() {
+            if arg == key {
+                if let Some(val) = iter.next() {
+                    if let Ok(parsed) = val.parse::<f32>() {
+                        return parsed;
+                    }
+                }
+            }
+        }
+        default_val
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn cartan_get_arg_int(key_ptr: *const std::ffi::c_char, default_val: f32) -> f32 {
+    cartan_get_arg_float(key_ptr, default_val)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn cartan_get_arg_string(key_ptr: *const std::ffi::c_char, default_val: *const std::ffi::c_char) -> *const std::ffi::c_char {
+    unsafe {
+        if key_ptr.is_null() { return default_val; }
+        let key = std::ffi::CStr::from_ptr(key_ptr).to_string_lossy().to_string();
+        let mut iter = std::env::args();
+        while let Some(arg) = iter.next() {
+            if arg == key {
+                if let Some(val) = iter.next() {
+                    let c_str = std::ffi::CString::new(val).unwrap();
+                    return c_str.into_raw();
+                }
+            }
+        }
+        default_val
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn cartan_has_arg(key_ptr: *const std::ffi::c_char) -> f32 {
+    unsafe {
+        if key_ptr.is_null() { return 0.0; }
+        let key = std::ffi::CStr::from_ptr(key_ptr).to_string_lossy().to_string();
+        for arg in std::env::args() {
+            if arg == key {
+                return 1.0;
+            }
+        }
+        0.0
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn cartan_print_string(text_ptr: *const std::ffi::c_char) -> f32 {
+    unsafe {
+        if text_ptr.is_null() { return 0.0; }
+        let text = std::ffi::CStr::from_ptr(text_ptr).to_string_lossy();
+        print!("{}", text);
+        0.0
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn cartan_console_read() -> *const std::ffi::c_char {
+    let mut input = String::new();
+    if std::io::stdin().read_line(&mut input).is_ok() {
+        if let Ok(c_str) = std::ffi::CString::new(input.trim()) {
+            return c_str.into_raw();
+        }
+    }
+    std::ptr::null()
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn cartan_net_fetch_tokens(url_ptr: *const std::ffi::c_char, target_ptr: *mut Tensor) -> f32 {
+    println!("[GPU RUNTIME] Fetching tokens from network not implemented.");
+    0.0
+}
+

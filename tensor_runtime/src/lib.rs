@@ -1303,3 +1303,14 @@ pub extern "C" fn cartan_get_arg_string(key: *const u8, default_val: *const u8) 
     }
     default_val
 }
+
+#[no_mangle]
+pub extern "C" fn cartan_detect_hardware() -> f32 {
+    1.0
+}
+
+#[no_mangle]
+pub extern "C" fn cartan_mount_backend(_id: f32) -> f32 {
+    1.0
+}
+

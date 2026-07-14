@@ -4,7 +4,7 @@
 import "std/net.ctn"
 
 struct WebScraper {
-    var http = HttpStream;
+    var http = HttpStream();
     
     // Ingests raw UTF-8 text from a URL into the tensor buffer
     fn pull_text(url: string) -> float {

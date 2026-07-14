@@ -135,6 +135,18 @@ fn main() {
             match parser.parse() {
                 Ok(mut ast) => {
                     println!("Parser Output: AST successfully generated.");
+                    // println!("{:#?}", ast);
+                    for stmt in &ast {
+                        if let crate::ast::Stmt::FunctionDecl(decl) = stmt {
+                            println!("Found function: {}", decl.name);
+                            if decl.name == "run_causal_pretrain" {
+                                println!("DEBUG AST for run_causal_pretrain:");
+                                for s in &decl.body.statements {
+                                    println!("{:#?}", s);
+                                }
+                            }
+                        }
+                    }
 
                     println!("Running AST Optimizer Pass: Kernel Fusion...");
                     let mut optimizer = KernelFusionPass::new();

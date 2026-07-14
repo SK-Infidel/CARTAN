@@ -6,6 +6,7 @@ extern fn fclose(file_ptr: ptr) -> f32;
 extern fn clock() -> f32;
 
 extern fn cartan_console_read(out_buffer: ptr, max_len: f32) -> f32;
+extern fn cartan_print_string(format: ptr) -> f32;
 
 // The Cartan standard IO library
 
@@ -15,6 +16,6 @@ struct ConsoleStream {
     }
     
     fn print(text: ptr) {
-        printf(text);
+        cartan_print_string(text);
     }
 }

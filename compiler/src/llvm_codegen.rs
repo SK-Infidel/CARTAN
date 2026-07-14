@@ -555,7 +555,35 @@ declare i32 @strcmp(ptr, ptr)\n");
             Stmt::Expr(expr) => {
                 self.visit_expr(expr);
             },
-            Stmt::TensorDecl { name: _, shape: _, manifold: _, location: _, backend: _, layout: _ } => {}
+            Stmt::TensorDecl { name, shape, manifold: _, location: _, backend: _, layout: _ } => {
+                  let res_reg = self.next_reg();
+                  if shape.len() > 1 && shape.len() <= 4 {
+                      let mut dims = [1; 4];
+                      for (idx, dim) in shape.iter().enumerate() {
+                          if let Expr::Integer(val) = dim {
+                              dims[idx] = *val as i32;
+                          }
+                      }
+                      self.output.push_str(&format!(
+                          "  {} = call ptr @cartan_tensor_alloc_nd(i32 {}, i32 {}, i32 {}, i32 {}, i32 {})\n",
+                          res_reg, shape.len(), dims[0], dims[1], dims[2], dims[3]
+                      ));
+                  } else {
+                      let mut num_elems = 1;
+                      for dim in shape {
+                          if let Expr::Integer(val) = dim {
+                              num_elems *= *val as i32;
+                          }
+                      }
+                      self.output.push_str(&format!("  {} = call ptr @cartan_tensor_alloc(i32 {})\n", res_reg, num_elems));
+                  }
+                  
+                  let ptr_reg = self.next_reg();
+                  self.output.push_str(&format!("  {} = alloca ptr, align 8\n", ptr_reg));
+                  self.output.push_str(&format!("  store ptr {}, ptr {}, align 8\n", res_reg, ptr_reg));
+                  self.symbols.insert(name.clone(), ptr_reg);
+                  self.var_types.insert(name.clone(), "ptr".to_string());
+              },
             Stmt::SequenceDecl { name, max_len } => {
                 let mut size = 1;
                 if let Expr::Integer(val) = max_len { size = *val as i32; }
@@ -565,6 +593,7 @@ declare i32 @strcmp(ptr, ptr)\n");
                 self.output.push_str(&format!("  {} = alloca ptr, align 8\n", ptr_reg));
                 self.output.push_str(&format!("  store ptr {}, ptr {}, align 8\n", res_reg, ptr_reg));
                 self.symbols.insert(name.clone(), ptr_reg);
+                self.var_types.insert(name.clone(), "ptr".to_string());
             },
             Stmt::BlockDecl { name, size: block_size } => {
                 let mut size = 1;
@@ -575,6 +604,7 @@ declare i32 @strcmp(ptr, ptr)\n");
                 self.output.push_str(&format!("  {} = alloca ptr, align 8\n", ptr_reg));
                 self.output.push_str(&format!("  store ptr {}, ptr {}, align 8\n", res_reg, ptr_reg));
                 self.symbols.insert(name.clone(), ptr_reg);
+                self.var_types.insert(name.clone(), "ptr".to_string());
             },
             Stmt::ParameterDecl { name, shape, manifold, location: _, backend: _, layout: _, optimizer } => {
                 let mut alloc_fn = "cartan_tensor_alloc";
