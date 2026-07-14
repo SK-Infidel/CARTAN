@@ -1,0 +1,13 @@
+﻿// std/net.ctn
+// Native networking standard library for CARTAN
+
+struct HttpStream {
+    var max_buffer_size = 1048576.0;
+    var content = tensor[1048576]; 
+    
+    fn fetch(url: string) -> float {
+        // Native C-ABI hook to Rust tensor_runtime
+        var bytes_read = cartan_net_fetch_tokens(url, content);
+        return bytes_read;
+    }
+}

@@ -1,0 +1,119 @@
+// CARTAN V0.1.1 SYSTEMS ARCHITECTURE - EXHAUSTIVE TEST SUITE
+
+print("==========================================");
+print("   CARTAN EXHAUSTIVE PROTOTYPE TEST       ");
+print("==========================================");
+
+// --- 1. CORE LOGIC & RECURSION ---
+print("\n[1/7] Testing Core Logic & Recursion (Fibonacci)");
+fn fib(n) {
+    if (n <= 1) {
+        return n;
+    }
+    return fib(n - 1) + fib(n - 2);
+}
+var fib_res = fib(7);
+print("Fibonacci(7) expected 13, got:");
+print(fib_res);
+
+// --- 2. BITWISE FLAGS & COMPOUND ASSIGNMENT ---
+print("\n[2/7] Testing Bitwise Logic & Compound Mutations");
+var flags = 0b1010; // 10
+// (Skipping |= since we only implemented +=, -=, *=, /= for math)
+var mask = 0xFF; // 255
+var bit_res = mask & 0b1010; // 10
+print("Bitwise AND (255 & 10):");
+print(bit_res);
+
+var counter = 10;
+counter += 5;
+counter *= 2;
+counter /= 3;
+print("Compound Math ( ((10+5)*2)/3 ):");
+print(counter); // Should be 10.0
+
+
+// --- 3. HARDWARE DECORATORS & GEOMETRY ---
+print("\n[3/7] Testing Hardware & Geometry Primitives");
+struct HyperbolicSpace { const curvature = -1.0; }
+var edge_tensor = tensor[2, 2] in HyperbolicSpace @location("sram");
+print("Tensor successfully bound to hardware location:");
+// Our prototype just stores these loosely
+print(edge_tensor);
+
+
+// --- 4. EXPLICIT BORROWS & AUTOGRAD (THE BIG TEST) ---
+print("\n[4/7] Testing Autograd & Explicit Pointers (&mut)");
+
+struct SGDOptimizer {
+    var lr = 0.1;
+    
+    // Explicit pointer guarantees zero-allocation mutation
+    fn step(&mut w: tensor) {
+        var grad = w.grad;
+        w -= (grad * lr);
+    }
+}
+
+var w = tensor[2, 2] @location("hbm"); // Filled with 1.0
+// Math operation to build computational graph
+var loss = w * 2.0;
+
+print("Initial Weights (1.0):");
+print(w);
+print("Loss (w * 2.0):");
+print(loss);
+
+// Trigger backpropagation natively
+backward(loss);
+print("Gradients (dLoss/dw = 2.0):");
+print(w.grad);
+
+// Optimize in-place
+var opt = SGDOptimizer();
+opt.step(w);
+print("Weights after &mut step (1.0 - (2.0 * 0.1) = 0.8):");
+print(w);
+
+
+// --- 5. ERROR HANDLING (TRY / CATCH) ---
+print("\n[5/7] Testing Error Isolation (Try/Catch)");
+var error_caught = false;
+try {
+    throw "Fatal Memory Fault simulated!";
+    print("THIS SHOULD NOT PRINT");
+} catch (e) {
+    print("Caught Native Exception:");
+    print(e);
+    error_caught = true;
+}
+
+
+// --- 6. STANDARD LIBRARY (ARRAYS & DICTS) ---
+print("\n[6/7] Testing Native Arrays & Dictionaries");
+var data = {
+    "model": "Cartan-v1",
+    "params": [10, 20, 30]
+};
+
+var p_arr = data["params"];
+p_arr.push(40);
+print("Popped from array (Expected 40):");
+print(p_arr.pop());
+print("Array length (Expected 3):");
+print(p_arr.length());
+
+print("String split:");
+var txt = "Deep Learning Engine";
+print(txt.split(" "));
+
+
+// --- 7. MATH LIBRARY ---
+print("\n[7/7] Testing Global Math Lib");
+var p = Math.pow(2.0, 4.0);
+print("Math.pow(2.0, 4.0) expected 16:");
+print(p);
+
+print("\n==========================================");
+print("   ALL TESTS EXECUTED SUCCESSFULLY        ");
+print("==========================================");

@@ -1,0 +1,16 @@
+// optimizer.ctn
+// This acts as a header/module to demonstrate isolated data structures
+
+struct SGDOptimizer {
+    var lr = 0.01;
+    
+    fn step(weights) {
+        // We use native property access to read the gradient
+        weights = weights - (weights.grad * lr);
+        
+        // Zero out for the next pass
+        zero_grad(weights);
+        
+        return weights;
+    }
+}

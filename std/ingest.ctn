@@ -1,0 +1,14 @@
+// std/ingest.ctn
+// Native ingestion template libraries for CARTAN
+
+import "std/net.ctn"
+
+struct WebScraper {
+    var http = HttpStream;
+    
+    // Ingests raw UTF-8 text from a URL into the tensor buffer
+    fn pull_text(url: string) -> float {
+        var bytes_read = http.fetch(url);
+        return bytes_read;
+    }
+}

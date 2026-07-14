@@ -1,0 +1,21 @@
+import "std/io.ctn";
+
+printf("=========================================\n");
+printf("[Test] Starting Native Array Test\n");
+printf("=========================================\n");
+
+// 1. Array Allocation and Indexing
+var my_array = [1.5, 2.5, 3.5, 4.5];
+
+// Read from array
+var val1 = my_array[0];
+var val2 = my_array[2];
+
+printf("[Test] Array Allocation Successful!\n");
+
+// In Cartan, assigning to an index:
+var data = val1 + val2;
+my_array[1] = data;
+
+printf("[Test] Array Index Mutation Successful!\n");
+printf("=========================================\n");

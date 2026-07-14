@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "module": "Node16",
+    "target": "es2022",
+    "outDir": "out",
+    "lib": ["es2022", "dom"],
+    "sourceMap": true,
+    "rootDir": "src",
+    "strict": false,
+    "moduleResolution": "Node16",
+    "types": ["node"]
+  },
+  "exclude": ["node_modules", ".vscode-test"]
+}

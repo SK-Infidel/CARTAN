@@ -1,0 +1,27 @@
+{
+  "Tensor Forward Pass": {
+    "prefix": "fnfor",
+    "body": [
+      "fn forward<${1:B}: int>(x: tensor[${1:B}, ${2:512}], w: tensor[${2:512}, ${3:128}]) -> tensor[${1:B}, ${3:128}] {",
+      "    return x @ w;",
+      "}"
+    ],
+    "description": "Boilerplate for a shape-safe symbolic forward pass"
+  },
+  "Tensor Declaration": {
+    "prefix": "tensor",
+    "body": [
+      "var ${1:weights} = tensor[${2:512}, ${3:128}] under ${4|fp16,bf16,int8,fp32|} @location(\"${5|sram,hbm,dram,analog|}\");"
+    ],
+    "description": "Declare an Cartan tensor with precision and hardware location"
+  },
+  "Struct Scope": {
+    "prefix": "struct",
+    "body": [
+      "struct ${1:Model} {",
+      "    ${2:// Declare tensors here}",
+      "}"
+    ],
+    "description": "Define an isolated memory structure"
+  }
+}

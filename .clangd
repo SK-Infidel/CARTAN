@@ -1,0 +1,6 @@
+If:
+  PathMatch: .*\.py
+Diagnostics:
+  Suppress: "*"
+CompileFlags:
+  Remove: [-*]

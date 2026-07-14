@@ -1,0 +1,29 @@
+extern fn malloc();
+extern fn free();
+extern fn printf();
+
+fn test_malloc() {
+    var size = 10.0;
+    // malloc expects size in bytes, Cartan floats are 4 bytes. So we want 10 * 4 = 40 bytes.
+    var arr = malloc(size * 4.0);
+    
+    // Store values
+    var i = 0.0;
+    while (i < size) {
+        arr[i] = i * i;
+        i = i + 1.0;
+    }
+    
+    // Read and print values
+    var j = 0.0;
+    while (j < size) {
+        var val = arr[j];
+        printf("arr[%f] = %f\n", j, val);
+        j = j + 1.0;
+    }
+    
+    free(arr);
+    printf("Memory freed!\n");
+}
+
+test_malloc();

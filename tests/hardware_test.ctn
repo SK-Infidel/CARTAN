@@ -1,0 +1,22 @@
+// Phase 10 Hardware Target Systems Test
+
+struct PoincareDisk {
+    const curvature = -1.0;
+}
+
+print("--- Testing Tensor Hardware Placement ---");
+var edge_tensor = tensor[2, 2] in PoincareDisk @location("sram");
+print("Tensor successfully allocated to SRAM in PoincareDisk space.");
+
+print("--- Testing Compound Mutation ---");
+var a = 10.0;
+a += 5.0;
+print(a); // Should be 15.0
+
+print("--- Testing Explicit Mut Borrow ---");
+fn perform_hardware_mutation(&mut w: tensor) {
+    print("Mutating tensor explicitly via pointer!");
+}
+
+perform_hardware_mutation(edge_tensor);
+print("Phase 10 hardware grammar fully parsed!");

@@ -1,0 +1,10 @@
+{
+    "C_Cpp.intelliSenseEngine": "disabled",
+    "files.associations": {
+        "*.py": "python"
+    },
+    "rust-analyzer.check.extraArgs": [
+        "--target-dir",
+        "target_ra"
+    ]
+}

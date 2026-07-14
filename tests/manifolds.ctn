@@ -1,0 +1,23 @@
+fn main() {
+    print("Testing Euclidean, Minkowski, and Poincare Contractions...");
+
+    // 1. Standard Euclidean Contraction
+    tensor W_euclidean[4, 4] in Euclidean;
+    tensor X_euclidean[4, 4] in Euclidean;
+    tensor Y_euclidean[4, 4] in Euclidean;
+    Y_euclidean = W_euclidean @ X_euclidean;
+    
+    // 2. Minkowski (Lorentzian) Contraction
+    tensor W_minkowski[4, 4] in Minkowski;
+    tensor X_minkowski[4, 4] in Minkowski;
+    tensor Y_minkowski[4, 4] in Minkowski;
+    Y_minkowski = W_minkowski @ X_minkowski;
+    
+    // 3. Poincare Disk (Hyperbolic) Contraction
+    tensor W_poincare[4, 4] in PoincareDisk;
+    tensor X_poincare[4, 4] in PoincareDisk;
+    tensor Y_poincare[4, 4] in PoincareDisk;
+    Y_poincare = W_poincare @ X_poincare;
+    
+    print("All manifold typestates compiled successfully!");
+}

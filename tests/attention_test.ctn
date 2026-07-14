@@ -1,0 +1,13 @@
+fn test_attention() {
+    // 1. Dual-Manifestation Memory backed by NVMe
+    tensor graph_memory [1000, 1000] in Euclidean backed_by nvme;
+    
+    // 2. Sieving Cache Initialization
+    let cache = SievingCache;
+    
+    // 3. Fractal Attention Block Initialization
+    let fractal = FractalAttentionBlock;
+    
+    // 4. Dynamic Spotlight Routing
+    let q = @attention(routing="spotlight") graph_memory;
+}

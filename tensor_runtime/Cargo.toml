@@ -1,0 +1,14 @@
+[package]
+name = "tensor_runtime"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+libc = "0.2"
+matrixmultiply = { version = "0.3.10", features = ["threading"] }
+rayon = "1.12.0"
+ureq = "3.3.0"
+
+[lib]
+name = "cartan_tensor"
+crate-type = ["staticlib"]

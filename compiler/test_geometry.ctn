@@ -1,0 +1,23 @@
+// Test defining custom geometric boundaries
+manifold Finsler_Randers_Sasaki {
+    fn metric(x: ptr, y: ptr, v: ptr) {
+        var alpha = 1.0;
+        var beta = 0.5;
+        return alpha + beta;
+    }
+
+    fn inverse_metric(grad: ptr, x: ptr) {
+        var scale = 2.0;
+        return grad * scale;
+    }
+}
+
+topology GeoMind_Architecture {
+    stream 0: Finsler_Randers_Sasaki;
+
+    fn aggregate(streams: ptr) {
+        return 0.0;
+    }
+}
+
+tensor network_state[8, 256, 248] in GeoMind_Architecture;

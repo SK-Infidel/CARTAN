@@ -1,0 +1,3 @@
+var a = 5.0;
+var b = 10.0;
+var result = a + b;

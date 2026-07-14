@@ -1,0 +1,11 @@
+@agent_accessible
+fn test_sprint20() {
+    // Repo-Level Reasoning
+    let codebase_graph = Cartan.reflect_repo();
+    
+    let current_graph = tensor[1024, 1024];
+    let new_graph = tensor[2048, 2048];
+    
+    // Hot-Swap Sandbox Safety
+    Cartan.hot_swap(current_graph, new_graph);
+}

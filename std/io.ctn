@@ -1,0 +1,20 @@
+extern fn printf(format: ptr) -> f32;
+extern fn fopen(filename: ptr, mode: ptr) -> ptr;
+extern fn fread(buffer: ptr, size: f32, count: f32, file_ptr: ptr) -> f32;
+extern fn fseek(file_ptr: ptr, offset: f32, origin: f32) -> f32;
+extern fn fclose(file_ptr: ptr) -> f32;
+extern fn clock() -> f32;
+
+extern fn cartan_console_read(out_buffer: ptr, max_len: f32) -> f32;
+
+// The Cartan standard IO library
+
+struct ConsoleStream {
+    fn read_line(buffer: ptr, max_len: f32) -> f32 {
+        return cartan_console_read(buffer, max_len);
+    }
+    
+    fn print(text: ptr) {
+        printf(text);
+    }
+}

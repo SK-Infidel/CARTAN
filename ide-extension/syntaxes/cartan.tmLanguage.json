@@ -1,0 +1,99 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Cartan",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#types"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#decorators"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "begin": "/\\*",
+          "end": "\\*/",
+          "name": "comment.block.ctn"
+        },
+        {
+          "match": "//.*$",
+          "name": "comment.line.double-slash.ctn"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "match": "\\b(fn|var|const|return|struct|import|in|under)\\b",
+          "name": "keyword.control.ctn"
+        },
+        {
+          "match": "\\b(if|else|while|for|break|continue|try|catch|throw)\\b",
+          "name": "keyword.control.flow.ctn"
+        },
+        {
+          "match": "\\b(true|false)\\b",
+          "name": "constant.language.boolean.ctn"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "match": "\\b(tensor|stream|int|float|bool|string|fp16|fp32|bf16|int8)\\b",
+          "name": "support.type.ctn"
+        },
+        {
+          "match": "\\b(PoincaréDisk|Minkowski)\\b",
+          "name": "support.class.ctn"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "begin": "\"",
+          "end": "\"",
+          "name": "string.quoted.double.ctn",
+          "patterns": [
+            {
+              "match": "\\\\.",
+              "name": "constant.character.escape.ctn"
+            }
+          ]
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "match": "(@|\\+|-|\\*|/|%|==|!=|>|<|>=|<=|&&|\\|\\||!|&mut|&)",
+          "name": "keyword.operator.ctn"
+        }
+      ]
+    },
+    "decorators": {
+      "patterns": [
+        {
+          "match": "@(location)\\b",
+          "name": "entity.name.function.decorator.ctn"
+        }
+      ]
+    }
+  },
+  "scopeName": "source.ctn"
+}

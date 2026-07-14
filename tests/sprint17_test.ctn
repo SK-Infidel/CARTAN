@@ -1,0 +1,8 @@
+fn test_sprint17() {
+    let audio = stream[pcm_16khz]("microphone://0");
+    let video = stream[rgba, 60fps]("camera://0");
+    let text  = stream[utf8]("network://socket");
+    
+    let vocab = ElasticVocabulary();
+    let embedded_text = Cartan.lex_and_embed(text);
+}

@@ -1,0 +1,58 @@
+﻿            Stmt::Match { condition, arms } => {
+                let cond_reg = self.visit_expr(condition).unwrap_or("0.0".to_string());
+                let is_cond_ptr = cond_reg.starts_with("ptr:") || cond_reg.starts_with("string:");
+                let clean_cond = cond_reg.split(':').last().unwrap_or(&cond_reg).to_string();
+                
+                let end_label = self.next_label("match_end_");
+                
+                for (pattern_opt, body) in arms {
+                    let arm_label = self.next_label("match_arm_");
+                    let next_label = self.next_label("match_next_");
+                    
+                    if let Some(pattern) = pattern_opt {
+                        let pat_reg = self.visit_expr(pattern).unwrap_or("0.0".to_string());
+                        let is_pat_ptr = pat_reg.starts_with("ptr:") || pat_reg.starts_with("string:");
+                        let clean_pat = pat_reg.split(':').last().unwrap_or(&pat_reg).to_string();
+                        
+                        let cond_bool = self.next_reg();
+                        if is_cond_ptr && is_pat_ptr {
+                            let cmp_res = self.next_reg();
+                            self.output.push_str(&format!("  {} = call i32 @strcmp(ptr {}, ptr {})\n", cmp_res, clean_cond, clean_pat));
+                            self.output.push_str(&format!("  {} = icmp eq i32 {}, 0\n", cond_bool, cmp_res));
+                        } else {
+                            // Float comparison
+                            let cond_f = if is_cond_ptr {
+                                let t1 = self.next_reg();
+                                let t2 = self.next_reg();
+                                self.output.push_str(&format!("  {} = ptrtoint ptr {} to i64\n", t1, clean_cond));
+                                self.output.push_str(&format!("  {} = sitofp i64 {} to float\n", t2, t1));
+                                t2
+                            } else { clean_cond.clone() };
+                            
+                            let pat_f = if is_pat_ptr {
+                                let t1 = self.next_reg();
+                                let t2 = self.next_reg();
+                                self.output.push_str(&format!("  {} = ptrtoint ptr {} to i64\n", t1, clean_pat));
+                                self.output.push_str(&format!("  {} = sitofp i64 {} to float\n", t2, t1));
+                                t2
+                            } else { clean_pat.clone() };
+                            
+                            self.output.push_str(&format!("  {} = fcmp oeq float {}, {}\n", cond_bool, cond_f, pat_f));
+                        }
+                        
+                        self.output.push_str(&format!("  br i1 {}, label %{}, label %{}\n", cond_bool, arm_label, next_label));
+                    } else {
+                        // Wildcard fallback
+                        self.output.push_str(&format!("  br label %{}\n", arm_label));
+                    }
+                    
+                    self.output.push_str(&format!("{}:\n", arm_label));
+                    self.visit_stmt(body);
+                    self.output.push_str(&format!("  br label %{}\n", end_label));
+                    
+                    self.output.push_str(&format!("{}:\n", next_label));
+                }
+                
+                self.output.push_str(&format!("  br label %{}\n", end_label));
+                self.output.push_str(&format!("{}:\n", end_label));
+            },

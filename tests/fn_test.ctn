@@ -1,0 +1,5 @@
+fn forward<B: int>(x: &tensor, w: &mut tensor) -> tensor {
+    tensor local_w[128, 64];
+    tensor local_x[64, 32];
+    local_w @ local_x;
+}

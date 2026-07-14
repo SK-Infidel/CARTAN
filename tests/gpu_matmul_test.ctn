@@ -1,0 +1,3 @@
+var A = tensor[2, 2];
+var B = tensor[2, 2];
+var C = A * B;

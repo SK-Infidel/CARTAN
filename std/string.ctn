@@ -1,0 +1,53 @@
+fn str_len(s: ptr) -> float {
+    var len = 0;
+    while (1) {
+        var char = s[len];
+        if (char == 0.0) {
+            break;
+        }
+        len = len + 1;
+    }
+    return len;
+}
+
+fn str_cmp(s1: ptr, s2: ptr) -> float {
+    var i = 0;
+    while (1) {
+        var c1 = s1[i];
+        var c2 = s2[i];
+        
+        if (c1 != c2) {
+            return 0.0;
+        }
+        
+        if (c1 == 0.0) {
+            break;
+        }
+        
+        i = i + 1;
+    }
+    return 1.0;
+}
+
+fn str_match_at(text: ptr, vocab: ptr, start_idx: float) -> float {
+    var i = 0;
+    while (1) {
+        var v_char = vocab[i];
+        
+        // If we reached the end of the vocab string, it's a full match!
+        if (v_char == 0.0) {
+            return 1.0;
+        }
+        
+        // Compare with the text character at start_idx + i
+        var t_char = text[start_idx + i];
+        
+        // If characters don't match, or text ended early, it's not a match
+        if (t_char != v_char) {
+            return 0.0;
+        }
+        
+        i = i + 1;
+    }
+    return 0.0;
+}

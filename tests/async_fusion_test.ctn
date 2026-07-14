@@ -1,0 +1,12 @@
+fn main() {
+    tensor weights[128, 128];
+    tensor bias[128];
+    tensor input[128];
+
+    async_compute {
+        let a = input @ weights;
+        // Math operations below will be fused by the AST optimizer
+        let b = a + bias;
+        let activation = b * 0.5 + b * b / 2.0;
+    }
+}

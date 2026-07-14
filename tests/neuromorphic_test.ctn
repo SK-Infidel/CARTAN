@@ -1,0 +1,6 @@
+fn test_neuromorphic() {
+    let s = spike;
+    let n = neuron;
+    
+    emit spike(s);
+}

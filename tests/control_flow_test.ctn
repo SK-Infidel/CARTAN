@@ -1,0 +1,22 @@
+var tensor_a = tensor[1, 1];
+var tensor_b = tensor[1, 1];
+
+tensor_a[0] = 5.0;
+tensor_b[0] = 10.0;
+
+if (tensor_a < tensor_b) {
+    tensor_a[0] = 100.0;
+} else {
+    tensor_a[0] = 0.0;
+}
+
+var counter = tensor[1, 1];
+counter[0] = 0.0;
+var max_count = tensor[1, 1];
+max_count[0] = 5.0;
+
+while (counter < max_count) {
+    var step = tensor[1, 1];
+    step[0] = 1.0;
+    counter = counter + step;
+}

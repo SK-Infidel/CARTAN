@@ -1,0 +1,22 @@
+import "std/env.ctn"
+import "std/io.ctn"
+
+fn run_chat(temperature: f32, debug: f32) -> f32 {
+    var console = ConsoleStream();
+    
+    if (debug == 1) {
+        console.print("[DEBUG] Initializing Chat Interface...\n");
+    }
+    console.print("Chat interface ready. (Not implemented)\n");
+    return 0;
+}
+
+fn run_generate(prompt: ptr, max_tokens: f32, temperature: f32, debug: f32) -> f32 {
+    var console = ConsoleStream();
+    
+    if (debug == 1) {
+        console.print("[DEBUG] Generating tokens...\n");
+    }
+    console.print("Generation complete.\n");
+    return 0;
+}

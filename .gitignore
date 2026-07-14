@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+
+# Rust build artifacts
+/compiler/target/
+/compiler/target_cli/
+/compiler/target_ra/
+/compiler_temp/
+/runtime/zig-cache/
+/runtime/zig-out/
+zig-windows-x86_64-0.13.0/
+compiler/target/

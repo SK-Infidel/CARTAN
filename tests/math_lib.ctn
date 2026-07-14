@@ -1,0 +1,5 @@
+fn add(a: float, b: float): float {
+    return a + b;
+}
+
+const PI: float = 3.14159;

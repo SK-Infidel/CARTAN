@@ -1,0 +1,11 @@
+@agent_accessible
+fn test_agentic_os() {
+    let repo_graph = Cartan.reflect_repo();
+    let new_architecture = 1.0;
+    
+    try {
+        Cartan.hot_swap(repo_graph, new_architecture);
+    } catch (err) {
+        let b = 1;
+    }
+}

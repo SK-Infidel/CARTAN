@@ -1,0 +1,13 @@
+fn test_sprint15() {
+    // 1. Dual-manifestation Memory
+    tensor kg[1024, 1024] in Euclidean @backend("NVMe");
+    
+    // 2. Sieving cache
+    let cache = SievingCache();
+    
+    // 3. Fractal Attention
+    let fractal = FractalAttentionBlock();
+    
+    // 4. Spotlight routing
+    let output = @attention(routing="spotlight") Cartan.matmul(cache, fractal);
+}

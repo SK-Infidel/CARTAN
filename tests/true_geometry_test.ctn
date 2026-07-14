@@ -1,0 +1,46 @@
+// Phase 12: True Differential Geometry Test
+
+struct Minkowski { }
+struct PoincareDisk { const curvature = -1.0; }
+
+print("--- 1. Testing True Minkowski Metric Tensor ---");
+var minkowski_weights = tensor[2, 2] in Minkowski;
+// Row 0
+minkowski_weights[0] = 1.0; minkowski_weights[1] = 2.0;
+// Row 1
+minkowski_weights[2] = 3.0; minkowski_weights[3] = 4.0;
+
+var x = tensor[2, 2];
+// Col 0
+x[0] = 1.0; x[2] = 2.0;
+// Col 1
+x[1] = 0.0; x[3] = 0.0;
+
+// Minkowski dot product: g_00 = -1, g_11 = 1
+// Row 0: -(1.0 * 1.0) + (2.0 * 2.0) = -1.0 + 4.0 = 3.0
+// Row 1: -(3.0 * 1.0) + (4.0 * 2.0) = -3.0 + 8.0 = 5.0
+var res_minkowski = minkowski_weights @ x;
+print("Minkowski Result (Expected 3.0 and 5.0 in Col 0):");
+print(res_minkowski);
+
+
+print("\n--- 2. Testing True Möbius Math (Poincaré Ball) ---");
+var poincare_weights = tensor[2, 2] in PoincareDisk;
+poincare_weights[0] = 0.5; poincare_weights[1] = 0.5;
+poincare_weights[2] = 0.5; poincare_weights[3] = 0.5;
+
+var y = tensor[2, 2];
+y[0] = 0.5; y[2] = 0.5;
+y[1] = 0.0; y[3] = 0.0;
+
+// True Möbius multiplication maps via exp_0( M log_0(y) )
+var res_poincare = poincare_weights @ y;
+print("Poincaré Möbius Result:");
+print(res_poincare);
+
+print("\n--- 3. Testing Riemannian Autograd ---");
+backward(res_poincare);
+print("Riemannian Gradients (Scaled by inverse metric tensor):");
+print(poincare_weights.grad);
+
+print("\nALL DIFFERENTIAL GEOMETRY EXECUTED SUCCESSFULLY.");

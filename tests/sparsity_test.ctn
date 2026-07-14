@@ -1,0 +1,13 @@
+fn test_sparsity() {
+    let a = 1.0;
+    
+    under fluid(fp16, int8) {
+        let b = a * 2.0;
+    }
+    
+    with sparsity(16, 0.5) {
+        let c = a * 3.0;
+    }
+    
+    Cartan.prune_graph(0.01);
+}

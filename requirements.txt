@@ -1,0 +1,3 @@
+# Cartan Language Development Dependencies
+# Currently we are 100% pure Python without external ML libraries (no numpy/pytorch)
+pytest>=8.0.0

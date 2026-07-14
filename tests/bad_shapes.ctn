@@ -1,0 +1,6 @@
+// bad_shapes.ctn
+tensor input[batch_size, 512];
+tensor weights[128, 64];
+
+// The Cartan Compiler will mathematically reject this before compilation
+input @ weights;

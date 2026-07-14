@@ -1,0 +1,8 @@
+fn test_geometric() {
+    let t1 = 1.0;
+    let t2 = 2.0;
+
+    let geodesics = Cartan.align_geodesics(t1, t2);
+    let bridge = Cartan.GeometricBridge(t1, t2);
+    let new_weights = Cartan.transpose_weights(t1, t2);
+}

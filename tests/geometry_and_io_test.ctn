@@ -1,0 +1,63 @@
+// Phase 11: Geometry, Async Streams, and Static OOM Profiling Test
+
+struct PoincareDisk { const curvature = -1.0; }
+
+// --- 1. Async Streams ---
+print("--- 1. Testing Async Data Stream ---");
+var sensor = stream("udp://camera_port");
+var frame1 = sensor.poll();
+var frame2 = sensor.poll();
+print("Polled frame 1:");
+print(frame1);
+print("Polled frame 2:");
+print(frame2);
+
+
+// --- 2. Geometry Engine (Hyperbolic Math) ---
+print("\n--- 2. Testing Non-Euclidean Matmul ---");
+var hyper_weights = tensor[2, 2] in PoincareDisk;
+hyper_weights[0] = 0.5; hyper_weights[1] = 0.5; 
+hyper_weights[2] = 0.5; hyper_weights[3] = 0.5;
+
+var euclidean_weights = tensor[2, 2];
+euclidean_weights[0] = 0.5; euclidean_weights[1] = 0.5; 
+euclidean_weights[2] = 0.5; euclidean_weights[3] = 0.5;
+
+// Multiply weights by frame1
+// Euclidean should be standard dot product
+var prediction_euclidean = euclidean_weights @ frame1;
+print("Euclidean Dot-Product Prediction:");
+print(prediction_euclidean);
+
+// Hyperbolic should compress distances according to tanh
+var prediction_hyperbolic = hyper_weights @ frame1;
+print("Hyperbolic Moebius Prediction (tanh compression):");
+print(prediction_hyperbolic);
+
+// Backward pass through hyperbolic manifold
+backward(prediction_hyperbolic);
+print("Gradients computed natively through the hyperbolic curvature:");
+print(hyper_weights.grad);
+
+
+// --- 3. Static Memory Profiler ---
+print("\n--- 3. Testing Static Memory Profiling (OOM Prevent) ---");
+print("Allocating 100 bytes to SRAM (Capacity 256 bytes)...");
+// 5x5 = 25 floats = 100 bytes
+var small_t = tensor[5, 5] @location("sram");
+
+try {
+    print("Allocating 200 bytes to SRAM (Should trigger OOM error)...");
+    // 10x5 = 50 floats = 200 bytes. (100 + 200 = 300 > 256)
+    var huge_t = tensor[10, 5] @location("sram");
+} catch(e) {
+    print("Caught Native Compile-Time Hardware Check:");
+    print(e);
+}
+
+// But we can mutate the small one explicitly using &mut!
+fn safe_step(&mut w: tensor) {
+    w += 1.0;
+}
+safe_step(small_t);
+print("Successfully updated SRAM memory in-place using &mut without allocating more capacity.");

@@ -1,0 +1,10 @@
+
+parameter[Adam] input[16, 16];
+parameter[Adam] weights[16, 16];
+
+var h1 = input * weights;
+var h2 = h1 + input;
+var h3 = h2 - weights;
+
+backward h3;
+

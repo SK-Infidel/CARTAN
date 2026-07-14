@@ -1,0 +1,12 @@
+fn main() {
+    let a = 2.0;
+    let b = 3.0;
+    
+    // Forward graph
+    let c = a * b;
+    let d = c + 4.0;
+    let loss = d * 5.0;
+    
+    // Triggers compile-time static backward pass generation
+    backward loss;
+}

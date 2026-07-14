@@ -1,0 +1,9 @@
+fn test_fusion() {
+    let x = 1.0;
+    
+    // MethodCall chain
+    let y = x.relu().dropout().layernorm();
+    
+    // FunctionCall chain mixed with binary op
+    let z = Cartan.sigmoid(Cartan.gelu(y)) + Cartan.tanh(x);
+}

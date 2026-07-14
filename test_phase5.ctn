@@ -1,0 +1,7 @@
+tensor LocalWeight[4096, 4096] in Euclidean;
+tensor ProjMat[32000, 50000] in Euclidean;
+
+fn main() {
+    absorb_layer_weights("donor_llama_layer.safetensors", LocalWeight);
+    align_spans("llama_vocab.json", "geomind_vocab.json", ProjMat);
+}

@@ -1,0 +1,6 @@
+struct PoincareDisk { const curvature = -1.0; }
+
+fn hyperbolic_step(x: &tensor) -> tensor {
+    var w = tensor[512, 128] in PoincareDisk;
+    return x @ w; // The compiler marks this MATMUL as non-Euclidean!
+}

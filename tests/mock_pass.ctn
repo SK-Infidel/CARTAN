@@ -1,0 +1,24 @@
+import "std/io.ctn";
+
+printf("=========================================\n");
+printf("[Test] Starting Mock Forward/Backward Pass\n");
+printf("=========================================\n");
+
+// 1. Initialize Network State
+var w1 = 0.5;
+var w2 = 1.2;
+var input = 3.0;
+
+// 2. Mock Forward Pass
+printf("[Test] Executing Forward Pass...\n");
+var hidden = w1 * input;
+var output = w2 * hidden;
+
+printf("[Test] Forward Output Computed successfully!\n");
+
+// 3. Mock Backward Pass
+// Cartan has a native `backward` block/keyword for auto-diff
+backward output;
+
+printf("[Test] Backward Gradients Computed successfully!\n");
+printf("=========================================\n");

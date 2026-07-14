@@ -1,0 +1,12 @@
+fn test_modalities() {
+    // Dynamic modality stream
+    let vision_stream = stream[rgba, 60fps]("rtsp://camera1");
+    let text_stream = stream[utf8]("tcp://localhost:9000");
+
+    // Elastic Vocabulary
+    let vocab = ElasticVocabulary;
+
+    // Hard-Lexing and Embedding
+    let text = "Hello Cartan";
+    let embedded = Cartan.lex_and_embed(text);
+}

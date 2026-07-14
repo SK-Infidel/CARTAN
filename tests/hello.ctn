@@ -1,0 +1,14 @@
+// hello.ctn
+var x = 10;
+var y = 20;
+var z = x + y * 2;
+
+// Matrix operations
+var a = tensor[2, 3];
+var b = tensor[3, 2];
+
+// Matmul
+var c = a @ b;
+
+// Element-wise scalar math
+var d = c * 2;

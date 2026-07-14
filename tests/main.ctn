@@ -1,0 +1,4 @@
+// main.ctn - The first official Cartan program!
+tensor W[batch_size, 128];
+tensor X[128, 64];
+W @ X;

@@ -1,0 +1,3 @@
+var sensor = stream("udp://camera_port");
+var frame1 = sensor.poll();
+var frame2 = sensor.poll();

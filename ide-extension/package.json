@@ -1,0 +1,59 @@
+{
+  "name": "cartan-lang",
+  "displayName": "Cartan Language",
+  "description": "Official VS Code Extension for the Cartan Systems Language",
+  "version": "0.2.0",
+  "publisher": "CartanOS",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Snippets"
+  ],
+  "activationEvents": [
+    "onLanguage:cartan"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "cartan",
+        "aliases": [
+          "Cartan",
+          "cartan"
+        ],
+        "extensions": [
+          ".ctn"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "cartan",
+        "scopeName": "source.ctn",
+        "path": "./syntaxes/cartan.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "cartan",
+        "path": "./snippets/cartan.code-snippets"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.80.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^10.1.0"
+  }
+}

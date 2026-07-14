@@ -1,0 +1,55 @@
+// tests/e2e_model.ctn
+
+import "std/env.ctn";
+import "std/io.ctn";
+
+@agent_accessible
+fn trigger_system_action(action_type: ptr, data: float) -> i32 {
+    var console = ConsoleStream();
+    console.print("System Action Triggered: ");
+    console.print(action_type);
+    console.print("\n");
+    return 1;
+}
+
+fn main() -> i32 {
+    var console = ConsoleStream();
+    console.print("Initializing E2E Model...\n");
+
+    // Sequence for causal processing
+    sequence CausalSeq [ 256 ];
+
+    // Geometry Manifold
+    manifold MinkowskiSpace {
+        var metric = [-1.0, 1.0, 1.0, 1.0];
+        var curvature = 0.0;
+    }
+
+    // Parameters inside block
+    block AgentBlock [ 16 ];
+    
+    parameter[Adam] W [ 16, 16 ] in Minkowski;
+    parameter[Adam] B [ 16 ];
+
+    // A stream value simulating what stream we're on
+    var stream_type = "Video";
+
+    // Match statement routing
+    match (stream_type) {
+        "Video" => {
+            console.print("Processing Video Stream...\n");
+        },
+        "Audio" => {
+            console.print("Processing Audio Stream...\n");
+        },
+        _ => {
+            console.print("Processing Default Stream...\n");
+        }
+    }
+
+    console.print("Triggering agent hook...\n");
+    trigger_system_action("LaunchBrowser", 0.0);
+
+    console.print("Done!\n");
+    return 0;
+}

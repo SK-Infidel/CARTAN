@@ -1,0 +1,40 @@
+// Cartan comprehensive test: testing all language features
+
+struct ModelConfig {
+    let d_model = 512;
+    let num_heads = 8;
+}
+
+@agent_accessible
+fn test_everything() {
+    // 1. Tensor declarations with Manifolds and Locations
+    tensor weights[512, 512] in Euclidean @location("HBM0");
+    tensor bias[512] in PoincareDisk;
+
+    // 2. Streams and Modality Fusion
+    let incoming = stream[utf8, audio]("ws://localhost:8000");
+    let raw_data = Cartan.poll(incoming);
+    let embedded = Cartan.lex_and_embed(raw_data);
+
+    // 3. Matrix Math and Arithmetic
+    let activated = Cartan.add(Cartan.matmul(embedded, weights), bias);
+
+    // 4. Attention & Hardware Routing
+    let context = Cartan.attention(activated, activated, activated);
+
+    // 5. Graph Pruning
+    Cartan.prune_graph(weights);
+
+    // 6. Geometric Bridges & Transposition
+    let geodesics = Cartan.align_geodesics(weights, bias);
+    let bridge = Cartan.GeometricBridge(weights, bias);
+    let transposed = Cartan.transpose_weights(weights, bias);
+
+    // 7. Agentic OS & Error Handling
+    let repo = Cartan.reflect_repo();
+    try {
+        Cartan.hot_swap(repo, transposed);
+    } catch (err) {
+        let backup = 1.0;
+    }
+}

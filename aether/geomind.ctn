@@ -1,0 +1,63 @@
+import "std/env.ctn"
+import "std/io.ctn"
+import "aether/causal_pretrain.ctn"
+import "aether/sft.ctn"
+import "aether/inference.ctn"
+
+fn main() -> f32 {
+    var console = ConsoleStream();
+    
+    // Help Command
+    var has_help = cartan_has_arg("help");
+    if (has_help == 1) {
+        console.print("GeoMind Compiler & Runtime\n");
+        console.print("Options:\n");
+        console.print("  --train-causal   Run causal language model pretraining\n");
+        console.print("  --train-sft      Run supervised fine tuning\n");
+        console.print("  --chat           Start interactive chat session\n");
+        console.print("  --generate       Generate text from a prompt\n");
+        console.print("  --debug          Show internal states and tokens\n");
+        console.print("  --show-tokens    Same as --debug\n");
+        return 0;
+    }
+
+    var is_debug = cartan_has_arg("debug");
+    if (is_debug == 1) { console.print("IS_DEBUG is 1 in geomind!\n"); } var show_tokens = cartan_has_arg("show-tokens");
+    if (show_tokens == 1) {
+        is_debug = 1;
+    }
+
+    var train_causal = cartan_has_arg("train-causal");
+    var train_sft = cartan_has_arg("train-sft");
+    var chat = cartan_has_arg("chat");
+    var generate = cartan_has_arg("generate");
+
+    if (train_causal == 1) {
+        var dataset = cartan_get_arg_string("dataset", "default_dataset.bin");
+        var epochs = cartan_get_arg_int("epochs", 1);
+        var seq_len = cartan_get_arg_int("seq_len", 256);
+        var batch_size = cartan_get_arg_int("batch_size", 8);
+        return run_causal_pretrain(dataset, epochs, seq_len, batch_size, is_debug);
+    }
+    
+    if (train_sft == 1) {
+        var dataset = cartan_get_arg_string("dataset", "sft_dataset.bin");
+        var epochs = cartan_get_arg_int("epochs", 1);
+        return run_sft_train(dataset, epochs, is_debug);
+    }
+    
+    if (chat == 1) {
+        var temperature = cartan_get_arg_float("temperature", 0.7);
+        return run_chat(temperature, is_debug);
+    }
+    
+    if (generate == 1) {
+        var prompt = cartan_get_arg_string("prompt", "");
+        var max_tokens = cartan_get_arg_int("max_tokens", 100);
+        var temperature = cartan_get_arg_float("temperature", 0.7);
+        return run_generate(prompt, max_tokens, temperature, is_debug);
+    }
+
+    console.print("Error: No operation specified. Use --help to see available commands.\n");
+    return 1;
+}
