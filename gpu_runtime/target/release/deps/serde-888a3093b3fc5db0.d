@@ -1,0 +1,14 @@
+C:\Users\rich-\source\repos\CARTAN\gpu_runtime\target\release\deps\serde-888a3093b3fc5db0.d: C:\Users\rich-\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs C:\Users\rich-\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs C:\Users\rich-\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs C:\Users\rich-\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs C:\Users\rich-\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs C:\Users\rich-\source\repos\CARTAN\gpu_runtime\target\release\build\serde-0234c45004a78955\out/private.rs
+
+C:\Users\rich-\source\repos\CARTAN\gpu_runtime\target\release\deps\libserde-888a3093b3fc5db0.rlib: C:\Users\rich-\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs C:\Users\rich-\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs C:\Users\rich-\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs C:\Users\rich-\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs C:\Users\rich-\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs C:\Users\rich-\source\repos\CARTAN\gpu_runtime\target\release\build\serde-0234c45004a78955\out/private.rs
+
+C:\Users\rich-\source\repos\CARTAN\gpu_runtime\target\release\deps\libserde-888a3093b3fc5db0.rmeta: C:\Users\rich-\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs C:\Users\rich-\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs C:\Users\rich-\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs C:\Users\rich-\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs C:\Users\rich-\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs C:\Users\rich-\source\repos\CARTAN\gpu_runtime\target\release\build\serde-0234c45004a78955\out/private.rs
+
+C:\Users\rich-\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs:
+C:\Users\rich-\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs:
+C:\Users\rich-\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs:
+C:\Users\rich-\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs:
+C:\Users\rich-\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs:
+C:\Users\rich-\source\repos\CARTAN\gpu_runtime\target\release\build\serde-0234c45004a78955\out/private.rs:
+
+# env-dep:OUT_DIR=C:\\Users\\rich-\\source\\repos\\CARTAN\\gpu_runtime\\target\\release\\build\\serde-0234c45004a78955\\out

@@ -945,3 +945,6 @@ pub extern "C" fn cartan_net_fetch_tokens(url_ptr: *const std::ffi::c_char, targ
     0.0
 }
 
+
+mod safetensors_loader;
+

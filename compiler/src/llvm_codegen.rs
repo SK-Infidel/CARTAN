@@ -845,7 +845,13 @@ declare i32 @strcmp(ptr, ptr)\n");
                 };
                 let struct_type = match &**object {
                     Expr::Identifier(name) => self.var_types.get(name).cloned().unwrap_or("%StructName".to_string()),
-                    _ => "%StructName".to_string(),
+                    _ => {
+                        if obj_reg.starts_with("struct:") {
+                            format!("%{}", obj_reg.split(':').nth(1).unwrap_or("StructName"))
+                        } else {
+                            "%StructName".to_string()
+                        }
+                    }
                 };
                 let struct_name = struct_type.replace("%", "");
                 let field_idx = if let Some(fields) = self.struct_fields.get(&struct_name) {
@@ -860,7 +866,11 @@ declare i32 @strcmp(ptr, ptr)\n");
                 };
                 
                 let elem_ptr = self.next_reg();
-                self.output.push_str(&format!("  {} = getelementptr inbounds {}, ptr {}, i32 0, i32 {}\n", elem_ptr, struct_type, obj_reg, field_idx));
+                let mut clean_obj_reg = obj_reg.clone();
+                if clean_obj_reg.starts_with("struct:") {
+                    clean_obj_reg = clean_obj_reg.split(':').last().unwrap_or(&clean_obj_reg).to_string();
+                }
+                self.output.push_str(&format!("  {} = getelementptr inbounds {}, ptr {}, i32 0, i32 {}\n", elem_ptr, struct_type, clean_obj_reg, field_idx));
                 let val_reg = self.next_reg();
                 if field_type == "ptr" {
                     self.output.push_str(&format!("  {} = load ptr, ptr {}, align 8\n", val_reg, elem_ptr));
