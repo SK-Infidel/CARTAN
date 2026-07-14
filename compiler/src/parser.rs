@@ -405,7 +405,7 @@ impl Parser {
                 let p_type = if self.match_token(&[TokenType::Tensor]) {
                     "tensor".to_string()
                 } else {
-                    match self.consume(TokenType::Identifier("".to_string()), "Expected parameter type")?.token_type.clone() {
+                    println!("Next token: {:?}", self.peek()); match self.consume(TokenType::Identifier("".to_string()), "Expected parameter type")?.token_type.clone() {
                         TokenType::Identifier(s) => s,
                         _ => "tensor".to_string(),
                     }
@@ -484,7 +484,7 @@ impl Parser {
                 } else if self.match_token(&[TokenType::Sequence]) {
                     "sequence".to_string()
                 } else {
-                    match self.consume(TokenType::Identifier("".to_string()), "Expected parameter type")?.token_type.clone() {
+                    println!("Next token: {:?}", self.peek()); match self.consume(TokenType::Identifier("".to_string()), "Expected parameter type")?.token_type.clone() {
                         TokenType::Identifier(s) => s,
                         _ => "tensor".to_string(), // Default or error fallback
                     }

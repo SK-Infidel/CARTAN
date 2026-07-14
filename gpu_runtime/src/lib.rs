@@ -308,7 +308,7 @@ fn init_wgpu() -> GpuContext {
 #[unsafe(no_mangle)]
 pub extern "C" fn cartan_tensor_matmul(a: *mut Tensor, b: *mut Tensor) -> *mut Tensor {
     unsafe {
-        let m = (*a).shape[3];
+        let m = (*a).shape[2];
         let k = (*b).shape[2];
         let n = (*b).shape[3];
         
