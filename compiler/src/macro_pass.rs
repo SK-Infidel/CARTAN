@@ -99,6 +99,13 @@ impl MacroPass {
                 }
                 true
             }
+            (Expr::Quote(w_b), Expr::Quote(p_b)) => {
+                if w_b.statements.len() != p_b.statements.len() { return false; }
+                for (ws, ps) in w_b.statements.iter().zip(p_b.statements.iter()) {
+                    if !self.matches_stmt(ws, ps, bindings) { return false; }
+                }
+                true
+            }
             _ => window == pattern,
         }
     }

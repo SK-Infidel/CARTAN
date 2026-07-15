@@ -78,6 +78,7 @@ pub enum Expr {
     StringLiteral(String),
     Identifier(String),
     Placeholder(String),
+    Quote(BlockStmt),
     UnaryOp {
         op: String,
         right: Box<Expr>,

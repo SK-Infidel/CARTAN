@@ -984,6 +984,9 @@ impl LLVMGenerator {
             Expr::Placeholder(_) => {
                 Some("0.0".to_string())
             },
+            Expr::Quote(_) => {
+                Some("0.0".to_string())
+            },
             Expr::Integer(i) => {
                 Some(format!("{}", i))
             },

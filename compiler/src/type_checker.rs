@@ -358,6 +358,9 @@ impl TypeChecker {
             Expr::Placeholder(_) => {
                 Ok(CartanType::Unknown)
             },
+            Expr::Quote(_) => {
+                Ok(CartanType::Unknown)
+            },
             Expr::Identifier(name) => {
                 if name == "spike" {
                     return Ok(CartanType::Spike);

@@ -1105,6 +1105,11 @@ impl Parser {
             TokenType::StringLiteral(s) => Ok(Expr::StringLiteral(s)),
             TokenType::Identifier(s) => Ok(Expr::Identifier(s)),
             TokenType::Placeholder(s) => Ok(Expr::Placeholder(s)),
+            TokenType::Quote => {
+                self.consume(TokenType::LBrace, "Expected '{' after 'quote'")?;
+                let block = self.block()?;
+                Ok(Expr::Quote(block))
+            },
             _ => Err(Diagnostic::error("Expected expression", token.span)),
         }
     }

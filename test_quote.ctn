@@ -1,0 +1,17 @@
+macro replace_block {
+    pattern {
+        $x = $block;
+    }
+    replace {
+        $block;
+    }
+}
+
+fn main() {
+    let a = 1.0;
+    
+    a = quote {
+        a = a + 1.0;
+        a = a * 2.0;
+    };
+}

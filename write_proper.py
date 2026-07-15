@@ -1,0 +1,6 @@
+﻿import base64
+
+content = b'bWFjcm8gcmVwbGFjZV9ibG9jayB7CiAgICBwYXR0ZXJuIHsKICAgICAgICAkeCA9ICRibG9jazsKICAgIH0KICAgIHJlcGxhY2UgewogICAgICAgICRibG9jazsKICAgIH0KfQoKZm4gbWFpbigpIHsKICAgIGxldCBhID0gMS4wOwogICAgCiAgICBhID0gcXVvdGUgewogICAgICAgIGEgPSBhICsgMS4wOwogICAgICAgIGEgPSBhICogMi4wOwogICAgfTsKfQo='
+
+with open('test_quote.ctn', 'wb') as f:
+    f.write(base64.b64decode(content))

@@ -20,7 +20,7 @@ pub enum TokenType {
     Match, // match
     FatArrow, // =>
     Return, Break, Continue, Try, Catch, Throw, Import, In,
-    AsyncCompute, Backward, Macro, Pattern, Replace,
+    AsyncCompute, Backward, Macro, Pattern, Replace, Quote,
     BackedBy, // backed_by
     Attention, // @attention
     SievingCache, // SievingCache

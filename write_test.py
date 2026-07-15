@@ -1,0 +1,15 @@
+with open('test_macro.ctn', 'w', encoding='utf-8') as f:
+    f.write('''macro optimize_add {
+    pattern {
+        $x = $x + $y;
+    }
+    replace {
+        $x += $y;
+    }
+}
+
+fn main() {
+    let a = 1.0;
+    let b = 2.0;
+    a = a + b;
+}''')

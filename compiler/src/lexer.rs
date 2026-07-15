@@ -45,6 +45,7 @@ impl Lexer {
         keywords.insert("macro".to_string(), TokenType::Macro);
         keywords.insert("pattern".to_string(), TokenType::Pattern);
         keywords.insert("replace".to_string(), TokenType::Replace);
+        keywords.insert("quote".to_string(), TokenType::Quote);
         keywords.insert("async_compute".to_string(), TokenType::AsyncCompute);
         keywords.insert("SievingCache".to_string(), TokenType::SievingCache);
         keywords.insert("FractalAttentionBlock".to_string(), TokenType::FractalAttentionBlock);
