@@ -7,7 +7,10 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use rayon::prelude::*;
 
 // Simple global registry to keep tensors alive for backward pass
-static mut TENSOR_REGISTRY: Vec<*mut Tensor> = Vec::new();
+use std::sync::Mutex;
+use once_cell::sync::Lazy;
+
+static TENSOR_REGISTRY: Lazy<Mutex<Vec<usize>>> = Lazy::new(|| Mutex::new(Vec::new()));
 
 #[repr(C)]
 pub struct Tensor {
@@ -90,19 +93,19 @@ fn alloc_tensor(size: usize, randomize: bool) -> *mut Tensor {
     
     let t_ptr = Box::into_raw(t);
     unsafe {
-        TENSOR_REGISTRY.push(t_ptr);
+        TENSOR_REGISTRY.lock().unwrap().push(t_ptr as usize);
     }
     t_ptr
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn cartan_tensor_alloc(size: u32) -> *mut Tensor {
+pub extern "C" fn cartan_tensor_alloc(size: u32, _space_id: u32) -> *mut Tensor {
     let ptr = alloc_tensor(size as usize, true);
     ptr
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn cartan_tensor_alloc_nd(rank: u32, d0: u32, d1: u32, d2: u32, d3: u32) -> *mut Tensor {
+pub extern "C" fn cartan_tensor_alloc_nd(rank: u32, d0: u32, d1: u32, d2: u32, d3: u32, _space_id: u32) -> *mut Tensor {
     let size = (if rank > 0 { d0 } else { 1 })
              * (if rank > 1 { d1 } else { 1 })
              * (if rank > 2 { d2 } else { 1 })
@@ -255,7 +258,6 @@ pub extern "C" fn cartan_tensor_mul(a: *mut Tensor, b: *mut Tensor) -> *mut Tens
 
 
 use std::collections::HashMap;
-use std::sync::Mutex;
 use wgpu::util::DeviceExt;
 use lazy_static::lazy_static;
 
@@ -410,8 +412,9 @@ pub extern "C" fn cartan_tensor_backward(loss: *mut Tensor) {
             loss_grad[i] = 1.0;
         }
         
-        for i in (0..TENSOR_REGISTRY.len()).rev() {
-            let t = TENSOR_REGISTRY[i];
+        let registry = TENSOR_REGISTRY.lock().unwrap().clone();
+        for i in (0..registry.len()).rev() {
+            let t = registry[i] as *mut Tensor;
             let op = (*t).op;
             if op == 0 { continue; }
             
@@ -540,7 +543,9 @@ pub extern "C" fn cartan_tensor_backward(loss: *mut Tensor) {
 #[unsafe(no_mangle)]
 pub extern "C" fn cartan_tensor_step(lr: f32) {
     unsafe {
-        for &t in &TENSOR_REGISTRY {
+        let registry_clone = TENSOR_REGISTRY.lock().unwrap().clone();
+        for &t_raw in registry_clone.iter() {
+            let t = t_raw as *mut Tensor;
             if (*t).requires_grad && (*t).op == 0 {
                 let size = (*t).size;
                 let data = std::slice::from_raw_parts_mut((*t).data, size);
@@ -559,23 +564,27 @@ pub extern "C" fn cartan_tensor_step(lr: f32) {
             }
         }
         
-        // Free intermediate tensors to prevent OOM
-        let mut new_registry = Vec::new();
-        for &t in &TENSOR_REGISTRY {
-            if (*t).op == 0 {
-                new_registry.push(t);
+        // Mutate the registry completely in-place with zero re-allocations
+        TENSOR_REGISTRY.lock().unwrap().retain(|&t_raw| {
+            let t = t_raw as *mut Tensor;
+            if unsafe { (*t).op != 0 } {
+                // Deallocate the underlying memory layers of intermediate nodes immediately
+                unsafe {
+                    let size = (*t).size;
+                    let _data_vec = Vec::from_raw_parts((*t).data, size, size);
+                    let _grad_vec = Vec::from_raw_parts((*t).grad, size, size);
+                    let _tensor_box = Box::from_raw(t);
+                }
+                false // Drop this pointer from the registry
             } else {
-                let _ = Vec::from_raw_parts((*t).data, (*t).size, (*t).size);
-                let _ = Vec::from_raw_parts((*t).grad, (*t).size, (*t).size);
-                let _ = Box::from_raw(t);
+                true // Keep leaf parameters pinned safely
             }
-        }
-        TENSOR_REGISTRY = new_registry;
+        });
         
         static mut STEP_COUNT: usize = 0;
         STEP_COUNT += 1;
         if STEP_COUNT % 10 == 0 {
-            println!("Step {} completed, TENSOR_REGISTRY size: {}", STEP_COUNT, TENSOR_REGISTRY.len());
+            println!("Step {} completed, TENSOR_REGISTRY size: {}", STEP_COUNT, TENSOR_REGISTRY.lock().unwrap().len());
         }
     }
 }
@@ -853,7 +862,7 @@ pub extern "C" fn cartan_tensor_mse_loss(output_ptr: *mut Tensor, target_ptr: *m
 }
 #[unsafe(no_mangle)]
 pub extern "C" fn cartan_alloc_sequence(size: i32) -> *mut Tensor {
-    cartan_tensor_alloc(size as u32)
+    cartan_tensor_alloc(size as u32, 0)
 }
 
 #[unsafe(no_mangle)]
@@ -948,3 +957,37 @@ pub extern "C" fn cartan_net_fetch_tokens(url_ptr: *const std::ffi::c_char, targ
 
 mod safetensors_loader;
 
+#[unsafe(no_mangle)]
+pub extern "C" fn cartan_tensor_transpose(t: *mut Tensor) -> *mut Tensor {
+    unsafe {
+        if t.is_null() { return std::ptr::null_mut(); }
+        let rank = (*t).rank;
+        let size = (*t).size;
+        let out = alloc_tensor(size as usize, false);
+        let mut new_shape = (*t).shape;
+        
+        if rank >= 2 {
+            let last = rank as usize - 1;
+            let prev = last - 1;
+            new_shape.swap(prev, last);
+        }
+        (*out).shape = new_shape;
+        (*out).rank = rank;
+        
+        // Parallel transpose for Autodiff
+        if rank == 2 {
+            let rows = (*t).shape[0] as usize;
+            let cols = (*t).shape[1] as usize;
+            let in_data = std::slice::from_raw_parts((*t).data, size);
+            let out_data = std::slice::from_raw_parts_mut((*out).data, size);
+            
+            out_data.par_chunks_mut(rows).enumerate().for_each(|(c, col_chunk)| {
+                for r in 0..rows {
+                    col_chunk[r] = in_data[r * cols + c];
+                }
+            });
+        }
+        
+        out
+    }
+}

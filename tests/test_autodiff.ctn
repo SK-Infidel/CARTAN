@@ -1,0 +1,5 @@
+fn forward(weights: tensor[D, O], activations: tensor[B, D]) -> tensor {
+    var output = activations @ weights;
+    backward output;
+    return output;
+}

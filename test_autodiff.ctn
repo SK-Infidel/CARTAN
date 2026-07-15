@@ -1,0 +1,7 @@
+﻿tensor A[32, 64] in Euclidean;
+tensor B[64, 128] in Euclidean;
+
+fn main() {
+    var C = A @ B;
+    backward C;
+}

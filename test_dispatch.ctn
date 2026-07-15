@@ -1,0 +1,15 @@
+﻿fn test_math(t1: tensor[10, 10] in Minkowski) {
+    return t1;
+}
+
+fn test_math(t1: tensor[10, 10] in PoincareDisk) {
+    return t1;
+}
+
+fn main() {
+    tensor a[10, 10] in Minkowski;
+    tensor b[10, 10] in PoincareDisk;
+    
+    test_math(a);
+    test_math(b);
+}

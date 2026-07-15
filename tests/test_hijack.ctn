@@ -1,0 +1,9 @@
+fn main() {
+    var donor_a_layers = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+    var donor_b_layers = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    
+    var reasoning_circuit = graft(donor_a_layers[8..16]) in PoincareDisk;
+    var translator = translation_barrier(from: donor_b_layers[12], to: reasoning_circuit);
+    
+    
+}

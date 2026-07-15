@@ -378,6 +378,7 @@ dependencies = [
  "libc",
  "matrixmultiply",
  "memmap2",
+ "once_cell",
  "pollster",
  "rayon",
  "safetensors",

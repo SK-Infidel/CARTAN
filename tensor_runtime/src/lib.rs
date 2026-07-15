@@ -1314,3 +1314,37 @@ pub extern "C" fn cartan_mount_backend(_id: f32) -> f32 {
     1.0
 }
 
+#[unsafe(no_mangle)]
+pub extern "C" fn cartan_tensor_transpose(t: *mut Tensor) -> *mut Tensor {
+    unsafe {
+        if t.is_null() { return std::ptr::null_mut(); }
+        let rank = (*t).rank;
+        let size = (*t).size;
+        let out = cartan_tensor_alloc(size as u32);
+        let mut new_shape = (*t).shape;
+        
+        if rank >= 2 {
+            let last = rank as usize - 1;
+            let prev = last - 1;
+            new_shape.swap(prev, last);
+        }
+        (*out).shape = new_shape;
+        (*out).rank = rank;
+        
+        // Parallel transpose for Autodiff
+        if rank == 2 {
+            let rows = (*t).shape[0] as usize;
+            let cols = (*t).shape[1] as usize;
+            let in_data = std::slice::from_raw_parts((*t).data, size);
+            let out_data = std::slice::from_raw_parts_mut((*out).data, size);
+            
+            out_data.par_chunks_mut(rows).enumerate().for_each(|(c, col_chunk)| {
+                for r in 0..rows {
+                    col_chunk[r] = in_data[r * cols + c];
+                }
+            });
+        }
+        
+        out
+    }
+}

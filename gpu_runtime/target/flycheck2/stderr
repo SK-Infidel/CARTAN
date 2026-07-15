@@ -2,63 +2,15 @@
     Blocking waiting for file lock on package cache
     Blocking waiting for file lock on package cache
     Blocking waiting for file lock on package cache
-   0.219568700s  INFO prepare_target{force=false package_id=gpu_runtime v0.1.0 (C:\Users\rich-\source\repos\CARTAN\gpu_runtime) target="gpu_runtime"}: cargo::core::compiler::fingerprint: fingerprint error for gpu_runtime v0.1.0 (C:\Users\rich-\source\repos\CARTAN\gpu_runtime)/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("gpu_runtime", ["staticlib"], "C:\\Users\\rich-\\source\\repos\\CARTAN\\gpu_runtime\\src\\lib.rs", Edition2024) }
-   0.219633400s  INFO prepare_target{force=false package_id=gpu_runtime v0.1.0 (C:\Users\rich-\source\repos\CARTAN\gpu_runtime) target="gpu_runtime"}: cargo::core::compiler::fingerprint:     err: failed to read `C:\Users\rich-\source\repos\CARTAN\gpu_runtime\target_ra\debug\.fingerprint\gpu_runtime-8a1cec38db5d5a0e\lib-gpu_runtime`
-
-Caused by:
-    The system cannot find the file specified. (os error 2)
-
-Stack backtrace:
-   0: git_midx_writer_dump
-   1: git_midx_writer_dump
-   2: git_midx_writer_dump
-   3: git_midx_writer_dump
-   4: git_filter_source_repo
-   5: git_filter_source_repo
-   6: git_filter_source_repo
-   7: git_filter_source_repo
-   8: git_filter_source_repo
-   9: git_filter_source_repo
-  10: git_filter_source_repo
-  11: git_libgit2_prerelease
-  12: <unknown>
-  13: <unknown>
-  14: <unknown>
-  15: <unknown>
-  16: git_midx_writer_dump
-  17: git_filter_source_repo
-  18: git_midx_writer_dump
-  19: BaseThreadInitThunk
-  20: RtlUserThreadStart
-   0.254500800s  INFO prepare_target{force=false package_id=gpu_runtime v0.1.0 (C:\Users\rich-\source\repos\CARTAN\gpu_runtime) target="gpu_runtime"}: cargo::core::compiler::fingerprint: fingerprint error for gpu_runtime v0.1.0 (C:\Users\rich-\source\repos\CARTAN\gpu_runtime)/Check { test: true }/TargetInner { name_inferred: true, ..: lib_target("gpu_runtime", ["staticlib"], "C:\\Users\\rich-\\source\\repos\\CARTAN\\gpu_runtime\\src\\lib.rs", Edition2024) }
-   0.254525500s  INFO prepare_target{force=false package_id=gpu_runtime v0.1.0 (C:\Users\rich-\source\repos\CARTAN\gpu_runtime) target="gpu_runtime"}: cargo::core::compiler::fingerprint:     err: failed to read `C:\Users\rich-\source\repos\CARTAN\gpu_runtime\target_ra\debug\.fingerprint\gpu_runtime-d5aafe0cd938650a\test-lib-gpu_runtime`
-
-Caused by:
-    The system cannot find the file specified. (os error 2)
-
-Stack backtrace:
-   0: git_midx_writer_dump
-   1: git_midx_writer_dump
-   2: git_midx_writer_dump
-   3: git_midx_writer_dump
-   4: git_filter_source_repo
-   5: git_filter_source_repo
-   6: git_filter_source_repo
-   7: git_filter_source_repo
-   8: git_filter_source_repo
-   9: git_filter_source_repo
-  10: git_filter_source_repo
-  11: git_libgit2_prerelease
-  12: <unknown>
-  13: <unknown>
-  14: <unknown>
-  15: <unknown>
-  16: git_midx_writer_dump
-  17: git_filter_source_repo
-  18: git_midx_writer_dump
-  19: BaseThreadInitThunk
-  20: RtlUserThreadStart
+   0.223020000s  INFO prepare_target{force=false package_id=gpu_runtime v0.1.0 (C:\Users\rich-\source\repos\CARTAN\gpu_runtime) target="gpu_runtime"}: cargo::core::compiler::fingerprint: stale: changed "C:\\Users\\rich-\\source\\repos\\CARTAN\\gpu_runtime\\src\\lib.rs"
+   0.223047400s  INFO prepare_target{force=false package_id=gpu_runtime v0.1.0 (C:\Users\rich-\source\repos\CARTAN\gpu_runtime) target="gpu_runtime"}: cargo::core::compiler::fingerprint:           (vs) "C:\\Users\\rich-\\source\\repos\\CARTAN\\gpu_runtime\\target_ra\\debug\\.fingerprint\\gpu_runtime-c8bf5e3d81763131\\dep-lib-gpu_runtime"
+   0.223055600s  INFO prepare_target{force=false package_id=gpu_runtime v0.1.0 (C:\Users\rich-\source\repos\CARTAN\gpu_runtime) target="gpu_runtime"}: cargo::core::compiler::fingerprint:                FileTime { seconds: 13428550390, nanos: 281526000 } < FileTime { seconds: 13428552293, nanos: 459080000 }
+   0.223260200s  INFO prepare_target{force=false package_id=gpu_runtime v0.1.0 (C:\Users\rich-\source\repos\CARTAN\gpu_runtime) target="gpu_runtime"}: cargo::core::compiler::fingerprint: fingerprint dirty for gpu_runtime v0.1.0 (C:\Users\rich-\source\repos\CARTAN\gpu_runtime)/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("gpu_runtime", ["staticlib"], "C:\\Users\\rich-\\source\\repos\\CARTAN\\gpu_runtime\\src\\lib.rs", Edition2024) }
+   0.223287600s  INFO prepare_target{force=false package_id=gpu_runtime v0.1.0 (C:\Users\rich-\source\repos\CARTAN\gpu_runtime) target="gpu_runtime"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(StaleItem(ChangedFile { reference: "C:\\Users\\rich-\\source\\repos\\CARTAN\\gpu_runtime\\target_ra\\debug\\.fingerprint\\gpu_runtime-c8bf5e3d81763131\\dep-lib-gpu_runtime", reference_mtime: FileTime { seconds: 13428550390, nanos: 281526000 }, stale: "C:\\Users\\rich-\\source\\repos\\CARTAN\\gpu_runtime\\src\\lib.rs", stale_mtime: FileTime { seconds: 13428552293, nanos: 459080000 } }))
+   0.258923000s  INFO prepare_target{force=false package_id=gpu_runtime v0.1.0 (C:\Users\rich-\source\repos\CARTAN\gpu_runtime) target="gpu_runtime"}: cargo::core::compiler::fingerprint: stale: changed "C:\\Users\\rich-\\source\\repos\\CARTAN\\gpu_runtime\\src\\lib.rs"
+   0.258940600s  INFO prepare_target{force=false package_id=gpu_runtime v0.1.0 (C:\Users\rich-\source\repos\CARTAN\gpu_runtime) target="gpu_runtime"}: cargo::core::compiler::fingerprint:           (vs) "C:\\Users\\rich-\\source\\repos\\CARTAN\\gpu_runtime\\target_ra\\debug\\.fingerprint\\gpu_runtime-d4a04e838c5f1882\\dep-test-lib-gpu_runtime"
+   0.258945400s  INFO prepare_target{force=false package_id=gpu_runtime v0.1.0 (C:\Users\rich-\source\repos\CARTAN\gpu_runtime) target="gpu_runtime"}: cargo::core::compiler::fingerprint:                FileTime { seconds: 13428550390, nanos: 281526000 } < FileTime { seconds: 13428552293, nanos: 459080000 }
+   0.259109600s  INFO prepare_target{force=false package_id=gpu_runtime v0.1.0 (C:\Users\rich-\source\repos\CARTAN\gpu_runtime) target="gpu_runtime"}: cargo::core::compiler::fingerprint: fingerprint dirty for gpu_runtime v0.1.0 (C:\Users\rich-\source\repos\CARTAN\gpu_runtime)/Check { test: true }/TargetInner { name_inferred: true, ..: lib_target("gpu_runtime", ["staticlib"], "C:\\Users\\rich-\\source\\repos\\CARTAN\\gpu_runtime\\src\\lib.rs", Edition2024) }
+   0.259125100s  INFO prepare_target{force=false package_id=gpu_runtime v0.1.0 (C:\Users\rich-\source\repos\CARTAN\gpu_runtime) target="gpu_runtime"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(StaleItem(ChangedFile { reference: "C:\\Users\\rich-\\source\\repos\\CARTAN\\gpu_runtime\\target_ra\\debug\\.fingerprint\\gpu_runtime-d4a04e838c5f1882\\dep-test-lib-gpu_runtime", reference_mtime: FileTime { seconds: 13428550390, nanos: 281526000 }, stale: "C:\\Users\\rich-\\source\\repos\\CARTAN\\gpu_runtime\\src\\lib.rs", stale_mtime: FileTime { seconds: 13428552293, nanos: 459080000 } }))
     Checking gpu_runtime v0.1.0 (C:\Users\rich-\source\repos\CARTAN\gpu_runtime)
-error: could not compile `gpu_runtime` (lib test) due to 1 previous error
-warning: build failed, waiting for other jobs to finish...
-error: could not compile `gpu_runtime` (lib) due to 1 previous error
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.56s
