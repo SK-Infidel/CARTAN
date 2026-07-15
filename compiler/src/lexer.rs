@@ -57,6 +57,10 @@ impl Lexer {
         keywords.insert("sparsity".to_string(), TokenType::Sparsity);
         keywords.insert("true".to_string(), TokenType::BoolLiteral(true));
         keywords.insert("false".to_string(), TokenType::BoolLiteral(false));
+        keywords.insert("graft".to_string(), TokenType::Graft);
+        keywords.insert("translation_barrier".to_string(), TokenType::TranslationBarrier);
+        keywords.insert("from".to_string(), TokenType::From);
+        keywords.insert("to".to_string(), TokenType::To);
 
         Self {
             source: source.chars().collect(),
@@ -219,7 +223,14 @@ impl Lexer {
                 ',' => { self.advance(); tokens.push(Token { token_type: TokenType::Comma, lexeme: ",".to_string(), span: Span::new(start_line, start_col, self.col) }); }
                 ';' => { self.advance(); tokens.push(Token { token_type: TokenType::Semicolon, lexeme: ";".to_string(), span: Span::new(start_line, start_col, self.col) }); }
                 ':' => { self.advance(); tokens.push(Token { token_type: TokenType::Colon, lexeme: ":".to_string(), span: Span::new(start_line, start_col, self.col) }); }
-                '.' => { self.advance(); tokens.push(Token { token_type: TokenType::Dot, lexeme: ".".to_string(), span: Span::new(start_line, start_col, self.col) }); }
+                '.' => {
+                    self.advance();
+                    if self.match_char('.') {
+                        tokens.push(Token { token_type: TokenType::DotDot, lexeme: "..".to_string(), span: Span::new(start_line, start_col, self.col) });
+                    } else {
+                        tokens.push(Token { token_type: TokenType::Dot, lexeme: ".".to_string(), span: Span::new(start_line, start_col, self.col) });
+                    }
+                }
                 '#' => { self.advance(); tokens.push(Token { token_type: TokenType::Hash, lexeme: "#".to_string(), span: Span::new(start_line, start_col, self.col) }); }
                 '"' => {
                     self.advance(); // skip quote
@@ -246,17 +257,21 @@ impl Lexer {
                         }
                     }
                     if self.peek() == Some('.') {
-                        num_str.push('.');
-                        self.advance();
-                        while let Some(ch) = self.peek() {
-                            if ch.is_ascii_digit() {
-                                num_str.push(ch);
-                                self.advance();
-                            } else {
-                                break;
+                        if self.peek_next() == Some('.') {
+                            tokens.push(Token { token_type: TokenType::IntLiteral(num_str.parse().unwrap()), lexeme: num_str, span: Span::new(start_line, start_col, self.col) });
+                        } else {
+                            num_str.push('.');
+                            self.advance();
+                            while let Some(ch) = self.peek() {
+                                if ch.is_ascii_digit() {
+                                    num_str.push(ch);
+                                    self.advance();
+                                } else {
+                                    break;
+                                }
                             }
+                            tokens.push(Token { token_type: TokenType::FloatLiteral(num_str.parse().unwrap()), lexeme: num_str, span: Span::new(start_line, start_col, self.col) });
                         }
-                        tokens.push(Token { token_type: TokenType::FloatLiteral(num_str.parse().unwrap()), lexeme: num_str, span: Span::new(start_line, start_col, self.col) });
                     } else {
                         tokens.push(Token { token_type: TokenType::IntLiteral(num_str.parse().unwrap()), lexeme: num_str, span: Span::new(start_line, start_col, self.col) });
                     }

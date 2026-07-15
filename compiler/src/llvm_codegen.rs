@@ -68,16 +68,16 @@ impl LLVMGenerator {
         
         // Standard library declarations
         self.globals.push_str("declare ptr @malloc(i64)\n");
-        self.globals.push_str("declare void @free(ptr)
-declare i32 @strcmp(ptr, ptr)\n");
+        self.globals.push_str("declare void @free(ptr)\n");
+        self.globals.push_str("declare i32 @strcmp(ptr, ptr)\n");
         
         // Tensor Runtime declarations
         let mut declared_externs = std::collections::HashSet::new();
         if !declared_externs.contains("cartan_tensor_alloc") {
-            self.globals.push_str("declare ptr @cartan_tensor_alloc(i32)\n");
+            self.globals.push_str("declare ptr @cartan_tensor_alloc(i32, i32)\n");
         }
         if !declared_externs.contains("cartan_tensor_alloc_nd") {
-            self.globals.push_str("declare ptr @cartan_tensor_alloc_nd(i32, i32, i32, i32, i32)\n");
+            self.globals.push_str("declare ptr @cartan_tensor_alloc_nd(i32, i32, i32, i32, i32, i32)\n");
         }
         if !declared_externs.contains("cartan_tensor_add") {
             self.globals.push_str("declare ptr @cartan_tensor_add(ptr, ptr)\n");
@@ -120,10 +120,14 @@ declare i32 @strcmp(ptr, ptr)\n");
         self.globals.push_str("declare ptr @cartan_stream_init(ptr, ptr)\n");
         self.globals.push_str("declare ptr @cartan_init_spike()\n");
         self.globals.push_str("declare ptr @cartan_init_neuron()\n");
+        self.globals.push_str("declare ptr @cartan_tensor_graft(ptr)\n");
+        self.globals.push_str("declare ptr @cartan_tensor_translation_barrier(ptr, ptr)\n");
         self.globals.push_str("declare ptr @cartan_alloc_parameter_adam(i32)\n");
         self.globals.push_str("declare ptr @cartan_alloc_parameter_adam_nd(i32, i32, i32, i32, i32)\n");
         self.globals.push_str("declare ptr @cartan_alloc_sequence(i32)\n");
         self.globals.push_str("declare ptr @cartan_alloc_block(i32)\n");
+        self.globals.push_str("declare ptr @cartan_tensor_transpose(ptr)\n");
+        self.globals.push_str("declare ptr @cartan_tensor_ones_like(ptr)\n");
         self.globals.push_str("declare void @cartan_absorb_weights(ptr, ptr)\n");
         self.globals.push_str("declare void @cartan_project_vocab(ptr, ptr)\n");
         self.globals.push_str("declare ptr @cartan_tokenize_bpe(ptr, ptr)\n");
@@ -972,12 +976,10 @@ declare i32 @strcmp(ptr, ptr)\n");
                 Some(val_reg)
             },
             Expr::Float(f) => {
-                let bits = ((*f as f32) as f64).to_bits();
-                Some(format!("0x{:016X}", bits))
+                Some(format!("{:.6}", f))
             },
             Expr::Integer(i) => {
-                let bits = ((*i as f32) as f64).to_bits();
-                Some(format!("0x{:016X}", bits))
+                Some(format!("{}", i))
             },
             Expr::StringLiteral(s) => {
                 let id = self.string_counter;
@@ -1216,6 +1218,25 @@ declare i32 @strcmp(ptr, ptr)\n");
                 }
             },
             Expr::FunctionCall { name, args } => {
+                if name == "ones_like" {
+                    self.output.push_str("  ; --- ones_like ---\n");
+                    let mut arg_regs = Vec::new();
+                    for arg in args {
+                        let mut r = self.visit_expr(arg).unwrap_or("null".to_string());
+                        if !r.starts_with("ptr:") && !r.starts_with("array:") && !r.starts_with("struct:") && r != "null" {
+                            let loaded = self.next_reg();
+                            self.output.push_str(&format!("  {} = load ptr, ptr {}, align 8\n", loaded, r));
+                            r = loaded;
+                        } else {
+                            r = r.split(':').last().unwrap_or(&r).to_string();
+                        }
+                        arg_regs.push(r);
+                    }
+                    let res_reg = self.next_reg();
+                    self.output.push_str(&format!("  {} = call ptr @cartan_tensor_ones_like(ptr {})\n", res_reg, arg_regs[0]));
+                    return Some(format!("ptr:{}", res_reg));
+                }
+                
                 if name == "Cartan.load_dma" {
                     self.output.push_str("  ; --- Cartan.load_dma (Zero-Copy SRAM/HBM) ---\n");
                     let res_reg = self.next_reg();
@@ -1244,18 +1265,25 @@ declare i32 @strcmp(ptr, ptr)\n");
                                 Stmt::VarDecl { value, .. } => {
                                     self.visit_expr(value).unwrap_or("0.0".to_string())
                                 },
-                                Stmt::TensorDecl { shape, .. } => {
+                                Stmt::TensorDecl { shape, manifold, .. } => {
                                     let res_reg = self.next_reg();
+                                    let space_id = match manifold {
+                                        crate::ast::ManifoldSpace::Euclidean => 0,
+                                        crate::ast::ManifoldSpace::Minkowski => 1,
+                                        crate::ast::ManifoldSpace::PoincareDisk => 2,
+                                        _ => 0,
+                                    };
+                                    
                                     if shape.len() > 1 && shape.len() <= 4 {
-                                        let mut dims = [1; 4];
-                                        for (idx, dim) in shape.iter().enumerate() {
+                                        let mut dims = [1, 1, 1, 1];
+                                        for (i, dim) in shape.iter().enumerate() {
                                             if let Expr::Integer(val) = dim {
-                                                dims[idx] = *val as i32;
+                                                dims[i] = *val as i32;
                                             }
                                         }
                                         self.output.push_str(&format!(
-                                            "  {} = call ptr @cartan_tensor_alloc_nd(i32 {}, i32 {}, i32 {}, i32 {}, i32 {})\n",
-                                            res_reg, shape.len(), dims[0], dims[1], dims[2], dims[3]
+                                            "  {} = call ptr @cartan_tensor_alloc_nd(i32 {}, i32 {}, i32 {}, i32 {}, i32 {}, i32 {})\n",
+                                            res_reg, shape.len(), dims[0], dims[1], dims[2], dims[3], space_id
                                         ));
                                     } else {
                                         let mut num_elems = 1;
@@ -1264,11 +1292,11 @@ declare i32 @strcmp(ptr, ptr)\n");
                                                 num_elems *= *val as i32;
                                             }
                                         }
-                                        self.output.push_str(&format!("  {} = call ptr @cartan_tensor_alloc(i32 {})\n", res_reg, num_elems));
+                                        self.output.push_str(&format!("  {} = call ptr @cartan_tensor_alloc(i32 {}, i32 {})\n", res_reg, num_elems, space_id));
                                     }
                                     format!("ptr:{}", res_reg)
                                 },
-                                Stmt::ParameterDecl { shape, optimizer, .. } => {
+                                Stmt::ParameterDecl { shape, optimizer, manifold, .. } => {
                                     let mut alloc_fn = "cartan_tensor_alloc";
                                     let mut alloc_nd_fn = "cartan_tensor_alloc_nd";
                                     if let Some(crate::ast::OptimizerState::Adam) = optimizer {
@@ -1276,16 +1304,23 @@ declare i32 @strcmp(ptr, ptr)\n");
                                         alloc_nd_fn = "cartan_alloc_parameter_adam_nd";
                                     }
                                     let res_reg = self.next_reg();
+                                    let space_id = match manifold {
+                                        crate::ast::ManifoldSpace::Euclidean => 0,
+                                        crate::ast::ManifoldSpace::Minkowski => 1,
+                                        crate::ast::ManifoldSpace::PoincareDisk => 2,
+                                        _ => 0,
+                                    };
+                                    
                                     if shape.len() > 1 && shape.len() <= 4 {
-                                        let mut dims = [1; 4];
-                                        for (idx, dim) in shape.iter().enumerate() {
+                                        let mut dims = [1, 1, 1, 1];
+                                        for (i, dim) in shape.iter().enumerate() {
                                             if let Expr::Integer(val) = dim {
-                                                dims[idx] = *val as i32;
+                                                dims[i] = *val as i32;
                                             }
                                         }
                                         self.output.push_str(&format!(
-                                            "  {} = call ptr @{}(i32 {}, i32 {}, i32 {}, i32 {}, i32 {})\n",
-                                            res_reg, alloc_nd_fn, shape.len(), dims[0], dims[1], dims[2], dims[3]
+                                            "  {} = call ptr @{}(i32 {}, i32 {}, i32 {}, i32 {}, i32 {}, i32 {})\n",
+                                            res_reg, alloc_nd_fn, shape.len(), dims[0], dims[1], dims[2], dims[3], space_id
                                         ));
                                     } else {
                                         let mut num_elems = 1;
@@ -1294,7 +1329,7 @@ declare i32 @strcmp(ptr, ptr)\n");
                                                 num_elems *= *val as i32;
                                             }
                                         }
-                                        self.output.push_str(&format!("  {} = call ptr @{}(i32 {})\n", res_reg, alloc_fn, num_elems));
+                                        self.output.push_str(&format!("  {} = call ptr @{}(i32 {}, i32 {})\n", res_reg, alloc_fn, num_elems, space_id));
                                     }
                                     format!("ptr:{}", res_reg)
                                 },
@@ -1481,6 +1516,20 @@ declare i32 @strcmp(ptr, ptr)\n");
                 self.output.push_str(&format!("  {} = call ptr @cartan_transpose_weights(ptr {}, ptr {})\n", res, reg_a, reg_b));
                 Some(res)
             },
+            Expr::Transpose(inner) => {
+                self.output.push_str("  ; --- Transpose ---\n");
+                let mut reg_inner = self.visit_expr(inner).unwrap_or("%0".to_string());
+                if !reg_inner.starts_with("ptr:") && !reg_inner.starts_with("array:") && !reg_inner.starts_with("struct:") && reg_inner != "null" {
+                    let loaded = self.next_reg();
+                    self.output.push_str(&format!("  {} = load ptr, ptr {}, align 8\n", loaded, reg_inner));
+                    reg_inner = loaded;
+                } else {
+                    reg_inner = reg_inner.split(':').last().unwrap_or(&reg_inner).to_string();
+                }
+                let res = self.next_reg();
+                self.output.push_str(&format!("  {} = call ptr @cartan_tensor_transpose(ptr {})\n", res, reg_inner));
+                Some(format!("ptr:{}", res))
+            },
             Expr::ReflectRepo => {
                 self.output.push_str("  ; --- Reflect Repo ---\n");
                 let res = self.next_reg();
@@ -1504,6 +1553,22 @@ declare i32 @strcmp(ptr, ptr)\n");
                 let res = self.next_reg();
                 self.output.push_str(&format!("  {} = call ptr @cartan_init_neuron()\n", res));
                 Some(res)
+            },
+            Expr::Graft { source, topology: _ } => {
+                let _src_reg = self.visit_expr(source);
+                let res = self.next_reg();
+                self.output.push_str(&format!("  {} = call ptr @cartan_tensor_graft(ptr null)\n", res));
+                Some(format!("ptr:{}", res))
+            },
+            Expr::TranslationBarrier { from, to } => {
+                let _from_reg = self.visit_expr(from);
+                let _to_reg = self.visit_expr(to);
+                let res = self.next_reg();
+                self.output.push_str(&format!("  {} = call ptr @cartan_tensor_translation_barrier(ptr null, ptr null)\n", res));
+                Some(format!("ptr:{}", res))
+            },
+            Expr::Range { start: _, end: _ } => {
+                Some("0.0".to_string())
             },
             _ => None
         }

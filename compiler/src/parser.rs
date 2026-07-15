@@ -402,7 +402,19 @@ impl Parser {
                 };
                 self.consume(TokenType::Colon, "Expected ':' after parameter name")?;
                 
+                let mut p_shape = Vec::new();
                 let p_type = if self.match_token(&[TokenType::Tensor]) {
+                    if self.match_token(&[TokenType::LBracket]) {
+                        if !self.check(&TokenType::RBracket) {
+                            loop {
+                                p_shape.push(self.expression()?);
+                                if !self.match_token(&[TokenType::Comma]) {
+                                    break;
+                                }
+                            }
+                        }
+                        self.consume(TokenType::RBracket, "Expected ']' after tensor shape in parameter")?;
+                    }
                     "tensor".to_string()
                 } else {
                     println!("Next token: {:?}", self.peek()); match self.consume(TokenType::Identifier("".to_string()), "Expected parameter type")?.token_type.clone() {
@@ -411,9 +423,26 @@ impl Parser {
                     }
                 };
                 
+                let mut p_manifold = None;
+                if self.match_token(&[TokenType::In]) {
+                    let space_token = self.consume(TokenType::Identifier("".to_string()), "Expected manifold space name after 'in'")?.clone();
+                    let space_name = match space_token.token_type {
+                        TokenType::Identifier(s) => s,
+                        _ => return Err(Diagnostic::error("Expected manifold space name", space_token.span)),
+                    };
+                    p_manifold = Some(match space_name.as_str() {
+                        "Minkowski" => ManifoldSpace::Minkowski,
+                        "PoincareDisk" => ManifoldSpace::PoincareDisk,
+                        "Euclidean" => ManifoldSpace::Euclidean,
+                        _ => ManifoldSpace::Custom(space_name),
+                    });
+                }
+                
                 parameters.push(Parameter {
                     name: p_name,
                     type_name: p_type,
+                    shape: p_shape,
+                    manifold: p_manifold,
                     is_borrow,
                     is_mutable,
                 });
@@ -479,7 +508,19 @@ impl Parser {
                 };
                 self.consume(TokenType::Colon, "Expected ':' after parameter name")?;
                 
+                let mut p_shape = Vec::new();
                 let p_type = if self.match_token(&[TokenType::Tensor]) {
+                    if self.match_token(&[TokenType::LBracket]) {
+                        if !self.check(&TokenType::RBracket) {
+                            loop {
+                                p_shape.push(self.expression()?);
+                                if !self.match_token(&[TokenType::Comma]) {
+                                    break;
+                                }
+                            }
+                        }
+                        self.consume(TokenType::RBracket, "Expected ']' after tensor shape in parameter")?;
+                    }
                     "tensor".to_string()
                 } else if self.match_token(&[TokenType::Sequence]) {
                     "sequence".to_string()
@@ -490,9 +531,26 @@ impl Parser {
                     }
                 };
                 
+                let mut p_manifold = None;
+                if self.match_token(&[TokenType::In]) {
+                    let space_token = self.consume(TokenType::Identifier("".to_string()), "Expected manifold space name after 'in'")?.clone();
+                    let space_name = match space_token.token_type {
+                        TokenType::Identifier(s) => s,
+                        _ => return Err(Diagnostic::error("Expected manifold space name", space_token.span)),
+                    };
+                    p_manifold = Some(match space_name.as_str() {
+                        "Minkowski" => ManifoldSpace::Minkowski,
+                        "PoincareDisk" => ManifoldSpace::PoincareDisk,
+                        "Euclidean" => ManifoldSpace::Euclidean,
+                        _ => ManifoldSpace::Custom(space_name),
+                    });
+                }
+                
                 parameters.push(Parameter {
                     name: p_name,
                     type_name: p_type,
+                    shape: p_shape,
+                    manifold: p_manifold,
                     is_borrow,
                     is_mutable,
                 });

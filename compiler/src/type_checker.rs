@@ -5,6 +5,7 @@ use crate::token::Span;
 use crate::types::{CartanType, Dimension};
 
 pub struct TypeChecker {
+    functions: HashMap<String, Vec<crate::ast::FunctionDecl>>,
     symbol_table: Vec<HashMap<String, CartanType>>,
 }
 
@@ -12,6 +13,7 @@ impl TypeChecker {
     pub fn new() -> Self {
         Self {
             symbol_table: vec![HashMap::new()],
+            functions: HashMap::new(),
         }
     }
 
@@ -33,14 +35,19 @@ impl TypeChecker {
         None
     }
 
-    pub fn check(&mut self, ast: &[Stmt]) -> Result<(), Diagnostic> {
+    pub fn check(&mut self, ast: &mut [Stmt]) -> Result<(), Diagnostic> {
+        for stmt in ast.iter() {
+            if let Stmt::FunctionDecl(decl) = stmt {
+                self.functions.entry(decl.name.clone()).or_default().push(decl.clone());
+            }
+        }
         for stmt in ast {
             self.visit_stmt(stmt)?;
         }
         Ok(())
     }
 
-    fn visit_stmt(&mut self, stmt: &Stmt) -> Result<(), Diagnostic> {
+    fn visit_stmt(&mut self, stmt: &mut Stmt) -> Result<(), Diagnostic> {
         match stmt {
             Stmt::StructDecl { name: _, fields: _ } => { /* ignore for now */ },
             Stmt::TensorDecl { name, shape, manifold, layout, location: _, backend: _ } => {
@@ -118,6 +125,15 @@ impl TypeChecker {
                 }
             },
             Stmt::FunctionDecl(decl) => {
+                let mut mangled = decl.name.clone();
+                for param in &decl.parameters {
+                    if let Some(m) = &param.manifold {
+                        mangled.push('_');
+                        mangled.push_str(&format!("{:?}", m).to_lowercase());
+                    }
+                }
+                decl.name = mangled;
+                
                 // Register function parameters in a new scope
                 self.push_scope();
                 for param in &decl.parameters {
@@ -126,12 +142,14 @@ impl TypeChecker {
                         scope.insert(param.name.clone(), CartanType::Tensor(vec![], crate::ast::ManifoldSpace::Euclidean, None));
                     }
                 }
-                self.visit_stmt(&Stmt::Block(decl.body.clone()))?;
+                for stmt in &mut decl.body.statements {
+                    self.visit_stmt(stmt)?;
+                }
                 self.pop_scope();
             },
             Stmt::Block(block_stmt) => {
                 self.push_scope();
-                for stmt in &block_stmt.statements {
+                for stmt in &mut block_stmt.statements {
                     self.visit_stmt(stmt)?;
                 }
                 self.pop_scope();
@@ -148,13 +166,13 @@ impl TypeChecker {
             Stmt::If { condition, true_block, false_block } => {
                 let _cond_type = self.visit_expr(condition)?;
                 self.push_scope();
-                for stmt in &true_block.statements {
+                for stmt in &mut true_block.statements {
                     self.visit_stmt(stmt)?;
                 }
                 self.pop_scope();
                 if let Some(fb) = false_block {
                     self.push_scope();
-                    for stmt in &fb.statements {
+                    for stmt in &mut fb.statements {
                         self.visit_stmt(stmt)?;
                     }
                     self.pop_scope();
@@ -163,14 +181,14 @@ impl TypeChecker {
             Stmt::While { condition, body } => {
                 let _cond_type = self.visit_expr(condition)?;
                 self.push_scope();
-                for stmt in &body.statements {
+                for stmt in &mut body.statements {
                     self.visit_stmt(stmt)?;
                 }
                 self.pop_scope();
             },
             Stmt::TryCatch { try_block, catch_var, catch_block } => {
                 self.push_scope();
-                for stmt in &try_block.statements {
+                for stmt in &mut try_block.statements {
                     self.visit_stmt(stmt)?;
                 }
                 self.pop_scope();
@@ -179,14 +197,14 @@ impl TypeChecker {
                 if let Some(scope) = self.symbol_table.last_mut() {
                     scope.insert(catch_var.clone(), CartanType::String); // Error message
                 }
-                for stmt in &catch_block.statements {
+                for stmt in &mut catch_block.statements {
                     self.visit_stmt(stmt)?;
                 }
                 self.pop_scope();
             },
             Stmt::AsyncCompute(block) => {
                 self.push_scope();
-                for stmt in &block.statements {
+                for stmt in &mut block.statements {
                     self.visit_stmt(stmt)?;
                 }
                 self.pop_scope();
@@ -196,14 +214,14 @@ impl TypeChecker {
             },
             Stmt::FluidPrecisionBlock { block, .. } => {
                 self.push_scope();
-                for stmt in &block.statements {
+                for stmt in &mut block.statements {
                     self.visit_stmt(stmt)?;
                 }
                 self.pop_scope();
             },
             Stmt::SparsityBlock { block, .. } => {
                 self.push_scope();
-                for stmt in &block.statements {
+                for stmt in &mut block.statements {
                     self.visit_stmt(stmt)?;
                 }
                 self.pop_scope();
@@ -232,7 +250,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    fn visit_expr(&mut self, expr: &Expr) -> Result<CartanType, Diagnostic> {
+    fn visit_expr(&mut self, expr: &mut Expr) -> Result<CartanType, Diagnostic> {
         match expr {
 
 
@@ -296,10 +314,32 @@ impl TypeChecker {
             Expr::SpikePrimitive => Ok(CartanType::Unknown),
             Expr::NeuronPrimitive => Ok(CartanType::Unknown),
             Expr::Attention { target, .. } => self.visit_expr(target),
-            Expr::FunctionCall { name: _name, args } => {
+            Expr::FunctionCall { name, args } => {
+                let mut arg_manifolds = Vec::new();
                 for arg in args {
-                    self.visit_expr(arg)?;
+                    let arg_type = self.visit_expr(arg)?;
+                    if let CartanType::Tensor(_, m, _) = arg_type {
+                        arg_manifolds.push(Some(m));
+                    } else {
+                        arg_manifolds.push(None);
+                    }
                 }
+                
+                let mut mangled = name.clone();
+                for m_opt in arg_manifolds {
+                    if let Some(m) = m_opt {
+                        mangled.push('_');
+                        mangled.push_str(&format!("{:?}", m).to_lowercase());
+                    }
+                }
+                
+                if self.functions.contains_key(&mangled) {
+                    *name = mangled;
+                } else {
+                    // Try to mangle based on what's available, or just leave it
+                    *name = mangled;
+                }
+                
                 Ok(CartanType::Unknown)
             },
             Expr::MethodCall { object, method_name, args } => {

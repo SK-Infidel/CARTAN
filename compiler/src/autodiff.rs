@@ -37,7 +37,10 @@ impl AutoDiffPass {
                         new_statements.push(Stmt::VarDecl {
                             name: format!("d_{}", loss_name),
                             is_const: false,
-                            value: Expr::Float(1.0),
+                            value: Expr::FunctionCall {
+                                name: "ones_like".to_string(),
+                                args: vec![Expr::Identifier(loss_name.clone())],
+                            },
                         });
 
                         for (target, left, op, right) in self.forward_ops.iter().rev() {
@@ -58,6 +61,14 @@ impl AutoDiffPass {
                                     }
                                     if let Expr::Identifier(r) = right {
                                         new_statements.push(self.create_grad_update_mul(&format!("d_{}", r), &d_target, left));
+                                    }
+                                },
+                                "@" => {
+                                    if let Expr::Identifier(l) = left {
+                                        new_statements.push(self.create_grad_update_matmul_left(&format!("d_{}", l), &d_target, right));
+                                    }
+                                    if let Expr::Identifier(r) = right {
+                                        new_statements.push(self.create_grad_update_matmul_right(&format!("d_{}", r), &d_target, left));
                                     }
                                 },
                                 _ => {}
@@ -107,6 +118,30 @@ impl AutoDiffPass {
                 left: Box::new(Expr::Identifier(upstream.to_string())),
                 op: "*".to_string(),
                 right: Box::new(var.clone()),
+            }
+        }
+    }
+
+    fn create_grad_update_matmul_left(&self, grad_name: &str, upstream: &str, right_var: &Expr) -> Stmt {
+        Stmt::VarDecl {
+            name: grad_name.to_string(),
+            is_const: false,
+            value: Expr::BinaryOp {
+                left: Box::new(Expr::Identifier(upstream.to_string())),
+                op: "@".to_string(),
+                right: Box::new(Expr::Transpose(Box::new(right_var.clone()))),
+            }
+        }
+    }
+
+    fn create_grad_update_matmul_right(&self, grad_name: &str, upstream: &str, left_var: &Expr) -> Stmt {
+        Stmt::VarDecl {
+            name: grad_name.to_string(),
+            is_const: false,
+            value: Expr::BinaryOp {
+                left: Box::new(Expr::Transpose(Box::new(left_var.clone()))),
+                op: "@".to_string(),
+                right: Box::new(Expr::Identifier(upstream.to_string())),
             }
         }
     }

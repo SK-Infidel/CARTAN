@@ -7,6 +7,7 @@ pub mod parser;
 pub mod token;
 pub mod types;
 pub mod type_checker;
+pub mod macro_pass;
 pub mod optimizer;
 pub mod autodiff;
 pub mod liveness;
@@ -20,7 +21,9 @@ mod eval;
 use lexer::Lexer;
 use parser::Parser;
 use type_checker::TypeChecker;
+use macro_pass::MacroPass;
 use optimizer::KernelFusionPass;
+use autodiff::AutoDiffPass;
 // Removed unused import
 use liveness::LivenessPass;
 use codegen::CodeGenerator;
@@ -148,14 +151,20 @@ fn main() {
                         }
                     }
 
+                    println!("Running AST Optimizer Pass: Macro Processing...");
+                    let mut macro_pass = MacroPass::new();
+                    macro_pass.optimize(&mut ast);
+                    println!("AST Optimizer: Macros successfully expanded.");
+
                     println!("Running AST Optimizer Pass: Kernel Fusion...");
                     let mut optimizer = KernelFusionPass::new();
                     optimizer.optimize(&mut ast);
                     println!("AST Optimizer: Kernel Fusion applied.");
                     
 
-                    // let mut autodiff = AutoDiffPass::new();
-                    // autodiff.optimize(&mut ast);
+                    let mut autodiff = AutoDiffPass::new();
+                    autodiff.optimize(&mut ast);
+                    println!("AST Optimizer: AutoDiff Unrolling completed.");
 
                     
                     println!("Running AST Optimizer Pass: Liveness Analysis...");
@@ -165,7 +174,7 @@ fn main() {
                     
                     println!("Running Type Checker...");
                     let mut checker = TypeChecker::new();
-                    match checker.check(&ast) {
+                    match checker.check(&mut ast) {
                         Ok(_) => {
                             println!("Type Checker: Symbolic Graph mathematically proven safe.");
                             
@@ -202,21 +211,25 @@ fn main() {
                                 let exe_name = format!("release/{}.exe", file_stem);
                                 
                                 let root = get_cartan_root();
-                                let zig_exe = root.join("zig-windows-x86_64-0.13.0/zig.exe");
+                                let zig_exe = root.join("zig/zig.exe");
                                 let mut zig_path = zig_exe.to_str().unwrap().to_string();
                                 if !zig_exe.exists() {
-                                    if let Some(p) = root.join("zig/zig.exe").to_str() {
+                                    if let Some(p) = root.join("zig-windows-x86_64-0.13.0/zig.exe").to_str() {
                                         zig_path = p.to_string();
                                     }
                                 }
-                                let tensor_lib = root.join("tensor_runtime/target/release/cartan_tensor.lib").to_str().unwrap().to_string();
+                                let mut tensor_lib = root.join("lib/cartan_tensor.lib");
+                                if !tensor_lib.exists() {
+                                    tensor_lib = root.join("tensor_runtime/target/release/cartan_tensor.lib");
+                                }
+                                let tensor_lib_str = tensor_lib.to_str().unwrap().to_string();
                                 
                                 let status = Command::new(&zig_path)
                                     .arg("cc")
                                     .arg(&out_path)
                                     .arg("-target")
                                     .arg("x86_64-windows-msvc")
-                                    .arg(&tensor_lib)
+                                    .arg(&tensor_lib_str)
                                     .arg("-o")
                                     .arg(&exe_name)
                                     .arg("-lntdll")
@@ -243,21 +256,25 @@ fn main() {
                                 let exe_name = format!("release/{}.exe", file_stem);
                                 
                                 let root = get_cartan_root();
-                                let zig_exe = root.join("zig-windows-x86_64-0.13.0/zig.exe");
+                                let zig_exe = root.join("zig/zig.exe");
                                 let mut zig_path = zig_exe.to_str().unwrap().to_string();
                                 if !zig_exe.exists() {
-                                    if let Some(p) = root.join("zig/zig.exe").to_str() {
+                                    if let Some(p) = root.join("zig-windows-x86_64-0.13.0/zig.exe").to_str() {
                                         zig_path = p.to_string();
                                     }
                                 }
-                                let gpu_lib = root.join("gpu_runtime/target/release/gpu_runtime.lib").to_str().unwrap().to_string();
+                                let mut gpu_lib = root.join("lib/gpu_runtime.lib");
+                                if !gpu_lib.exists() {
+                                    gpu_lib = root.join("gpu_runtime/target/release/gpu_runtime.lib");
+                                }
+                                let gpu_lib_str = gpu_lib.to_str().unwrap().to_string();
                                 
                                 let status = Command::new(&zig_path)
                                     .arg("cc")
                                     .arg(&out_path)
                                     .arg("-target")
                                     .arg("x86_64-windows-msvc")
-                                    .arg(&gpu_lib)
+                                    .arg(&gpu_lib_str)
                                     .arg("-o")
                                     .arg(&exe_name)
                                     .arg("-lntdll")

@@ -72,7 +72,7 @@ impl Backend {
 
         // Run Parser
         let mut parser = Parser::new(tokens);
-        let ast = match parser.parse() {
+        let mut ast = match parser.parse() {
             Ok(a) => a,
             Err(e) => {
                 let range = Range::new(
@@ -95,7 +95,7 @@ impl Backend {
 
         // Run TypeChecker
         let mut checker = TypeChecker::new();
-        match checker.check(&ast) {
+        match checker.check(&mut ast) {
             Ok(_) => {}
             Err(e) => {
                 let range = Range::new(

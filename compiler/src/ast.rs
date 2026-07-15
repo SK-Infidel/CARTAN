@@ -35,6 +35,8 @@ pub struct GenericBound {
 pub struct Parameter {
     pub name: String,
     pub type_name: String,
+    pub shape: Vec<Expr>,
+    pub manifold: Option<ManifoldSpace>,
     pub is_borrow: bool,
     pub is_mutable: bool,
 }
@@ -59,6 +61,13 @@ pub struct ExternFunctionDecl {
     pub name: String,
     pub parameters: Vec<Parameter>,
     pub return_type: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct MacroRule {
+    pub name: String,
+    pub pattern: BlockStmt,
+    pub replace: BlockStmt,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -113,6 +122,18 @@ pub enum Expr {
         target: Box<Expr>,
         routing: String,
     },
+    Range {
+        start: Box<Expr>,
+        end: Box<Expr>,
+    },
+    Graft {
+        source: Box<Expr>,
+        topology: Option<String>,
+    },
+    TranslationBarrier {
+        from: Box<Expr>,
+        to: Box<Expr>,
+    },
     TokenizeBPE {
         text: Box<Expr>,
         tokenizer_path: String,
@@ -129,6 +150,7 @@ pub enum Expr {
     AlignGeodesics(Box<Expr>, Box<Expr>),
     GeometricBridge(Box<Expr>, Box<Expr>),
     TransposeWeights(Box<Expr>, Box<Expr>),
+    Transpose(Box<Expr>),
     ReflectRepo,
     HotSwap(Box<Expr>, Box<Expr>),
     SpikePrimitive,
@@ -179,6 +201,7 @@ pub enum Stmt {
     },
     FunctionDecl(FunctionDecl),
     ExternFunctionDecl(ExternFunctionDecl),
+    MacroDecl(MacroRule),
     If {
         condition: Expr,
         true_block: BlockStmt,

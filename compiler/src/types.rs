@@ -41,13 +41,37 @@ impl std::fmt::Display for CartanType {
             CartanType::Stream => write!(f, "stream"),
             CartanType::Spike => write!(f, "spike"),
             CartanType::Neuron => write!(f, "neuron"),
-            CartanType::Tensor(dims, _, _) => {
+            CartanType::Tensor(dims, space, layout) => {
                 let d_str: Vec<String> = dims.iter().map(|d| d.to_string()).collect();
-                write!(f, "tensor[{}]", d_str.join(", "))
+                let space_str = match space {
+                    ManifoldSpace::Euclidean => "".to_string(),
+                    ManifoldSpace::Minkowski => " in Minkowski".to_string(),
+                    ManifoldSpace::PoincareDisk => " in PoincareDisk".to_string(),
+                    ManifoldSpace::Custom(c) => format!(" in {}", c),
+                };
+                let layout_str = match layout {
+                    Some(l) => format!(" layout({:?})", l),
+                    None => "".to_string(),
+                };
+                write!(f, "tensor[{}]{}{}", d_str.join(", "), space_str, layout_str)
             },
-            CartanType::Parameter(dims, _, _, _) => {
+            CartanType::Parameter(dims, space, layout, opt) => {
                 let d_str: Vec<String> = dims.iter().map(|d| d.to_string()).collect();
-                write!(f, "parameter[{}]", d_str.join(", "))
+                let space_str = match space {
+                    ManifoldSpace::Euclidean => "".to_string(),
+                    ManifoldSpace::Minkowski => " in Minkowski".to_string(),
+                    ManifoldSpace::PoincareDisk => " in PoincareDisk".to_string(),
+                    ManifoldSpace::Custom(c) => format!(" in {}", c),
+                };
+                let layout_str = match layout {
+                    Some(l) => format!(" layout({:?})", l),
+                    None => "".to_string(),
+                };
+                let opt_str = match opt {
+                    Some(o) => format!(" opt({:?})", o),
+                    None => "".to_string(),
+                };
+                write!(f, "parameter[{}]{}{}{}", d_str.join(", "), space_str, layout_str, opt_str)
             },
             CartanType::Sequence(max_len) => write!(f, "sequence[{}]", max_len),
             CartanType::Block(size) => write!(f, "block[{}]", size),

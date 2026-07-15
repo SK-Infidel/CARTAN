@@ -20,7 +20,7 @@ pub enum TokenType {
     Match, // match
     FatArrow, // =>
     Return, Break, Continue, Try, Catch, Throw, Import, In,
-    AsyncCompute, Backward,
+    AsyncCompute, Backward, Macro, Pattern, Replace,
     BackedBy, // backed_by
     Attention, // @attention
     SievingCache, // SievingCache
@@ -39,6 +39,10 @@ pub enum TokenType {
             // tokenize_bpe
              // align_spans
     Print,              // print
+    Graft, // graft
+    TranslationBarrier, // translation_barrier
+    From, // from
+    To, // to
     // Literals & Identifiers
     Identifier(String),
     IntLiteral(i64),
@@ -58,7 +62,7 @@ pub enum TokenType {
 
     // Punctuation
     LParen, RParen, LBrace, RBrace, LBracket, RBracket,
-    Comma, Colon, Dot, Semicolon,
+    Comma, Colon, Dot, DotDot, Semicolon,
     
     // Special Cartan Primitives
     AtLocation, // @location
