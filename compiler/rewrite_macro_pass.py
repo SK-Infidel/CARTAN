@@ -1,4 +1,9 @@
-use crate::ast::{Stmt, Expr, MacroRule, BlockStmt};
+﻿import os
+
+with open('src/macro_pass.rs', 'r', encoding='utf-8') as f:
+    code = f.read()
+
+new_code = '''use crate::ast::{Stmt, Expr, MacroRule, BlockStmt};
 use std::collections::HashMap;
 
 pub struct MacroPass {
@@ -41,10 +46,7 @@ impl MacroPass {
                         for stmt in &mut replaced {
                             self.substitute_stmt(stmt, &bindings);
                         }
-                        println!("MACRO MATCHED AND REPLACED!");
-                        let r_len = replaced.len();
                         stmts.splice(i..i+p_len, replaced);
-                        i += r_len; // advance past the replacement to avoid infinite loops
                         matched = true;
                         break;
                     }
@@ -82,25 +84,7 @@ impl MacroPass {
             bindings.insert(name.clone(), Stmt::Expr(window.clone()));
             return true;
         }
-        match (window, pattern) {
-            (Expr::Assignment { target: w_t, value: w_v }, Expr::Assignment { target: p_t, value: p_v }) => {
-                self.matches_expr(w_t, p_t, bindings) && self.matches_expr(w_v, p_v, bindings)
-            }
-            (Expr::BinaryOp { left: w_l, op: w_o, right: w_r }, Expr::BinaryOp { left: p_l, op: p_o, right: p_r }) => {
-                w_o == p_o && self.matches_expr(w_l, p_l, bindings) && self.matches_expr(w_r, p_r, bindings)
-            }
-            (Expr::UnaryOp { op: w_o, right: w_r }, Expr::UnaryOp { op: p_o, right: p_r }) => {
-                w_o == p_o && self.matches_expr(w_r, p_r, bindings)
-            }
-            (Expr::FunctionCall { name: w_n, args: w_a }, Expr::FunctionCall { name: p_n, args: p_a }) => {
-                if w_n != p_n || w_a.len() != p_a.len() { return false; }
-                for (wa, pa) in w_a.iter().zip(p_a.iter()) {
-                    if !self.matches_expr(wa, pa, bindings) { return false; }
-                }
-                true
-            }
-            _ => window == pattern,
-        }
+        window == pattern
     }
 
     fn substitute_stmt(&self, stmt: &mut Stmt, bindings: &HashMap<String, Stmt>) {
@@ -155,10 +139,6 @@ impl MacroPass {
                     self.substitute_expr(arg, bindings);
                 }
             }
-            Expr::Assignment { target, value } => {
-                self.substitute_expr(target, bindings);
-                self.substitute_expr(value, bindings);
-            }
             _ => {}
         }
         false
@@ -204,3 +184,8 @@ impl MacroPass {
         }
     }
 }
+'''
+
+with open('src/macro_pass.rs', 'w', encoding='utf-8') as f:
+    f.write(new_code)
+print("Updated macro_pass.rs with  placeholder support")

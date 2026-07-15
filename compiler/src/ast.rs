@@ -77,6 +77,7 @@ pub enum Expr {
     Boolean(bool),
     StringLiteral(String),
     Identifier(String),
+    Placeholder(String),
     UnaryOp {
         op: String,
         right: Box<Expr>,
@@ -160,6 +161,7 @@ pub enum Expr {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Stmt {
+    Placeholder(String),
     Expr(Expr),
     VarDecl {
         name: String,

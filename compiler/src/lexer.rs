@@ -42,6 +42,9 @@ impl Lexer {
         keywords.insert("import".to_string(), TokenType::Import);
         keywords.insert("in".to_string(), TokenType::In);
         keywords.insert("backward".to_string(), TokenType::Backward);
+        keywords.insert("macro".to_string(), TokenType::Macro);
+        keywords.insert("pattern".to_string(), TokenType::Pattern);
+        keywords.insert("replace".to_string(), TokenType::Replace);
         keywords.insert("async_compute".to_string(), TokenType::AsyncCompute);
         keywords.insert("SievingCache".to_string(), TokenType::SievingCache);
         keywords.insert("FractalAttentionBlock".to_string(), TokenType::FractalAttentionBlock);
@@ -232,6 +235,22 @@ impl Lexer {
                     }
                 }
                 '#' => { self.advance(); tokens.push(Token { token_type: TokenType::Hash, lexeme: "#".to_string(), span: Span::new(start_line, start_col, self.col) }); }
+                '$' => {
+                    self.advance();
+                    let mut placeholder = String::new();
+                    while let Some(ch) = self.peek() {
+                        if ch.is_ascii_alphanumeric() || ch == '_' {
+                            placeholder.push(ch);
+                            self.advance();
+                        } else {
+                            break;
+                        }
+                    }
+                    if placeholder.is_empty() {
+                        return Err(Diagnostic::error("Expected identifier after '$'", Span::new(start_line, start_col, self.col)));
+                    }
+                    tokens.push(Token { token_type: TokenType::Placeholder(placeholder.clone()), lexeme: format!("${}", placeholder), span: Span::new(start_line, start_col, self.col) });
+                }
                 '"' => {
                     self.advance(); // skip quote
                     let mut string_val = String::new();

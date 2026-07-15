@@ -49,6 +49,7 @@ impl TypeChecker {
 
     fn visit_stmt(&mut self, stmt: &mut Stmt) -> Result<(), Diagnostic> {
         match stmt {
+            Stmt::Placeholder(_) => { /* Ignore placeholders during type checking */ },
             Stmt::StructDecl { name: _, fields: _ } => { /* ignore for now */ },
             Stmt::TensorDecl { name, shape, manifold, layout, location: _, backend: _ } => {
                 let mut dimensions = Vec::new();
@@ -352,6 +353,9 @@ impl TypeChecker {
                         return Ok(CartanType::Tensor(vec![Dimension::Fixed(1)], crate::ast::ManifoldSpace::Euclidean, None));
                     }
                 }
+                Ok(CartanType::Unknown)
+            },
+            Expr::Placeholder(_) => {
                 Ok(CartanType::Unknown)
             },
             Expr::Identifier(name) => {

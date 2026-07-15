@@ -184,6 +184,7 @@ impl LLVMGenerator {
         // Pass 1: Collect globals and declare extern functions
         for stmt in ast {
             match stmt {
+                Stmt::Placeholder(_) => {},
                 Stmt::ExternFunctionDecl(decl) => {
                     if declared_externs.contains(&decl.name) {
                         continue;
@@ -350,6 +351,7 @@ impl LLVMGenerator {
         for stmt in ast {
             let mut skip = false;
             match stmt {
+                Stmt::Placeholder(_) => skip = true,
                 Stmt::ExternFunctionDecl(_) | Stmt::FunctionDecl(_) => skip = true,
                 Stmt::VarDecl { is_const: true, .. } => skip = true,
                 _ => {}
@@ -375,6 +377,7 @@ impl LLVMGenerator {
 
     fn visit_stmt(&mut self, stmt: &Stmt) {
         match stmt {
+            Stmt::Placeholder(_) => {},
             Stmt::Match { condition, arms } => {
                 let cond_reg = self.visit_expr(condition).unwrap_or("0.0".to_string());
                 let is_cond_ptr = cond_reg.starts_with("ptr:") || cond_reg.starts_with("string:");
@@ -977,6 +980,9 @@ impl LLVMGenerator {
             },
             Expr::Float(f) => {
                 Some(format!("{:.6}", f))
+            },
+            Expr::Placeholder(_) => {
+                Some("0.0".to_string())
             },
             Expr::Integer(i) => {
                 Some(format!("{}", i))

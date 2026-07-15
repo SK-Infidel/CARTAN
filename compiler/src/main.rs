@@ -133,6 +133,9 @@ fn main() {
     match lexer.tokenize() {
         Ok(tokens) => {
             println!("Lexing completed: {} tokens.", tokens.len());
+    for t in &tokens {
+        println!("{:?}", t);
+    }
             println!("Parsing tokens into AST...");
             let mut parser = Parser::new(tokens);
             match parser.parse() {

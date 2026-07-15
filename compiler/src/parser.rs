@@ -69,7 +69,9 @@ impl Parser {
             is_agent_accessible = true;
         }
 
-        if self.match_token(&[TokenType::Extern]) {
+        if self.match_token(&[TokenType::Macro]) {
+            self.macro_declaration()
+        } else if self.match_token(&[TokenType::Extern]) {
             self.extern_function_declaration()
         } else if self.match_token(&[TokenType::Fn]) {
             self.function_declaration(is_agent_accessible)
@@ -352,6 +354,30 @@ impl Parser {
     }
 
 
+
+    fn macro_declaration(&mut self) -> Result<Stmt, Diagnostic> {
+        let name = match self.consume(TokenType::Identifier("".to_string()), "Expected macro name")?.token_type.clone() {
+            TokenType::Identifier(s) => s,
+            _ => return Err(Diagnostic::error("Expected macro name", self.previous().span)),
+        };
+        self.consume(TokenType::LBrace, "Expected '{' after macro name")?;
+        
+        self.consume(TokenType::Pattern, "Expected 'pattern' block in macro")?;
+        self.consume(TokenType::LBrace, "Expected '{' after 'pattern'")?;
+        let pattern = self.block()?;
+        
+        self.consume(TokenType::Replace, "Expected 'replace' block in macro")?;
+        self.consume(TokenType::LBrace, "Expected '{' after 'replace'")?;
+        let replace = self.block()?;
+        
+        self.consume(TokenType::RBrace, "Expected '}' after macro body")?;
+        
+        Ok(Stmt::MacroDecl(crate::ast::MacroRule {
+            name,
+            pattern,
+            replace,
+        }))
+    }
 
     fn function_declaration(&mut self, is_agent_accessible: bool) -> Result<Stmt, Diagnostic> {
         let name_token = self.consume(TokenType::Identifier("".to_string()), "Expected function name")?.clone();
@@ -1078,6 +1104,7 @@ impl Parser {
             TokenType::FloatLiteral(n) => Ok(Expr::Float(n)),
             TokenType::StringLiteral(s) => Ok(Expr::StringLiteral(s)),
             TokenType::Identifier(s) => Ok(Expr::Identifier(s)),
+            TokenType::Placeholder(s) => Ok(Expr::Placeholder(s)),
             _ => Err(Diagnostic::error("Expected expression", token.span)),
         }
     }
