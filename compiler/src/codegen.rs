@@ -119,9 +119,10 @@ impl CodeGenerator {
                     self.buffer.extend_from_slice(&0u32.to_le_bytes());
                 }
             },
+            Stmt::FieldDecl { name: _, type_name: _ } => { /* no-op */ },
             Stmt::StructDecl { name: _, fields: _ } => { /* ignore for now */ },
 
-            Stmt::VarDecl { name, is_const: _, value } => {
+            Stmt::VarDecl { name, is_const: _, value, type_annotation: _ } => {
                 if let Some(id) = self.visit_expr(value) {
                     if let Some(scope) = self.env.last_mut() {
                         scope.insert(name.clone(), id);
@@ -129,7 +130,7 @@ impl CodeGenerator {
                 }
             },
 
-            Stmt::TensorDecl { name, shape, manifold, location: _, backend: _, layout: _ } => {
+            Stmt::TensorDecl { name, shape, manifold, location: _, backend: _, layout: _, is_lazy: _, is_unified: _, is_latent: _ } => {
                 self.emit_opcode(Opcode::AllocTensor);
                 let t_id = self.tensor_id_counter;
                 if let Some(scope) = self.env.last_mut() {

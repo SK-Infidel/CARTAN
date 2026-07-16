@@ -314,6 +314,7 @@ fn main() {
                                 println!("Executing via Cartan Native Engine...");
                                 let mut evaluator = eval::Evaluator::new();
                                 evaluator.eval(&ast);
+                                evaluator.run_main();
                             }
                         }
                         Err(e) => {

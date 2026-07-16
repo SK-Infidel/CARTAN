@@ -15,14 +15,34 @@ impl Span {
 pub enum TokenType {
     // Keywords
     Fn, Let, Const, Var, Struct, Stream,
-    Tensor, Parameter, Sequence, Block, Layout, Manifold, Topology, Mut, Extern,
+    Tensor, Vector, Tree, Lattice, Parameter, Sequence, Block, Layout, Manifold, Topology, Mut, Extern,
     If, Else, While, For,
     Match, // match
     FatArrow, // =>
     Return, Break, Continue, Try, Catch, Throw, Import, In,
-    AsyncCompute, Backward, Macro,
+    AsyncCompute, Backward,    Yield,
+    YieldTo,
+    Vmap,
+    Grad,
+    As,
+    Pipeline,
+    Jit,
+    WeightDecay,
+    Macro,
     Mesh,
     HotSwap,
+    Multimodal,
+    Lazy,
+    Unified,
+    Doubt,
+    Chain,
+    PagedAttention,
+    Latent,
+    Route,
+    Grok,
+    Tool,
+    Override,
+    Search, // search
     Satisfy,
     Otherwise,
     Backtrack,
@@ -42,6 +62,7 @@ pub enum TokenType {
     AgentAccessible, // @agent_accessible
     AbsorbLayerWeights, // absorb_layer_weights
     ProjectVocab, // project_vocab
+    Filter, // filter
             // tokenize_bpe
              // align_spans
     Print,              // print
@@ -49,11 +70,34 @@ pub enum TokenType {
     TranslationBarrier, // translation_barrier
     From, // from
     To, // to
+    At, // at
+    Ptr, // ptr
+    ImportOnnx, // import_onnx!
+    Quantize, // quantize
+    Layer,
+    Graph,
+    Riemannian,
+    Rule,
+    KnowledgeBase,
+    Fuzzy,
+    Complex32,
+    Evolve,
+    Spawn,
+    Dataframe,
+    Trait,
+    Impl,
+    Receive,
+    
+    // Identifiers and Literals
+    StringView, // string_view
+    SimdFindFirst, // @simd_find_first
+    SimdMaskAlpha, // @simd_mask_alpha
     // Literals & Identifiers
     Identifier(String),
     IntLiteral(i64),
     FloatLiteral(f64),
     StringLiteral(String),
+    PromptLiteral(String),
     BoolLiteral(bool),
     
     // Operators

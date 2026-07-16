@@ -36,7 +36,7 @@ impl AutoDiffPass {
                         
                         new_statements.push(Stmt::VarDecl {
                             name: format!("d_{}", loss_name),
-                            is_const: false,
+                            is_const: false, type_annotation: None,
                             value: Expr::FunctionCall {
                                 name: "ones_like".to_string(),
                                 args: vec![Expr::Identifier(loss_name.clone())],
@@ -113,15 +113,19 @@ impl AutoDiffPass {
             }
         }
 
-        if let Expr::BinaryOp { left, op, right } = inner_val {
-            self.forward_ops.push((target.to_string(), *left.clone(), op.clone(), *right.clone()));
+        match inner_val {
+            Expr::StructInit { name: _, fields: _ } => {},
+            Expr::BinaryOp { left, op, right } => {
+                self.forward_ops.push((target.to_string(), *left.clone(), op.clone(), *right.clone()));
+            }
+            _ => {}
         }
     }
 
     fn create_grad_update(&self, grad_name: &str, upstream: &str) -> Stmt {
         Stmt::VarDecl {
             name: grad_name.to_string(),
-            is_const: false,
+            is_const: false, type_annotation: None,
             value: Expr::Identifier(upstream.to_string()),
         }
     }
@@ -129,7 +133,7 @@ impl AutoDiffPass {
     fn create_grad_update_neg(&self, grad_name: &str, upstream: &str) -> Stmt {
         Stmt::VarDecl {
             name: grad_name.to_string(),
-            is_const: false,
+            is_const: false, type_annotation: None,
             value: Expr::BinaryOp {
                 left: Box::new(Expr::Identifier(upstream.to_string())),
                 op: "*".to_string(),
@@ -141,7 +145,7 @@ impl AutoDiffPass {
     fn create_grad_update_div(&self, grad_name: &str, upstream: &str, var: &Expr) -> Stmt {
         Stmt::VarDecl {
             name: grad_name.to_string(),
-            is_const: false,
+            is_const: false, type_annotation: None,
             value: Expr::BinaryOp {
                 left: Box::new(Expr::Identifier(upstream.to_string())),
                 op: "/".to_string(),
@@ -168,7 +172,7 @@ impl AutoDiffPass {
         };
         Stmt::VarDecl {
             name: grad_name.to_string(),
-            is_const: false,
+            is_const: false, type_annotation: None,
             value: Expr::BinaryOp {
                 left: Box::new(num),
                 op: "/".to_string(),
@@ -180,7 +184,7 @@ impl AutoDiffPass {
     fn create_grad_update_mul(&self, grad_name: &str, upstream: &str, var: &Expr) -> Stmt {
         Stmt::VarDecl {
             name: grad_name.to_string(),
-            is_const: false,
+            is_const: false, type_annotation: None,
             value: Expr::BinaryOp {
                 left: Box::new(Expr::Identifier(upstream.to_string())),
                 op: "*".to_string(),
@@ -192,7 +196,7 @@ impl AutoDiffPass {
     fn create_grad_update_matmul_left(&self, grad_name: &str, upstream: &str, right_var: &Expr) -> Stmt {
         Stmt::VarDecl {
             name: grad_name.to_string(),
-            is_const: false,
+            is_const: false, type_annotation: None,
             value: Expr::BinaryOp {
                 left: Box::new(Expr::Identifier(upstream.to_string())),
                 op: "@".to_string(),
@@ -204,7 +208,7 @@ impl AutoDiffPass {
     fn create_grad_update_matmul_right(&self, grad_name: &str, upstream: &str, left_var: &Expr) -> Stmt {
         Stmt::VarDecl {
             name: grad_name.to_string(),
-            is_const: false,
+            is_const: false, type_annotation: None,
             value: Expr::BinaryOp {
                 left: Box::new(Expr::Transpose(Box::new(left_var.clone()))),
                 op: "@".to_string(),
@@ -215,7 +219,7 @@ impl AutoDiffPass {
 
     fn visit_stmt(&mut self, stmt: &mut Stmt) {
         match stmt {
-            Stmt::Block(block) | Stmt::MeshBlock { body: block, .. } | Stmt::AsyncCompute(block) => {
+            Stmt::Block(block) | Stmt::MeshBlock { body: block, .. } | Stmt::AsyncCompute(block) | Stmt::MultimodalBlock { body: block } | Stmt::VmapBlock { body: block } | Stmt::DoubtBlock { body: block } | Stmt::ChainBlock { body: block } | Stmt::RouteBlock { body: block } | Stmt::GrokBlock { body: block } | Stmt::OverrideBlock { body: block } => {
                 self.visit_block_statements(&mut block.statements);
             },
             Stmt::FunctionDecl(decl) => {

@@ -1,0 +1,20 @@
+fn test_tier2_p2() {
+    import "hf://meta-llama" as llm;
+    
+    let text = p"hello {user}";
+    
+    pipeline Net {
+        x,
+        y
+    }
+    
+    tensor img[224, 224, 3] under rgb8;
+    
+    project_vocab(llm, img);
+    
+    weight_decay(img, 0.01);
+    
+    jit {
+        let z = 1;
+    }
+}

@@ -1,0 +1,164 @@
+// cartan_src/test_phase12.car
+// Tests native tokenizer and filter integration.
+
+struct WordLevel {
+    vocab: tree<string>;
+}
+
+trait Tokenizer {
+    fn encode(text: string) -> tree<i32> {}
+    fn decode(tokens: tree<i32>) -> string {}
+}
+
+impl Tokenizer for WordLevel {
+    fn encode(text: string) -> tree<i32> {
+        let tokens = Cartan.tree_create();
+        let current_word = "";
+        let i = 0;
+        let len = text.string_length();
+
+        while (i < len) {
+            let c = text.char_at(i);
+            if (c == " " || c == "\n") {
+                if (current_word.string_length() > 0) {
+                    let token_id = self.find_vocab_id(current_word);
+                    printf("Pushing word '%s' with id %d\n", current_word, token_id);
+                    Cartan.tree_push(tokens, token_id);
+                    current_word = "";
+                }
+            } else {
+                current_word = current_word + c;
+            }
+            i = i + 1;
+        }
+
+        if (current_word.string_length() > 0) {
+            let token_id = self.find_vocab_id(current_word);
+            printf("Pushing word '%s' with id %d\n", current_word, token_id);
+            Cartan.tree_push(tokens, token_id);
+        }
+
+        return tokens;
+    }
+
+    fn decode(tokens: tree<i32>) -> string {
+        let result = "";
+        let i = 0;
+        let len = tokens.len();
+        
+        while (i < len) {
+            let token_id = Cartan.tree_get(tokens, i);
+            let word = Cartan.tree_get(self.vocab, token_id);
+            if (i > 0) {
+                result = result + " ";
+            }
+            result = result + word;
+            i = i + 1;
+        }
+        
+        return result;
+    }
+
+    fn find_vocab_id(word: string) -> i32 {
+        let i = 0;
+        let len = self.vocab.len();
+        while (i < len) {
+            let w = Cartan.tree_get(self.vocab, i);
+            if (w == word) {
+                return i;
+            }
+            i = i + 1;
+        }
+        return 0; // UNK
+    }
+}
+
+
+struct StructuralNoise {
+    window: i32;
+}
+
+trait Filter {
+    fn apply(tokens: tree<i32>) -> tree<i32> {}
+}
+
+impl Filter for StructuralNoise {
+    fn apply(tokens: tree<i32>) -> tree<i32> {
+        let filtered = Cartan.tree_create();
+        let len = tokens.len();
+        let i = 0;
+        
+        while (i < len) {
+            let current = Cartan.tree_get(tokens, i);
+            let drop = false;
+
+            if (i >= self.window) {
+                let past = Cartan.tree_get(tokens, i - self.window);
+                if (current == past) {
+                    drop = true; // Drop repeating sequences
+                }
+            }
+
+            if (drop == false) {
+                Cartan.tree_push(filtered, current);
+            }
+            
+            i = i + 1;
+        }
+
+        return filtered;
+    }
+}
+
+struct HighEntropy {}
+
+impl Filter for HighEntropy {
+    fn apply(tokens: tree<i32>) -> tree<i32> {
+        let filtered = Cartan.tree_create();
+        let len = tokens.len();
+        let i = 0;
+        
+        while (i < len) {
+            let current = Cartan.tree_get(tokens, i);
+            // Drop [UNK] tokens (id 0) as high entropy/gibberish
+            if (current != 0) {
+                Cartan.tree_push(filtered, current);
+            }
+            i = i + 1;
+        }
+
+        return filtered;
+    }
+}
+
+fn main() {
+    let vocab = Cartan.tree_create();
+    Cartan.tree_push(vocab, "[UNK]");
+    Cartan.tree_push(vocab, "hello");
+    Cartan.tree_push(vocab, "world");
+    Cartan.tree_push(vocab, "cartan");
+    Cartan.tree_push(vocab, "noise");
+
+    let tok = WordLevel { vocab: vocab };
+    
+    // 1. Tokenize text
+    let raw = "hello noise noise xzqy cartan world";
+    printf("Raw Text: %s\n", raw);
+    
+    let encoded = tok.encode(raw);
+    printf("Encoded Tokens Count: %d\n", encoded.len());
+
+    // 2. Filter Noise
+    let noise_filter = StructuralNoise { window: 1 };
+    let clean = noise_filter.apply(encoded);
+    
+    // 3. Filter High Entropy
+    let entropy_filter = HighEntropy {};
+    clean = entropy_filter.apply(clean);
+    
+    printf("Clean Tokens Count: %d\n", clean.len());
+    
+    // 3. Decode back
+    let decoded = tok.decode(clean);
+    printf("Cleaned Text: %s\n", decoded);
+}

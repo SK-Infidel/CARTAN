@@ -1,0 +1,17 @@
+fn test_tier2() {
+    let x = tensor[10, 10];
+    
+    // Hardware Pointers
+    ptr p = &x;
+    let y = *x;
+    
+    // Composable Transforms
+    let g = grad(x);
+    let v = vmap(x);
+    
+    // import_onnx!
+    let model = import_onnx!("model.onnx");
+    
+    // quantize
+    let q = quantize(x, INT8);
+}

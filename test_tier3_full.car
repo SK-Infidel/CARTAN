@@ -1,0 +1,30 @@
+graph GeoMind {
+    layer fc1 = dense(512, relu);
+    layer fc2 = dense(256, linear);
+}
+
+knowledge_base K {
+    rule A = B;
+}
+
+evolve MySim {
+    tensor t1[2];
+}
+
+spawn Worker {
+    tensor t[3];
+}
+
+dataframe D {
+    tensor col1[3];
+}
+
+tensor t2[2];
+satisfy (t2[0] > 0.0) {
+    t2[0] = 1.0;
+} otherwise {
+    t2[0] = 0.0;
+}
+
+tensor grads[1];
+grads = riemannian grad(GeoMind);

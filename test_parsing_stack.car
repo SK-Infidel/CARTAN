@@ -1,0 +1,16 @@
+fn main() -> i32 {
+    let source = "def hello_world()";
+    let view = string_view(source, 4, 11);
+    
+    // Find the first underscore in "hello_world()"
+    let u_idx = @simd_find_first(view, 95); // 95 is '_'
+    
+    // Check where alphabetic chars end (the parentheses)
+    let end_idx = @simd_mask_alpha(view);
+    
+    printf("String view offset pointer: %p\n", view);
+    printf("Underscore found at local index: %f\n", u_idx);
+    printf("Alphabetic mask ends at: %f\n", end_idx);
+    
+    return u_idx;
+}

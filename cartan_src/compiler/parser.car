@@ -1,0 +1,19 @@
+// cartan_src/compiler/parser.car
+
+struct Parser {
+    tokens: tree<Token>;
+    current: i32;
+}
+
+trait IParser {
+    fn parse() -> tree<Stmt> {}
+}
+
+impl IParser for Parser {
+    fn parse() -> tree<Stmt> {
+        let ast = Cartan.tree_create();
+        // Parsing logic leveraging structural matching
+        
+        return ast;
+    }
+}

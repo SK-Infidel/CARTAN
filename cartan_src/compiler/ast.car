@@ -1,0 +1,121 @@
+// cartan_src/compiler/ast.car
+// Data-oriented representation of the CARTAN AST
+
+struct GenericBound {
+    name: string;
+    bound: string;
+}
+
+struct Parameter {
+    name: string;
+    type_name: string;
+    shape: tree<Expr>;
+    manifold_name: string;
+    is_borrow: i32;
+    is_mutable: i32;
+}
+
+struct BlockStmt {
+    statements: tree<Stmt>;
+}
+
+struct FunctionDecl {
+    name: string;
+    generic_bounds: tree<GenericBound>;
+    parameters: tree<Parameter>;
+    return_type: string;
+    is_agent_accessible: i32;
+    body: BlockStmt;
+}
+
+// Expressions
+struct ExprInteger { value: i32; }
+struct ExprFloat { value: float; }
+struct ExprStringLiteral { value: string; }
+struct ExprIdentifier { name: string; }
+
+struct ExprBinaryOp {
+    left: tree<Expr>;
+    op: string;
+    right: tree<Expr>;
+}
+
+struct ExprFunctionCall {
+    name: string;
+    args: tree<Expr>;
+}
+
+struct ExprMethodCall {
+    object: tree<Expr>;
+    method_name: string;
+    args: tree<Expr>;
+}
+
+struct ExprPropertyAccess {
+    object: tree<Expr>;
+    property_name: string;
+}
+
+struct ExprStructInit {
+    name: string;
+    // Map of fields stored in a tree
+    fields: tree<Expr>; 
+}
+
+struct Expr {
+    type_tag: i32;
+    payload: void_ptr;
+}
+
+// Statements
+struct StmtExpr { 
+    expr: tree<Expr>; 
+}
+
+struct StmtVarDecl {
+    name: string;
+    is_const: i32;
+    type_annotation: string;
+    value: tree<Expr>;
+}
+
+struct StmtStructDecl {
+    name: string;
+    fields: tree<Stmt>;
+}
+
+struct StmtFieldDecl {
+    name: string;
+    type_name: string;
+}
+
+struct StmtImplDecl {
+    trait_name: string;
+    target_name: string;
+    methods: tree<Stmt>;
+}
+
+struct StmtTraitDecl {
+    name: string;
+    methods: tree<Stmt>;
+}
+
+struct StmtIf {
+    condition: tree<Expr>;
+    true_block: BlockStmt;
+    false_block: BlockStmt;
+}
+
+struct StmtWhile {
+    condition: tree<Expr>;
+    body: BlockStmt;
+}
+
+struct StmtReturn {
+    value: tree<Expr>;
+}
+
+struct Stmt {
+    type_tag: i32;
+    payload: void_ptr;
+}

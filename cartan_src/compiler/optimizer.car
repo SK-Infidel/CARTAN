@@ -1,0 +1,36 @@
+// cartan_src/compiler/optimizer.car
+
+trait OptimizerPass {
+    fn optimize(ast: tree<Stmt>) -> tree<Stmt> {}
+}
+
+struct KernelFusionPass {}
+
+impl OptimizerPass for KernelFusionPass {
+    fn optimize(ast: tree<Stmt>) -> tree<Stmt> {
+        // Find adjacent tensor ops and fuse them into single AST nodes
+        // Native Cartan syntax uses symbolic matching
+        
+        return ast;
+    }
+}
+
+struct AlgebraicSimplificationPass {}
+
+impl OptimizerPass for AlgebraicSimplificationPass {
+    fn optimize(ast: tree<Stmt>) -> tree<Stmt> {
+        // Fold constants (e.g. 2 + 3 -> 5)
+        
+        return ast;
+    }
+}
+
+struct TopologicRewritingPass {}
+
+impl OptimizerPass for TopologicRewritingPass {
+    fn optimize(ast: tree<Stmt>) -> tree<Stmt> {
+        // Reorder compute graphs for optimal hardware execution
+        
+        return ast;
+    }
+}

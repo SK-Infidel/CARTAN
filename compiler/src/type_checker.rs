@@ -51,7 +51,26 @@ impl TypeChecker {
         match stmt {
             Stmt::Placeholder(_) => { /* Ignore placeholders during type checking */ },
             Stmt::FieldDecl { name: _, type_name: _ } => { /* no-op */ },
-            Stmt::StructDecl { name: _, fields: _ } => { /* ignore for now */ },
+            Stmt::StructDecl { name: _, fields } => {
+                for f in fields {
+                    self.visit_stmt(f)?;
+                }
+            },
+            Stmt::ImplDecl { target_name, methods, .. } => {
+                self.push_scope();
+                if let Some(scope) = self.symbol_table.last_mut() {
+                    scope.insert("self".to_string(), CartanType::Struct(target_name.clone()));
+                }
+                for m in methods {
+                    self.visit_stmt(m)?;
+                }
+                self.pop_scope();
+            },
+            Stmt::TraitDecl { methods, .. } => {
+                for m in methods {
+                    self.visit_stmt(m)?;
+                }
+            },
             Stmt::TensorDecl { name, shape, manifold, layout, location: _, backend: _, is_lazy: _, is_unified: _, is_latent: _ } => {
                 let mut dimensions = Vec::new();
                 for dim_expr in shape {
@@ -205,7 +224,7 @@ impl TypeChecker {
                 self.pop_scope();
             },
 
-            Stmt::VarDecl { name, is_const: _, value } => {
+            Stmt::VarDecl { name, is_const: _, value, type_annotation: _ } => {
                 let val_type = self.visit_expr(value)?;
                 if let Some(scope) = self.symbol_table.last_mut() {
                     scope.insert(name.clone(), val_type);
@@ -213,7 +232,7 @@ impl TypeChecker {
             },
 
             
-            Stmt::Match { condition, arms } => {
+            Stmt::LayerDecl { name: _, layer_type: _, dim: _, activation: _ } => {}, Stmt::GraphDecl { name: _, body: _ } => {}, Stmt::Match { condition, arms } => {
                 self.visit_expr(condition)?;
                 for (pattern, body) in arms {
                     if let Some(p) = pattern {
@@ -399,6 +418,21 @@ impl TypeChecker {
                 self.visit_expr(new_graph)?;
                 Ok(CartanType::Unknown)
             },
+            Expr::StringView { source, start, len } => {
+                self.visit_expr(source)?;
+                self.visit_expr(start)?;
+                self.visit_expr(len)?;
+                Ok(CartanType::StringView)
+            },
+            Expr::SimdFindFirst { buffer, target_byte } => {
+                self.visit_expr(buffer)?;
+                self.visit_expr(target_byte)?;
+                Ok(CartanType::Integer)
+            },
+            Expr::SimdMaskAlpha { buffer } => {
+                self.visit_expr(buffer)?;
+                Ok(CartanType::Integer)
+            },
             Expr::SpikePrimitive => Ok(CartanType::Unknown),
             Expr::NeuronPrimitive => Ok(CartanType::Unknown),
             Expr::ParallelTransport { vector, from, to } => {
@@ -485,6 +519,10 @@ impl TypeChecker {
                     }
                 }
                 Ok(CartanType::Unknown)
+            },
+            Expr::PropertyAccess { object, property_name: _ } => {
+                let _obj_type = self.visit_expr(object)?;
+                Ok(CartanType::Unknown) // Real type checking requires looking up the struct fields
             },
             Expr::Placeholder(_) => {
                 Ok(CartanType::Unknown)

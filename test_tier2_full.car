@@ -1,0 +1,30 @@
+fn tier2_tests() -> i32 {
+    let x = 10.0;
+    let p: ptr = &x;
+    let y = *p;
+    let model = import_onnx!("dummy.onnx");
+    let q = quantize(model, INT8);
+    let prompt = p"hello {x}";
+    import "hf://meta-llama" as llama;
+    pipeline MyNet {
+        layer1, layer2
+    }
+    tensor img[224, 224, 3] under rgb8;
+    let projected = project_vocab(img, q);
+    match (prompt) {
+        p"hello {x}" => {
+            let matched = 1;
+        }
+    }
+    weight_decay(q, 0.01);
+    jit {
+        let inside_jit = 42;
+    }
+    return 0;
+}
+
+fn main() -> i32 {
+    let res = tier2_tests();
+    printf("Tier 2 tests completed! %d\n", res);
+    return 0;
+}

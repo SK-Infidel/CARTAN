@@ -1,0 +1,78 @@
+﻿// cartan_src/ast.car
+// This defines the Abstract Syntax Tree for the self-hosted CARTAN compiler.
+// We use tags to represent the different variants of Expr and Stmt.
+
+struct Parameter {
+    name: string;
+    type_name: string;
+    is_borrow: bool;
+    is_mutable: bool;
+}
+
+struct GenericBound {
+    name: string;
+    bound: string;
+}
+
+struct Expr {
+    // The variant tag (e.g., "Integer", "Float", "StringLiteral", "Identifier", "Binary", "Call")
+    tag: string;
+    
+    // Primitive payload fields
+    value_string: string;
+    value_float: FLOAT32;
+    value_int: i32;
+    value_bool: bool;
+
+    // Structural payload
+    // In a Binary expression: children[0] is left, children[1] is right
+    // In a Call expression: children[0] is the callee, the rest are args
+    children: tree<Expr>;
+}
+
+struct Stmt {
+    // The variant tag (e.g., "VarDecl", "FunctionDecl", "TensorDecl", "If", "While", "Block")
+    tag: string;
+    
+    // Identifiers
+    name: string;
+    type_name: string;
+    
+    // Modifiers
+    is_lazy: bool;
+    is_unified: bool;
+    is_latent: bool;
+    is_const: bool;
+
+    // The primary expression associated with this statement
+    expr: Expr;
+    
+    // Sub-statements for blocks
+    body: tree<Stmt>;
+    else_body: tree<Stmt>; // for if-else
+}
+
+trait AstNode {
+    fn dump_node() {}
+}
+
+impl AstNode for Expr {
+    fn dump_node() {
+        printf("Expr: %s\n", self.tag);
+    }
+}
+
+impl AstNode for Stmt {
+    fn dump_node() {
+        printf("Stmt: %s\n", self.tag);
+    }
+}
+
+struct FunctionDecl {
+    name: string;
+    return_type: string;
+}
+
+struct Program {
+    statements: tree<Stmt>;
+}

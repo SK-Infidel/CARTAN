@@ -1,0 +1,21 @@
+﻿struct Vector2 {
+    x: FLOAT32;
+    y: FLOAT32;
+}
+
+trait Movable {
+    fn move(dx: FLOAT32, dy: FLOAT32) {}
+}
+
+impl Movable for Vector2 {
+    fn move(dx: FLOAT32, dy: FLOAT32) {
+        self.x = self.x + dx;
+        self.y = self.y + dy;
+    }
+}
+
+fn main() {
+    let v = Vector2 { x: 10.0, y: 20.0 };
+    v.move(5.0, -5.0);
+    printf("Vector X: %f, Y: %f\n", v.x, v.y);
+}

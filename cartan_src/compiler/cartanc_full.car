@@ -1,0 +1,293 @@
+// cartan_src/compiler/ast.car
+// Data-oriented representation of the CARTAN AST
+
+struct GenericBound {
+    name: string;
+    bound: string;
+}
+
+struct Parameter {
+    name: string;
+    type_name: string;
+    shape: tree<Expr>;
+    manifold_name: string;
+    is_borrow: i32;
+    is_mutable: i32;
+}
+
+struct BlockStmt {
+    statements: tree<Stmt>;
+}
+
+struct FunctionDecl {
+    name: string;
+    generic_bounds: tree<GenericBound>;
+    parameters: tree<Parameter>;
+    return_type: string;
+    is_agent_accessible: i32;
+    body: BlockStmt;
+}
+
+// Expressions
+struct ExprInteger { value: i32; }
+struct ExprFloat { value: float; }
+struct ExprStringLiteral { value: string; }
+struct ExprIdentifier { name: string; }
+
+struct ExprBinaryOp {
+    left: tree<Expr>;
+    op: string;
+    right: tree<Expr>;
+}
+
+struct ExprFunctionCall {
+    name: string;
+    args: tree<Expr>;
+}
+
+struct ExprMethodCall {
+    object: tree<Expr>;
+    method_name: string;
+    args: tree<Expr>;
+}
+
+struct ExprPropertyAccess {
+    object: tree<Expr>;
+    property_name: string;
+}
+
+struct ExprStructInit {
+    name: string;
+    // Map of fields stored in a tree
+    fields: tree<Expr>; 
+}
+
+struct Expr {
+    type_tag: i32;
+    payload: void_ptr;
+}
+
+// Statements
+struct StmtExpr { 
+    expr: tree<Expr>; 
+}
+
+struct StmtVarDecl {
+    name: string;
+    is_const: i32;
+    type_annotation: string;
+    value: tree<Expr>;
+}
+
+struct StmtStructDecl {
+    name: string;
+    fields: tree<Stmt>;
+}
+
+struct StmtFieldDecl {
+    name: string;
+    type_name: string;
+}
+
+struct StmtImplDecl {
+    trait_name: string;
+    target_name: string;
+    methods: tree<Stmt>;
+}
+
+struct StmtTraitDecl {
+    name: string;
+    methods: tree<Stmt>;
+}
+
+struct StmtIf {
+    condition: tree<Expr>;
+    true_block: BlockStmt;
+    false_block: BlockStmt;
+}
+
+struct StmtWhile {
+    condition: tree<Expr>;
+    body: BlockStmt;
+}
+
+struct StmtReturn {
+    value: tree<Expr>;
+}
+
+struct Stmt {
+    type_tag: i32;
+    payload: void_ptr;
+}
+// cartan_src/compiler/token.car
+
+struct Token {
+    type_tag: i32;
+    lexeme: string;
+    line: i32;
+    col_start: i32;
+    col_end: i32;
+}
+// cartan_src/compiler/lexer.car
+
+struct Lexer {
+    source: string;
+    current: i32;
+    line: i32;
+    col: i32;
+}
+
+trait ILexer {
+    fn tokenize() -> tree<Token> {}
+}
+
+impl ILexer for Lexer {
+    fn tokenize() -> tree<Token> {
+        let tokens = Cartan.tree_create();
+        // Native Cartan stream processing will go here
+        
+        return tokens;
+    }
+}
+// cartan_src/compiler/parser.car
+
+struct Parser {
+    tokens: tree<Token>;
+    current: i32;
+}
+
+trait IParser {
+    fn parse() -> tree<Stmt> {}
+}
+
+impl IParser for Parser {
+    fn parse() -> tree<Stmt> {
+        let ast = Cartan.tree_create();
+        // Parsing logic leveraging structural matching
+        
+        return ast;
+    }
+}
+// cartan_src/compiler/optimizer.car
+
+trait OptimizerPass {
+    fn optimize(ast: tree<Stmt>) -> tree<Stmt> {}
+}
+
+struct KernelFusionPass {}
+
+impl OptimizerPass for KernelFusionPass {
+    fn optimize(ast: tree<Stmt>) -> tree<Stmt> {
+        // Find adjacent tensor ops and fuse them into single AST nodes
+        // Native Cartan syntax uses symbolic matching
+        
+        return ast;
+    }
+}
+
+struct AlgebraicSimplificationPass {}
+
+impl OptimizerPass for AlgebraicSimplificationPass {
+    fn optimize(ast: tree<Stmt>) -> tree<Stmt> {
+        // Fold constants (e.g. 2 + 3 -> 5)
+        
+        return ast;
+    }
+}
+
+struct TopologicRewritingPass {}
+
+impl OptimizerPass for TopologicRewritingPass {
+    fn optimize(ast: tree<Stmt>) -> tree<Stmt> {
+        // Reorder compute graphs for optimal hardware execution
+        
+        return ast;
+    }
+}
+// cartan_src/compiler/macro_pass.car
+
+struct MacroPass {}
+
+impl OptimizerPass for MacroPass {
+    fn optimize(ast: tree<Stmt>) -> tree<Stmt> {
+        // Expand macro definitions and perform AST quotation unrolling
+        
+        return ast;
+    }
+}
+// cartan_src/compiler/autodiff.car
+
+struct AutoDiffPass {}
+
+impl OptimizerPass for AutoDiffPass {
+    fn optimize(ast: tree<Stmt>) -> tree<Stmt> {
+        // Implement reverse-mode automatic differentiation at the AST level
+        // Inject gradient tracking operations and backward passes where `Backward(Expr)` is called
+        
+        return ast;
+    }
+}
+// cartan_src/compiler/llvm_codegen.car
+
+struct LLVMGenerator {
+    output: string;
+    struct_fields: tree<string>; // Maps struct name to its fields
+}
+
+trait ICodeGen {
+    fn generate(ast: tree<Stmt>) -> string {}
+}
+
+impl ICodeGen for LLVMGenerator {
+    fn generate(ast: tree<Stmt>) -> string {
+        let generator = LLVMGenerator {
+            output: "",
+            struct_fields: Cartan.tree_create()
+        };
+        
+        // Pass 0: Collect Structs and Traits
+        // Uses native tree searches to quickly find StructDecl
+        
+        // Pass 1: Global declarations
+        
+        // Pass 2: Map Method Declarations
+        
+        // Pass 3: Main Code Emission
+        
+        return generator.output;
+    }
+}
+// cartan_src/compiler/main.car
+
+// This is the main entry point for the cartanc self-hosted compiler.
+
+struct Compiler {
+    version: string;
+}
+
+fn main() -> i32 {
+    printf("CARTAN Native Compiler v0.2.0 (Self-Hosted)\n");
+    
+    // Simulate reading arguments
+    let file_path = "../cartan_src/test_phase12.car";
+    printf("Compiling %s...\n", file_path);
+    
+    // 1. Lexing
+    let lexer = Lexer { source: file_path, current: 0, line: 1, col: 1 };
+    let tokens = lexer.tokenize();
+    
+    // 2. Parsing
+    let parser = Parser { tokens: tokens, current: 0 };
+    let ast = parser.parse();
+    
+    // 3. Optimization Passes
+    let kernel_fusion = KernelFusionPass {};
+    ast = kernel_fusion.optimize(ast);
+    
+    // 4. LLVM Code Generation
+    let codegen = LLVMGenerator { output: "", struct_fields: Cartan.tree_create() };
+    let llvm_ir = codegen.generate(ast);
+    
+    printf("Compilation completed successfully.\n");
+    return 0;
+}

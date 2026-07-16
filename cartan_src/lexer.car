@@ -1,0 +1,105 @@
+﻿// cartan_src/lexer.car
+// Tokenizer for the CARTAN compiler, written natively in CARTAN using Phase 9 OOP.
+
+struct Token {
+    type_tag: string;
+    lexeme: string;
+    line: i32;
+    column: i32;
+}
+
+struct Lexer {
+    source: string;
+    position: i32;
+    line: i32;
+    column: i32;
+}
+
+trait LexerBehavior {
+    fn is_at_end() -> bool {}
+    fn advance() -> string {}
+    fn peek() -> string {}
+    fn next_token() -> Token {}
+}
+
+impl LexerBehavior for Lexer {
+    fn is_at_end() -> bool {
+        return self.position >= Cartan.string_length(self.source);
+    }
+
+    fn advance() -> string {
+        let ch = Cartan.string_char_at(self.source, self.position);
+        self.position = self.position + 1;
+        self.column = self.column + 1;
+        if ch == "\n" {
+            self.line = self.line + 1;
+            self.column = 1;
+        }
+        return ch;
+    }
+
+    fn peek() -> string {
+        if self.position >= Cartan.string_length(self.source) {
+            return "\0";
+        }
+        return Cartan.string_char_at(self.source, self.position);
+    }
+
+    fn next_token() -> Token {
+        // Skip whitespace
+        while true {
+            let c = self.peek();
+            if c == " " || c == "\r" || c == "\t" || c == "\n" {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+
+        if self.is_at_end() {
+            return Token { type_tag: "EOF", lexeme: "", line: self.line, column: self.column };
+        }
+
+        let start_line = self.line;
+        let start_col = self.column;
+        let c = self.advance();
+
+        // Simple single-character tokens
+        if c == "{" { return Token { type_tag: "LBrace", lexeme: "{", line: start_line, column: start_col }; }
+        if c == "}" { return Token { type_tag: "RBrace", lexeme: "}", line: start_line, column: start_col }; }
+        if c == "(" { return Token { type_tag: "LParen", lexeme: "(", line: start_line, column: start_col }; }
+        if c == ")" { return Token { type_tag: "RParen", lexeme: ")", line: start_line, column: start_col }; }
+        if c == "[" { return Token { type_tag: "LBracket", lexeme: "[", line: start_line, column: start_col }; }
+        if c == "]" { return Token { type_tag: "RBracket", lexeme: "]", line: start_line, column: start_col }; }
+        if c == ";" { return Token { type_tag: "Semicolon", lexeme: ";", line: start_line, column: start_col }; }
+        if c == "," { return Token { type_tag: "Comma", lexeme: ",", line: start_line, column: start_col }; }
+        if c == ":" { return Token { type_tag: "Colon", lexeme: ":", line: start_line, column: start_col }; }
+        if c == "=" { return Token { type_tag: "Eq", lexeme: "=", line: start_line, column: start_col }; }
+
+        // Identifiers and Keywords
+        if Cartan.is_alpha(c) {
+            let lexeme = c;
+            while Cartan.is_alphanumeric(self.peek()) {
+                lexeme = lexeme + self.advance();
+            }
+            
+            let type_tag = "Identifier";
+            
+            // Match Keywords
+            if lexeme == "fn" { type_tag = "Fn"; }
+            if lexeme == "struct" { type_tag = "Struct"; }
+            if lexeme == "tensor" { type_tag = "Tensor"; }
+            if lexeme == "if" { type_tag = "If"; }
+            if lexeme == "else" { type_tag = "Else"; }
+            if lexeme == "while" { type_tag = "While"; }
+            if lexeme == "return" { type_tag = "Return"; }
+            if lexeme == "trait" { type_tag = "Trait"; }
+            if lexeme == "impl" { type_tag = "Impl"; }
+            if lexeme == "receive" { type_tag = "Receive"; }
+            
+            return Token { type_tag: type_tag, lexeme: lexeme, line: start_line, column: start_col };
+        }
+
+        return Token { type_tag: "Unknown", lexeme: c, line: start_line, column: start_col };
+    }
+}
