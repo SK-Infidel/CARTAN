@@ -50,8 +50,9 @@ impl TypeChecker {
     fn visit_stmt(&mut self, stmt: &mut Stmt) -> Result<(), Diagnostic> {
         match stmt {
             Stmt::Placeholder(_) => { /* Ignore placeholders during type checking */ },
+            Stmt::FieldDecl { name: _, type_name: _ } => { /* no-op */ },
             Stmt::StructDecl { name: _, fields: _ } => { /* ignore for now */ },
-            Stmt::TensorDecl { name, shape, manifold, layout, location: _, backend: _ } => {
+            Stmt::TensorDecl { name, shape, manifold, layout, location: _, backend: _, is_lazy: _, is_unified: _, is_latent: _ } => {
                 let mut dimensions = Vec::new();
                 for dim_expr in shape {
                     match dim_expr {
@@ -115,6 +116,54 @@ impl TypeChecker {
                 };
                 if let Some(scope) = self.symbol_table.last_mut() {
                     scope.insert(name.clone(), CartanType::Block(dim));
+                }
+            },
+            Stmt::LatticeDecl { name, lattice_type, dim } => {
+                let dim_val = match dim {
+                    Expr::Integer(val) => Dimension::Fixed(*val as u32),
+                    Expr::Identifier(ident) => Dimension::Symbolic(ident.clone()),
+                    _ => return Err(Diagnostic::error("Lattice dimension must be an integer literal or a symbolic identifier.", Span::new(0, 0, 0))),
+                };
+                if let Some(scope) = self.symbol_table.last_mut() {
+                    scope.insert(name.clone(), CartanType::Lattice { lattice_type: lattice_type.clone(), dim: dim_val });
+                }
+            },
+            Stmt::TreeDecl { name, element_type } => {
+                // Determine the generic element type (currently primitive match)
+                let elem_cartan_type = match element_type.as_str() {
+                    "tensor" => CartanType::Tensor(vec![], crate::ast::ManifoldSpace::Euclidean, None),
+                    "vector" => CartanType::Vector { data_type: None, dim: Dimension::Fixed(0), space: crate::ast::VectorSpace::AmbientEuclidean },
+                    "float" => CartanType::Float,
+                    "int" => CartanType::Integer,
+                    _ => CartanType::Unknown,
+                };
+                if let Some(scope) = self.symbol_table.last_mut() {
+                    scope.insert(name.clone(), CartanType::Tree { element_type: Box::new(elem_cartan_type) });
+                }
+            },
+            Stmt::VectorDecl { name, data_type, dim, space } => {
+                let dim_val = match dim {
+                    Expr::Integer(val) => Dimension::Fixed(*val as u32),
+                    Expr::Identifier(ident) => Dimension::Symbolic(ident.clone()),
+                    _ => return Err(Diagnostic::error("Vector dimension must be an integer literal or a symbolic identifier.", Span::new(0, 0, 0))),
+                };
+                if let crate::ast::VectorSpace::TangentSpace { anchor } = space {
+                    // Check if anchor exists and is a tensor
+                    let anchor_type = self.resolve_var(anchor);
+                    match anchor_type {
+                        Some(CartanType::Tensor(_, _, _)) | Some(CartanType::Parameter(_, _, _, _)) => {
+                            // Anchor is valid
+                        },
+                        Some(_) => return Err(Diagnostic::error(&format!("Vector anchor '{}' must be a tensor on a manifold.", anchor), Span::new(0,0,0))),
+                        None => return Err(Diagnostic::error(&format!("Undefined anchor '{}' for tangent vector.", anchor), Span::new(0,0,0))),
+                    }
+                }
+                if let Some(scope) = self.symbol_table.last_mut() {
+                    scope.insert(name.clone(), CartanType::Vector {
+                        data_type: data_type.clone(),
+                        dim: dim_val,
+                        space: space.clone(),
+                    });
                 }
             },
             Stmt::Expr(expr) => {
@@ -255,6 +304,11 @@ impl TypeChecker {
                     return Err(Diagnostic::error(&format!("Variable '{}' not found", target_vocab), Span::new(0,0,0)));
                 }
             },
+            Stmt::ImportModel { uri: _, alias } => {
+                if let Some(scope) = self.symbol_table.last_mut() {
+                    scope.insert(alias.clone(), CartanType::Unknown);
+                }
+            },
             _ => {}
         }
         Ok(())
@@ -347,6 +401,46 @@ impl TypeChecker {
             },
             Expr::SpikePrimitive => Ok(CartanType::Unknown),
             Expr::NeuronPrimitive => Ok(CartanType::Unknown),
+            Expr::ParallelTransport { vector, from, to } => {
+                let vec_type = self.visit_expr(vector)?;
+                let from_type = self.visit_expr(from)?;
+                let to_type = self.visit_expr(to)?;
+                
+                let (dt, dim, _space) = match vec_type {
+                    CartanType::Vector { data_type, dim, space } => (data_type, dim, space),
+                    _ => return Err(Diagnostic::error("First argument to parallel_transport must be a vector.", Span::new(0,0,0))),
+                };
+                
+                let from_space = match from_type {
+                    CartanType::Tensor(_, m, _) | CartanType::Parameter(_, m, _, _) => m,
+                    _ => return Err(Diagnostic::error("'from' argument must be a tensor.", Span::new(0,0,0))),
+                };
+                let to_space = match to_type {
+                    CartanType::Tensor(_, m, _) | CartanType::Parameter(_, m, _, _) => m,
+                    _ => return Err(Diagnostic::error("'to' argument must be a tensor.", Span::new(0,0,0))),
+                };
+                
+                if from_space != to_space {
+                    return Err(Diagnostic::error("Geometric Misalignment: 'from' and 'to' points must reside on the same manifold space for parallel transport.", Span::new(0,0,0)));
+                }
+
+                // If 'to' is an identifier, we can anchor the returned vector to it.
+                // But Expr might not be an Identifier. If it is, we bind it.
+                let new_anchor = if let Expr::Identifier(id) = &**to {
+                    id.clone()
+                } else {
+                    return Err(Diagnostic::error("'to' argument must be a variable identifier to act as a vector anchor.", Span::new(0,0,0)));
+                };
+
+                Ok(CartanType::Vector {
+                    data_type: dt,
+                    dim,
+                    space: crate::ast::VectorSpace::TangentSpace { anchor: new_anchor }
+                })
+            },
+            Expr::StructInit { name, .. } => {
+                Ok(CartanType::Struct(name.clone()))
+            },
             Expr::Attention { target, .. } => self.visit_expr(target),
             Expr::FunctionCall { name, args } => {
                 let mut arg_manifolds = Vec::new();
@@ -479,6 +573,16 @@ impl TypeChecker {
                         ));
                     }
                 } else {
+                    // Vector math check
+                    if let (CartanType::Vector { space: space_l, .. }, CartanType::Vector { space: space_r, .. }) = (&left_type, &right_type) {
+                        if space_l != space_r {
+                            return Err(Diagnostic::error(
+                                "Geometric Misalignment: Cannot perform binary operations between vectors in different vector spaces (e.g., different anchors). Use parallel_transport.",
+                                Span::new(0,0,0)
+                            ));
+                        }
+                    }
+
                     // Standard math (+, -, *, /)
                     // Simplify: assume shape broadcasting or exact match in production
                     Ok(left_type)
@@ -488,6 +592,15 @@ impl TypeChecker {
             Expr::Float(_) => Ok(CartanType::Float),
             Expr::Boolean(_) => Ok(CartanType::Boolean),
             Expr::StringLiteral(_) => Ok(CartanType::String),
+            Expr::TreeSearch { tree, algorithm: _, state: _ } => {
+                let tree_type = self.visit_expr(tree)?;
+                if let CartanType::Tree { .. } = tree_type {
+                    // Tree search returns a 1D tensor representing the optimal action or path
+                    Ok(CartanType::Tensor(vec![Dimension::Fixed(1)], crate::ast::ManifoldSpace::Euclidean, None))
+                } else {
+                    Err(Diagnostic::error("search() requires a tree target", Span::new(0,0,0)))
+                }
+            },
             _ => Ok(CartanType::Unknown),
         }
     }

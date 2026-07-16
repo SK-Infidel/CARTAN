@@ -23,6 +23,9 @@ impl Lexer {
         keywords.insert("sequence".to_string(), TokenType::Sequence);
         keywords.insert("block".to_string(), TokenType::Block);
         keywords.insert("tensor".to_string(), TokenType::Tensor);
+        keywords.insert("vector".to_string(), TokenType::Vector);
+        keywords.insert("tree".to_string(), TokenType::Tree);
+        keywords.insert("lattice".to_string(), TokenType::Lattice);
         keywords.insert("parameter".to_string(), TokenType::Parameter);
         keywords.insert("layout".to_string(), TokenType::Layout);
         keywords.insert("manifold".to_string(), TokenType::Manifold);
@@ -45,7 +48,27 @@ impl Lexer {
         keywords.insert("macro".to_string(), TokenType::Macro);
         keywords.insert("mesh".to_string(), TokenType::Mesh);
         keywords.insert("hotswap".to_string(), TokenType::HotSwap);
+        keywords.insert("vmap".to_string(), TokenType::Vmap);
+        keywords.insert("grad".to_string(), TokenType::Grad);
+        keywords.insert("as".to_string(), TokenType::As);
+        keywords.insert("pipeline".to_string(), TokenType::Pipeline);
+        keywords.insert("jit".to_string(), TokenType::Jit);
+        keywords.insert("weight_decay".to_string(), TokenType::WeightDecay);
+        keywords.insert("multimodal".to_string(), TokenType::Multimodal);
+        keywords.insert("lazy".to_string(), TokenType::Lazy);
+        keywords.insert("unified".to_string(), TokenType::Unified);
+        keywords.insert("doubt".to_string(), TokenType::Doubt);
+        keywords.insert("chain".to_string(), TokenType::Chain);
+        keywords.insert("paged_attention".to_string(), TokenType::PagedAttention);
+        keywords.insert("latent".to_string(), TokenType::Latent);
+        keywords.insert("vector".to_string(), TokenType::Vector);
+        keywords.insert("at".to_string(), TokenType::At);
+        keywords.insert("route".to_string(), TokenType::Route);
+        keywords.insert("grok".to_string(), TokenType::Grok);
+        keywords.insert("tool".to_string(), TokenType::Tool);
+        keywords.insert("override".to_string(), TokenType::Override);
         keywords.insert("satisfy".to_string(), TokenType::Satisfy);
+        keywords.insert("search".to_string(), TokenType::Search);
         keywords.insert("otherwise".to_string(), TokenType::Otherwise);
         keywords.insert("backtrack".to_string(), TokenType::Backtrack);
         keywords.insert("supervisor".to_string(), TokenType::Supervisor);
@@ -72,6 +95,10 @@ impl Lexer {
         keywords.insert("translation_barrier".to_string(), TokenType::TranslationBarrier);
         keywords.insert("from".to_string(), TokenType::From);
         keywords.insert("to".to_string(), TokenType::To);
+        keywords.insert("at".to_string(), TokenType::At);
+        keywords.insert("ptr".to_string(), TokenType::Ptr);
+        keywords.insert("import_onnx!".to_string(), TokenType::ImportOnnx);
+        keywords.insert("quantize".to_string(), TokenType::Quantize);
 
         Self {
             source: source.chars().collect(),
@@ -309,9 +336,28 @@ impl Lexer {
                         if ch.is_ascii_alphanumeric() || ch == '_' {
                             ident.push(ch);
                             self.advance();
+                        } else if ch == '!' {
+                            ident.push(ch);
+                            self.advance();
+                            break;
                         } else {
                             break;
                         }
+                    }
+                    if ident == "p" && self.peek() == Some('"') {
+                        self.advance(); // skip quote
+                        let mut string_val = String::new();
+                        while let Some(ch) = self.peek() {
+                            if ch == '"' { break; }
+                            string_val.push(ch);
+                            self.advance();
+                        }
+                        if self.peek().is_none() {
+                            return Err(Diagnostic::error("Unterminated prompt literal", Span::new(start_line, start_col, self.col)));
+                        }
+                        self.advance(); // skip closing quote
+                        tokens.push(Token { token_type: TokenType::PromptLiteral(string_val.clone()), lexeme: format!("p\"{}\"", string_val), span: Span::new(start_line, start_col, self.col) });
+                        continue;
                     }
                     if let Some(t_type) = self.keywords.get(&ident) {
                         tokens.push(Token { token_type: t_type.clone(), lexeme: ident, span: Span::new(start_line, start_col, self.col) });

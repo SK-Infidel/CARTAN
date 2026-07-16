@@ -7,6 +7,12 @@ pub enum ManifoldSpace {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum VectorSpace {
+    AmbientEuclidean,
+    TangentSpace { anchor: String },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MemoryLayout {
     Default,
     SoA,
@@ -76,9 +82,14 @@ pub enum Expr {
     Float(f64),
     Boolean(bool),
     StringLiteral(String),
+    PromptLiteral(String),
     Identifier(String),
     Placeholder(String),
     Quote(BlockStmt),
+    StructInit {
+        name: String,
+        fields: Vec<(String, Box<Expr>)>
+    },
     UnaryOp {
         op: String,
         right: Box<Expr>,
@@ -145,6 +156,11 @@ pub enum Expr {
         vocab_b: String,
         projection_matrix: Box<Expr>,
     },
+    TreeSearch {
+        tree: Box<Expr>,
+        algorithm: String,
+        state: Option<Box<Expr>>,
+    },
     SievingCacheInit,
     FractalAttentionInit,
     ElasticVocabularyInit,
@@ -157,7 +173,38 @@ pub enum Expr {
     HotSwap(Box<Expr>, Box<Expr>),
     SpikePrimitive,
     NeuronPrimitive,
+    Transform {
+        op: String,
+        target: Box<Expr>,
+    },
+    Quantize {
+        target: Box<Expr>,
+        dtype: String,
+    },
+    AddressOf(Box<Expr>),
+    Dereference(Box<Expr>),
     MSELoss(Box<Expr>, Box<Expr>),
+    ParallelTransport {
+        vector: Box<Expr>,
+        from: Box<Expr>,
+        to: Box<Expr>,
+    },
+    Lazy {
+        expr: Box<Expr>,
+    },
+    PagedAttention {
+        query: Box<Expr>,
+        key: Box<Expr>,
+        value: Box<Expr>,
+    },
+    ProjectVocab {
+        source: Box<Expr>,
+        target: Box<Expr>,
+    },
+    WeightDecay {
+        target: Box<Expr>,
+        amount: f64,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -168,6 +215,10 @@ pub enum Stmt {
         name: String,
         is_const: bool,
         value: Expr,
+    },
+    FieldDecl {
+        name: String,
+        type_name: String,
     },
     StructDecl {
         name: String,
@@ -180,6 +231,9 @@ pub enum Stmt {
         layout: Option<MemoryLayout>,
         location: Option<String>,
         backend: StorageBackend,
+        is_lazy: bool,
+        is_unified: bool,
+        is_latent: bool,
     },
     ParameterDecl {
         name: String,
@@ -190,6 +244,12 @@ pub enum Stmt {
         backend: StorageBackend,
         optimizer: Option<OptimizerState>,
     },
+    VectorDecl {
+        name: String,
+        data_type: Option<String>,
+        dim: Expr,
+        space: VectorSpace,
+    },
     SequenceDecl {
         name: String,
         max_len: Expr,
@@ -197,6 +257,15 @@ pub enum Stmt {
     BlockDecl {
         name: String,
         size: Expr,
+    },
+    LatticeDecl {
+        name: String,
+        lattice_type: String,
+        dim: Expr,
+    },
+    TreeDecl {
+        name: String,
+        element_type: String,
     },
     StructDef {
         name: String,
@@ -241,6 +310,15 @@ pub enum Stmt {
     },
     Break,
     Continue,
+    PipelineDecl {
+        name: String,
+        layers: Vec<Expr>,
+    },
+    ImportModel {
+        uri: String,
+        alias: String,
+    },
+    JitBlock(BlockStmt),
     Block(BlockStmt),
     Match {
         condition: Expr,
@@ -264,6 +342,28 @@ pub enum Stmt {
         strategy: String,
         body: BlockStmt,
     },
+    MultimodalBlock {
+        body: BlockStmt,
+    },
+    VmapBlock {
+        body: BlockStmt,
+    },
+    DoubtBlock {
+        body: BlockStmt,
+    },
+    ChainBlock {
+        body: BlockStmt,
+    },
+    RouteBlock {
+        body: BlockStmt,
+    },
+    GrokBlock {
+        body: BlockStmt,
+    },
+    OverrideBlock {
+        body: BlockStmt,
+    },
+    ToolDecl(FunctionDecl),
     Satisfy {
         condition: Expr,
         body: BlockStmt,

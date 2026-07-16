@@ -79,6 +79,9 @@ impl LLVMGenerator {
         if !declared_externs.contains("cartan_tensor_alloc_nd") {
             self.globals.push_str("declare ptr @cartan_tensor_alloc_nd(i32, i32, i32, i32, i32, i32)\n");
         }
+        if !declared_externs.contains("cartan_tensor_linear_relu") {
+            self.globals.push_str("declare ptr @cartan_tensor_linear_relu(ptr, ptr, ptr)\n");
+        }
         if !declared_externs.contains("cartan_tensor_add") {
             self.globals.push_str("declare ptr @cartan_tensor_add(ptr, ptr)\n");
         }
@@ -114,6 +117,7 @@ impl LLVMGenerator {
         self.globals.push_str("declare float @cartan_tensor_finsler_randers_loss(ptr, ptr)\n");
         self.globals.push_str("declare float @cartan_tensor_betti_homology_loss(ptr, ptr)\n");
         self.globals.push_str("declare ptr @cartan_tensor_embed(ptr, ptr)\n");
+        self.globals.push_str("declare ptr @cartan_rt_parallel_transport(ptr, ptr, ptr)\n");
         
         // Cartan Native VM hooks
         self.globals.push_str("declare void @cartan_emit_spike(float)\n");
@@ -123,12 +127,33 @@ impl LLVMGenerator {
         self.globals.push_str("declare ptr @cartan_stream_init(ptr, ptr)\n");
         self.globals.push_str("declare ptr @cartan_init_spike()\n");
         self.globals.push_str("declare ptr @cartan_init_neuron()\n");
+        self.globals.push_str("declare void @cartan_rt_register_capability(ptr, ptr)\n");
+        self.globals.push_str("declare ptr @cartan_rt_load_aer(ptr)\n");
+        self.globals.push_str("declare void @cartan_sandbox_hot_swap(ptr, ptr)\n");
         self.globals.push_str("declare ptr @cartan_tensor_graft(ptr)\n");
         self.globals.push_str("declare ptr @cartan_tensor_translation_barrier(ptr, ptr)\n");
         self.globals.push_str("declare ptr @cartan_alloc_parameter_adam(i32)\n");
         self.globals.push_str("declare ptr @cartan_alloc_parameter_adam_nd(i32, i32, i32, i32, i32)\n");
         self.globals.push_str("declare ptr @cartan_alloc_sequence(i32)\n");
         self.globals.push_str("declare ptr @cartan_alloc_block(i32)\n");
+        self.globals.push_str("declare ptr @cartan_rt_alloc_lattice(i32, i32)\n");
+        self.globals.push_str("declare ptr @cartan_rt_alloc_tree(i32)\n");
+        self.globals.push_str("declare ptr @cartan_rt_tree_search_mcts(ptr, ptr)\n");
+        self.globals.push_str("declare void @cartan_rt_multimodal_sync_start()\n");
+        self.globals.push_str("declare void @cartan_rt_multimodal_sync_end()\n");
+        self.globals.push_str("declare void @cartan_rt_vmap_begin()\n");
+        self.globals.push_str("declare void @cartan_rt_vmap_end()\n");
+        self.globals.push_str("declare void @cartan_rt_doubt_begin()\n");
+        self.globals.push_str("declare void @cartan_rt_doubt_end()\n");
+        self.globals.push_str("declare void @cartan_rt_chain_begin()\n");
+        self.globals.push_str("declare void @cartan_rt_chain_end()\n");
+        self.globals.push_str("declare void @cartan_rt_route_begin()\n");
+        self.globals.push_str("declare void @cartan_rt_route_end()\n");
+        self.globals.push_str("declare void @cartan_rt_grok_begin()\n");
+        self.globals.push_str("declare void @cartan_rt_grok_end()\n");
+        self.globals.push_str("declare void @cartan_rt_override_begin()\n");
+        self.globals.push_str("declare void @cartan_rt_override_end()\n");
+        self.globals.push_str("declare ptr @cartan_rt_paged_attention(ptr, ptr, ptr)\n");
         self.globals.push_str("declare ptr @cartan_tensor_transpose(ptr)\n");
         self.globals.push_str("declare ptr @cartan_tensor_ones_like(ptr)\n");
         self.globals.push_str("declare void @cartan_absorb_weights(ptr, ptr)\n");
@@ -141,6 +166,8 @@ impl LLVMGenerator {
         self.globals.push_str("declare void @cartan_sparsity_start(i32, float)\n");
         self.globals.push_str("declare void @cartan_sparsity_end()\n");
         self.globals.push_str("declare void @cartan_prune_graph(float)\n");
+        self.globals.push_str("declare ptr @cartan_tensor_quantize_int8(ptr)\n");
+        self.globals.push_str("declare ptr @cartan_internal_import_onnx(ptr)\n");
 
 
         // Pass 0: Collect structs
@@ -352,6 +379,25 @@ impl LLVMGenerator {
         self.output.push_str("  store ptr %argv, ptr @global_argv, align 8\n");
 
         for stmt in ast {
+            if let Stmt::FunctionDecl(decl) = stmt {
+                if decl.is_agent_accessible {
+                    let fn_name = if decl.name == "main" { "user_main" } else { &decl.name };
+                    let str_ptr = format!("@.str.agent.{}", decl.name);
+                    self.globals.push_str(&format!(
+                        "{} = private unnamed_addr constant [{} x i8] c\"{}\\00\", align 1\n",
+                        str_ptr,
+                        decl.name.len() + 1,
+                        decl.name
+                    ));
+                    self.output.push_str(&format!(
+                        "  call void @cartan_rt_register_capability(ptr {}, ptr @{})\n",
+                        str_ptr, fn_name
+                    ));
+                }
+            }
+        }
+
+        for stmt in ast {
             let mut skip = false;
             match stmt {
                 Stmt::Placeholder(_) => skip = true,
@@ -527,6 +573,7 @@ impl LLVMGenerator {
                 let unreachable = self.next_label("unreachable_");
                 self.output.push_str(&format!("{}:\n", unreachable));
             },
+            Stmt::FieldDecl { name: _, type_name: _ } => { /* no-op */ },
             Stmt::StructDecl { name: _, fields: _ } => {
                 // Handled in Pass 0
             },
@@ -565,8 +612,50 @@ impl LLVMGenerator {
             Stmt::Expr(expr) => {
                 self.visit_expr(expr);
             },
-            Stmt::TensorDecl { name, shape, manifold: _, location: _, backend: _, layout: _ } => {
+            Stmt::ImportModel { uri, alias } => {
+                let uri_global = format!("@.str.model.uri.{}", self.string_counter);
+                self.string_counter += 1;
+                self.globals.push_str(&format!("{} = private unnamed_addr constant [{} x i8] c\"{}\\00\", align 1\n", uri_global, uri.len() + 1, uri));
+                let res_reg = self.next_reg();
+                self.output.push_str(&format!("  {} = call ptr @cartan_internal_import_onnx(ptr {})\n", res_reg, uri_global));
+                
+                let ptr_reg = self.next_reg();
+                self.output.push_str(&format!("  {} = alloca ptr, align 8\n", ptr_reg));
+                self.output.push_str(&format!("  store ptr {}, ptr {}, align 8\n", res_reg, ptr_reg));
+                self.symbols.insert(alias.clone(), ptr_reg);
+                self.var_types.insert(alias.clone(), "ptr".to_string());
+            },
+            Stmt::PipelineDecl { name, layers: _ } => {
+                // Stub for pipeline compilation
+                let ptr_reg = self.next_reg();
+                self.output.push_str(&format!("  {} = alloca ptr, align 8\n", ptr_reg));
+                self.symbols.insert(name.clone(), ptr_reg);
+                self.var_types.insert(name.clone(), "ptr".to_string());
+            },
+            Stmt::JitBlock(body) => {
+                self.output.push_str("  ; JIT BLOCK BEGIN\n");
+                for s in &body.statements {
+                    self.visit_stmt(s);
+                }
+                self.output.push_str("  ; JIT BLOCK END\n");
+            },
+            Stmt::TensorDecl { name, shape, manifold: _, location: _, backend: _, layout: _, is_lazy, is_unified, is_latent } => {
                   let res_reg = self.next_reg();
+                  let alloc_func = if *is_latent {
+                      "cartan_rt_alloc_tensor_latent"
+                  } else if *is_unified {
+                      "cartan_rt_alloc_tensor_unified"
+                  } else if *is_lazy {
+                      "cartan_rt_alloc_tensor_lazy"
+                  } else {
+                      "cartan_tensor_alloc"
+                  };
+                  let alloc_nd_func = if *is_latent || *is_unified || *is_lazy {
+                      alloc_func 
+                  } else {
+                      "cartan_tensor_alloc_nd"
+                  };
+
                   if shape.len() > 1 && shape.len() <= 4 {
                       let mut dims = [1; 4];
                       for (idx, dim) in shape.iter().enumerate() {
@@ -574,18 +663,29 @@ impl LLVMGenerator {
                               dims[idx] = *val as i32;
                           }
                       }
-                      self.output.push_str(&format!(
-                          "  {} = call ptr @cartan_tensor_alloc_nd(i32 {}, i32 {}, i32 {}, i32 {}, i32 {})\n",
-                          res_reg, shape.len(), dims[0], dims[1], dims[2], dims[3]
-                      ));
+                      if alloc_nd_func == "cartan_tensor_alloc_nd" {
+                          self.output.push_str(&format!(
+                              "  {} = call ptr @{}(i32 {}, i32 {}, i32 {}, i32 {}, i32 {})\n",
+                              res_reg, alloc_nd_func, shape.len(), dims[0], dims[1], dims[2], dims[3]
+                          ));
+                      } else {
+                          let total_size: i32 = dims.iter().product();
+                          self.output.push_str(&format!(
+                              "  {} = call ptr @{}(i32 {}, i32 0)\n",
+                              res_reg, alloc_func, total_size
+                          ));
+                      }
                   } else {
-                      let mut num_elems = 1;
-                      for dim in shape {
-                          if let Expr::Integer(val) = dim {
-                              num_elems *= *val as i32;
+                      let mut size = 1;
+                      if shape.len() == 1 {
+                          if let Expr::Integer(val) = shape[0] {
+                              size = val as i32;
                           }
                       }
-                      self.output.push_str(&format!("  {} = call ptr @cartan_tensor_alloc(i32 {})\n", res_reg, num_elems));
+                      self.output.push_str(&format!(
+                          "  {} = call ptr @{}(i32 {}, i32 0)\n",
+                          res_reg, alloc_func, size
+                      ));
                   }
                   
                   let ptr_reg = self.next_reg();
@@ -594,6 +694,25 @@ impl LLVMGenerator {
                   self.symbols.insert(name.clone(), ptr_reg);
                   self.var_types.insert(name.clone(), "ptr".to_string());
               },
+            Stmt::VectorDecl { name, data_type: _, dim, space } => {
+                let mut num_elems = 1;
+                if let Expr::Integer(val) = dim { num_elems = *val as i32; }
+                let res_reg = self.next_reg();
+                
+                if space == &crate::ast::VectorSpace::AmbientEuclidean {
+                    self.output.push_str(&format!("  {} = alloca <{} x float>, align 16\n", res_reg, num_elems));
+                    self.symbols.insert(name.clone(), res_reg.clone());
+                    self.var_types.insert(name.clone(), format!("<{} x float>", num_elems));
+                } else {
+                    // Intrinsic vectors are mapped to the runtime tensor allocation for tracking
+                    self.output.push_str(&format!("  {} = call ptr @cartan_tensor_alloc(i32 {}, i32 0)\n", res_reg, num_elems));
+                    let ptr_reg = self.next_reg();
+                    self.output.push_str(&format!("  {} = alloca ptr, align 8\n", ptr_reg));
+                    self.output.push_str(&format!("  store ptr {}, ptr {}, align 8\n", res_reg, ptr_reg));
+                    self.symbols.insert(name.clone(), ptr_reg);
+                    self.var_types.insert(name.clone(), "ptr".to_string());
+                }
+            },
             Stmt::SequenceDecl { name, max_len } => {
                 let mut size = 1;
                 if let Expr::Integer(val) = max_len { size = *val as i32; }
@@ -610,6 +729,26 @@ impl LLVMGenerator {
                 if let Expr::Integer(val) = block_size { size = *val as i32; }
                 let res_reg = self.next_reg();
                 self.output.push_str(&format!("  {} = call ptr @cartan_alloc_block(i32 {})\n", res_reg, size));
+                let ptr_reg = self.next_reg();
+                self.output.push_str(&format!("  {} = alloca ptr, align 8\n", ptr_reg));
+                self.output.push_str(&format!("  store ptr {}, ptr {}, align 8\n", res_reg, ptr_reg));
+                self.symbols.insert(name.clone(), ptr_reg);
+                self.var_types.insert(name.clone(), "ptr".to_string());
+            },
+            Stmt::LatticeDecl { name, lattice_type: _, dim } => {
+                let mut size = 1;
+                if let Expr::Integer(val) = dim { size = *val as i32; }
+                let res_reg = self.next_reg();
+                self.output.push_str(&format!("  {} = call ptr @cartan_rt_alloc_lattice(i32 0, i32 {})\n", res_reg, size));
+                let ptr_reg = self.next_reg();
+                self.output.push_str(&format!("  {} = alloca ptr, align 8\n", ptr_reg));
+                self.output.push_str(&format!("  store ptr {}, ptr {}, align 8\n", res_reg, ptr_reg));
+                self.symbols.insert(name.clone(), ptr_reg);
+                self.var_types.insert(name.clone(), "ptr".to_string());
+            },
+            Stmt::TreeDecl { name, element_type: _ } => {
+                let res_reg = self.next_reg();
+                self.output.push_str(&format!("  {} = call ptr @cartan_rt_alloc_tree(i32 0)\n", res_reg));
                 let ptr_reg = self.next_reg();
                 self.output.push_str(&format!("  {} = alloca ptr, align 8\n", ptr_reg));
                 self.output.push_str(&format!("  store ptr {}, ptr {}, align 8\n", res_reg, ptr_reg));
@@ -805,8 +944,90 @@ impl LLVMGenerator {
                 }
                 self.output.push_str(&format!("  ; --- End Mesh Block: {} ---\n", name));
             },
+            Stmt::MultimodalBlock { body } => {
+                self.output.push_str("  ; --- Begin Multimodal Sync Block ---\n");
+                self.output.push_str("  call void @cartan_rt_multimodal_sync_start()\n");
+                for stmt in &body.statements {
+                    self.visit_stmt(stmt);
+                }
+                self.output.push_str("  call void @cartan_rt_multimodal_sync_end()\n");
+                self.output.push_str("  ; --- End Multimodal Sync Block ---\n");
+            },
+            Stmt::VmapBlock { body } => {
+                self.output.push_str("  ; --- Begin Vmap Block ---\n");
+                self.output.push_str("  call void @cartan_rt_vmap_begin()\n");
+                for stmt in &body.statements {
+                    self.visit_stmt(stmt);
+                }
+                self.output.push_str("  call void @cartan_rt_vmap_end()\n");
+                self.output.push_str("  ; --- End Vmap Block ---\n");
+            },
+            Stmt::DoubtBlock { body } => {
+                self.output.push_str("  call void @cartan_rt_doubt_begin()\n");
+                for stmt in &body.statements { self.visit_stmt(stmt); }
+                self.output.push_str("  call void @cartan_rt_doubt_end()\n");
+            },
+            Stmt::ChainBlock { body } => {
+                self.output.push_str("  call void @cartan_rt_chain_begin()\n");
+                for stmt in &body.statements { self.visit_stmt(stmt); }
+                self.output.push_str("  call void @cartan_rt_chain_end()\n");
+            },
+            Stmt::RouteBlock { body } => {
+                self.output.push_str("  call void @cartan_rt_route_begin()\n");
+                for stmt in &body.statements { self.visit_stmt(stmt); }
+                self.output.push_str("  call void @cartan_rt_route_end()\n");
+            },
+            Stmt::GrokBlock { body } => {
+                self.output.push_str("  call void @cartan_rt_grok_begin()\n");
+                for stmt in &body.statements { self.visit_stmt(stmt); }
+                self.output.push_str("  call void @cartan_rt_grok_end()\n");
+            },
+            Stmt::OverrideBlock { body } => {
+                self.output.push_str("  call void @cartan_rt_override_begin()\n");
+                for stmt in &body.statements { self.visit_stmt(stmt); }
+                self.output.push_str("  call void @cartan_rt_override_end()\n");
+            },
+            Stmt::ToolDecl(func) => {
+                self.visit_stmt(&Stmt::FunctionDecl(func.clone()));
+            },
             _ => {}
         }
+    }
+
+    fn match_fused_linear_relu(&mut self, expr: &Expr) -> Option<String> {
+        fn is_relu<'a>(e: &'a Expr) -> Option<&'a Expr> {
+            match e {
+                Expr::MethodCall { method_name, object, .. } if method_name == "relu" || method_name == "relu_euclidean" => Some(&**object),
+                Expr::FunctionCall { name, args } if (name == "relu" || name == "Cartan.relu" || name == "relu_euclidean") && args.len() == 1 => Some(&args[0]),
+                _ => None
+            }
+        }
+
+        println!("[LLVM Codegen] match_fused_linear_relu checking: {:?}", expr);
+        if let Some(inner) = is_relu(expr) {
+            println!("[LLVM Codegen] match_fused_linear_relu matched relu(inner)");
+            if let Expr::BinaryOp { op, left, right } = inner {
+                println!("[LLVM Codegen] match_fused_linear_relu inner is BinaryOp: {}", op);
+                if op == "+" {
+                    if let Expr::BinaryOp { op: op_mul, left: a, right: b } = &**left {
+                        println!("[LLVM Codegen] match_fused_linear_relu left is BinaryOp: {}", op_mul);
+                        if op_mul == "*" {
+                            println!("[LLVM Codegen] match_fused_linear_relu Pattern Matched successfully!");
+                            let a_reg = self.visit_expr(a)?;
+                            let b_reg = self.visit_expr(b)?;
+                            let c_reg = self.visit_expr(right)?;
+                            let res_reg = self.next_reg();
+                            let clean_a = a_reg.replace("ptr:", "").replace("string:", "").replace("array:", "").replace("struct:", "");
+                            let clean_b = b_reg.replace("ptr:", "").replace("string:", "").replace("array:", "").replace("struct:", "");
+                            let clean_c = c_reg.replace("ptr:", "").replace("string:", "").replace("array:", "").replace("struct:", "");
+                            self.output.push_str(&format!("  {} = call ptr @cartan_tensor_linear_relu(ptr {}, ptr {}, ptr {})\n", res_reg, clean_a, clean_b, clean_c));
+                            return Some(format!("ptr:{}", res_reg));
+                        }
+                    }
+                }
+            }
+        }
+        None
     }
 
     fn visit_expr(&mut self, expr: &Expr) -> Option<String> {
@@ -820,6 +1041,9 @@ impl LLVMGenerator {
                     } else if t == "ptr" || t == "string" {
                         self.output.push_str(&format!("  {} = load ptr, ptr {}, align 8\n", val_reg, ptr_reg));
                         Some(format!("{}:{}", t, val_reg))
+                    } else if t.starts_with("<") {
+                        self.output.push_str(&format!("  {} = load {}, ptr {}, align 16\n", val_reg, t, ptr_reg));
+                        Some(format!("vec:{}:{}", t, val_reg))
                     } else {
                         self.output.push_str(&format!("  {} = load {}, ptr {}, align 4\n", val_reg, t, ptr_reg));
                         Some(val_reg)
@@ -944,6 +1168,11 @@ impl LLVMGenerator {
                         if let Some(ptr_reg) = self.symbols.get(name) {
                             if val_reg.starts_with("ptr:") {
                                 self.output.push_str(&format!("  store ptr {}, ptr {}, align 8\n", val_reg.replace("ptr:", ""), ptr_reg));
+                            } else if val_reg.starts_with("vec:") {
+                                let parts: Vec<&str> = val_reg.split(':').collect();
+                                let t_v = parts[1];
+                                let r_v = parts[2];
+                                self.output.push_str(&format!("  store {} {}, ptr {}, align 16\n", t_v, r_v, ptr_reg));
                             } else {
                                 self.output.push_str(&format!("  store float {}, ptr {}, align 4\n", val_reg, ptr_reg));
                             }
@@ -1069,6 +1298,29 @@ impl LLVMGenerator {
                 let mut l_reg = self.visit_expr(left)?;
                 let mut r_reg = self.visit_expr(right)?;
                 
+                let is_l_vec = l_reg.starts_with("vec:");
+                let is_r_vec = r_reg.starts_with("vec:");
+                
+                if is_l_vec && is_r_vec {
+                    let parts_l: Vec<&str> = l_reg.split(':').collect();
+                    let t_l = parts_l[1];
+                    let r_l = parts_l[2];
+                    
+                    let parts_r: Vec<&str> = r_reg.split(':').collect();
+                    let r_r = parts_r[2];
+                    
+                    let res_reg = self.next_reg();
+                    let op_str = match op.as_str() {
+                        "+" => "fadd",
+                        "-" => "fsub",
+                        "*" => "fmul",
+                        "/" => "fdiv",
+                        _ => "fadd",
+                    };
+                    self.output.push_str(&format!("  {} = {} {} {}, {}\n", res_reg, op_str, t_l, r_l, r_r));
+                    return Some(format!("vec:{}:{}", t_l, res_reg));
+                }
+
                 let is_l_ptr = l_reg.starts_with("ptr:") || l_reg.starts_with("array:") || l_reg.starts_with("struct:");
                 let is_r_ptr = r_reg.starts_with("ptr:") || r_reg.starts_with("array:") || r_reg.starts_with("struct:");
                 
@@ -1157,8 +1409,35 @@ impl LLVMGenerator {
                     _ => return None,
                 }
             },
+            Expr::ParallelTransport { vector, from, to } => {
+                self.output.push_str("  ; --- Parallel Transport ---\n");
+                let vec_reg = self.visit_expr(vector).unwrap_or("null".to_string());
+                let from_reg = self.visit_expr(from).unwrap_or("null".to_string());
+                let to_reg = self.visit_expr(to).unwrap_or("null".to_string());
+                
+                let clean_vec = vec_reg.replace("ptr:", "").replace("string:", "").replace("array:", "").replace("struct:", "");
+                let clean_from = from_reg.replace("ptr:", "").replace("string:", "").replace("array:", "").replace("struct:", "");
+                let clean_to = to_reg.replace("ptr:", "").replace("string:", "").replace("array:", "").replace("struct:", "");
+                
+                let res_reg = self.next_reg();
+                self.output.push_str(&format!("  {} = call ptr @cartan_rt_parallel_transport(ptr {}, ptr {}, ptr {})\n", res_reg, clean_vec, clean_from, clean_to));
+                
+                Some(format!("ptr:{}", res_reg))
+            },
             Expr::FusedKernel(block) => {
                 self.output.push_str("  ; --- Begin Fused Kernel ---\n");
+                
+                // Fast path: Pattern Match for known fused operations
+                if block.statements.len() == 1 {
+                    if let crate::ast::Stmt::Expr(e) = &block.statements[0] {
+                        if let Some(reg) = self.match_fused_linear_relu(e) {
+                            self.output.push_str("  ; --- End Fused Kernel (Pattern Matched) ---\n");
+                            return Some(reg);
+                        }
+                    }
+                }
+                
+                // Fallback: Sequential unrolling
                 let mut last_reg = None;
                 for s in &block.statements {
                     if let crate::ast::Stmt::Expr(e) = s {
@@ -1167,7 +1446,7 @@ impl LLVMGenerator {
                         self.visit_stmt(s);
                     }
                 }
-                self.output.push_str("  ; --- End Fused Kernel ---\n");
+                self.output.push_str("  ; --- End Fused Kernel (Unrolled) ---\n");
                 last_reg
             },
             Expr::MethodCall { object, method_name, args } => {
@@ -1301,6 +1580,10 @@ impl LLVMGenerator {
                     let res_reg = self.next_reg();
                     self.output.push_str(&format!("  {} = call ptr @cartan_load_dma()\n", res_reg));
                     return Some(res_reg);
+                }
+                
+                if name == "Cartan.parallel_transport" {
+                    // Handled as an intrinsic expr node, but if function call somehow routes here, fallback
                 }
                 
                 // Generic Function Call
@@ -1527,6 +1810,25 @@ impl LLVMGenerator {
                 self.output.push_str(&format!("  {} = call ptr @cartan_tokenize_bpe(ptr {}, ptr {})\n", res, text_reg, path_str_ptr));
                 Some(format!("ptr:{}", res))
             },
+            Expr::TreeSearch { tree, algorithm, state } => {
+                self.output.push_str(&format!("  ; --- Tree Search ({}) ---\n", algorithm));
+                let tree_reg = self.visit_expr(tree).unwrap_or("null".to_string());
+                let clean_tree = tree_reg.replace("ptr:", "").replace("string:", "").replace("array:", "").replace("struct:", "");
+                
+                let state_reg = if let Some(st) = state {
+                    let r = self.visit_expr(st).unwrap_or("null".to_string());
+                    r.replace("ptr:", "").replace("string:", "").replace("array:", "").replace("struct:", "")
+                } else {
+                    "null".to_string()
+                };
+                
+                let res = self.next_reg();
+                
+                // We default to MCTS for now unless more algorithms are added
+                self.output.push_str(&format!("  {} = call ptr @cartan_rt_tree_search_mcts(ptr {}, ptr {})\n", res, clean_tree, state_reg));
+                
+                Some(format!("ptr:{}", res))
+            },
             Expr::AlignSpans { vocab_a, vocab_b, projection_matrix } => {
                 self.output.push_str("  ; --- Align Spans (Cross-Tokenizer Projection) ---\n");
                 let proj_reg = self.visit_expr(projection_matrix).unwrap_or("null".to_string());
@@ -1566,13 +1868,6 @@ impl LLVMGenerator {
                 let res = self.next_reg();
                 self.output.push_str(&format!("  {} = call ptr @cartan_geometric_bridge(ptr {}, ptr {})\n", res, reg_a, reg_b));
                 Some(res)
-            },
-            Expr::Transpose(inner) => {
-                let inner_val = self.visit_expr(inner)?.replace("ptr:", "");
-                let reg = self.next_reg();
-                self.output.push_str(&format!("  {} = call ptr @cartan_tensor_transpose(ptr {})
-", reg, inner_val));
-                Some(format!("ptr:{}", reg))
             },
             Expr::TransposeWeights(a, b) => {
                 self.output.push_str("  ; --- Transpose Weights ---\n");
@@ -1641,8 +1936,56 @@ impl LLVMGenerator {
                 self.output.push_str(&format!("  {} = call ptr @cartan_tensor_translation_barrier(ptr null, ptr null)\n", res));
                 Some(format!("ptr:{}", res))
             },
+            Expr::Quantize { target, dtype: _ } => {
+                let target_reg = self.visit_expr(target).unwrap_or("0".to_string());
+                let res = self.next_reg();
+                self.output.push_str(&format!("  {} = call ptr @cartan_tensor_quantize_int8(ptr {})\n", res, target_reg.replace("ptr:", "")));
+                Some(format!("ptr:{}", res))
+            },
+            Expr::Transform { op, target } => {
+                let _target_reg = self.visit_expr(target);
+                // Currently just a stub, real implementations would generate an adjoint function.
+                Some(format!("fn_ptr:{}", op))
+            },
+            Expr::AddressOf(target) => {
+                if let Expr::Identifier(name) = &**target {
+                    if let Some(ptr_reg) = self.symbols.get(name) {
+                        return Some(ptr_reg.clone());
+                    }
+                }
+                Some("null".to_string())
+            },
+            Expr::Dereference(target) => {
+                let ptr_reg = self.visit_expr(target).unwrap_or("null".to_string());
+                let res = self.next_reg();
+                self.output.push_str(&format!("  {} = load float, ptr {}, align 4\n", res, ptr_reg.replace("ptr:", "")));
+                Some(res)
+            },
             Expr::Range { start: _, end: _ } => {
                 Some("0.0".to_string())
+            },
+            Expr::ProjectVocab { source, target } => {
+                let s_reg = self.visit_expr(source).unwrap_or("null".to_string());
+                let t_reg = self.visit_expr(target).unwrap_or("null".to_string());
+                self.output.push_str(&format!("  call void @cartan_project_vocab(ptr {}, ptr {})\n", s_reg.replace("ptr:", ""), t_reg.replace("ptr:", "")));
+                Some("0.0".to_string())
+            },
+            Expr::WeightDecay { target, amount } => {
+                let t_reg = self.visit_expr(target).unwrap_or("null".to_string());
+                self.output.push_str(&format!("  call void @cartan_weight_decay(ptr {}, float {})\n", t_reg.replace("ptr:", ""), amount));
+                Some("0.0".to_string())
+            },
+            Expr::PromptLiteral(s) => {
+                let id = self.string_counter;
+                self.string_counter += 1;
+                let global_name = format!("@.str.prompt.{}", id);
+                self.globals.push_str(&format!(
+                    "{} = private unnamed_addr constant [{} x i8] c\"{}\\00\", align 1\n",
+                    global_name,
+                    s.len() + 1,
+                    s
+                ));
+                Some(format!("ptr:{}", global_name))
             },
             _ => None
         }
