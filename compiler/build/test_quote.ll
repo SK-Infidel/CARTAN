@@ -5,19 +5,16 @@ target triple = "x86_64-pc-windows-msvc"
 
 
 
-define void @user_main() {
-entry:
-  %1 = alloca float, align 4
-  store float 1.000000, ptr %1, align 4
-  ret void
-}
-
 define i32 @main(i32 %argc, ptr %argv) {
 entry:
   store i32 %argc, ptr @global_argc, align 4
   store ptr %argv, ptr @global_argv, align 8
-  %exit_code = call i32 @user_main()
-  ret i32 %exit_code
+  %1 = alloca float, align 4
+  store float 5.000000, ptr %1, align 4
+  %2 = call ptr @cartan_tensor_alloc(i32 1, i32 1)
+  %3 = alloca ptr, align 8
+  store ptr %2, ptr %3, align 8
+  ret i32 0
 }
 
 declare ptr @malloc(i64)
@@ -29,6 +26,7 @@ declare ptr @cartan_tensor_add(ptr, ptr)
 declare ptr @cartan_tensor_sub(ptr, ptr)
 declare ptr @cartan_tensor_mul(ptr, ptr)
 declare ptr @cartan_tensor_matmul(ptr, ptr)
+declare ptr @cartan_tensor_matmul_dynamic(ptr, ptr)
 declare ptr @cartan_tensor_matmul_minkowski(ptr, ptr)
 declare ptr @cartan_tensor_matmul_poincare(ptr, ptr)
 declare void @cartan_tensor_backward(ptr)

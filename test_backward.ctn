@@ -1,0 +1,5 @@
+let w = 2.0;
+let x = 3.0;
+let y = w * x;
+let loss = y - 5.0;
+backward loss;

@@ -1,0 +1,12 @@
+﻿tensor a[128, 128] @ Minkowski;
+tensor b[128, 128];
+
+fn test_fusion(x: tensor, y: tensor) {
+    fuse {
+        z = x @ y;
+        w = z + z;
+    };
+    return w;
+}
+
+test_fusion(a, b);

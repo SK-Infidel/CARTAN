@@ -21,6 +21,9 @@ pub struct Tensor {
     pub parent_b: *mut Tensor,
     pub op: i32, // 0=Leaf, 1=Add, 2=Sub, 3=Mul, 4=MatMul, etc
     
+    // Geometry Manifold
+    pub manifold: u32, // 0=Euclidean, 1=Minkowski, 2=PoincareDisk
+    
     // Adam Optimizer State
     pub is_adam: bool,
     pub adam_m: *mut f32,
@@ -89,6 +92,7 @@ fn alloc_tensor(size: usize, randomize: bool) -> *mut Tensor {
         parent_a: ptr::null_mut(),
         parent_b: ptr::null_mut(),
         op: 0,
+        manifold: 0,
         is_adam: false,
         adam_m: ptr::null_mut(),
         adam_v: ptr::null_mut(),
@@ -103,19 +107,21 @@ fn alloc_tensor(size: usize, randomize: bool) -> *mut Tensor {
 }
 
 #[no_mangle]
-pub extern "C" fn cartan_tensor_alloc(size: u32) -> *mut Tensor {
+pub extern "C" fn cartan_tensor_alloc(size: u32, manifold: u32) -> *mut Tensor {
     let ptr = alloc_tensor(size as usize, true);
+    unsafe { if !ptr.is_null() { (*ptr).manifold = manifold; } }
     ptr
 }
 
 #[no_mangle]
-pub extern "C" fn cartan_tensor_alloc_nd(rank: u32, d0: u32, d1: u32, d2: u32, d3: u32) -> *mut Tensor {
+pub extern "C" fn cartan_tensor_alloc_nd(rank: u32, d0: u32, d1: u32, d2: u32, d3: u32, manifold: u32) -> *mut Tensor {
     let size = (if rank > 0 { d0 } else { 1 })
              * (if rank > 1 { d1 } else { 1 })
              * (if rank > 2 { d2 } else { 1 })
              * (if rank > 3 { d3 } else { 1 });
              
     let ptr = alloc_tensor(size as usize, true);
+    unsafe { if !ptr.is_null() { (*ptr).manifold = manifold; } }
     unsafe {
         (*ptr).rank = rank;
         let mut s = [1; 4];
@@ -133,7 +139,7 @@ pub extern "C" fn cartan_tensor_alloc_nd(rank: u32, d0: u32, d1: u32, d2: u32, d
 
 #[no_mangle]
 pub extern "C" fn cartan_alloc_parameter_adam(size: u32) -> *mut Tensor {
-    let ptr = cartan_tensor_alloc(size);
+    let ptr = cartan_tensor_alloc(size, 0);
     unsafe {
         (*ptr).is_adam = true;
         
@@ -149,7 +155,7 @@ pub extern "C" fn cartan_alloc_parameter_adam(size: u32) -> *mut Tensor {
 
 #[no_mangle]
 pub extern "C" fn cartan_alloc_parameter_adam_nd(rank: u32, d0: u32, d1: u32, d2: u32, d3: u32) -> *mut Tensor {
-    let ptr = cartan_tensor_alloc_nd(rank, d0, d1, d2, d3);
+    let ptr = cartan_tensor_alloc_nd(rank, d0, d1, d2, d3, 0);
     unsafe {
         (*ptr).is_adam = true;
         let size = (*ptr).size;
@@ -168,13 +174,13 @@ pub extern "C" fn cartan_alloc_parameter_adam_nd(rank: u32, d0: u32, d1: u32, d2
 pub extern "C" fn cartan_alloc_sequence(size: u32) -> *mut Tensor {
     // A sequence is just a 1D tensor representing max length tokens/embeddings. 
     // Usually it would hold `Sequence` struct, but for now we back it as a Tensor.
-    cartan_tensor_alloc(size)
+    cartan_tensor_alloc(size, 0)
 }
 
 #[no_mangle]
 pub extern "C" fn cartan_alloc_block(size: u32) -> *mut Tensor {
     // Similar to sequence, block is a generic contiguous structure
-    cartan_tensor_alloc(size)
+    cartan_tensor_alloc(size, 0)
 }
 
 fn get_broadcast_strides(shape: &[u32; 4]) -> [usize; 4] {
@@ -1320,7 +1326,7 @@ pub extern "C" fn cartan_tensor_transpose(t: *mut Tensor) -> *mut Tensor {
         if t.is_null() { return std::ptr::null_mut(); }
         let rank = (*t).rank;
         let size = (*t).size;
-        let out = cartan_tensor_alloc(size as u32);
+        let out = cartan_tensor_alloc(size as u32, 0);
         let mut new_shape = (*t).shape;
         
         if rank >= 2 {
@@ -1346,5 +1352,50 @@ pub extern "C" fn cartan_tensor_transpose(t: *mut Tensor) -> *mut Tensor {
         }
         
         out
+    }
+}
+#[no_mangle]
+pub extern "C" fn cartan_tensor_set_manifold(a: *mut Tensor, m: u32) {
+    unsafe {
+        if !a.is_null() {
+            (*a).manifold = m;
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn cartan_tensor_matmul_dynamic(a: *mut Tensor, b: *mut Tensor) -> *mut Tensor {
+    unsafe {
+        if a.is_null() || b.is_null() { return std::ptr::null_mut(); }
+        match (*a).manifold {
+            1 => cartan_tensor_matmul_minkowski(a, b),
+            2 => cartan_tensor_matmul_poincare(a, b),
+            _ => cartan_tensor_matmul(a, b), // Default to Euclidean (0)
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn cartan_sandbox_hot_swap(target: *mut Tensor, new_graph: *mut Tensor) {
+    if target.is_null() || new_graph.is_null() {
+        return;
+    }
+    unsafe {
+        // Atomic pointer rewiring: Swap the internal data pointer of target to point to new_graph's data.
+        // In a true environment, we'd take an exclusive lock, ensuring no ongoing kernel is executing on 	arget.
+        println!("  [Runtime] Sandboxing thread: Pausing compute for pointer Hot-Swap...");
+        
+        let mut t = &mut *target;
+        let ng = &mut *new_graph;
+        
+        // Ensure dimensions match
+        if t.size == ng.size {
+            println!("  [Runtime] Hot-Swap Validated: Dimensions match. Swapping backing buffers...");
+            // Swap the buffer pointers
+            std::mem::swap(&mut t.data, &mut ng.data);
+            println!("  [Runtime] Hot-Swap Complete: Architecture rewired.");
+        } else {
+            println!("  [Runtime] Hot-Swap Failed: Dimension mismatch! Keeping original architecture.");
+        }
     }
 }

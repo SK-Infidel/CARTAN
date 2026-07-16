@@ -99,7 +99,7 @@ impl MacroPass {
                 }
                 true
             }
-            (Expr::Quote(w_b), Expr::Quote(p_b)) => {
+            (Expr::Quote(w_b), Expr::Quote(p_b)) | (Expr::FusedKernel(w_b), Expr::FusedKernel(p_b)) => {
                 if w_b.statements.len() != p_b.statements.len() { return false; }
                 for (ws, ps) in w_b.statements.iter().zip(p_b.statements.iter()) {
                     if !self.matches_stmt(ws, ps, bindings) { return false; }
@@ -126,7 +126,7 @@ impl MacroPass {
         }
         
         match stmt {
-            Stmt::Block(block) | Stmt::AsyncCompute(block) => {
+            Stmt::Block(block) | Stmt::MeshBlock { body: block, .. } | Stmt::AsyncCompute(block) => {
                 self.apply_to_stmts(&mut block.statements);
             },
             Stmt::FunctionDecl(f) => {
@@ -166,6 +166,11 @@ impl MacroPass {
                 self.substitute_expr(target, bindings);
                 self.substitute_expr(value, bindings);
             }
+            Expr::Quote(block) | Expr::FusedKernel(block) => {
+                for s in &mut block.statements {
+                    self.substitute_stmt(s, bindings);
+                }
+            }
             _ => {}
         }
         false
@@ -173,7 +178,7 @@ impl MacroPass {
 
     fn visit_stmt(&self, stmt: &mut Stmt) {
         match stmt {
-            Stmt::Block(block) | Stmt::AsyncCompute(block) => {
+            Stmt::Block(block) | Stmt::MeshBlock { body: block, .. } | Stmt::AsyncCompute(block) => {
                 self.apply_to_stmts(&mut block.statements);
             },
             Stmt::FunctionDecl(f) => {

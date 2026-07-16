@@ -378,10 +378,14 @@ impl CodeGenerator {
                 }
                 None
             },
-            Expr::FusedKernel(exprs) => {
+            Expr::FusedKernel(block) => {
                 let mut last = None;
-                for e in exprs {
-                    last = self.visit_expr(e);
+                for s in &block.statements {
+                    if let crate::ast::Stmt::Expr(e) = s {
+                        last = self.visit_expr(e);
+                    } else {
+                        self.visit_stmt(s);
+                    }
                 }
                 last
             },

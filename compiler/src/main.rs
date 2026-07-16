@@ -22,7 +22,7 @@ use lexer::Lexer;
 use parser::Parser;
 use type_checker::TypeChecker;
 use macro_pass::MacroPass;
-use optimizer::KernelFusionPass;
+use optimizer::{KernelFusionPass, AlgebraicSimplificationPass, TopologicRewritingPass};
 use autodiff::AutoDiffPass;
 // Removed unused import
 use liveness::LivenessPass;
@@ -163,6 +163,16 @@ fn main() {
                     let mut optimizer = KernelFusionPass::new();
                     optimizer.optimize(&mut ast);
                     println!("AST Optimizer: Kernel Fusion applied.");
+                    
+                    println!("Running AST Optimizer Pass: Algebraic Simplification...");
+                    let mut algebraic = AlgebraicSimplificationPass::new();
+                    algebraic.optimize(&mut ast);
+                    println!("AST Optimizer: Algebraic Simplification applied.");
+                    
+                    println!("Running AST Optimizer Pass: Topologic Rewriting...");
+                    let mut topology = TopologicRewritingPass::new();
+                    topology.optimize(&mut ast);
+                    println!("AST Optimizer: Topologic Rewriting applied.");
                     
 
                     let mut autodiff = AutoDiffPass::new();

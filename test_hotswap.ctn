@@ -1,0 +1,4 @@
+let target = tensor[1024, 1024] in Euclidean;
+let new_graph = tensor[1024, 1024] in Euclidean;
+
+hotswap(target, new_graph);

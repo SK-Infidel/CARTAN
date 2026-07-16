@@ -1,0 +1,10 @@
+tensor t[4, 4] in Euclidean;
+
+fn test_simplification(x: tensor) {
+    let z = x * 0.0;
+    let w = z + 0.0;
+    return w;
+}
+
+absorb_layer_weights("dummy_weights.bin", t);
+test_simplification(t);
