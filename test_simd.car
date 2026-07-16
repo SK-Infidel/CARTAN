@@ -1,0 +1,6 @@
+
+fn test_simd() {
+    vector a[f32, 16];
+    vector b[f32, 16];
+    let c = a + b;
+}

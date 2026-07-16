@@ -1,0 +1,33 @@
+// cartan_src/type_checker.car
+// Native typing analysis.
+
+fn check_expr(expr: Expr, scope: tree<string>) -> string {
+    // Type checker stub
+    // Would look up variables in environment (scope)
+    // and verify shape/manifold alignment
+    return "Float32";
+}
+
+fn typecheck_stmt(stmt: Stmt, scope: tree<string>) -> Stmt {
+    // Traverse blocks
+    let mut i = 0;
+    while i < Cartan.tree_size(stmt.body) {
+        let child = Cartan.tree_get(stmt.body, i);
+        let checked = typecheck_stmt(child, scope);
+        Cartan.tree_set(stmt.body, i, checked);
+        i = i + 1;
+    }
+    return stmt;
+}
+
+fn typecheck_program(program: Program) -> Program {
+    let global_scope = Cartan.tree_create();
+    let mut i = 0;
+    while i < Cartan.tree_size(program.statements) {
+        let stmt = Cartan.tree_get(program.statements, i);
+        let checked = typecheck_stmt(stmt, global_scope);
+        Cartan.tree_set(program.statements, i, checked);
+        i = i + 1;
+    }
+    return program;
+}

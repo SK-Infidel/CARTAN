@@ -99,6 +99,23 @@ impl Lexer {
         keywords.insert("ptr".to_string(), TokenType::Ptr);
         keywords.insert("import_onnx!".to_string(), TokenType::ImportOnnx);
         keywords.insert("quantize".to_string(), TokenType::Quantize);
+        keywords.insert("layer".to_string(), TokenType::Layer);
+        keywords.insert("graph".to_string(), TokenType::Graph);
+        keywords.insert("riemannian".to_string(), TokenType::Riemannian);
+        keywords.insert("rule".to_string(), TokenType::Rule);
+        keywords.insert("knowledge_base".to_string(), TokenType::KnowledgeBase);
+        keywords.insert("fuzzy".to_string(), TokenType::Fuzzy);
+        keywords.insert("Complex32".to_string(), TokenType::Complex32);
+        keywords.insert("evolve".to_string(), TokenType::Evolve);
+        keywords.insert("spawn".to_string(), TokenType::Spawn);
+        keywords.insert("dataframe".to_string(), TokenType::Dataframe);
+        keywords.insert("trait".to_string(), TokenType::Trait);
+        keywords.insert("impl".to_string(), TokenType::Impl);
+        keywords.insert("receive".to_string(), TokenType::Receive);
+        keywords.insert("filter".to_string(), TokenType::Filter);
+        keywords.insert("string_view".to_string(), TokenType::StringView);
+        keywords.insert("@simd_find_first".to_string(), TokenType::SimdFindFirst);
+        keywords.insert("@simd_mask_alpha".to_string(), TokenType::SimdMaskAlpha);
 
         Self {
             source: source.chars().collect(),
@@ -169,6 +186,10 @@ impl Lexer {
                         tokens.push(Token { token_type: TokenType::Attention, lexeme: "@attention".to_string(), span: Span::new(start_line, start_col, self.col) });
                     } else if ident == "agent_accessible" {
                         tokens.push(Token { token_type: TokenType::AgentAccessible, lexeme: "@agent_accessible".to_string(), span: Span::new(start_line, start_col, self.col) });
+                    } else if ident == "simd_find_first" {
+                        tokens.push(Token { token_type: TokenType::SimdFindFirst, lexeme: "@simd_find_first".to_string(), span: Span::new(start_line, start_col, self.col) });
+                    } else if ident == "simd_mask_alpha" {
+                        tokens.push(Token { token_type: TokenType::SimdMaskAlpha, lexeme: "@simd_mask_alpha".to_string(), span: Span::new(start_line, start_col, self.col) });
                     } else if ident.is_empty() {
                         tokens.push(Token { token_type: TokenType::MatMul, lexeme: "@".to_string(), span: Span::new(start_line, start_col, self.col) });
                     } else {

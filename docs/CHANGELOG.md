@@ -5,6 +5,9 @@ All notable changes to the CARTAN compiler, language specification, and runtime 
 ## [Unreleased] - Current Session
 
 ### Language Architecture Roadmap (Completed)
+- **Symbolic Structures (2026-07-16)**: Implemented `lattice` and `tree` primitives in CARTAN. This enables symbolic AI structures natively alongside connectionist types, supporting declarative structures like `lattice[Boolean, 128]` and `tree<tensor>`.
+- **Intrinsic Tangent Vectors (2026-07-16)**: Implemented native distinction between ambient Euclidean arrays (`vector[N]`) and intrinsic tangent vectors (`vector[N] at anchor`). Tangent vectors are verified at compile-time to share the exact same `ManifoldSpace` anchor point before any standard arithmetic operations are allowed, preventing unphysical geometric calculations.
+- **Parallel Transport Intrinsic (2026-07-16)**: Added `Cartan.parallel_transport(v, from: a, to: b)` to the parser and AST. Enforces compile-time checks to ensure `from` and `to` reside on the same manifold before generating the LLVM `call ptr @cartan_rt_parallel_transport` instruction.
 - **Control Flow & Match Statements**: Added `match` and `=>` fat arrow branching unrolled directly into LLVM cascading conditionals, replacing basic equality checks with robust condition routing.
 - **Goal-Directed Execution (satisfy)**: Introduced `satisfy { ... }` blocks with backtracking to auto-tune execution bounds and constraint violations by natively rewinding the graph state without runtime bloat.
 - **Live Memory Hot-Swapping**: Implemented `hotswap` blocks for rewiring AST sub-graphs in real-time. Allowed tensor registry swapping without dropping weights from VRAM, keeping training loops alive during architectural modifications.
@@ -35,3 +38,38 @@ All notable changes to the CARTAN compiler, language specification, and runtime 
 - **Strict Warning Compliance**: Resolved all IDE-flagged compiler warnings (`unused_imports`, `unused_mut`, `static_mut_refs`) in both `cartanc` and the `tensor_runtime`, ensuring a perfectly clean build process.
 - **Optimizer Fusion**: Added `parameter[Adam]` and `parameter[SGD]` syntax. Optimiziers are now implemented directly in the runtime memory allocations and integrated into the global `.step()` backward pass, eliminating the need to pass huge weight tensors back to Python space.
 - **Data Structures for Attention**: Added `sequence` (for ragged token streams) and `block` (for paged KV caches) primitives to the AST and compiler, allowing developers to define specialized memory arenas.
+## [0.1.6] - Tier 3 Primitive Parsing
+### Added
+- Implemented layer and graph logic in the compiler AST.
+- Implemented knowledge_base and ule primitives for neuro-symbolic logic.
+- Implemented evolve blocks for genetic algorithm structure.
+- Implemented spawn blocks for concurrent multi-agent structure.
+- Implemented dataframe blocks for relational data logic.
+- Implemented satisfy {} otherwise {} constraint blocks.
+- Added iemannian optimizer modifier to transform expressions.
+- Fixed AST matching structure in parser.rs and eval.rs.
+
+### Fixed
+- Restored VarDecl AST types and parsing broken by large file patching scripts.
+- Verified parser stability across all Tier 3 structures, ensuring safe 0.1.6 baseline.
+## [0.1.7] - Phase 9: Data-Oriented OOP & Actor State Management
+### Added
+- Added 	rait keyword and parser integration for structural behavior signatures.
+- Added impl and impl ... for syntax for binding behaviors to flat data structs.
+- Added eceive block syntax to handle message passing within spawn actor declarations.
+- Extended AST with TraitDecl, ImplDecl, and ReceiveDecl structures.
+- Updated 	oken.rs and lexer.rs to support new keywords natively.
+- Full type checker compatibility and parser stabilization.
+## [0.1.8] - Phase 10: Backend Execution Engine Upgrades
+### Added
+- Overhauled eval.rs backend to support full OOP State modifications.
+- Introduced MethodCall dynamic dispatch against globally registered impl structures.
+- Connected spawn actor keyword natively to OS-level std::thread::spawn for isolated multithreading.
+- Implemented core mathematical arithmetic (float extensions) and unary operations directly in backend evaluator.
+
+## [0.1.9] - Phase 11: Self-Hosted Compiler Refactoring
+### Added
+- Ported lexer.car to pure native CARTAN OOP using Traits and Impls.
+- Ported parser.car to pure native CARTAN OOP, solving struct initialization ambiguity.
+- Ported st.car logic to CARTAN struct properties.
+- Passed full e2e validation: compiling .car scripts via Rust backend parses cleanly.

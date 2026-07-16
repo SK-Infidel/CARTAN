@@ -24,10 +24,25 @@ pub enum CartanType {
     Stream,
     Spike,
     Neuron,
+    Vector {
+        data_type: Option<String>,
+        dim: Dimension,
+        space: crate::ast::VectorSpace,
+    },
     Tensor(Vec<Dimension>, ManifoldSpace, Option<crate::ast::MemoryLayout>),
     Parameter(Vec<Dimension>, ManifoldSpace, Option<crate::ast::MemoryLayout>, Option<crate::ast::OptimizerState>),
     Sequence(Dimension),
     Block(Dimension),
+    Lattice {
+        lattice_type: String,
+        dim: Dimension,
+    },
+    Tree {
+        element_type: Box<CartanType>,
+    },
+    Struct(String),
+    StringView,
+    Pointer(Box<CartanType>),
     Unknown, // Fallback for unsupported/raw expressions
 }
 
@@ -41,6 +56,17 @@ impl std::fmt::Display for CartanType {
             CartanType::Stream => write!(f, "stream"),
             CartanType::Spike => write!(f, "spike"),
             CartanType::Neuron => write!(f, "neuron"),
+            CartanType::Vector { data_type, dim, space } => {
+                let dt_str = match data_type {
+                    Some(dt) => format!("{}, ", dt),
+                    None => "".to_string(),
+                };
+                let space_str = match space {
+                    crate::ast::VectorSpace::AmbientEuclidean => "".to_string(),
+                    crate::ast::VectorSpace::TangentSpace { anchor } => format!(" at {}", anchor),
+                };
+                write!(f, "vector[{}{}]{}", dt_str, dim, space_str)
+            },
             CartanType::Tensor(dims, space, layout) => {
                 let d_str: Vec<String> = dims.iter().map(|d| d.to_string()).collect();
                 let space_str = match space {
@@ -75,6 +101,11 @@ impl std::fmt::Display for CartanType {
             },
             CartanType::Sequence(max_len) => write!(f, "sequence[{}]", max_len),
             CartanType::Block(size) => write!(f, "block[{}]", size),
+            CartanType::Lattice { lattice_type, dim } => write!(f, "lattice[{}, {}]", lattice_type, dim),
+            CartanType::Tree { element_type } => write!(f, "tree<{}>", element_type),
+            CartanType::Struct(name) => write!(f, "struct {}", name),
+            CartanType::StringView => write!(f, "string_view"),
+            CartanType::Pointer(inner) => write!(f, "ptr<{}>", inner),
             CartanType::Unknown => write!(f, "unknown"),
         }
     }

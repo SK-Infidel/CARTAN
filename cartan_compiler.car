@@ -1,0 +1,723 @@
+// cartan_src/ast.car
+// This defines the Abstract Syntax Tree for the self-hosted CARTAN compiler.
+// We use tags to represent the different variants of Expr and Stmt.
+
+struct Parameter {
+    name: string;
+    type_name: string;
+    is_borrow: bool;
+    is_mutable: bool;
+}
+
+struct GenericBound {
+    name: string;
+    bound: string;
+}
+
+struct Expr {
+    // The variant tag (e.g., "Integer", "Float", "StringLiteral", "Identifier", "Binary", "Call")
+    tag: string;
+    
+    // Primitive payload fields
+    value_string: string;
+    value_float: float;
+    value_int: i32;
+    value_bool: bool;
+
+    // Structural payload
+    // In a Binary expression: children[0] is left, children[1] is right
+    // In a Call expression: children[0] is the callee, the rest are args
+    children: tree<Expr>;
+}
+
+struct Stmt {
+    // The variant tag (e.g., "VarDecl", "FunctionDecl", "TensorDecl", "If", "While", "Block")
+    tag: string;
+    
+    // Identifiers
+    name: string;
+    type_name: string;
+    
+    // Modifiers
+    is_lazy: bool;
+    is_unified: bool;
+    is_latent: bool;
+    is_const: bool;
+is_agent_accessible: bool;
+
+    // The primary expression associated with this statement (e.g., variable assignment value, return value, if condition)
+    expr: Expr;
+    
+    // Sub-statements for blocks
+    body: tree<Stmt>;
+    else_body: tree<Stmt>; // for if-else
+}
+
+struct FunctionDecl {
+    name: string;
+    return_type: string;
+    // We can map parameters and bounds into tree structures or rely on the host language limits
+}
+
+struct Program {
+    statements: tree<Stmt>;
+}
+// cartan_src/lexer.car
+// Tokenizer for the CARTAN compiler, written natively in CARTAN.
+
+struct Token {
+    type_tag: string;
+    lexeme: string;
+    line: i32;
+    column: i32;
+}
+
+struct Lexer {
+    source: string;
+    position: i32;
+    line: i32;
+    column: i32;
+}
+
+// We can define methods inside struct boundaries or as standalone functions.
+// Let's use standalone functions acting on the Lexer state for now.
+
+fn lexer_init(source_text: string) -> Lexer {
+    return Lexer {
+        source: source_text,
+        position: 0,
+        line: 1,
+        column: 1
+    };
+}
+
+fn lexer_is_at_end(lexer: Lexer) -> bool {
+    // We assume string has a .length property or similar in our host environment
+    return lexer.position >= Cartan.string_length(lexer.source);
+}
+
+fn lexer_advance(lexer: Lexer) -> string {
+    let ch = Cartan.string_char_at(lexer.source, lexer.position);
+    lexer.position = lexer.position + 1;
+    lexer.column = lexer.column + 1;
+    if (ch == "\n") {
+        lexer.line = lexer.line + 1;
+        lexer.column = 1;
+    }
+    return ch;
+}
+
+fn lexer_peek(&lexer: Lexer) -> string {
+    if (lexer.position >= Cartan.string_length(lexer.source)) {
+        return "\0";
+    }
+    return Cartan.string_char_at(lexer.source, lexer.position);
+}
+
+fn lexer_next_token(lexer: Lexer) -> Token {
+    // Skip whitespace
+    while (true) {
+        let c = lexer_peek(lexer);
+        if (c == " " || c == "\r" || c == "\t" || c == "\n") {
+            lexer_advance(lexer);
+        } else {
+            break;
+        }
+    }
+
+    if (lexer_is_at_end(lexer)) {
+        return Token { type_tag: "EOF", lexeme: "", line: lexer.line, column: lexer.column };
+    }
+
+    let start_line = lexer.line;
+    let start_col = lexer.column;
+    let c = lexer_advance(lexer);
+
+    // Simple single-character tokens
+    if (c == "{") { return Token { type_tag: "LBrace", lexeme: "{", line: start_line, column: start_col }; }
+    if (c == "}") { return Token { type_tag: "RBrace", lexeme: "}", line: start_line, column: start_col }; }
+    if (c == "(") { return Token { type_tag: "LParen", lexeme: "(", line: start_line, column: start_col }; }
+    if (c == ")") { return Token { type_tag: "RParen", lexeme: ")", line: start_line, column: start_col }; }
+    if (c == "[") { return Token { type_tag: "LBracket", lexeme: "[", line: start_line, column: start_col }; }
+    if (c == "]") { return Token { type_tag: "RBracket", lexeme: "]", line: start_line, column: start_col }; }
+    if (c == ";") { return Token { type_tag: "Semicolon", lexeme: ";", line: start_line, column: start_col }; }
+    if (c == ",") { return Token { type_tag: "Comma", lexeme: ",", line: start_line, column: start_col }; }
+
+    // Identifiers and Keywords
+    if (Cartan.is_alpha(c)) {
+        let lexeme = c;
+        while (Cartan.is_alphanumeric(lexer_peek(lexer))) {
+            lexeme = lexeme + lexer_advance(lexer);
+        }
+        
+        let type_tag = "Identifier";
+        
+        // Match Keywords
+        if (lexeme == "fn") { type_tag = "Fn"; }
+        if (lexeme == "struct") { type_tag = "Struct"; }
+        if (lexeme == "tensor") { type_tag = "Tensor"; }
+        if (lexeme == "if") { type_tag = "If"; }
+        if (lexeme == "else") { type_tag = "Else"; }
+        if (lexeme == "while") { type_tag = "While"; }
+        if (lexeme == "return") { type_tag = "Return"; }
+        if (lexeme == "lazy") { type_tag = "Lazy"; }
+        if (lexeme == "unified") { type_tag = "Unified"; }
+        if (lexeme == "latent") { type_tag = "Latent"; }
+        if (lexeme == "vmap") { type_tag = "Vmap"; }
+        if (lexeme == "multimodal") { type_tag = "Multimodal"; }
+        if (lexeme == "vector") { type_tag = "Vector"; }
+        if (lexeme == "at") { type_tag = "At"; }
+        if (lexeme == "@agent_accessible") { type_tag = "AgentAccessible"; }
+        if (lexeme == "hotswap") { type_tag = "HotSwap"; }
+        if (lexeme == "doubt") { type_tag = "Doubt"; }
+        
+        return Token { type_tag: type_tag, lexeme: lexeme, line: start_line, column: start_col };
+    }
+
+    return Token { type_tag: "Unknown", lexeme: c, line: start_line, column: start_col };
+}
+// cartan_src/parser.car
+// Recursive descent parser natively executing in CARTAN.
+
+struct Parser {
+    tokens: tree<Token>;
+    current: i32;
+}
+
+fn parser_init(tokens_tree: tree<Token>) -> Parser {
+    return Parser {
+        tokens: tokens_tree,
+        current: 0
+    };
+}
+
+fn parser_peek(&parser: Parser) -> Token {
+    return Cartan.tree_get(parser.tokens, parser.current);
+}
+
+fn parser_advance(parser: Parser) -> Token {
+    let token = parser_peek(parser);
+    if (token.type_tag != "EOF") {
+        parser.current = parser.current + 1;
+    }
+    return token;
+}
+
+fn parser_match(parser: Parser, expected_tag: string) -> bool {
+    let current = parser_peek(parser);
+    if (current.type_tag == expected_tag) {
+        parser_advance(parser);
+        return true;
+    }
+    return false;
+}
+
+fn parser_consume(parser: Parser, expected_tag: string, error_msg: string) -> Token {
+    if (parser_peek(parser).type_tag == expected_tag) {
+        return parser_advance(parser);
+    }
+    // We would raise an error or panic here in a full implementation
+    Cartan.panic(error_msg);
+    return parser_peek(parser);
+}
+
+// Parses a block of statements
+fn parse_block(parser: Parser) -> tree<Stmt> {
+    let stmts = Cartan.tree_create();
+    
+    parser_consume(parser, "LBrace", "Expected '{' before block.");
+    
+    while (parser_peek(parser).type_tag != "RBrace" && parser_peek(parser).type_tag != "EOF") {
+        let stmt = parse_declaration(parser);
+        Cartan.tree_push(stmts, stmt);
+    }
+    
+    parser_consume(parser, "RBrace", "Expected '}' after block.");
+    return stmts;
+}
+
+// Parses a statement or declaration
+fn parse_declaration(parser: Parser) -> Stmt {
+    let is_lazy = false;
+    let is_unified = false;
+    let is_latent = false;
+
+    // Handle modifiers
+    if (parser_match(parser, "Lazy")) { is_lazy = true; }
+    if (parser_match(parser, "Unified")) { is_unified = true; }
+    if (parser_match(parser, "Latent")) { is_latent = true; }
+
+    let is_agent_accessible = false;
+    if (parser_match(parser, "AgentAccessible")) {
+        is_agent_accessible = true;
+    }
+
+    if (parser_match(parser, "Fn")) {
+        let stmt = parse_function_decl(parser);
+        stmt.is_agent_accessible = is_agent_accessible;
+        return stmt;
+    }
+    
+    if (parser_match(parser, "Tensor")) {
+        return parse_tensor_decl(parser, is_lazy, is_unified, is_latent);
+    }
+
+    if (parser_match(parser, "Vmap")) {
+        return parse_vmap_block(parser);
+    }
+
+    if (parser_match(parser, "Multimodal")) {
+        return parse_multimodal_block(parser);
+    }
+
+    if (parser_match(parser, "Vector")) {
+        return parse_vector_decl(parser);
+    }
+
+    // Default to a block or expression statement (abridged)
+    return parse_statement(parser);
+}
+
+fn parse_function_decl(parser: Parser) -> Stmt {
+    let name_tok = parser_consume(parser, "Identifier", "Expected function name.");
+    parser_consume(parser, "LParen", "Expected '(' after function name.");
+    // ... loop over args
+    parser_consume(parser, "RParen", "Expected ')' after parameters.");
+    let body = parse_block(parser);
+    
+    return Stmt {
+        tag: "FunctionDecl",
+        name: name_tok.lexeme,
+        type_name: "",
+        is_lazy: false,
+        is_unified: false,
+        is_latent: false,
+        is_const: false,
+is_agent_accessible: false,
+        expr: Expr { tag: "Null", value_string: "", value_float: 0.0, value_int: 0, value_bool: false, children: Cartan.tree_create() },
+        body: body,
+        else_body: Cartan.tree_create()
+    };
+}
+
+fn parse_tensor_decl(parser: Parser, is_lazy: bool, is_unified: bool, is_latent: bool) -> Stmt {
+    // Abridge: `tensor[128] weights;`
+    let name_tok = parser_consume(parser, "Identifier", "Expected tensor name.");
+    parser_consume(parser, "Semicolon", "Expected ';' after tensor declaration.");
+    
+    return Stmt {
+        tag: "TensorDecl",
+        name: name_tok.lexeme,
+        type_name: "tensor",
+        is_lazy: is_lazy,
+        is_unified: is_unified,
+        is_latent: is_latent,
+        is_const: false,
+is_agent_accessible: false,
+        expr: Expr { tag: "Null", value_string: "", value_float: 0.0, value_int: 0, value_bool: false, children: Cartan.tree_create() },
+        body: Cartan.tree_create(),
+        else_body: Cartan.tree_create()
+    };
+}
+
+fn parse_vector_decl(parser: Parser) -> Stmt {
+    let name_tok = parser_consume(parser, "Identifier", "Expected vector name.");
+    parser_consume(parser, "LBracket", "Expected '[' after vector name.");
+    let dim = parse_expr(parser);
+    parser_consume(parser, "RBracket", "Expected ']' after vector dimension.");
+    
+    if (parser_peek(parser).type_tag == "At") {
+        parser_advance(parser);
+        parser_consume(parser, "Identifier", "Expected anchor name after 'at'");
+    }
+    
+    parser_consume(parser, "Semicolon", "Expected ';' after vector declaration.");
+    
+    return Stmt {
+        tag: "VectorDecl",
+        name: name_tok.lexeme,
+        type_name: "Vector",
+        is_lazy: false,
+        is_unified: false,
+        is_latent: false,
+        is_const: false,
+is_agent_accessible: false,
+        init: Cartan.tree_create(),
+        condition: Cartan.tree_create(),
+        body: Cartan.tree_create(),
+        else_body: Cartan.tree_create()
+    };
+}
+
+fn parse_multimodal_block(parser: Parser) -> Stmt {
+    let _ = parser_consume(parser, "LBrace", "Expected '{' after multimodal");
+    let body = parse_block(parser);
+    return Stmt { tag: "MultimodalBlock", name: "", type_str: "", init: Cartan.tree_create(), condition: Cartan.tree_create(), body: body, fields: Cartan.tree_create(), parameters: Cartan.tree_create() };
+}
+
+fn parse_vmap_block(parser: Parser) -> Stmt {
+    let body = parse_block(parser);
+    return Stmt {
+        tag: "VmapBlock",
+        name: "",
+        type_name: "",
+        is_lazy: false,
+        is_unified: false,
+        is_latent: false,
+        is_const: false,
+is_agent_accessible: false,
+        expr: Expr { tag: "Null", value_string: "", value_float: 0.0, value_int: 0, value_bool: false, children: Cartan.tree_create() },
+        body: body,
+        else_body: Cartan.tree_create()
+    };
+}
+
+fn parse_statement(parser: Parser) -> Stmt {
+    // Abridged stub for general statements
+    let empty_tree = Cartan.tree_create();
+    let expr = Expr { tag: "Null", value_string: "", value_float: 0.0, value_int: 0, value_bool: false, children: empty_tree };
+    return Stmt {
+        tag: "Empty",
+        name: "",
+        type_name: "",
+        is_lazy: false,
+        is_unified: false,
+        is_latent: false,
+        is_const: false,
+is_agent_accessible: false,
+        expr: expr,
+        body: Cartan.tree_create(),
+        else_body: Cartan.tree_create()
+    };
+}
+// cartan_src/optimizer.car
+// Native CARTAN symbolic optimization pass over CARTAN ASTs.
+
+fn optimize_expr(expr: Expr) -> Expr {
+    // Traverse children
+    let i = 0;
+    while (i < Cartan.tree_size(expr.children)) {
+        let child = Cartan.tree_get(expr.children, i);
+        let optimized_child = optimize_expr(child);
+        // Replace with optimized
+        Cartan.tree_set(expr.children, i, optimized_child);
+        i = i + 1;
+    }
+
+    // Symbolic Rewriting
+    // e.g. Transpose(Transpose(x)) => x
+    if (expr.tag == "Transpose") {
+        let inner = Cartan.tree_get(expr.children, 0);
+        if (inner.tag == "Transpose") {
+            let inner_inner = Cartan.tree_get(inner.children, 0);
+            return inner_inner;
+        }
+    }
+
+    return expr;
+}
+
+fn optimize_stmt(stmt: Stmt) -> Stmt {
+    // If it has an expression, optimize it
+    if (stmt.expr.tag != "Null") {
+        stmt.expr = optimize_expr(stmt.expr);
+    }
+    
+    // Recurse into blocks
+    let i = 0;
+    while (i < Cartan.tree_size(stmt.body)) {
+        let child = Cartan.tree_get(stmt.body, i);
+        let optimized_child = optimize_stmt(child);
+        Cartan.tree_set(stmt.body, i, optimized_child);
+        i = i + 1;
+    }
+    
+    return stmt;
+}
+
+fn optimize_program(program: Program) -> Program {
+    let i = 0;
+    while (i < Cartan.tree_size(program.statements)) {
+        let stmt = Cartan.tree_get(program.statements, i);
+        let optimized_stmt = optimize_stmt(stmt);
+        Cartan.tree_set(program.statements, i, optimized_stmt);
+        i = i + 1;
+    }
+    return program;
+}
+// cartan_src/macro_pass.car
+// Homoiconic macro evaluation pass.
+
+fn expand_macros_expr(expr: Expr) -> Expr {
+    let i = 0;
+    while (i < Cartan.tree_size(expr.children)) {
+        let child = Cartan.tree_get(expr.children, i);
+        let expanded = expand_macros_expr(child);
+        Cartan.tree_set(expr.children, i, expanded);
+        i = i + 1;
+    }
+    
+    return expr;
+}
+
+fn expand_macros_stmt(stmt: Stmt) -> Stmt {
+    // We would evaluate `macro` declarations here and apply symbolic `$x` matches
+    // For now, recursively walk the tree
+    if (stmt.expr.tag != "Null") {
+        stmt.expr = expand_macros_expr(stmt.expr);
+    }
+    
+    let i = 0;
+    while (i < Cartan.tree_size(stmt.body)) {
+        let child = Cartan.tree_get(stmt.body, i);
+        let expanded = expand_macros_stmt(child);
+        Cartan.tree_set(stmt.body, i, expanded);
+        i = i + 1;
+    }
+    return stmt;
+}
+
+fn expand_macros_program(program: Program) -> Program {
+    let i = 0;
+    while (i < Cartan.tree_size(program.statements)) {
+        let stmt = Cartan.tree_get(program.statements, i);
+        let expanded = expand_macros_stmt(stmt);
+        Cartan.tree_set(program.statements, i, expanded);
+        i = i + 1;
+    }
+    return program;
+}
+// cartan_src/type_checker.car
+// Native typing analysis.
+
+fn check_expr(expr: Expr, scope: tree<string>) -> string {
+    // Type checker stub
+    // Would look up variables in environment (scope)
+    // and verify shape/manifold alignment
+    return "Float32";
+}
+
+fn typecheck_stmt(stmt: Stmt, scope: tree<string>) -> Stmt {
+    // Traverse blocks
+    let i = 0;
+    while (i < Cartan.tree_size(stmt.body)) {
+        let child = Cartan.tree_get(stmt.body, i);
+        let checked = typecheck_stmt(child, scope);
+        Cartan.tree_set(stmt.body, i, checked);
+        i = i + 1;
+    }
+    return stmt;
+}
+
+fn typecheck_program(program: Program) -> Program {
+    let global_scope = Cartan.tree_create();
+    let i = 0;
+    while (i < Cartan.tree_size(program.statements)) {
+        let stmt = Cartan.tree_get(program.statements, i);
+        let checked = typecheck_stmt(stmt, global_scope);
+        Cartan.tree_set(program.statements, i, checked);
+        i = i + 1;
+    }
+    return program;
+}
+// cartan_src/llvm_codegen.car
+// Code generator mapping native CARTAN AST directly to LLVM IR strings.
+
+struct LLVMGenerator {
+    temp_counter: i32;
+    output: string;
+}
+
+fn llvm_init() -> LLVMGenerator {
+    return LLVMGenerator {
+        temp_counter: 1,
+        output: ""
+    };
+}
+
+fn llvm_next_reg(gen: LLVMGenerator) -> string {
+    let num = gen.temp_counter;
+    gen.temp_counter = gen.temp_counter + 1;
+    // We would use a native int_to_string here
+    return "%" + Cartan.int_to_string(num);
+}
+
+fn generate_expr(gen: LLVMGenerator, expr: Expr) -> string {
+    if (expr.tag == "Integer") {
+        return Cartan.int_to_string(expr.value_int);
+    }
+    if (expr.tag == "Float") {
+        return Cartan.float_to_string(expr.value_float);
+    }
+    if (expr.tag == "Identifier") {
+        // Look up register assignment in symbol table (omitted for brevity)
+        return "%" + expr.value_string;
+    }
+    if (expr.tag == "Binary") {
+        let lhs = generate_expr(gen, Cartan.tree_get(expr.children, 0));
+        let rhs = generate_expr(gen, Cartan.tree_get(expr.children, 1));
+        let reg = llvm_next_reg(gen);
+        // For fadd
+        gen.output = gen.output + "  " + reg + " = fadd float " + lhs + ", " + rhs + "\n";
+        return reg;
+    }
+    if (expr.tag == "FusedKernel") {
+        gen.output = gen.output + "  ; --- Begin Fused Kernel ---\n";
+        let last_reg = "0.0";
+        // Fast path: Pattern Match for Linear+ReLU
+        if (Cartan.tree_size(expr.children) == 1) {
+            let inner_expr = Cartan.tree_get(expr.children, 0);
+            if (inner_expr.tag == "MethodCall" && inner_expr.value_string == "relu") {
+                let bin_op = Cartan.tree_get(inner_expr.children, 0);
+                if (bin_op.tag == "Binary" && bin_op.value_string == "+") {
+                    let mul_op = Cartan.tree_get(bin_op.children, 0);
+                    if (mul_op.tag == "Binary" && mul_op.value_string == "*") {
+                        let a_reg = generate_expr(gen, Cartan.tree_get(mul_op.children, 0));
+                        let b_reg = generate_expr(gen, Cartan.tree_get(mul_op.children, 1));
+                        let c_reg = generate_expr(gen, Cartan.tree_get(bin_op.children, 1));
+                        let res_reg = llvm_next_reg(gen);
+                        gen.output = gen.output + "  " + res_reg + " = call ptr @cartan_tensor_linear_relu(ptr " + a_reg + ", ptr " + b_reg + ", ptr " + c_reg + ")\n";
+                        gen.output = gen.output + "  ; --- End Fused Kernel (Pattern Matched) ---\n";
+                        return res_reg;
+                    }
+                }
+            }
+        }
+        
+        // Fallback: unroll
+        let j = 0;
+        while (j < Cartan.tree_size(expr.children)) {
+            let child = Cartan.tree_get(expr.children, j);
+            last_reg = generate_expr(gen, child);
+            j = j + 1;
+        }
+        gen.output = gen.output + "  ; --- End Fused Kernel (Unrolled) ---\n";
+        return last_reg;
+    }
+    return "0.0";
+}
+
+fn generate_stmt(gen: LLVMGenerator, stmt: Stmt) {
+    if (stmt.tag == "TensorDecl") {
+        let reg = llvm_next_reg(gen);
+        // Assume default allocations for demo
+        gen.output = gen.output + "  " + reg + " = call ptr @cartan_tensor_alloc(i32 1, i32 0)\n";
+    } else if (stmt.tag == "VectorDecl") {
+        let reg = llvm_next_reg(gen);
+        gen.output = gen.output + "  " + reg + " = call ptr @cartan_tensor_alloc(i32 1, i32 0)\n";
+    } else if (stmt.tag == "MultimodalBlock") {
+        gen.output = gen.output + "  call void @cartan_rt_multimodal_sync_start()\n";
+        let j = 0;
+        while (j < Cartan.tree_size(stmt.body)) {
+            let child = Cartan.tree_get(stmt.body, j);
+            generate_stmt(gen, child);
+            j = j + 1;
+        }
+        gen.output = gen.output + "  call void @cartan_rt_multimodal_sync_end()\n";
+    } else if (stmt.tag == "VmapBlock") {
+        gen.output = gen.output + "  ; --- Begin Vmap Block ---\n";
+        let j = 0;
+        while (j < Cartan.tree_size(stmt.body)) {
+            let child = Cartan.tree_get(stmt.body, j);
+            generate_stmt(gen, child);
+            j = j + 1;
+        }
+        gen.output = gen.output + "  ; --- End Vmap Block ---\n";
+    } else if (stmt.tag == "FunctionDecl") {
+        gen.output = gen.output + "define void @" + stmt.name + "() {\n";
+        gen.output = gen.output + "entry:\n";
+        
+        let i = 0;
+        while (i < Cartan.tree_size(stmt.body)) {
+            let child = Cartan.tree_get(stmt.body, i);
+            generate_stmt(gen, child);
+            i = i + 1;
+        }
+        
+        gen.output = gen.output + "  ret void\n}\n\n";
+    }
+}
+
+fn generate_llvm(program: Program) -> string {
+    let gen = llvm_init();
+    
+    // Globals
+    gen.output = gen.output + "declare ptr @cartan_tensor_alloc(i32, i32)\n";
+    gen.output = gen.output + "declare void @cartan_rt_multimodal_sync_start()\n";
+    gen.output = gen.output + "declare void @cartan_rt_multimodal_sync_end()\n";
+    gen.output = gen.output + "declare void @cartan_rt_register_capability(ptr, ptr)\n";
+    gen.output = gen.output + "declare ptr @cartan_rt_load_aer(ptr)\n\n";
+
+    // Pass 1: Emit all functions
+    let i = 0;
+    while (i < Cartan.tree_size(program.statements)) {
+        let stmt = Cartan.tree_get(program.statements, i);
+        generate_stmt(gen, stmt);
+        i = i + 1;
+    }
+    
+    // Pass 2: Setup main and capabilities
+    gen.output = gen.output + "define i32 @main() {\nentry:\n";
+    let j = 0;
+    while (j < Cartan.tree_size(program.statements)) {
+        let stmt = Cartan.tree_get(program.statements, j);
+        if (stmt.tag == "FunctionDecl") {
+            if (stmt.is_agent_accessible) {
+                gen.output = gen.output + "  ; Simulated registration string const\n";
+                gen.output = gen.output + "  call void @cartan_rt_register_capability(ptr null, ptr @" + stmt.name + ")\n";
+            }
+        }
+        j = j + 1;
+    }
+    gen.output = gen.output + "  ret i32 0\n}\n\n";
+
+    return gen.output;
+}
+// cartan_src/main.car
+// The entry point for the self-hosted CARTAN compiler.
+
+fn compile(source_code: string) -> string {
+    // 1. Lex
+    let lexer = lexer_init(source_code);
+    let tokens = Cartan.tree_create();
+    while (true) {
+        let tok = lexer_next_token(lexer);
+        Cartan.tree_push(tokens, tok);
+        if (tok.type_tag == "EOF") {
+            break;
+        }
+    }
+
+    // 2. Parse
+    let parser = parser_init(tokens);
+    // For simplicity, we just parse one block representing the global scope
+    let stmts = parse_block(parser);
+    let program = Program { statements: stmts };
+
+    // 3. Macro Pass
+    program = expand_macros_program(program);
+
+    // 4. Type Checker
+    program = typecheck_program(program);
+
+    // 5. Optimizer
+    program = optimize_program(program);
+
+    // 6. LLVM Codegen
+    let llvm_ir = generate_llvm(program);
+
+    return llvm_ir;
+}
+
+fn main() {
+    // Read source from standard input (simulated)
+    // Cartan.read_file doesn't exist yet natively, but we assume a runtime hook
+    // let source_code = Cartan.read_file("test.car");
+    
+    let source_code = "fn test() { tensor[128] weights; }";
+    
+    let ir = compile(source_code);
+    
+    // Print output
+    // Cartan.print(ir);
+}

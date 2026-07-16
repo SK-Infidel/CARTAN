@@ -89,7 +89,7 @@ impl LivenessPass {
                 Stmt::FunctionDecl(decl) => {
                     self.analyze_block(&decl.body.statements);
                 },
-                Stmt::Block(block) | Stmt::MeshBlock { body: block, .. } | Stmt::AsyncCompute(block) => {
+                Stmt::Block(block) | Stmt::MeshBlock { body: block, .. } | Stmt::AsyncCompute(block) | Stmt::MultimodalBlock { body: block } | Stmt::VmapBlock { body: block } | Stmt::DoubtBlock { body: block } | Stmt::ChainBlock { body: block } | Stmt::RouteBlock { body: block } | Stmt::GrokBlock { body: block } | Stmt::OverrideBlock { body: block } => {
                     self.analyze_block(&block.statements);
                 },
                 Stmt::FluidPrecisionBlock { block, .. } => {
@@ -130,6 +130,7 @@ impl LivenessPass {
             Expr::FusedKernel(block) => {
                 self.analyze_block(&block.statements);
             },
+            Expr::StructInit { name: _, fields: _ } => {},
             Expr::UnaryOp { right, .. } => {
                 self.visit_expr_usage(right, idx);
             },
@@ -225,7 +226,7 @@ impl LivenessPass {
                 Stmt::FunctionDecl(decl) => {
                     self.apply_slots_to_ast(&mut decl.body.statements, offsets);
                 },
-                Stmt::Block(block) | Stmt::MeshBlock { body: block, .. } | Stmt::AsyncCompute(block) => {
+                Stmt::Block(block) | Stmt::MeshBlock { body: block, .. } | Stmt::AsyncCompute(block) | Stmt::MultimodalBlock { body: block } | Stmt::VmapBlock { body: block } | Stmt::DoubtBlock { body: block } | Stmt::ChainBlock { body: block } | Stmt::RouteBlock { body: block } | Stmt::GrokBlock { body: block } | Stmt::OverrideBlock { body: block } => {
                     self.apply_slots_to_ast(&mut block.statements, offsets);
                 },
                 Stmt::If { true_block, false_block, .. } => {

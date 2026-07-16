@@ -108,6 +108,36 @@ impl Parser {
             self.import_declaration()
         } else if self.match_token(&[TokenType::Pipeline]) {
             self.pipeline_declaration()
+        } else if self.match_token(&[TokenType::Layer]) {
+            self.layer_declaration()
+        } else if self.match_token(&[TokenType::Graph]) {
+            self.graph_declaration()
+        } else if self.match_token(&[TokenType::Rule]) {
+            self.rule_declaration()
+        } else if self.match_token(&[TokenType::KnowledgeBase]) {
+            self.knowledge_base_declaration()
+        } else if self.match_token(&[TokenType::Evolve]) {
+            self.evolve_declaration()
+        } else if self.match_token(&[TokenType::Spawn]) {
+            self.spawn_declaration()
+        } else if self.match_token(&[TokenType::Trait]) {
+            self.trait_declaration()
+        } else if self.match_token(&[TokenType::Impl]) {
+            self.impl_declaration()
+        } else if self.match_token(&[TokenType::Receive]) {
+            self.receive_declaration()
+        } else if self.match_token(&[TokenType::Satisfy]) {
+            let condition = self.expression()?;
+            self.consume(TokenType::LBrace, "Expected '{' before satisfy body")?;
+            let body = self.block()?;
+            let mut otherwise = None;
+            if self.match_token(&[TokenType::Otherwise]) {
+                self.consume(TokenType::LBrace, "Expected '{' before otherwise body")?;
+                otherwise = Some(self.block()?);
+            }
+            Ok(Stmt::Satisfy { condition, body, otherwise })
+        } else if self.match_token(&[TokenType::Dataframe]) {
+            self.dataframe_declaration()
         } else if self.match_token(&[TokenType::Jit]) {
             self.consume(TokenType::LBrace, "Expected '{' after 'jit'")?;
             let body = self.block()?;
@@ -529,6 +559,200 @@ impl Parser {
         Ok(Stmt::PipelineDecl { name, layers })
     }
 
+    fn layer_declaration(&mut self) -> Result<Stmt, Diagnostic> {
+        let name_token = self.consume(TokenType::Identifier("".to_string()), "Expected layer name")?.clone();
+        let name = match name_token.token_type {
+            TokenType::Identifier(s) => s,
+            _ => return Err(Diagnostic::error("Expected layer name", name_token.span)),
+        };
+        self.consume(TokenType::Eq, "Expected '=' after layer name")?;
+        
+        let layer_type_tok = self.consume(TokenType::Identifier("".to_string()), "Expected layer type")?.clone();
+        let layer_type = match layer_type_tok.token_type {
+            TokenType::Identifier(s) => s,
+            _ => "".to_string(),
+        };
+        self.consume(TokenType::LParen, "Expected '('")?;
+        let dim = self.expression()?;
+        self.consume(TokenType::Comma, "Expected ','")?;
+        let act_tok = self.consume(TokenType::Identifier("".to_string()), "Expected activation")?.clone();
+        let activation = match act_tok.token_type {
+            TokenType::Identifier(s) => s,
+            _ => "".to_string(),
+        };
+        self.consume(TokenType::RParen, "Expected ')'")?;
+
+        self.consume(TokenType::Semicolon, "Expected ';' after layer definition")?;
+        Ok(Stmt::LayerDecl { name, layer_type, dim, activation })
+    }
+
+    fn graph_declaration(&mut self) -> Result<Stmt, Diagnostic> {
+        let name_token = self.consume(TokenType::Identifier("".to_string()), "Expected graph name")?.clone();
+        let name = match name_token.token_type {
+            TokenType::Identifier(s) => s,
+            _ => return Err(Diagnostic::error("Expected graph name", name_token.span)),
+        };
+        self.consume(TokenType::LBrace, "Expected '{' before graph body")?;
+        let body = self.block()?;
+        Ok(Stmt::GraphDecl { name, body })
+    }
+
+    fn rule_declaration(&mut self) -> Result<Stmt, Diagnostic> {
+        let name_token = self.consume(TokenType::Identifier("".to_string()), "Expected rule name")?.clone();
+        let name = match name_token.token_type {
+            TokenType::Identifier(s) => s,
+            _ => return Err(Diagnostic::error("Expected rule name", name_token.span)),
+        };
+        self.consume(TokenType::Eq, "Expected '=' after rule name")?;
+        let body = self.expression()?;
+        self.consume(TokenType::Semicolon, "Expected ';' after rule definition")?;
+        Ok(Stmt::RuleDecl { name, body })
+    }
+
+    fn knowledge_base_declaration(&mut self) -> Result<Stmt, Diagnostic> {
+        let name_token = self.consume(TokenType::Identifier("".to_string()), "Expected knowledge_base name")?.clone();
+        let name = match name_token.token_type {
+            TokenType::Identifier(s) => s,
+            _ => return Err(Diagnostic::error("Expected knowledge_base name", name_token.span)),
+        };
+        self.consume(TokenType::LBrace, "Expected '{' before knowledge_base body")?;
+        let body = self.block()?;
+        Ok(Stmt::KnowledgeBaseDecl { name, body })
+    }
+
+    fn evolve_declaration(&mut self) -> Result<Stmt, Diagnostic> {
+        let name_token = self.consume(TokenType::Identifier("".to_string()), "Expected evolve block name")?.clone();
+        let name = match name_token.token_type {
+            TokenType::Identifier(s) => s,
+            _ => return Err(Diagnostic::error("Expected evolve block name", name_token.span)),
+        };
+        self.consume(TokenType::LBrace, "Expected '{' before evolve body")?;
+        let body = self.block()?;
+        Ok(Stmt::EvolveBlock { name, body })
+    }
+
+    fn receive_declaration(&mut self) -> Result<Stmt, Diagnostic> {
+        let name = match self.consume(TokenType::Identifier("".to_string()), "Expected message name after 'receive'")?.token_type.clone() {
+            TokenType::Identifier(s) => s,
+            _ => return Err(Diagnostic::error("Expected identifier", self.previous().span)),
+        };
+
+        self.consume(TokenType::LParen, "Expected '(' after message name in 'receive'")?;
+        
+        let mut params = Vec::new();
+        if !self.check(&TokenType::RParen) {
+            loop {
+                let param_name = match self.consume(TokenType::Identifier("".to_string()), "Expected parameter name")?.token_type.clone() {
+                    TokenType::Identifier(s) => s,
+                    _ => return Err(Diagnostic::error("Expected identifier", self.previous().span)),
+                };
+                
+                self.consume(TokenType::Colon, "Expected ':' after parameter name")?;
+                
+                let param_type = match self.consume(TokenType::Identifier("".to_string()), "Expected parameter type")?.token_type.clone() {
+                    TokenType::Identifier(s) => s,
+                    _ => return Err(Diagnostic::error("Expected identifier", self.previous().span)),
+                };
+                
+                params.push(Parameter {
+                    name: param_name,
+                    type_name: param_type,
+                    shape: Vec::new(),
+                    manifold: None,
+                    is_borrow: false,
+                    is_mutable: false,
+                });
+                
+                if !self.match_token(&[TokenType::Comma]) {
+                    break;
+                }
+            }
+        }
+        self.consume(TokenType::RParen, "Expected ')' after receive parameters")?;
+        
+        self.consume(TokenType::LBrace, "Expected '{' before receive body")?;
+        let body = self.block()?;
+        
+        Ok(Stmt::ReceiveDecl { message_name: name, params, body })
+    }
+
+    fn impl_declaration(&mut self) -> Result<Stmt, Diagnostic> {
+        let first_name = match self.consume(TokenType::Identifier("".to_string()), "Expected identifier after 'impl'")?.token_type.clone() {
+            TokenType::Identifier(s) => s,
+            _ => return Err(Diagnostic::error("Expected identifier", self.previous().span)),
+        };
+
+        let mut trait_name = None;
+        let target_name;
+
+        if self.match_token(&[TokenType::For]) {
+            trait_name = Some(first_name);
+            target_name = match self.consume(TokenType::Identifier("".to_string()), "Expected struct name after 'for'")?.token_type.clone() {
+                TokenType::Identifier(s) => s,
+                _ => return Err(Diagnostic::error("Expected identifier", self.previous().span)),
+            };
+        } else {
+            target_name = first_name;
+        }
+
+        self.consume(TokenType::LBrace, "Expected '{' before impl body")?;
+        
+        let mut methods = Vec::new();
+        while !self.check(&TokenType::RBrace) && !self.is_at_end() {
+            if self.match_token(&[TokenType::Fn]) {
+                methods.push(self.function_declaration(false)?);
+            } else {
+                return Err(Diagnostic::error("Expected 'fn' inside 'impl' block", self.peek().span));
+            }
+        }
+        
+        self.consume(TokenType::RBrace, "Expected '}' after impl body")?;
+        Ok(Stmt::ImplDecl { trait_name, target_name, methods })
+    }
+
+    fn trait_declaration(&mut self) -> Result<Stmt, Diagnostic> {
+        let name = match self.consume(TokenType::Identifier("".to_string()), "Expected trait name")?.token_type.clone() {
+            TokenType::Identifier(s) => s,
+            _ => return Err(Diagnostic::error("Expected identifier", self.previous().span)),
+        };
+
+        self.consume(TokenType::LBrace, "Expected '{' before trait body")?;
+        
+        let mut methods = Vec::new();
+        while !self.check(&TokenType::RBrace) && !self.is_at_end() {
+            if self.match_token(&[TokenType::Fn]) {
+                methods.push(self.function_declaration(false)?);
+            } else {
+                return Err(Diagnostic::error("Expected 'fn' inside 'trait' block", self.peek().span));
+            }
+        }
+        
+        self.consume(TokenType::RBrace, "Expected '}' after trait body")?;
+        Ok(Stmt::TraitDecl { name, methods })
+    }
+
+    fn spawn_declaration(&mut self) -> Result<Stmt, Diagnostic> {
+        let name_token = self.consume(TokenType::Identifier("".to_string()), "Expected spawn target name")?.clone();
+        let name = match name_token.token_type {
+            TokenType::Identifier(s) => s,
+            _ => return Err(Diagnostic::error("Expected spawn target name", name_token.span)),
+        };
+        self.consume(TokenType::LBrace, "Expected '{' before spawn body")?;
+        let body = self.block()?;
+        Ok(Stmt::Spawn { name, body })
+    }
+
+    fn dataframe_declaration(&mut self) -> Result<Stmt, Diagnostic> {
+        let name_token = self.consume(TokenType::Identifier("".to_string()), "Expected dataframe name")?.clone();
+        let name = match name_token.token_type {
+            TokenType::Identifier(s) => s,
+            _ => return Err(Diagnostic::error("Expected dataframe name", name_token.span)),
+        };
+        self.consume(TokenType::LBrace, "Expected '{' before dataframe body")?;
+        let body = self.block()?;
+        Ok(Stmt::DataframeDecl { name, body })
+    }
+
     fn struct_declaration(&mut self) -> Result<Stmt, Diagnostic> {
         let name_token = self.consume(TokenType::Identifier("".to_string()), "Expected struct name")?.clone();
         let name = match name_token.token_type {
@@ -816,6 +1040,14 @@ impl Parser {
             _ => return Err(Diagnostic::error("Expected variable name", name_token.span)),
         };
 
+        let mut type_annotation = None;
+        if self.match_token(&[TokenType::Colon]) {
+            let ty = self.consume(TokenType::Identifier("".to_string()), "Expected type annotation")?.clone();
+            if let TokenType::Identifier(t) = ty.token_type {
+                type_annotation = Some(t);
+            }
+        }
+
         let value = if self.match_token(&[TokenType::Eq]) {
             if self.match_token(&[TokenType::Tensor]) {
                 return self.tensor_declaration_with_name(name, false, None, false, false, false);
@@ -825,12 +1057,11 @@ impl Parser {
             }
             self.expression()?
         } else {
-            return Err(Diagnostic::error("Expected '=' after variable name", self.peek().span));
+            Expr::Boolean(false)
         };
 
         self.consume(TokenType::Semicolon, "Expected ';' after variable declaration")?;
-
-        Ok(Stmt::VarDecl { name, is_const, value })
+        Ok(Stmt::VarDecl { name, is_const, type_annotation, value })
     }
 
     fn statement(&mut self) -> Result<Stmt, Diagnostic> {
@@ -911,9 +1142,7 @@ impl Parser {
             self.consume(TokenType::Semicolon, "Expected ';' after backtrack")?;
             Ok(Stmt::Backtrack)
         } else if self.match_token(&[TokenType::Satisfy]) {
-            self.consume(TokenType::LParen, "Expected '(' after satisfy")?;
             let condition = self.expression()?;
-            self.consume(TokenType::RParen, "Expected ')' after satisfy condition")?;
             self.consume(TokenType::LBrace, "Expected '{' after satisfy condition")?;
             let body = self.block()?;
             let mut otherwise = None;
@@ -1326,16 +1555,23 @@ impl Parser {
             return Ok(Expr::Quantize { target: Box::new(target), dtype });
         }
 
+        let mut is_riemannian = false;
+        if self.match_token(&[TokenType::Riemannian]) {
+            is_riemannian = true;
+        }
+
         if self.match_token(&[TokenType::Grad, TokenType::Vmap]) {
             let op = self.previous().lexeme.clone();
             if self.check(&TokenType::LParen) {
                 self.consume(TokenType::LParen, "Expected '('")?;
                 let target = self.expression()?;
                 self.consume(TokenType::RParen, "Expected ')'")?;
-                return Ok(Expr::Transform { op, target: Box::new(target) });
+                return Ok(Expr::Transform { op, target: Box::new(target) }); // NOTE: riemannian should be in AST if it matters
             } else {
                 return Ok(Expr::Identifier(op)); // Normal identifier fallback
             }
+        } else if is_riemannian {
+            return Err(Diagnostic::error("Expected 'grad' after 'riemannian'", self.peek().span));
         }
 
         if self.match_token(&[TokenType::ProjectVocab]) {
@@ -1482,6 +1718,11 @@ impl Parser {
                     key: Box::new(key),
                     value: Box::new(value),
                 })
+            },
+            TokenType::LParen => {
+                let expr = self.expression()?;
+                self.consume(TokenType::RParen, "Expected ')' after expression")?;
+                Ok(expr)
             },
             TokenType::IntLiteral(n) => Ok(Expr::Integer(n)),
             TokenType::FloatLiteral(n) => Ok(Expr::Float(n)),

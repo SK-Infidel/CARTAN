@@ -1,0 +1,8 @@
+@agent_accessible
+fn test_capability() {
+    tensor dummy[128];
+}
+
+fn main() {
+    hotswap("some_dynamic_block.aer", "new_graph");
+}

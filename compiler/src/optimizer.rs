@@ -15,6 +15,7 @@ impl KernelFusionPass {
 
     fn is_fusible_tree(&self, expr: &Expr) -> bool {
         match expr {
+            Expr::StructInit { name: _, fields: _ } => { false },
             Expr::BinaryOp { op, left, right } => {
                 if op == "+" || op == "-" || op == "*" || op == "/" {
                     self.is_fusible_tree(left) && self.is_fusible_tree(right)
@@ -31,7 +32,7 @@ impl KernelFusionPass {
                 }
             },
             Expr::FunctionCall { name, args } => {
-                if matches!(name.as_str(), "Cartan.relu" | "Cartan.dropout" | "Cartan.layernorm" | "Cartan.gelu" | "Cartan.sigmoid" | "Cartan.tanh") {
+                if matches!(name.as_str(), "relu" | "dropout" | "layernorm" | "gelu" | "sigmoid" | "tanh" | "Cartan.relu" | "Cartan.dropout" | "Cartan.layernorm" | "Cartan.gelu" | "Cartan.sigmoid" | "Cartan.tanh") {
                     args.iter().all(|a| self.is_fusible_tree(a))
                 } else {
                     false
@@ -45,7 +46,7 @@ impl KernelFusionPass {
 
     fn visit_stmt(&mut self, stmt: &mut Stmt) {
         match stmt {
-            Stmt::Block(block) | Stmt::MeshBlock { body: block, .. } | Stmt::AsyncCompute(block) => {
+            Stmt::Block(block) | Stmt::MeshBlock { body: block, .. } | Stmt::AsyncCompute(block) | Stmt::MultimodalBlock { body: block } | Stmt::VmapBlock { body: block } | Stmt::DoubtBlock { body: block } | Stmt::ChainBlock { body: block } | Stmt::RouteBlock { body: block } | Stmt::GrokBlock { body: block } | Stmt::OverrideBlock { body: block } => {
                 for s in &mut block.statements {
                     self.visit_stmt(s);
                 }
@@ -95,9 +96,20 @@ impl KernelFusionPass {
                     self.visit_expr(e);
                 }
             },
+            Stmt::FieldDecl { name: _, type_name: _ } => { /* no-op */ },
             Stmt::StructDecl { fields, .. } => {
                 for s in fields {
                     self.visit_stmt(s);
+                }
+            },
+            Stmt::ImplDecl { methods, .. } => {
+                for m in methods {
+                    self.visit_stmt(m);
+                }
+            },
+            Stmt::TraitDecl { methods, .. } => {
+                for m in methods {
+                    self.visit_stmt(m);
                 }
             },
             _ => {}
@@ -114,7 +126,7 @@ impl KernelFusionPass {
             Expr::MethodCall { method_name, .. } if matches!(method_name.as_str(), "relu" | "dropout" | "layernorm" | "gelu" | "sigmoid" | "tanh") => {
                 should_fuse = self.is_fusible_tree(expr);
             },
-            Expr::FunctionCall { name, .. } if matches!(name.as_str(), "Cartan.relu" | "Cartan.dropout" | "Cartan.layernorm" | "Cartan.gelu" | "Cartan.sigmoid" | "Cartan.tanh") => {
+            Expr::FunctionCall { name, .. } if matches!(name.as_str(), "relu" | "dropout" | "layernorm" | "gelu" | "sigmoid" | "tanh" | "Cartan.relu" | "Cartan.dropout" | "Cartan.layernorm" | "Cartan.gelu" | "Cartan.sigmoid" | "Cartan.tanh") => {
                 should_fuse = self.is_fusible_tree(expr);
             },
             _ => {}
@@ -184,7 +196,7 @@ impl AlgebraicSimplificationPass {
 
     fn visit_stmt(&mut self, stmt: &mut Stmt) {
         match stmt {
-            Stmt::Block(block) | Stmt::MeshBlock { body: block, .. } | Stmt::AsyncCompute(block) => {
+            Stmt::Block(block) | Stmt::MeshBlock { body: block, .. } | Stmt::AsyncCompute(block) | Stmt::MultimodalBlock { body: block } | Stmt::VmapBlock { body: block } | Stmt::DoubtBlock { body: block } | Stmt::ChainBlock { body: block } | Stmt::RouteBlock { body: block } | Stmt::GrokBlock { body: block } | Stmt::OverrideBlock { body: block } => {
                 for s in &mut block.statements { self.visit_stmt(s); }
             },
             Stmt::FunctionDecl(decl) => {
@@ -214,7 +226,10 @@ impl AlgebraicSimplificationPass {
             Stmt::VarDecl { value, .. } => { self.visit_expr(value); },
             Stmt::Expr(expr) => { self.visit_expr(expr); },
             Stmt::Return { value } => { if let Some(e) = value { self.visit_expr(e); } },
+            Stmt::FieldDecl { name: _, type_name: _ } => { /* no-op */ },
             Stmt::StructDecl { fields, .. } => { for s in fields { self.visit_stmt(s); } },
+            Stmt::ImplDecl { methods, .. } => { for m in methods { self.visit_stmt(m); } },
+            Stmt::TraitDecl { methods, .. } => { for m in methods { self.visit_stmt(m); } },
             _ => {}
         }
     }
@@ -321,7 +336,7 @@ impl TopologicRewritingPass {
 
     fn visit_stmt(&mut self, stmt: &mut Stmt) {
         match stmt {
-            Stmt::Block(block) | Stmt::MeshBlock { body: block, .. } | Stmt::AsyncCompute(block) => {
+            Stmt::Block(block) | Stmt::MeshBlock { body: block, .. } | Stmt::AsyncCompute(block) | Stmt::MultimodalBlock { body: block } | Stmt::VmapBlock { body: block } | Stmt::DoubtBlock { body: block } | Stmt::ChainBlock { body: block } | Stmt::RouteBlock { body: block } | Stmt::GrokBlock { body: block } | Stmt::OverrideBlock { body: block } => {
                 for s in &mut block.statements { self.visit_stmt(s); }
             },
             Stmt::FunctionDecl(decl) => {
@@ -351,7 +366,10 @@ impl TopologicRewritingPass {
             Stmt::VarDecl { value, .. } => { self.visit_expr(value); },
             Stmt::Expr(expr) => { self.visit_expr(expr); },
             Stmt::Return { value } => { if let Some(e) = value { self.visit_expr(e); } },
+            Stmt::FieldDecl { name: _, type_name: _ } => { /* no-op */ },
             Stmt::StructDecl { fields, .. } => { for s in fields { self.visit_stmt(s); } },
+            Stmt::ImplDecl { methods, .. } => { for m in methods { self.visit_stmt(m); } },
+            Stmt::TraitDecl { methods, .. } => { for m in methods { self.visit_stmt(m); } },
             _ => {}
         }
     }

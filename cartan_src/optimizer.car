@@ -1,0 +1,55 @@
+// cartan_src/optimizer.car
+// Native CARTAN symbolic optimization pass over CARTAN ASTs.
+
+fn optimize_expr(expr: Expr) -> Expr {
+    // Traverse children
+    let mut i = 0;
+    while i < Cartan.tree_size(expr.children) {
+        let child = Cartan.tree_get(expr.children, i);
+        let optimized_child = optimize_expr(child);
+        // Replace with optimized
+        Cartan.tree_set(expr.children, i, optimized_child);
+        i = i + 1;
+    }
+
+    // Symbolic Rewriting
+    // e.g. Transpose(Transpose(x)) => x
+    if expr.tag == "Transpose" {
+        let inner = Cartan.tree_get(expr.children, 0);
+        if inner.tag == "Transpose" {
+            let inner_inner = Cartan.tree_get(inner.children, 0);
+            return inner_inner;
+        }
+    }
+
+    return expr;
+}
+
+fn optimize_stmt(stmt: Stmt) -> Stmt {
+    // If it has an expression, optimize it
+    if stmt.expr.tag != "Null" {
+        stmt.expr = optimize_expr(stmt.expr);
+    }
+    
+    // Recurse into blocks
+    let mut i = 0;
+    while i < Cartan.tree_size(stmt.body) {
+        let child = Cartan.tree_get(stmt.body, i);
+        let optimized_child = optimize_stmt(child);
+        Cartan.tree_set(stmt.body, i, optimized_child);
+        i = i + 1;
+    }
+    
+    return stmt;
+}
+
+fn optimize_program(program: Program) -> Program {
+    let mut i = 0;
+    while i < Cartan.tree_size(program.statements) {
+        let stmt = Cartan.tree_get(program.statements, i);
+        let optimized_stmt = optimize_stmt(stmt);
+        Cartan.tree_set(program.statements, i, optimized_stmt);
+        i = i + 1;
+    }
+    return program;
+}

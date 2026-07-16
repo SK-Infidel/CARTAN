@@ -1,0 +1,12 @@
+// cartan_src/compiler/autodiff.car
+
+struct AutoDiffPass {}
+
+impl OptimizerPass for AutoDiffPass {
+    fn optimize(ast: tree<Stmt>) -> tree<Stmt> {
+        // Implement reverse-mode automatic differentiation at the AST level
+        // Inject gradient tracking operations and backward passes where `Backward(Expr)` is called
+        
+        return ast;
+    }
+}

@@ -1,0 +1,161 @@
+// cartan_src/parser.car
+// Recursive descent parser natively executing in CARTAN.
+
+struct Parser {
+    tokens: tree<Token>;
+    current: i32;
+}
+
+trait ParserBehavior {
+    fn peek() -> Token {}
+    fn advance() -> Token {}
+    fn match_token(expected_tag: string) -> bool {}
+    fn consume(expected_tag: string, error_msg: string) -> Token {}
+    fn parse_block() -> tree<Stmt> {}
+    fn parse_declaration() -> Stmt {}
+    fn parse_function_decl() -> Stmt {}
+    fn parse_tensor_decl(is_lazy: bool, is_unified: bool, is_latent: bool) -> Stmt {}
+    fn parse_vmap_block() -> Stmt {}
+    fn parse_statement() -> Stmt {}
+}
+
+impl ParserBehavior for Parser {
+    fn peek() -> Token {
+        return Cartan.tree_get(self.tokens, self.current);
+    }
+
+    fn advance() -> Token {
+        let token = self.peek();
+        if token.type_tag != "EOF" {
+            self.current = self.current + 1;
+        }
+        return token;
+    }
+
+    fn match_token(expected_tag: string) -> bool {
+        let current = self.peek();
+        if (current.type_tag == expected_tag) {
+            self.advance();
+            return true;
+        }
+        return false;
+    }
+
+    fn consume(expected_tag: string, error_msg: string) -> Token {
+        if (self.peek().type_tag == expected_tag) {
+            return self.advance();
+        }
+        Cartan.panic(error_msg);
+        return self.peek();
+    }
+
+    fn parse_block() -> tree<Stmt> {
+        let stmts = Cartan.tree_create();
+        
+        self.consume("LBrace", "Expected '{' before block.");
+        
+        while self.peek().type_tag != "RBrace" && self.peek().type_tag != "EOF" {
+            let stmt = self.parse_declaration();
+            Cartan.tree_push(stmts, stmt);
+        }
+        
+        self.consume("RBrace", "Expected '}' after block.");
+        return stmts;
+    }
+
+    fn parse_declaration() -> Stmt {
+        let is_lazy = false;
+        let is_unified = false;
+        let is_latent = false;
+
+        // Handle modifiers
+        if self.match_token("Lazy") { is_lazy = true; }
+        if self.match_token("Unified") { is_unified = true; }
+        if self.match_token("Latent") { is_latent = true; }
+
+        if self.match_token("Fn") {
+            return self.parse_function_decl();
+        }
+        
+        if self.match_token("Tensor") {
+            return self.parse_tensor_decl(is_lazy, is_unified, is_latent);
+        }
+
+        if self.match_token("Vmap") {
+            return self.parse_vmap_block();
+        }
+
+        return self.parse_statement();
+    }
+
+    fn parse_function_decl() -> Stmt {
+        let name_tok = self.consume("Identifier", "Expected function name.");
+        self.consume("LParen", "Expected '(' after function name.");
+        self.consume("RParen", "Expected ')' after parameters.");
+        let body = self.parse_block();
+        
+        return Stmt {
+            tag: "FunctionDecl",
+            name: name_tok.lexeme,
+            type_name: "",
+            is_lazy: false,
+            is_unified: false,
+            is_latent: false,
+            is_const: false,
+            expr: Expr { tag: "Null", value_string: "", value_float: 0.0, value_int: 0, value_bool: false, children: Cartan.tree_create() },
+            body: body,
+            else_body: Cartan.tree_create()
+        };
+    }
+
+    fn parse_tensor_decl(is_lazy: bool, is_unified: bool, is_latent: bool) -> Stmt {
+        let name_tok = self.consume("Identifier", "Expected tensor name.");
+        self.consume("Semicolon", "Expected ';' after tensor declaration.");
+        
+        return Stmt {
+            tag: "TensorDecl",
+            name: name_tok.lexeme,
+            type_name: "tensor",
+            is_lazy: is_lazy,
+            is_unified: is_unified,
+            is_latent: is_latent,
+            is_const: false,
+            expr: Expr { tag: "Null", value_string: "", value_float: 0.0, value_int: 0, value_bool: false, children: Cartan.tree_create() },
+            body: Cartan.tree_create(),
+            else_body: Cartan.tree_create()
+        };
+    }
+
+    fn parse_vmap_block() -> Stmt {
+        let body = self.parse_block();
+        return Stmt {
+            tag: "VmapBlock",
+            name: "",
+            type_name: "",
+            is_lazy: false,
+            is_unified: false,
+            is_latent: false,
+            is_const: false,
+            expr: Expr { tag: "Null", value_string: "", value_float: 0.0, value_int: 0, value_bool: false, children: Cartan.tree_create() },
+            body: body,
+            else_body: Cartan.tree_create()
+        };
+    }
+
+    fn parse_statement() -> Stmt {
+        let empty_tree = Cartan.tree_create();
+        let expr = Expr { tag: "Null", value_string: "", value_float: 0.0, value_int: 0, value_bool: false, children: empty_tree };
+        return Stmt {
+            tag: "Empty",
+            name: "",
+            type_name: "",
+            is_lazy: false,
+            is_unified: false,
+            is_latent: false,
+            is_const: false,
+            expr: expr,
+            body: Cartan.tree_create(),
+            else_body: Cartan.tree_create()
+        };
+    }
+}

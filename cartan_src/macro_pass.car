@@ -1,0 +1,42 @@
+// cartan_src/macro_pass.car
+// Homoiconic macro evaluation pass.
+
+fn expand_macros_expr(expr: Expr) -> Expr {
+    let mut i = 0;
+    while i < Cartan.tree_size(expr.children) {
+        let child = Cartan.tree_get(expr.children, i);
+        let expanded = expand_macros_expr(child);
+        Cartan.tree_set(expr.children, i, expanded);
+        i = i + 1;
+    }
+    
+    return expr;
+}
+
+fn expand_macros_stmt(stmt: Stmt) -> Stmt {
+    // We would evaluate `macro` declarations here and apply symbolic `$x` matches
+    // For now, recursively walk the tree
+    if stmt.expr.tag != "Null" {
+        stmt.expr = expand_macros_expr(stmt.expr);
+    }
+    
+    let mut i = 0;
+    while i < Cartan.tree_size(stmt.body) {
+        let child = Cartan.tree_get(stmt.body, i);
+        let expanded = expand_macros_stmt(child);
+        Cartan.tree_set(stmt.body, i, expanded);
+        i = i + 1;
+    }
+    return stmt;
+}
+
+fn expand_macros_program(program: Program) -> Program {
+    let mut i = 0;
+    while i < Cartan.tree_size(program.statements) {
+        let stmt = Cartan.tree_get(program.statements, i);
+        let expanded = expand_macros_stmt(stmt);
+        Cartan.tree_set(program.statements, i, expanded);
+        i = i + 1;
+    }
+    return program;
+}

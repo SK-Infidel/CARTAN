@@ -1,0 +1,21 @@
+// cartan_src/compiler/lexer.car
+
+struct Lexer {
+    source: string;
+    current: i32;
+    line: i32;
+    col: i32;
+}
+
+trait ILexer {
+    fn tokenize() -> tree<Token> {}
+}
+
+impl ILexer for Lexer {
+    fn tokenize() -> tree<Token> {
+        let tokens = Cartan.tree_create();
+        // Native Cartan stream processing will go here
+        
+        return tokens;
+    }
+}

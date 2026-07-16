@@ -1,0 +1,44 @@
+// cartan_src/filters.car
+// Native CARTAN implementations of standard noise filters
+
+trait Filter {
+    fn apply(tokens: tree<i32>) -> tree<i32> {}
+}
+
+// -----------------------------------------
+// Structural Noise Filter
+// -----------------------------------------
+
+struct StructuralNoise {
+    threshold: i32; // Using i32 since our AST evaluates threshold math
+    window: i32;
+}
+
+impl Filter for StructuralNoise {
+    fn apply(tokens: tree<i32>) -> tree<i32> {
+        let filtered = Cartan.tree_create();
+        let len = tokens.len();
+        let i = 0;
+        
+        while (i < len) {
+            // Drop repeating tokens (basic structural boilerplate detection)
+            let current = Cartan.tree_get(tokens, i);
+            let drop = false;
+
+            if (i >= self.window) {
+                let past = Cartan.tree_get(tokens, i - self.window);
+                if (current == past) {
+                    drop = true;
+                }
+            }
+
+            if (!drop) {
+                Cartan.tree_push(filtered, current);
+            }
+            
+            i = i + 1;
+        }
+
+        return filtered;
+    }
+}

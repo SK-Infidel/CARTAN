@@ -1,0 +1,34 @@
+// cartan_src/compiler/main.car
+
+// This is the main entry point for the cartanc self-hosted compiler.
+
+struct Compiler {
+    version: string;
+}
+
+fn main() -> i32 {
+    printf("CARTAN Native Compiler v0.2.0 (Self-Hosted)\n");
+    
+    // Simulate reading arguments
+    let file_path = "../cartan_src/test_phase12.car";
+    printf("Compiling %s...\n", file_path);
+    
+    // 1. Lexing
+    let lexer = Lexer { source: file_path, current: 0, line: 1, col: 1 };
+    let tokens = lexer.tokenize();
+    
+    // 2. Parsing
+    let parser = Parser { tokens: tokens, current: 0 };
+    let ast = parser.parse();
+    
+    // 3. Optimization Passes
+    let kernel_fusion = KernelFusionPass {};
+    ast = kernel_fusion.optimize(ast);
+    
+    // 4. LLVM Code Generation
+    let codegen = LLVMGenerator { output: "", struct_fields: Cartan.tree_create() };
+    let llvm_ir = codegen.generate(ast);
+    
+    printf("Compilation completed successfully.\n");
+    return 0;
+}

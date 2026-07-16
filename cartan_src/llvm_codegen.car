@@ -1,0 +1,79 @@
+// cartan_src/llvm_codegen.car
+// Code generator mapping native CARTAN AST directly to LLVM IR strings.
+
+struct LLVMGenerator {
+    temp_counter: i32;
+    output: string;
+}
+
+fn llvm_init() -> LLVMGenerator {
+    return LLVMGenerator {
+        temp_counter: 1,
+        output: ""
+    };
+}
+
+fn llvm_next_reg(gen: &mut LLVMGenerator) -> string {
+    let num = gen.temp_counter;
+    gen.temp_counter = gen.temp_counter + 1;
+    // We would use a native int_to_string here
+    return "%" + Cartan.int_to_string(num);
+}
+
+fn generate_expr(gen: &mut LLVMGenerator, expr: Expr) -> string {
+    if expr.tag == "Integer" {
+        return Cartan.int_to_string(expr.value_int);
+    }
+    if expr.tag == "Float" {
+        return Cartan.float_to_string(expr.value_float);
+    }
+    if expr.tag == "Identifier" {
+        // Look up register assignment in symbol table (omitted for brevity)
+        return "%" + expr.value_string;
+    }
+    if expr.tag == "Binary" {
+        let lhs = generate_expr(gen, Cartan.tree_get(expr.children, 0));
+        let rhs = generate_expr(gen, Cartan.tree_get(expr.children, 1));
+        let reg = llvm_next_reg(gen);
+        // For fadd
+        gen.output = gen.output + "  " + reg + " = fadd float " + lhs + ", " + rhs + "\n";
+        return reg;
+    }
+    return "0.0";
+}
+
+fn generate_stmt(gen: &mut LLVMGenerator, stmt: Stmt) {
+    if stmt.tag == "TensorDecl" {
+        let reg = llvm_next_reg(gen);
+        // Assume default allocations for demo
+        gen.output = gen.output + "  " + reg + " = call ptr @cartan_tensor_alloc(i32 1, i32 0)\n";
+    } else if stmt.tag == "FunctionDecl" {
+        gen.output = gen.output + "define void @" + stmt.name + "() {\n";
+        gen.output = gen.output + "entry:\n";
+        
+        let mut i = 0;
+        while i < Cartan.tree_size(stmt.body) {
+            let child = Cartan.tree_get(stmt.body, i);
+            generate_stmt(gen, child);
+            i = i + 1;
+        }
+        
+        gen.output = gen.output + "  ret void\n}\n\n";
+    }
+}
+
+fn generate_llvm(program: Program) -> string {
+    let mut gen = llvm_init();
+    
+    // Globals
+    gen.output = gen.output + "declare ptr @cartan_tensor_alloc(i32, i32)\n\n";
+    
+    let mut i = 0;
+    while i < Cartan.tree_size(program.statements) {
+        let stmt = Cartan.tree_get(program.statements, i);
+        generate_stmt(&mut gen, stmt);
+        i = i + 1;
+    }
+    
+    return gen.output;
+}

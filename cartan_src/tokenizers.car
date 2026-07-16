@@ -1,0 +1,78 @@
+// cartan_src/tokenizers.car
+// Native CARTAN implementations of standard tokenizer algorithms
+
+trait Tokenizer {
+    fn encode(text: string) -> tree<i32> {}
+    fn decode(tokens: tree<i32>) -> string {}
+}
+
+// -----------------------------------------
+// WordLevel Tokenizer
+// -----------------------------------------
+
+struct WordLevel {
+    vocab: tree<string>;
+}
+
+impl Tokenizer for WordLevel {
+    fn encode(text: string) -> tree<i32> {
+        let tokens = Cartan.tree_create();
+        let current_word = "";
+        let i = 0;
+        let len = text.string_length();
+
+        while (i < len) {
+            let c = text.char_at(i);
+            if (c == " " || c == "\n") {
+                if (current_word.string_length() > 0) {
+                    let token_id = self.find_vocab_id(current_word);
+                    Cartan.tree_push(tokens, token_id);
+                    current_word = "";
+                }
+            } else {
+                current_word = current_word + c;
+            }
+            i = i + 1;
+        }
+
+        if current_word.string_length() > 0 {
+            let token_id = self.find_vocab_id(current_word);
+            Cartan.tree_push(tokens, token_id);
+        }
+
+        return tokens;
+    }
+
+    fn decode(tokens: tree<i32>) -> string {
+        let result = "";
+        let i = 0;
+        let len = tokens.len();
+        
+        while (i < len) {
+            let token_id = Cartan.tree_get(tokens, i);
+            let word = Cartan.tree_get(self.vocab, token_id);
+            if (i > 0) {
+                result = result + " ";
+            }
+            result = result + word;
+            i = i + 1;
+        }
+        
+        return result;
+    }
+
+    // Custom helper method for WordLevel
+    fn find_vocab_id(word: string) -> i32 {
+        let i = 0;
+        let len = self.vocab.len();
+        while (i < len) {
+            let w = Cartan.tree_get(self.vocab, i);
+            if (w == word) {
+                return i;
+            }
+            i = i + 1;
+        }
+        // Return 0 as [UNK] token
+        return 0;
+    }
+}

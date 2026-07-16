@@ -1,0 +1,19 @@
+fn test_tier2_p3() {
+    let model = import_onnx!("hf://my-model");
+    let quantized_model = quantize(model, INT8);
+    let grad_fn = grad(quantized_model);
+    
+    let x = 10;
+    let ptr_x = &x;
+    let val_x = *ptr_x;
+
+    let text = p"hello";
+    match (text) {
+        p"hello {name}" => {
+            let z = 1;
+        }
+        _ => {
+            let z = 0;
+        }
+    }
+}

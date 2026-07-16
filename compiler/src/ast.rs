@@ -83,9 +83,22 @@ pub enum Expr {
     Boolean(bool),
     StringLiteral(String),
     PromptLiteral(String),
+    ImportOnnx(String),
     Identifier(String),
     Placeholder(String),
     Quote(BlockStmt),
+    StringView {
+        source: Box<Expr>,
+        start: Box<Expr>,
+        len: Box<Expr>,
+    },
+    SimdFindFirst {
+        buffer: Box<Expr>,
+        target_byte: Box<Expr>,
+    },
+    SimdMaskAlpha {
+        buffer: Box<Expr>,
+    },
     StructInit {
         name: String,
         fields: Vec<(String, Box<Expr>)>
@@ -214,6 +227,7 @@ pub enum Stmt {
     VarDecl {
         name: String,
         is_const: bool,
+        type_annotation: Option<String>,
         value: Expr,
     },
     FieldDecl {
@@ -313,6 +327,51 @@ pub enum Stmt {
     PipelineDecl {
         name: String,
         layers: Vec<Expr>,
+    },
+    LayerDecl {
+        name: String,
+        layer_type: String,
+        dim: Expr,
+        activation: String,
+    },
+    GraphDecl {
+        name: String,
+        body: BlockStmt,
+    },
+    RuleDecl {
+        name: String,
+        body: Expr,
+    },
+    KnowledgeBaseDecl {
+        name: String,
+        body: BlockStmt,
+    },
+    EvolveBlock {
+        name: String,
+        body: BlockStmt,
+    },
+    TraitDecl {
+        name: String,
+        methods: Vec<Stmt>, // FunctionDecls inside
+    },
+    ImplDecl {
+        trait_name: Option<String>,
+        target_name: String,
+        methods: Vec<Stmt>,
+    },
+    ReceiveDecl {
+        message_name: String,
+        params: Vec<Parameter>,
+        body: BlockStmt,
+    },
+    Spawn {
+        name: String,
+        body: BlockStmt,
+    },
+    
+    DataframeDecl {
+        name: String,
+        body: BlockStmt,
     },
     ImportModel {
         uri: String,

@@ -76,6 +76,15 @@ impl LLVMGenerator {
         if !declared_externs.contains("cartan_tensor_alloc") {
             self.globals.push_str("declare ptr @cartan_tensor_alloc(i32, i32)\n");
         }
+        if !declared_externs.contains("cartan_tree_create") {
+            self.globals.push_str("declare ptr @cartan_tree_create()\n");
+            self.globals.push_str("declare void @cartan_tree_push(ptr, ptr)\n");
+            self.globals.push_str("declare ptr @cartan_tree_get(ptr, i32)\n");
+            self.globals.push_str("declare i32 @cartan_tree_len(ptr)\n");
+        }
+        if !declared_externs.contains("printf") {
+            self.globals.push_str("declare i32 @printf(ptr, ...)\n");
+        }
         if !declared_externs.contains("cartan_tensor_alloc_nd") {
             self.globals.push_str("declare ptr @cartan_tensor_alloc_nd(i32, i32, i32, i32, i32, i32)\n");
         }
@@ -158,6 +167,8 @@ impl LLVMGenerator {
         self.globals.push_str("declare ptr @cartan_tensor_ones_like(ptr)\n");
         self.globals.push_str("declare void @cartan_absorb_weights(ptr, ptr)\n");
         self.globals.push_str("declare void @cartan_project_vocab(ptr, ptr)\n");
+        self.globals.push_str("declare i32 @cartan_pattern_match(ptr, ptr)\n");
+        self.globals.push_str("declare ptr @cartan_rt_transform(ptr, ptr)\n");
         self.globals.push_str("declare ptr @cartan_tokenize_bpe(ptr, ptr)\n");
         self.globals.push_str("declare void @cartan_align_spans(ptr, ptr, ptr)\n");
         self.globals.push_str("declare void @cartan_free_compute_graph()\n");
@@ -178,6 +189,12 @@ impl LLVMGenerator {
                 let mut field_stmts = Vec::new();
                 for field in fields {
                     match field {
+                        Stmt::FieldDecl { name: field_name, type_name } => {
+                            field_names.push(field_name.clone());
+                            let t = if type_name == "i32" || type_name == "int" { "i32".to_string() } else if type_name == "float" || type_name == "f32" { "float".to_string() } else if type_name.chars().next().unwrap_or(' ').is_uppercase() { format!("%{}", type_name) } else { "ptr".to_string() };
+                            field_types.push(t);
+                            field_stmts.push(field.clone());
+                        },
                         Stmt::VarDecl { name: field_name, value, .. } => {
                             field_names.push(field_name.clone());
                             let type_str = if let Expr::FunctionCall { name: struct_name, .. } = value {
@@ -240,7 +257,7 @@ impl LLVMGenerator {
                     self.symbols.insert(decl.name.clone(), format!("@{}", decl.name));
                     self.func_return_types.insert(decl.name.clone(), ret_type.to_string());
                 },
-                Stmt::VarDecl { name, is_const, value } if *is_const => {
+                Stmt::VarDecl { name, is_const, value, type_annotation: _ } if *is_const => {
                     if let crate::ast::Expr::ArrayDecl { elements } = value {
                         let mut float_vals = Vec::new();
                         for el in elements {
@@ -282,6 +299,12 @@ impl LLVMGenerator {
                         all_funcs.push((Some(name.clone()), decl));
                     }
                 }
+            } else if let Stmt::ImplDecl { target_name, methods, .. } = stmt {
+                for method in methods {
+                    if let Stmt::FunctionDecl(decl) = method {
+                        all_funcs.push((Some(target_name.clone()), decl));
+                    }
+                }
             }
         }
 
@@ -292,7 +315,7 @@ impl LLVMGenerator {
             
             let mut param_types = Vec::new();
             if let Some(sname) = &struct_name {
-                param_types.push(format!("%{} %arg_this", sname));
+                param_types.push(format!("%{} %arg_self", sname));
             }
             
             for p in &decl.parameters {
@@ -318,9 +341,9 @@ impl LLVMGenerator {
             if let Some(sname) = &struct_name {
                 let alloc_ptr = self.next_reg();
                 self.output.push_str(&format!("  {} = alloca %{}, align 8\n", alloc_ptr, sname));
-                self.output.push_str(&format!("  store %{} %arg_this, ptr {}, align 8\n", sname, alloc_ptr));
-                self.symbols.insert("this".to_string(), alloc_ptr);
-                self.var_types.insert("this".to_string(), format!("%{}", sname));
+                self.output.push_str(&format!("  store %{} %arg_self, ptr {}, align 8\n", sname, alloc_ptr));
+                self.symbols.insert("self".to_string(), alloc_ptr);
+                self.var_types.insert("self".to_string(), format!("%{}", sname));
             }
 
             for p in &decl.parameters {
@@ -427,7 +450,7 @@ impl LLVMGenerator {
     fn visit_stmt(&mut self, stmt: &Stmt) {
         match stmt {
             Stmt::Placeholder(_) => {},
-            Stmt::Match { condition, arms } => {
+            Stmt::LayerDecl { name: _, layer_type: _, dim: _, activation: _ } => {}, Stmt::GraphDecl { name: _, body: _ } => {}, Stmt::Match { condition, arms } => {
                 let cond_reg = self.visit_expr(condition).unwrap_or("0.0".to_string());
                 let is_cond_ptr = cond_reg.starts_with("ptr:") || cond_reg.starts_with("string:");
                 let clean_cond = cond_reg.split(':').last().unwrap_or(&cond_reg).to_string();
@@ -444,10 +467,19 @@ impl LLVMGenerator {
                         let clean_pat = pat_reg.split(':').last().unwrap_or(&pat_reg).to_string();
                         
                           if is_cond_ptr && is_pat_ptr {
+                              let is_prompt = matches!(pattern, Expr::PromptLiteral(_));
                               let cmp_res = self.next_reg();
-                              self.output.push_str(&format!("  {} = call i32 @strcmp(ptr {}, ptr {})\n", cmp_res, clean_cond, clean_pat));
+                              if is_prompt {
+                                  self.output.push_str(&format!("  {} = call i32 @cartan_pattern_match(ptr {}, ptr {})\n", cmp_res, clean_cond, clean_pat));
+                              } else {
+                                  self.output.push_str(&format!("  {} = call i32 @strcmp(ptr {}, ptr {})\n", cmp_res, clean_cond, clean_pat));
+                              }
                               let cond_bool = self.next_reg();
-                              self.output.push_str(&format!("  {} = icmp eq i32 {}, 0\n", cond_bool, cmp_res));
+                              if is_prompt {
+                                  self.output.push_str(&format!("  {} = icmp sgt i32 {}, 0\n", cond_bool, cmp_res));
+                              } else {
+                                  self.output.push_str(&format!("  {} = icmp eq i32 {}, 0\n", cond_bool, cmp_res));
+                              }
                               self.output.push_str(&format!("  br i1 {}, label %{}, label %{}\n", cond_bool, arm_label, next_label));
                           } else {
                               // Float comparison
@@ -539,9 +571,13 @@ impl LLVMGenerator {
                 if let Some(expr) = value {
                     let ret_val = self.visit_expr(expr).unwrap_or("0.0".to_string());
                     if self.current_return_type == "i32" {
-                        let int_val = self.next_reg();
-                        self.output.push_str(&format!("  {} = fptosi float {} to i32\n", int_val, ret_val));
-                        self.output.push_str(&format!("  ret i32 {}\n", int_val));
+                        if !ret_val.starts_with("%") && !ret_val.contains(".") {
+                            self.output.push_str(&format!("  ret i32 {}\n", ret_val));
+                        } else {
+                            let int_val = self.next_reg();
+                            self.output.push_str(&format!("  {} = fptosi float {} to i32\n", int_val, ret_val));
+                            self.output.push_str(&format!("  ret i32 {}\n", int_val));
+                        }
                     } else if self.current_return_type == "float" {
                         self.output.push_str(&format!("  ret float {}\n", ret_val));
                     } else if self.current_return_type == "ptr" {
@@ -577,7 +613,13 @@ impl LLVMGenerator {
             Stmt::StructDecl { name: _, fields: _ } => {
                 // Handled in Pass 0
             },
-            Stmt::VarDecl { name, is_const: _, value } => {
+            Stmt::ImplDecl { .. } => {
+                // Handled in Pass 2
+            },
+            Stmt::TraitDecl { .. } => {
+                // Handled in Pass 2
+            },
+            Stmt::VarDecl { name, is_const: _, value, type_annotation: _ } => {
                 let val_reg = self.visit_expr(value).unwrap_or("0.0".to_string());
                 
                 if val_reg.starts_with("struct:") {
@@ -594,7 +636,17 @@ impl LLVMGenerator {
                     self.symbols.insert(name.clone(), ptr_reg);
                     self.var_types.insert(name.clone(), "ptr".to_string());
                 } else if val_reg.starts_with("string:") {
-                    self.symbols.insert(name.clone(), val_reg.replace("string:", ""));
+                    let raw_ptr = val_reg.replace("string:", "");
+                    if raw_ptr.starts_with("@.str.") {
+                        self.symbols.insert(name.clone(), raw_ptr);
+                        self.var_types.insert(name.clone(), "string".to_string());
+                    } else {
+                        let ptr_reg = self.next_reg();
+                        self.output.push_str(&format!("  {} = alloca ptr, align 8\n", ptr_reg));
+                        self.output.push_str(&format!("  store ptr {}, ptr {}, align 8\n", raw_ptr, ptr_reg));
+                        self.symbols.insert(name.clone(), ptr_reg);
+                        self.var_types.insert(name.clone(), "string".to_string());
+                    }
                 } else if val_reg.starts_with("ptr:") {
                     let raw_ptr = val_reg.replace("ptr:", "");
                     let ptr_reg = self.next_reg();
@@ -1034,6 +1086,9 @@ impl LLVMGenerator {
         match expr {
             Expr::Identifier(name) => {
                 if let Some(ptr_reg) = self.symbols.get(name).cloned() {
+                    if ptr_reg.starts_with("@.str.") {
+                        return Some(format!("string:{}", ptr_reg));
+                    }
                     let val_reg = self.next_reg();
                     let t = self.var_types.get(name).cloned().unwrap_or("float".to_string());
                     if t.starts_with("%") {
@@ -1057,7 +1112,7 @@ impl LLVMGenerator {
                     }
                     if is_field {
                         return self.visit_expr(&Expr::PropertyAccess {
-                            object: Box::new(Expr::Identifier("this".to_string())),
+                            object: Box::new(Expr::Identifier("self".to_string())),
                             property_name: name.clone(),
                         });
                     }
@@ -1078,7 +1133,31 @@ impl LLVMGenerator {
                     self.output.push_str(&format!("  store float {}, ptr {}, align 4\n", val_reg, elem_ptr));
                 }
                 
-                Some(format!("array:{}", array_ptr)) // marker
+                Some(format!("array:{}", array_ptr))
+            },
+            Expr::StructInit { name, fields } => {
+                let struct_ptr = self.next_reg();
+                self.output.push_str(&format!("  {} = alloca %{}, align 8\n", struct_ptr, name));
+                
+                if let Some(field_names) = self.struct_fields.get(name).cloned() {
+                    let field_types = self.struct_field_types.get(name).cloned().unwrap_or_default();
+                    for (field_name, field_expr) in fields {
+                        if let Some(idx) = field_names.iter().position(|f| f == field_name) {
+                            let val_reg = self.visit_expr(field_expr).unwrap_or("0.0".to_string());
+                            let elem_ptr = self.next_reg();
+                            self.output.push_str(&format!("  {} = getelementptr inbounds %{}, ptr {}, i32 0, i32 {}\n", elem_ptr, name, struct_ptr, idx));
+                            let ftype = field_types.get(idx).cloned().unwrap_or("float".to_string());
+                            if ftype == "ptr" || ftype.starts_with("%") {
+                                let clean_val = val_reg.replace("ptr:", "").replace("struct:", "").replace("array:", "").replace("string:", "");
+                                let final_val = if clean_val == "0.0" { "null".to_string() } else { clean_val };
+                                self.output.push_str(&format!("  store {} {}, ptr {}, align 8\n", ftype, final_val, elem_ptr));
+                            } else {
+                                self.output.push_str(&format!("  store {} {}, ptr {}, align 4\n", ftype, val_reg, elem_ptr));
+                            }
+                        }
+                    }
+                }
+                Some(format!("struct:{}:{}", name, struct_ptr))
             },
             Expr::IndexAccess { object, index } => {
                 let obj_reg = self.visit_expr(object).unwrap().replace("ptr:", "").replace("string:", "");
@@ -1468,6 +1547,56 @@ impl LLVMGenerator {
                             return None;
                         }
                     }
+                } else if method_name == "tree_create" {
+                    if let Expr::Identifier(name) = &**object {
+                        if name == "Cartan" {
+                            self.output.push_str("  ; --- Cartan.tree_create ---\n");
+                            let res_reg = self.next_reg();
+                            self.output.push_str(&format!("  {} = call ptr @cartan_tree_create()\n", res_reg));
+                            return Some(format!("ptr:{}", res_reg));
+                        }
+                    }
+                } else if method_name == "tree_push" {
+                    if let Expr::Identifier(name) = &**object {
+                        if name == "Cartan" {
+                            self.output.push_str("  ; --- Cartan.tree_push ---\n");
+                            let tree_reg = self.visit_expr(&args[0]).unwrap_or("null".to_string());
+                            let val_reg = self.visit_expr(&args[1]).unwrap_or("%0".to_string());
+                            
+                            // Check if val_reg is an integer or float, if so we need to box it or just pass it?
+                            // Wait, cartan_tree_push in runtime takes (ptr, ptr) to match generic trees.
+                            // But here we might be passing integers (e.g. tree_push(tokens, token_id)).
+                            // If token_id is an i32/float, passing it as ptr will fail LLVM typecheck.
+                            // Let's pass it as float to a specialized runtime function, or cast it to ptr.
+                            // We will implement `cartan_tree_push` as taking (ptr, ptr). We can use inttoptr for numbers.
+                            let mut final_val = val_reg.replace("ptr:", "");
+                            if !val_reg.starts_with("ptr:") && !val_reg.starts_with("array:") && !val_reg.starts_with("struct:") && val_reg != "null" {
+                                let ptr_cast = self.next_reg();
+                                let i64_cast = self.next_reg();
+                                self.output.push_str(&format!("  {} = fptoui float {} to i64\n", i64_cast, final_val));
+                                self.output.push_str(&format!("  {} = inttoptr i64 {} to ptr\n", ptr_cast, i64_cast));
+                                final_val = ptr_cast;
+                            }
+                            
+                            self.output.push_str(&format!("  call void @cartan_tree_push(ptr {}, ptr {})\n", tree_reg.replace("ptr:", ""), final_val));
+                            return None;
+                        }
+                    }
+                } else if method_name == "tree_get" {
+                    if let Expr::Identifier(name) = &**object {
+                        if name == "Cartan" {
+                            self.output.push_str("  ; --- Cartan.tree_get ---\n");
+                            let tree_reg = self.visit_expr(&args[0]).unwrap_or("null".to_string());
+                            let idx_reg = self.visit_expr(&args[1]).unwrap_or("%0".to_string());
+                            
+                            let int_idx = self.next_reg();
+                            self.output.push_str(&format!("  {} = fptosi float {} to i32\n", int_idx, idx_reg.replace("ptr:", "")));
+                            
+                            let res_reg = self.next_reg();
+                            self.output.push_str(&format!("  {} = call ptr @cartan_tree_get(ptr {}, i32 {})\n", res_reg, tree_reg.replace("ptr:", ""), int_idx));
+                            return Some(format!("ptr:{}", res_reg));
+                        }
+                    }
                 }
                 
                 let obj_reg = self.visit_expr(object).unwrap_or("null".to_string());
@@ -1706,7 +1835,7 @@ impl LLVMGenerator {
                     for (i, raw_r) in arg_regs.iter().enumerate() {
                         if i > 0 { arg_str.push_str(", "); }
                         let r = raw_r.replace("ptr:", "").replace("string:", "").replace("array:", "");
-                        if r.starts_with("@.str.") || r.starts_with("%struct.") || raw_r.starts_with("ptr:") {
+                        if r.starts_with("@.str.") || r.starts_with("%struct.") || raw_r.starts_with("ptr:") || raw_r.starts_with("string:") {
                             arg_str.push_str(&format!("ptr {}", r));
                         } else if r.starts_with("%") {
                             let dbl_reg = self.next_reg();
@@ -1778,6 +1907,49 @@ impl LLVMGenerator {
                 let res = self.next_reg();
                 self.output.push_str(&format!("  {} = call ptr @cartan_init_sieving_cache()\n", res));
                 Some(format!("ptr:{}", res))
+            },
+            Expr::StringView { source, start, len } => {
+                let src_reg = self.visit_expr(source).unwrap_or("null".to_string());
+                let clean_src = src_reg.replace("ptr:", "").replace("string:", "");
+                let start_reg = self.visit_expr(start).unwrap_or("0.0".to_string());
+                let len_reg = self.visit_expr(len).unwrap_or("0.0".to_string());
+                let res = self.next_reg();
+                
+                let start_int = self.next_reg();
+                self.output.push_str(&format!("  {} = fptosi float {} to i32\n", start_int, start_reg));
+                let len_int = self.next_reg();
+                self.output.push_str(&format!("  {} = fptosi float {} to i32\n", len_int, len_reg));
+                
+                self.output.push_str(&format!("  {} = call ptr @cartan_rt_string_view(ptr {}, i32 {}, i32 {})\n", res, clean_src, start_int, len_int));
+                Some(format!("string:{}", res))
+            },
+            Expr::SimdFindFirst { buffer, target_byte } => {
+                let buf_reg = self.visit_expr(buffer).unwrap_or("null".to_string());
+                let clean_buf = buf_reg.replace("ptr:", "").replace("string:", "");
+                let tgt_reg = self.visit_expr(target_byte).unwrap_or("0.0".to_string());
+                let res_i32 = self.next_reg();
+                let tgt_i32 = self.next_reg();
+                let tgt_i8 = self.next_reg();
+                
+                self.output.push_str(&format!("  {} = fptosi float {} to i32\n", tgt_i32, tgt_reg));
+                self.output.push_str(&format!("  {} = trunc i32 {} to i8\n", tgt_i8, tgt_i32));
+                
+                self.output.push_str(&format!("  {} = call i32 @cartan_rt_simd_find_first(ptr {}, i8 {})\n", res_i32, clean_buf, tgt_i8));
+                
+                let res_f32 = self.next_reg();
+                self.output.push_str(&format!("  {} = sitofp i32 {} to float\n", res_f32, res_i32));
+                Some(res_f32)
+            },
+            Expr::SimdMaskAlpha { buffer } => {
+                let buf_reg = self.visit_expr(buffer).unwrap_or("null".to_string());
+                let clean_buf = buf_reg.replace("ptr:", "").replace("string:", "");
+                
+                let res_i32 = self.next_reg();
+                self.output.push_str(&format!("  {} = call i32 @cartan_rt_simd_mask_alpha(ptr {})\n", res_i32, clean_buf));
+                
+                let res_f32 = self.next_reg();
+                self.output.push_str(&format!("  {} = sitofp i32 {} to float\n", res_f32, res_i32));
+                Some(res_f32)
             },
             Expr::FractalAttentionInit => {
                 self.output.push_str("  ; --- Init FractalAttentionBlock ---\n");
@@ -1936,31 +2108,7 @@ impl LLVMGenerator {
                 self.output.push_str(&format!("  {} = call ptr @cartan_tensor_translation_barrier(ptr null, ptr null)\n", res));
                 Some(format!("ptr:{}", res))
             },
-            Expr::Quantize { target, dtype: _ } => {
-                let target_reg = self.visit_expr(target).unwrap_or("0".to_string());
-                let res = self.next_reg();
-                self.output.push_str(&format!("  {} = call ptr @cartan_tensor_quantize_int8(ptr {})\n", res, target_reg.replace("ptr:", "")));
-                Some(format!("ptr:{}", res))
-            },
-            Expr::Transform { op, target } => {
-                let _target_reg = self.visit_expr(target);
-                // Currently just a stub, real implementations would generate an adjoint function.
-                Some(format!("fn_ptr:{}", op))
-            },
-            Expr::AddressOf(target) => {
-                if let Expr::Identifier(name) = &**target {
-                    if let Some(ptr_reg) = self.symbols.get(name) {
-                        return Some(ptr_reg.clone());
-                    }
-                }
-                Some("null".to_string())
-            },
-            Expr::Dereference(target) => {
-                let ptr_reg = self.visit_expr(target).unwrap_or("null".to_string());
-                let res = self.next_reg();
-                self.output.push_str(&format!("  {} = load float, ptr {}, align 4\n", res, ptr_reg.replace("ptr:", "")));
-                Some(res)
-            },
+
             Expr::Range { start: _, end: _ } => {
                 Some("0.0".to_string())
             },
@@ -1986,6 +2134,60 @@ impl LLVMGenerator {
                     s
                 ));
                 Some(format!("ptr:{}", global_name))
+            },
+            Expr::ImportOnnx(uri) => {
+                let id = self.string_counter;
+                self.string_counter += 1;
+                let global_name = format!("@.str.model.uri.{}", id);
+                self.globals.push_str(&format!(
+                    "{} = private unnamed_addr constant [{} x i8] c\"{}\\00\", align 1\n",
+                    global_name,
+                    uri.len() + 1,
+                    uri
+                ));
+                let res = self.next_reg();
+                self.output.push_str(&format!("  {} = call ptr @cartan_internal_import_onnx(ptr {})\n", res, global_name));
+                Some(format!("ptr:{}", res))
+            },
+            Expr::Quantize { target, dtype: _ } => {
+                if let Some(t_val) = self.visit_expr(target) {
+                    let res = self.next_reg();
+                    self.output.push_str(&format!("  {} = call ptr @cartan_tensor_quantize_int8(ptr {})\n", res, t_val.replace("ptr:", "")));
+                    Some(format!("ptr:{}", res))
+                } else {
+                    None
+                }
+            },
+            Expr::Transform { op: _op, target } => {
+                // Runtime stub for transform
+                if let Some(t_val) = self.visit_expr(target) {
+                    let res = self.next_reg();
+                    // Just pass a null pointer for op string temporarily
+                    self.output.push_str(&format!("  {} = call ptr @cartan_rt_transform(ptr null, ptr {})\n", res, t_val.replace("ptr:", "")));
+                    Some(format!("ptr:{}", res))
+                } else {
+                    None
+                }
+            },
+            Expr::AddressOf(target) => {
+                if let Expr::Identifier(name) = &**target {
+                    if let Some(ptr_reg) = self.symbols.get(name).cloned() {
+                        return Some(format!("ptr:{}", ptr_reg));
+                    }
+                }
+                None
+            },
+            Expr::Dereference(target) => {
+                if let Some(ptr_val) = self.visit_expr(target) {
+                    // For dereference, ptr_val is something like `ptr:%1`.
+                    // We need to load from `%1`.
+                    let reg = ptr_val.replace("ptr:", "");
+                    let res = self.next_reg();
+                    self.output.push_str(&format!("  {} = load ptr, ptr {}, align 8\n", res, reg));
+                    Some(format!("ptr:{}", res))
+                } else {
+                    None
+                }
             },
             _ => None
         }

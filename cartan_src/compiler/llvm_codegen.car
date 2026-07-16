@@ -1,0 +1,30 @@
+// cartan_src/compiler/llvm_codegen.car
+
+struct LLVMGenerator {
+    output: string;
+    struct_fields: tree<string>; // Maps struct name to its fields
+}
+
+trait ICodeGen {
+    fn generate(ast: tree<Stmt>) -> string {}
+}
+
+impl ICodeGen for LLVMGenerator {
+    fn generate(ast: tree<Stmt>) -> string {
+        let generator = LLVMGenerator {
+            output: "",
+            struct_fields: Cartan.tree_create()
+        };
+        
+        // Pass 0: Collect Structs and Traits
+        // Uses native tree searches to quickly find StructDecl
+        
+        // Pass 1: Global declarations
+        
+        // Pass 2: Map Method Declarations
+        
+        // Pass 3: Main Code Emission
+        
+        return generator.output;
+    }
+}

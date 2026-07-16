@@ -1,4 +1,4 @@
-use crate::ast::{Stmt, Expr, MacroRule, BlockStmt};
+use crate::ast::{Stmt, Expr, MacroRule};
 use std::collections::HashMap;
 
 pub struct MacroPass {
@@ -126,7 +126,7 @@ impl MacroPass {
         }
         
         match stmt {
-            Stmt::Block(block) | Stmt::MeshBlock { body: block, .. } | Stmt::AsyncCompute(block) => {
+            Stmt::Block(block) | Stmt::MeshBlock { body: block, .. } | Stmt::AsyncCompute(block) | Stmt::MultimodalBlock { body: block } | Stmt::VmapBlock { body: block } | Stmt::DoubtBlock { body: block } | Stmt::ChainBlock { body: block } | Stmt::RouteBlock { body: block } | Stmt::GrokBlock { body: block } | Stmt::OverrideBlock { body: block } => {
                 self.apply_to_stmts(&mut block.statements);
             },
             Stmt::FunctionDecl(f) => {
@@ -178,7 +178,7 @@ impl MacroPass {
 
     fn visit_stmt(&self, stmt: &mut Stmt) {
         match stmt {
-            Stmt::Block(block) | Stmt::MeshBlock { body: block, .. } | Stmt::AsyncCompute(block) => {
+            Stmt::Block(block) | Stmt::MeshBlock { body: block, .. } | Stmt::AsyncCompute(block) | Stmt::MultimodalBlock { body: block } | Stmt::VmapBlock { body: block } | Stmt::DoubtBlock { body: block } | Stmt::ChainBlock { body: block } | Stmt::RouteBlock { body: block } | Stmt::GrokBlock { body: block } | Stmt::OverrideBlock { body: block } => {
                 self.apply_to_stmts(&mut block.statements);
             },
             Stmt::FunctionDecl(f) => {

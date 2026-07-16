@@ -1,0 +1,48 @@
+// cartan_src/main.car
+// The entry point for the self-hosted CARTAN compiler.
+
+fn compile(source_code: string) -> string {
+    // 1. Lex
+    let mut lexer = lexer_init(source_code);
+    let mut tokens = Cartan.tree_create();
+    while true {
+        let tok = lexer_next_token(&mut lexer);
+        Cartan.tree_push(tokens, tok);
+        if tok.type_tag == "EOF" {
+            break;
+        }
+    }
+
+    // 2. Parse
+    let mut parser = parser_init(tokens);
+    // For simplicity, we just parse one block representing the global scope
+    let stmts = parse_block(&mut parser);
+    let mut program = Program { statements: stmts };
+
+    // 3. Macro Pass
+    program = expand_macros_program(program);
+
+    // 4. Type Checker
+    program = typecheck_program(program);
+
+    // 5. Optimizer
+    program = optimize_program(program);
+
+    // 6. LLVM Codegen
+    let llvm_ir = generate_llvm(program);
+
+    return llvm_ir;
+}
+
+fn main() {
+    // Read source from standard input (simulated)
+    // Cartan.read_file doesn't exist yet natively, but we assume a runtime hook
+    // let source_code = Cartan.read_file("test.car");
+    
+    let source_code = "fn test() { tensor[128] weights; }";
+    
+    let ir = compile(source_code);
+    
+    // Print output
+    // Cartan.print(ir);
+}

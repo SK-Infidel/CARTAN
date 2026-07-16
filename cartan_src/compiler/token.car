@@ -1,0 +1,9 @@
+// cartan_src/compiler/token.car
+
+struct Token {
+    type_tag: i32;
+    lexeme: string;
+    line: i32;
+    col_start: i32;
+    col_end: i32;
+}

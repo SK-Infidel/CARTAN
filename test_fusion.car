@@ -1,0 +1,6 @@
+fn test_fusion() {
+    let W = tensor[64, 128];
+    let x = tensor[128, 32];
+    let B = tensor[64, 32];
+    let act = relu(W * x + B);
+}

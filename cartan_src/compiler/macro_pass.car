@@ -1,0 +1,11 @@
+// cartan_src/compiler/macro_pass.car
+
+struct MacroPass {}
+
+impl OptimizerPass for MacroPass {
+    fn optimize(ast: tree<Stmt>) -> tree<Stmt> {
+        // Expand macro definitions and perform AST quotation unrolling
+        
+        return ast;
+    }
+}
