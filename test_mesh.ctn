@@ -1,0 +1,6 @@
+mesh CoreCluster supervisor("AutoRestart") {
+    tensor t[1024, 1024] in Euclidean;
+    let x = 5.0;
+    let y = 10.0;
+    let z = x * y;
+}

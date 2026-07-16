@@ -1,55 +1,46 @@
-// tests/e2e_model.ctn
+// Phase 7: End-to-End Proof of Concept Model
+// Demonstrates all the major paradigms of the Cartan language.
 
-import "std/env.ctn";
-import "std/io.ctn";
-
-@agent_accessible
-fn trigger_system_action(action_type: ptr, data: float) -> i32 {
-    var console = ConsoleStream();
-    console.print("System Action Triggered: ");
-    console.print(action_type);
-    console.print("\n");
-    return 1;
+// 1. Manifold geometry constraints
+manifold Minkowski {
+    let curvature = 0.0;
 }
 
-fn main() -> i32 {
-    var console = ConsoleStream();
-    console.print("Initializing E2E Model...\n");
+// 2. Data stream intake
+stream camera_input: Minkowski;
 
-    // Sequence for causal processing
-    sequence CausalSeq [ 256 ];
+// 3. Stateful optimization block with self-improving parameters
+block AgentVision[128];
+parameter[Adam] W[4, 4] in Minkowski;
+sequence memory[128];
 
-    // Geometry Manifold
-    manifold MinkowskiSpace {
-        var metric = [-1.0, 1.0, 1.0, 1.0];
-        var curvature = 0.0;
-    }
+// 4. External Agent Access hook
+@agent_accessible
+fn signal_agent() {
+    let success = 1.0;
+}
 
-    // Parameters inside block
-    block AgentBlock [ 16 ];
-    
-    parameter[Adam] W [ 16, 16 ] in Minkowski;
-    parameter[Adam] B [ 16 ];
-
-    // A stream value simulating what stream we're on
-    var stream_type = "Video";
-
-    // Match statement routing
+fn process_stream(stream_type: float) {
+    // 5. Match routing for dynamic control flow
     match (stream_type) {
-        "Video" => {
-            console.print("Processing Video Stream...\n");
-        },
-        "Audio" => {
-            console.print("Processing Audio Stream...\n");
+        1.0 => {
+            // "Visual" stream processing
+            tensor X[4, 4];
+            // 6. Native matrix multiplication
+            let Y = W @ X;
+            
+            // 7. AutoDiff generation natively unrolled
+            backward Y;
+            
+            // Invoke hook
+            signal_agent();
         },
         _ => {
-            console.print("Processing Default Stream...\n");
+            // Other stream types ignored
+            let skip = 1.0;
         }
     }
-
-    console.print("Triggering agent hook...\n");
-    trigger_system_action("LaunchBrowser", 0.0);
-
-    console.print("Done!\n");
-    return 0;
 }
+
+// Entry point execution
+process_stream(1.0);

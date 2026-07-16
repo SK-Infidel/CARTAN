@@ -93,6 +93,21 @@ impl Parser {
             self.block_declaration()
         } else if self.match_token(&[TokenType::Manifold]) {
             self.manifold_declaration()
+        } else if self.match_token(&[TokenType::Mesh]) {
+            let name = match self.consume(TokenType::Identifier("".to_string()), "Expected mesh identifier")?.token_type.clone() {
+                TokenType::Identifier(id) => id,
+                _ => return Err(Diagnostic::error("Expected identifier", self.peek().span)),
+            };
+            self.consume(TokenType::Supervisor, "Expected 'supervisor' after mesh name")?;
+            self.consume(TokenType::LParen, "Expected '(' after 'supervisor'")?;
+            let strategy = match self.consume(TokenType::StringLiteral("".to_string()), "Expected supervisor strategy string")?.token_type.clone() {
+                TokenType::StringLiteral(s) => s,
+                _ => return Err(Diagnostic::error("Expected string literal", self.peek().span)),
+            };
+            self.consume(TokenType::RParen, "Expected ')' after supervisor strategy")?;
+            self.consume(TokenType::LBrace, "Expected '{' after mesh supervisor")?;
+            let body = self.block()?;
+            Ok(Stmt::MeshBlock { name, strategy, body })
         } else if self.match_token(&[TokenType::Topology]) {
             self.topology_declaration()
         } else if self.match_token(&[TokenType::Stream]) {
@@ -696,6 +711,21 @@ impl Parser {
             self.consume(TokenType::LBrace, "Expected '{' after catch condition")?;
             let catch_block = self.block()?;
             Ok(Stmt::TryCatch { try_block, catch_var, catch_block })
+        } else if self.match_token(&[TokenType::Backtrack]) {
+            self.consume(TokenType::Semicolon, "Expected ';' after backtrack")?;
+            Ok(Stmt::Backtrack)
+        } else if self.match_token(&[TokenType::Satisfy]) {
+            self.consume(TokenType::LParen, "Expected '(' after satisfy")?;
+            let condition = self.expression()?;
+            self.consume(TokenType::RParen, "Expected ')' after satisfy condition")?;
+            self.consume(TokenType::LBrace, "Expected '{' after satisfy condition")?;
+            let body = self.block()?;
+            let mut otherwise = None;
+            if self.match_token(&[TokenType::Otherwise]) {
+                self.consume(TokenType::LBrace, "Expected '{' after otherwise")?;
+                otherwise = Some(self.block()?);
+            }
+            Ok(Stmt::Satisfy { condition, body, otherwise })
         } else if self.match_token(&[TokenType::Return]) {
             let value = if !self.check(&TokenType::Semicolon) {
                 Some(self.expression()?)
@@ -1100,6 +1130,14 @@ impl Parser {
         
         let token = self.advance().clone();
         match token.token_type {
+            TokenType::HotSwap => {
+                self.consume(TokenType::LParen, "Expected '(' after hotswap")?;
+                let target = self.expression()?;
+                self.consume(TokenType::Comma, "Expected ',' between target and new_graph")?;
+                let new_graph = self.expression()?;
+                self.consume(TokenType::RParen, "Expected ')' after hotswap arguments")?;
+                Ok(Expr::HotSwap(Box::new(target), Box::new(new_graph)))
+            },
             TokenType::IntLiteral(n) => Ok(Expr::Integer(n)),
             TokenType::FloatLiteral(n) => Ok(Expr::Float(n)),
             TokenType::StringLiteral(s) => Ok(Expr::StringLiteral(s)),
@@ -1109,6 +1147,11 @@ impl Parser {
                 self.consume(TokenType::LBrace, "Expected '{' after 'quote'")?;
                 let block = self.block()?;
                 Ok(Expr::Quote(block))
+            },
+            TokenType::Fuse => {
+                self.consume(TokenType::LBrace, "Expected '{' after 'fuse'")?;
+                let block = self.block()?;
+                Ok(Expr::FusedKernel(block))
             },
             _ => Err(Diagnostic::error("Expected expression", token.span)),
         }

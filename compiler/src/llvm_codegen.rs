@@ -91,6 +91,9 @@ impl LLVMGenerator {
         if !declared_externs.contains("cartan_tensor_matmul") {
             self.globals.push_str("declare ptr @cartan_tensor_matmul(ptr, ptr)\n");
         }
+        if !declared_externs.contains("cartan_tensor_matmul_dynamic") {
+            self.globals.push_str("declare ptr @cartan_tensor_matmul_dynamic(ptr, ptr)\n");
+        }
         if !declared_externs.contains("cartan_tensor_matmul_minkowski") {
             self.globals.push_str("declare ptr @cartan_tensor_matmul_minkowski(ptr, ptr)\n");
         }
@@ -750,12 +753,57 @@ impl LLVMGenerator {
                     self.output.push_str(&format!("{}:\n", unreachable));
                 }
             },
+            Stmt::Satisfy { condition, body, otherwise } => {
+                let start_label = self.next_label("satisfy_start_");
+                let end_label = self.next_label("satisfy_end_");
+                let otherwise_label = self.next_label("satisfy_otherwise_");
+
+                self.loop_labels.push((start_label.clone(), end_label.clone()));
+
+                self.output.push_str(&format!("  br label %{}\n", start_label));
+                self.output.push_str(&format!("{}:\n", start_label));
+
+                for stmt in &body.statements {
+                    self.visit_stmt(stmt);
+                }
+                
+                let cond_reg = self.visit_expr(condition).unwrap_or("0.0".to_string());
+                let clean_cond = cond_reg.split(':').last().unwrap_or(&cond_reg).to_string();
+                let is_true = self.next_reg();
+                self.output.push_str(&format!("  {} = fcmp une float {}, 0.0\n", is_true, clean_cond));
+                self.output.push_str(&format!("  br i1 {}, label %{}, label %{}\n", is_true, end_label, otherwise_label));
+
+                self.output.push_str(&format!("{}:\n", otherwise_label));
+                if let Some(oth) = otherwise {
+                    for stmt in &oth.statements {
+                        self.visit_stmt(stmt);
+                    }
+                }
+                self.output.push_str(&format!("  br label %{}\n", start_label));
+                self.output.push_str(&format!("{}:\n", end_label));
+
+                self.loop_labels.pop();
+            },
+            Stmt::Backtrack => {
+                if let Some((cond_label, _)) = self.loop_labels.last() {
+                    self.output.push_str(&format!("  br label %{}\n", cond_label));
+                    let unreachable = self.next_label("unreachable_");
+                    self.output.push_str(&format!("{}:\n", unreachable));
+                }
+            },
             Stmt::Continue => {
                 if let Some((cond_label, _)) = self.loop_labels.last() {
                     self.output.push_str(&format!("  br label %{}\n", cond_label));
                     let unreachable = self.next_label("unreachable_");
                     self.output.push_str(&format!("{}:\n", unreachable));
                 }
+            },
+            Stmt::MeshBlock { name, strategy, body } => {
+                self.output.push_str(&format!("  ; --- Begin Mesh Block: {} (Supervisor: {}) ---\n", name, strategy));
+                for stmt in &body.statements {
+                    self.visit_stmt(stmt);
+                }
+                self.output.push_str(&format!("  ; --- End Mesh Block: {} ---\n", name));
             },
             _ => {}
         }
@@ -984,9 +1032,7 @@ impl LLVMGenerator {
             Expr::Placeholder(_) => {
                 Some("0.0".to_string())
             },
-            Expr::Quote(_) => {
-                Some("0.0".to_string())
-            },
+
             Expr::Integer(i) => {
                 Some(format!("{}", i))
             },
@@ -1034,7 +1080,7 @@ impl LLVMGenerator {
                         "+" => "cartan_tensor_add",
                         "-" => "cartan_tensor_sub",
                         "*" => "cartan_tensor_mul",
-                        "@" => "cartan_tensor_matmul",
+                        "@" => "cartan_tensor_matmul_dynamic",
                         _ => "cartan_tensor_add", // fallback
                     };
                     
@@ -1111,11 +1157,15 @@ impl LLVMGenerator {
                     _ => return None,
                 }
             },
-            Expr::FusedKernel(exprs) => {
+            Expr::FusedKernel(block) => {
                 self.output.push_str("  ; --- Begin Fused Kernel ---\n");
                 let mut last_reg = None;
-                for expr in exprs {
-                    last_reg = self.visit_expr(expr);
+                for s in &block.statements {
+                    if let crate::ast::Stmt::Expr(e) = s {
+                        last_reg = self.visit_expr(e);
+                    } else {
+                        self.visit_stmt(s);
+                    }
                 }
                 self.output.push_str("  ; --- End Fused Kernel ---\n");
                 last_reg
@@ -1517,6 +1567,13 @@ impl LLVMGenerator {
                 self.output.push_str(&format!("  {} = call ptr @cartan_geometric_bridge(ptr {}, ptr {})\n", res, reg_a, reg_b));
                 Some(res)
             },
+            Expr::Transpose(inner) => {
+                let inner_val = self.visit_expr(inner)?.replace("ptr:", "");
+                let reg = self.next_reg();
+                self.output.push_str(&format!("  {} = call ptr @cartan_tensor_transpose(ptr {})
+", reg, inner_val));
+                Some(format!("ptr:{}", reg))
+            },
             Expr::TransposeWeights(a, b) => {
                 self.output.push_str("  ; --- Transpose Weights ---\n");
                 let reg_a = self.visit_expr(a).unwrap_or("%0".to_string());
@@ -1545,12 +1602,20 @@ impl LLVMGenerator {
                 self.output.push_str(&format!("  {} = call ptr @cartan_reflect_repo()\n", res));
                 Some(res)
             },
+            Expr::Quote(block) => {
+                let stmt_count = block.statements.len();
+                let reg = self.next_reg();
+                self.output.push_str(&format!("  {} = call ptr @cartan_tensor_alloc(i32 1, i32 {})\n", reg, stmt_count));
+                Some(format!("ptr:{}", reg))
+            },
             Expr::HotSwap(target, new_graph) => {
                 self.output.push_str("  ; --- Hot Swap ---\n");
                 let target_reg = self.visit_expr(target).unwrap_or("null".to_string());
+                let clean_t = target_reg.split(':').last().unwrap_or(&target_reg).to_string();
                 let new_graph_reg = self.visit_expr(new_graph).unwrap_or("%0".to_string());
+                let clean_n = new_graph_reg.split(':').last().unwrap_or(&new_graph_reg).to_string();
                 self.output.push_str("  ; Try-Catch Sandbox Safety Boundary\n");
-                self.output.push_str(&format!("  call void @cartan_sandbox_hot_swap(ptr {}, ptr {})\n", target_reg, new_graph_reg));
+                self.output.push_str(&format!("  call void @cartan_sandbox_hot_swap(ptr {}, ptr {})\n", clean_t, clean_n));
                 Some(String::new())
             },
             Expr::SpikePrimitive => {

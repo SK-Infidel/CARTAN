@@ -1,17 +1,5 @@
-macro replace_block {
-    pattern {
-        $x = $block;
-    }
-    replace {
-        $block;
-    }
-}
+let x = 5.0;
 
-fn main() {
-    let a = 1.0;
-    
-    a = quote {
-        a = a + 1.0;
-        a = a * 2.0;
-    };
-}
+let blueprint = quote {
+    let y = x * 2.0;
+};

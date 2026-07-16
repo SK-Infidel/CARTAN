@@ -119,7 +119,7 @@ pub enum Expr {
     DictionaryDecl {
         pairs: Vec<(Expr, Expr)>,
     },
-    FusedKernel(Vec<Expr>),
+    FusedKernel(BlockStmt),
     Attention {
         target: Box<Expr>,
         routing: String,
@@ -259,6 +259,17 @@ pub enum Stmt {
         name: String,
         body: BlockStmt,
     },
+    MeshBlock {
+        name: String,
+        strategy: String,
+        body: BlockStmt,
+    },
+    Satisfy {
+        condition: Expr,
+        body: BlockStmt,
+        otherwise: Option<BlockStmt>,
+    },
+    Backtrack,
     TopologyDecl {
         name: String,
         body: BlockStmt,

@@ -63,6 +63,22 @@ impl AutoDiffPass {
                                         new_statements.push(self.create_grad_update_mul(&format!("d_{}", r), &d_target, left));
                                     }
                                 },
+                                "-" => {
+                                    if let Expr::Identifier(l) = left {
+                                        new_statements.push(self.create_grad_update(&format!("d_{}", l), &d_target));
+                                    }
+                                    if let Expr::Identifier(r) = right {
+                                        new_statements.push(self.create_grad_update_neg(&format!("d_{}", r), &d_target));
+                                    }
+                                },
+                                "/" => {
+                                    if let Expr::Identifier(l) = left {
+                                        new_statements.push(self.create_grad_update_div(&format!("d_{}", l), &d_target, right));
+                                    }
+                                    if let Expr::Identifier(r) = right {
+                                        new_statements.push(self.create_grad_update_div_right(&format!("d_{}", r), &d_target, left, right));
+                                    }
+                                },
                                 "@" => {
                                     if let Expr::Identifier(l) = left {
                                         new_statements.push(self.create_grad_update_matmul_left(&format!("d_{}", l), &d_target, right));
@@ -91,8 +107,8 @@ impl AutoDiffPass {
 
     fn track_forward_op(&mut self, target: &str, value: &Expr) {
         let mut inner_val = value;
-        if let Expr::FusedKernel(exprs) = value {
-            if let Some(first) = exprs.first() {
+        if let Expr::FusedKernel(block) = value {
+            if let Some(crate::ast::Stmt::Expr(first)) = block.statements.first() {
                 inner_val = first;
             }
         }
@@ -107,6 +123,57 @@ impl AutoDiffPass {
             name: grad_name.to_string(),
             is_const: false,
             value: Expr::Identifier(upstream.to_string()),
+        }
+    }
+
+    fn create_grad_update_neg(&self, grad_name: &str, upstream: &str) -> Stmt {
+        Stmt::VarDecl {
+            name: grad_name.to_string(),
+            is_const: false,
+            value: Expr::BinaryOp {
+                left: Box::new(Expr::Identifier(upstream.to_string())),
+                op: "*".to_string(),
+                right: Box::new(Expr::Float(-1.0)),
+            }
+        }
+    }
+
+    fn create_grad_update_div(&self, grad_name: &str, upstream: &str, var: &Expr) -> Stmt {
+        Stmt::VarDecl {
+            name: grad_name.to_string(),
+            is_const: false,
+            value: Expr::BinaryOp {
+                left: Box::new(Expr::Identifier(upstream.to_string())),
+                op: "/".to_string(),
+                right: Box::new(var.clone()),
+            }
+        }
+    }
+
+    fn create_grad_update_div_right(&self, grad_name: &str, upstream: &str, l_var: &Expr, r_var: &Expr) -> Stmt {
+        let neg_upstream = Expr::BinaryOp {
+            left: Box::new(Expr::Identifier(upstream.to_string())),
+            op: "*".to_string(),
+            right: Box::new(Expr::Float(-1.0)),
+        };
+        let num = Expr::BinaryOp {
+            left: Box::new(neg_upstream),
+            op: "*".to_string(),
+            right: Box::new(l_var.clone()),
+        };
+        let denom = Expr::BinaryOp {
+            left: Box::new(r_var.clone()),
+            op: "*".to_string(),
+            right: Box::new(r_var.clone()),
+        };
+        Stmt::VarDecl {
+            name: grad_name.to_string(),
+            is_const: false,
+            value: Expr::BinaryOp {
+                left: Box::new(num),
+                op: "/".to_string(),
+                right: Box::new(denom),
+            }
         }
     }
 
@@ -148,7 +215,7 @@ impl AutoDiffPass {
 
     fn visit_stmt(&mut self, stmt: &mut Stmt) {
         match stmt {
-            Stmt::Block(block) | Stmt::AsyncCompute(block) => {
+            Stmt::Block(block) | Stmt::MeshBlock { body: block, .. } | Stmt::AsyncCompute(block) => {
                 self.visit_block_statements(&mut block.statements);
             },
             Stmt::FunctionDecl(decl) => {

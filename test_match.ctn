@@ -1,0 +1,12 @@
+let x = "visual";
+match (x) {
+    "visual" => {
+        let a = 1.0;
+    },
+    "audio" => {
+        let b = 2.0;
+    },
+    _ => {
+        let c = 3.0;
+    }
+}

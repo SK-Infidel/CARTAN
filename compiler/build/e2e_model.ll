@@ -5,74 +5,86 @@ target triple = "x86_64-pc-windows-msvc"
 
 
 
-define dso_local dllexport void @start_model_stitching(ptr %arg_donor, ptr %arg_llama, ptr %arg_local_v) {
+define dso_local dllexport void @signal_agent() {
 entry:
-  %1 = alloca ptr, align 4
-  store ptr %arg_donor, ptr %1, align 4
-  %2 = alloca ptr, align 4
-  store ptr %arg_llama, ptr %2, align 4
-  %3 = alloca ptr, align 4
-  store ptr %arg_local_v, ptr %3, align 4
-  %4 = load ptr, ptr %1, align 8
-  call void @cartan_absorb_weights(ptr @.str.0, ptr %4)
-  %5 = load ptr, ptr %2, align 8
-  %6 = load ptr, ptr %3, align 8
-  call void @cartan_project_vocab(ptr %5, ptr %6)
+  %1 = alloca float, align 4
+  store float 1.000000, ptr %1, align 4
   ret void
 }
 
-define dso_local dllexport ptr @get_status() {
+define void @process_stream(float %arg_stream_type) {
 entry:
-  %7 = fptoui float 0x3FF0000000000000 to i64
-  %8 = inttoptr i64 %7 to ptr
-  ret ptr %8
-unreachable_1:
-  ret ptr null
+  %2 = alloca float, align 4
+  store float %arg_stream_type, ptr %2, align 4
+  %3 = load float, ptr %2, align 4
+  %4 = fcmp oeq float %3, 1.000000
+  br i1 %4, label %match_arm_2, label %match_next_3
+match_arm_2:
+  %5 = call ptr @cartan_tensor_alloc_nd(i32 2, i32 4, i32 4, i32 1, i32 1)
+  %6 = alloca ptr, align 8
+  store ptr %5, ptr %6, align 8
+  %7 = load ptr, ptr %6, align 8
+  %8 = ptrtoint ptr %7 to i64
+  %9 = sitofp i64 %8 to float
+  %10 = alloca float, align 4
+  store float 0.0, ptr %10, align 4
+  ; --- Begin Backward Pass ---
+  %11 = load float, ptr %10, align 4
+  ; --- End Backward Pass ---
+  call void @signal_agent()
+  br label %match_end_1
+match_next_3:
+  br label %match_arm_4
+match_arm_4:
+  %12 = alloca float, align 4
+  store float 1.000000, ptr %12, align 4
+  br label %match_end_1
+match_next_5:
+  br label %match_end_1
+match_end_1:
+  ret void
 }
 
 define i32 @main(i32 %argc, ptr %argv) {
 entry:
   store i32 %argc, ptr @global_argc, align 4
   store ptr %argv, ptr @global_argv, align 8
-  %9 = call ptr @cartan_alloc_parameter_adam_nd(i32 2, i32 1024, i32 1024, i32 1, i32 1)
-  %10 = alloca ptr, align 8
-  store ptr %9, ptr %10, align 8
-  %11 = call ptr @cartan_alloc_parameter_adam_nd(i32 2, i32 1024, i32 1024, i32 1, i32 1)
-  %12 = alloca ptr, align 8
-  store ptr %11, ptr %12, align 8
-  %13 = call ptr @cartan_tensor_alloc_nd(i32 2, i32 32000, i32 1024, i32 1, i32 1)
+  %13 = call ptr @cartan_alloc_block(i32 128)
   %14 = alloca ptr, align 8
   store ptr %13, ptr %14, align 8
-  %15 = call ptr @cartan_tensor_alloc_nd(i32 2, i32 32000, i32 1024, i32 1, i32 1)
+  %15 = call ptr @cartan_alloc_parameter_adam_nd(i32 2, i32 4, i32 4, i32 1, i32 1)
   %16 = alloca ptr, align 8
   store ptr %15, ptr %16, align 8
-  %17 = load ptr, ptr %10, align 8
-  %18 = load ptr, ptr %14, align 8
-  %19 = load ptr, ptr %16, align 8
-  call void @start_model_stitching(ptr %17, ptr %18, ptr %19)
-  %20 = call ptr @get_status()
-  %21 = alloca ptr, align 8
-  store ptr %20, ptr %21, align 8
+  %17 = call ptr @cartan_alloc_sequence(i32 128)
+  %18 = alloca ptr, align 8
+  store ptr %17, ptr %18, align 8
+  call void @process_stream(float 1.000000)
   ret i32 0
 }
 
 declare ptr @malloc(i64)
 declare void @free(ptr)
-declare ptr @cartan_tensor_alloc(i32)
-declare ptr @cartan_tensor_alloc_nd(i32, i32, i32, i32, i32)
+declare i32 @strcmp(ptr, ptr)
+declare ptr @cartan_tensor_alloc(i32, i32)
+declare ptr @cartan_tensor_alloc_nd(i32, i32, i32, i32, i32, i32)
 declare ptr @cartan_tensor_add(ptr, ptr)
 declare ptr @cartan_tensor_sub(ptr, ptr)
 declare ptr @cartan_tensor_mul(ptr, ptr)
 declare ptr @cartan_tensor_matmul(ptr, ptr)
+declare ptr @cartan_tensor_matmul_dynamic(ptr, ptr)
 declare ptr @cartan_tensor_matmul_minkowski(ptr, ptr)
 declare ptr @cartan_tensor_matmul_poincare(ptr, ptr)
 declare void @cartan_tensor_backward(ptr)
 declare void @cartan_tensor_print(ptr)
 declare void @cartan_tensor_step(float)
 declare float @cartan_file_read_tokens(ptr, float, ptr)
+declare float @cartan_net_fetch_tokens(ptr, ptr)
 declare float @cartan_file_read_batch(ptr, ptr, float, ptr)
 declare float @cartan_tensor_mse_loss(ptr, ptr)
 declare float @cartan_tensor_cross_entropy_loss(ptr, ptr)
+declare float @cartan_tensor_spherical_cosine_loss(ptr, ptr)
+declare float @cartan_tensor_finsler_randers_loss(ptr, ptr)
+declare float @cartan_tensor_betti_homology_loss(ptr, ptr)
 declare ptr @cartan_tensor_embed(ptr, ptr)
 declare void @cartan_emit_spike(float)
 declare ptr @cartan_init_elastic_vocabulary()
@@ -81,13 +93,24 @@ declare ptr @cartan_init_fractal_attention()
 declare ptr @cartan_stream_init(ptr, ptr)
 declare ptr @cartan_init_spike()
 declare ptr @cartan_init_neuron()
+declare ptr @cartan_tensor_graft(ptr)
+declare ptr @cartan_tensor_translation_barrier(ptr, ptr)
 declare ptr @cartan_alloc_parameter_adam(i32)
 declare ptr @cartan_alloc_parameter_adam_nd(i32, i32, i32, i32, i32)
 declare ptr @cartan_alloc_sequence(i32)
 declare ptr @cartan_alloc_block(i32)
+declare ptr @cartan_tensor_transpose(ptr)
+declare ptr @cartan_tensor_ones_like(ptr)
 declare void @cartan_absorb_weights(ptr, ptr)
 declare void @cartan_project_vocab(ptr, ptr)
-@.str.0 = private unnamed_addr constant [26 x i8] c"\70\61\74\68\2f\74\6f\2f\64\6f\6e\6f\72\5f\77\65\69\67\68\74\73\2e\62\69\6e\00", align 1
+declare ptr @cartan_tokenize_bpe(ptr, ptr)
+declare void @cartan_align_spans(ptr, ptr, ptr)
+declare void @cartan_free_compute_graph()
+declare void @cartan_fluid_precision_start(ptr, ptr)
+declare void @cartan_fluid_precision_end()
+declare void @cartan_sparsity_start(i32, float)
+declare void @cartan_sparsity_end()
+declare void @cartan_prune_graph(float)
 @global_argc = global i32 0, align 4
 @global_argv = global ptr null, align 8
 

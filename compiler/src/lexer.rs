@@ -43,9 +43,16 @@ impl Lexer {
         keywords.insert("in".to_string(), TokenType::In);
         keywords.insert("backward".to_string(), TokenType::Backward);
         keywords.insert("macro".to_string(), TokenType::Macro);
+        keywords.insert("mesh".to_string(), TokenType::Mesh);
+        keywords.insert("hotswap".to_string(), TokenType::HotSwap);
+        keywords.insert("satisfy".to_string(), TokenType::Satisfy);
+        keywords.insert("otherwise".to_string(), TokenType::Otherwise);
+        keywords.insert("backtrack".to_string(), TokenType::Backtrack);
+        keywords.insert("supervisor".to_string(), TokenType::Supervisor);
         keywords.insert("pattern".to_string(), TokenType::Pattern);
         keywords.insert("replace".to_string(), TokenType::Replace);
         keywords.insert("quote".to_string(), TokenType::Quote);
+        keywords.insert("fuse".to_string(), TokenType::Fuse);
         keywords.insert("async_compute".to_string(), TokenType::AsyncCompute);
         keywords.insert("SievingCache".to_string(), TokenType::SievingCache);
         keywords.insert("FractalAttentionBlock".to_string(), TokenType::FractalAttentionBlock);

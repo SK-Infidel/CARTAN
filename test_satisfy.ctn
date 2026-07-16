@@ -1,0 +1,8 @@
+let loss = 5.0;
+
+satisfy (loss - 0.0) {
+    let loss = 0.0;
+} otherwise {
+    let loss = loss - 1.0;
+    backtrack;
+}

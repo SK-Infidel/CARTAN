@@ -11,3 +11,7 @@ __pycache__/
 /runtime/zig-out/
 zig-windows-x86_64-0.13.0/
 compiler/target/
+
+tensor_runtime/target/
+*.lib
+

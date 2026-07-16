@@ -218,10 +218,14 @@ impl Evaluator {
             }
             Expr::MSELoss(_, _) => Value::Float(0.25),
             Expr::MethodCall { .. } => Value::Null,
-            Expr::FusedKernel(exprs) => {
+            Expr::FusedKernel(block) => {
                 let mut last_val = Value::Null;
-                for e in exprs {
-                    last_val = self.eval_expr(e);
+                for s in &block.statements {
+                    if let crate::ast::Stmt::Expr(e) = s {
+                        last_val = self.eval_expr(e);
+                    } else {
+                        self.eval_stmt(s);
+                    }
                 }
                 last_val
             },

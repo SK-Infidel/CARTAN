@@ -56,7 +56,16 @@ impl LivenessPass {
                 Stmt::Backward(expr) => {
                     self.visit_expr_usage(expr, self.current_idx);
                 },
-                Stmt::If { condition, true_block, false_block } => {
+                Stmt::Match { condition, arms } => {
+                self.visit_expr_usage(condition, self.current_idx);
+                for (pattern, body) in arms {
+                    if let Some(p) = pattern {
+                        self.visit_expr_usage(p, self.current_idx);
+                    }
+                    self.analyze_block(std::slice::from_ref(&**body));
+                }
+            },
+            Stmt::If { condition, true_block, false_block } => {
                     self.visit_expr_usage(condition, self.current_idx);
                     self.analyze_block(&true_block.statements);
                     if let Some(fb) = false_block {
@@ -80,7 +89,7 @@ impl LivenessPass {
                 Stmt::FunctionDecl(decl) => {
                     self.analyze_block(&decl.body.statements);
                 },
-                Stmt::Block(block) | Stmt::AsyncCompute(block) => {
+                Stmt::Block(block) | Stmt::MeshBlock { body: block, .. } | Stmt::AsyncCompute(block) => {
                     self.analyze_block(&block.statements);
                 },
                 Stmt::FluidPrecisionBlock { block, .. } => {
@@ -118,10 +127,8 @@ impl LivenessPass {
                     self.visit_expr_usage(arg, idx);
                 }
             },
-            Expr::FusedKernel(exprs) => {
-                for e in exprs {
-                    self.visit_expr_usage(e, idx);
-                }
+            Expr::FusedKernel(block) => {
+                self.analyze_block(&block.statements);
             },
             Expr::UnaryOp { right, .. } => {
                 self.visit_expr_usage(right, idx);
@@ -140,11 +147,15 @@ impl LivenessPass {
                 self.visit_expr_usage(a, self.current_idx);
                 self.visit_expr_usage(b, self.current_idx);
             },
+            Expr::Transpose(inner) => {
+                self.visit_expr_usage(inner, idx);
+            },
             Expr::TransposeWeights(a, b) => {
                 self.visit_expr_usage(a, self.current_idx);
                 self.visit_expr_usage(b, self.current_idx);
             },
             Expr::ReflectRepo => {},
+            Expr::Quote(_) => {},
             Expr::HotSwap(target, new_graph) => {
                 self.visit_expr_usage(target, self.current_idx);
                 self.visit_expr_usage(new_graph, self.current_idx);
@@ -214,7 +225,7 @@ impl LivenessPass {
                 Stmt::FunctionDecl(decl) => {
                     self.apply_slots_to_ast(&mut decl.body.statements, offsets);
                 },
-                Stmt::Block(block) | Stmt::AsyncCompute(block) => {
+                Stmt::Block(block) | Stmt::MeshBlock { body: block, .. } | Stmt::AsyncCompute(block) => {
                     self.apply_slots_to_ast(&mut block.statements, offsets);
                 },
                 Stmt::If { true_block, false_block, .. } => {

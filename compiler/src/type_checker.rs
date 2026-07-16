@@ -164,6 +164,15 @@ impl TypeChecker {
             },
 
             
+            Stmt::Match { condition, arms } => {
+                self.visit_expr(condition)?;
+                for (pattern, body) in arms {
+                    if let Some(p) = pattern {
+                        self.visit_expr(p)?;
+                    }
+                    self.visit_stmt(body)?;
+                }
+            },
             Stmt::If { condition, true_block, false_block } => {
                 let _cond_type = self.visit_expr(condition)?;
                 self.push_scope();
@@ -266,10 +275,14 @@ impl TypeChecker {
                 let value_type = self.visit_expr(value)?;
                 Ok(value_type)
             },
-            Expr::FusedKernel(exprs) => {
+            Expr::FusedKernel(block) => {
                 let mut last_type = CartanType::Unknown;
-                for e in exprs {
-                    last_type = self.visit_expr(e)?;
+                for s in &mut block.statements {
+                    if let crate::ast::Stmt::Expr(e) = s {
+                        last_type = self.visit_expr(e)?;
+                    } else {
+                        self.visit_stmt(s)?;
+                    }
                 }
                 Ok(last_type)
             },
@@ -299,6 +312,20 @@ impl TypeChecker {
                 self.visit_expr(b)?;
                 Ok(CartanType::Unknown)
             },
+            Expr::Transpose(inner) => {
+                let inner_type = self.visit_expr(inner)?;
+                match inner_type {
+                    CartanType::Tensor(dims, space, layout) => {
+                        let mut new_dims = dims.clone();
+                        if new_dims.len() >= 2 {
+                            let len = new_dims.len();
+                            new_dims.swap(len - 1, len - 2);
+                        }
+                        Ok(CartanType::Tensor(new_dims, space, layout))
+                    },
+                    _ => Ok(inner_type)
+                }
+            },
             Expr::TransposeWeights(a, b) => {
                 self.visit_expr(a)?;
                 self.visit_expr(b)?;
@@ -306,6 +333,12 @@ impl TypeChecker {
             },
             Expr::ReflectRepo => {
                 Ok(CartanType::Unknown)
+            },
+            Expr::Quote(block) => {
+                for stmt in &mut block.statements {
+                    self.visit_stmt(stmt)?;
+                }
+                Ok(CartanType::Tensor(vec![crate::types::Dimension::Fixed(0)], crate::ast::ManifoldSpace::Euclidean, None))
             },
             Expr::HotSwap(target, new_graph) => {
                 self.visit_expr(target)?;
@@ -317,7 +350,7 @@ impl TypeChecker {
             Expr::Attention { target, .. } => self.visit_expr(target),
             Expr::FunctionCall { name, args } => {
                 let mut arg_manifolds = Vec::new();
-                for arg in args {
+                for arg in args.iter_mut() {
                     let arg_type = self.visit_expr(arg)?;
                     if let CartanType::Tensor(_, m, _) = arg_type {
                         arg_manifolds.push(Some(m));
@@ -338,14 +371,18 @@ impl TypeChecker {
                     *name = mangled;
                 } else {
                     // Try to mangle based on what's available, or just leave it
-                    *name = mangled;
+                    *name = mangled.clone();
+                }
+                
+                if name.starts_with("ones_like") && args.len() == 1 {
+                    return Ok(self.visit_expr(&mut args[0])?);
                 }
                 
                 Ok(CartanType::Unknown)
             },
             Expr::MethodCall { object, method_name, args } => {
                 let obj_type = self.visit_expr(object)?;
-                for arg in args {
+                for arg in args.iter_mut() {
                     self.visit_expr(arg)?;
                 }
                 if let CartanType::Stream = obj_type {
@@ -358,9 +395,7 @@ impl TypeChecker {
             Expr::Placeholder(_) => {
                 Ok(CartanType::Unknown)
             },
-            Expr::Quote(_) => {
-                Ok(CartanType::Unknown)
-            },
+
             Expr::Identifier(name) => {
                 if name == "spike" {
                     return Ok(CartanType::Spike);
