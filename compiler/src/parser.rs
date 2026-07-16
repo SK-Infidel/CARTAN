@@ -69,6 +69,15 @@ impl Parser {
             is_agent_accessible = true;
         }
 
+        let mut is_lazy = false;
+        let mut is_unified = false;
+        let mut is_latent = false;
+        while self.check(&TokenType::Lazy) || self.check(&TokenType::Unified) || self.check(&TokenType::Latent) {
+            if self.match_token(&[TokenType::Lazy]) { is_lazy = true; }
+            if self.match_token(&[TokenType::Unified]) { is_unified = true; }
+            if self.match_token(&[TokenType::Latent]) { is_latent = true; }
+        }
+
         if self.match_token(&[TokenType::Macro]) {
             self.macro_declaration()
         } else if self.match_token(&[TokenType::Extern]) {
@@ -77,6 +86,8 @@ impl Parser {
             self.function_declaration(is_agent_accessible)
         } else if self.match_token(&[TokenType::Struct]) {
             self.struct_declaration()
+        } else if self.match_token(&[TokenType::Ptr]) {
+            self.var_declaration(false)
         } else if self.match_token(&[TokenType::Var]) {
             self.var_declaration(false)
         } else if self.match_token(&[TokenType::Let]) {
@@ -84,13 +95,29 @@ impl Parser {
         } else if self.match_token(&[TokenType::Const]) {
             self.var_declaration(true)
         } else if self.match_token(&[TokenType::Tensor]) {
-            self.tensor_declaration()
+            self.tensor_declaration(is_lazy, is_unified, is_latent)
+        } else if self.match_token(&[TokenType::Vector]) {
+            self.vector_declaration()
         } else if self.match_token(&[TokenType::Parameter]) {
             self.parameter_declaration()
         } else if self.match_token(&[TokenType::Sequence]) {
             self.sequence_declaration()
+        } else if self.match_token(&[TokenType::Struct]) {
+            self.struct_declaration()
+        } else if self.match_token(&[TokenType::Import]) {
+            self.import_declaration()
+        } else if self.match_token(&[TokenType::Pipeline]) {
+            self.pipeline_declaration()
+        } else if self.match_token(&[TokenType::Jit]) {
+            self.consume(TokenType::LBrace, "Expected '{' after 'jit'")?;
+            let body = self.block()?;
+            Ok(Stmt::JitBlock(body))
         } else if self.match_token(&[TokenType::Block]) {
             self.block_declaration()
+        } else if self.match_token(&[TokenType::Lattice]) {
+            self.lattice_declaration()
+        } else if self.match_token(&[TokenType::Tree]) {
+            self.tree_declaration()
         } else if self.match_token(&[TokenType::Manifold]) {
             self.manifold_declaration()
         } else if self.match_token(&[TokenType::Mesh]) {
@@ -108,6 +135,40 @@ impl Parser {
             self.consume(TokenType::LBrace, "Expected '{' after mesh supervisor")?;
             let body = self.block()?;
             Ok(Stmt::MeshBlock { name, strategy, body })
+        } else if self.match_token(&[TokenType::Multimodal]) {
+            self.consume(TokenType::LBrace, "Expected '{' after 'multimodal'")?;
+            let body = self.block()?;
+            Ok(Stmt::MultimodalBlock { body })
+        } else if self.match_token(&[TokenType::Vmap]) {
+            self.consume(TokenType::LBrace, "Expected '{' after 'vmap'")?;
+            let body = self.block()?;
+            Ok(Stmt::VmapBlock { body })
+        } else if self.match_token(&[TokenType::Doubt]) {
+            self.consume(TokenType::LBrace, "Expected '{' after 'doubt'")?;
+            let body = self.block()?;
+            Ok(Stmt::DoubtBlock { body })
+        } else if self.match_token(&[TokenType::Chain]) {
+            self.consume(TokenType::LBrace, "Expected '{' after 'chain'")?;
+            let body = self.block()?;
+            Ok(Stmt::ChainBlock { body })
+        } else if self.match_token(&[TokenType::Route]) {
+            self.consume(TokenType::LBrace, "Expected '{' after 'route'")?;
+            let body = self.block()?;
+            Ok(Stmt::RouteBlock { body })
+        } else if self.match_token(&[TokenType::Grok]) {
+            self.consume(TokenType::LBrace, "Expected '{' after 'grok'")?;
+            let body = self.block()?;
+            Ok(Stmt::GrokBlock { body })
+        } else if self.match_token(&[TokenType::Override]) {
+            self.consume(TokenType::LBrace, "Expected '{' after 'override'")?;
+            let body = self.block()?;
+            Ok(Stmt::OverrideBlock { body })
+        } else if self.match_token(&[TokenType::Tool]) {
+            if let Stmt::FunctionDecl(decl) = self.function_declaration(false)? {
+                Ok(Stmt::ToolDecl(decl))
+            } else {
+                Err(Diagnostic::error("Expected function declaration after 'tool'", self.peek().span))
+            }
         } else if self.match_token(&[TokenType::Topology]) {
             self.topology_declaration()
         } else if self.match_token(&[TokenType::Stream]) {
@@ -132,13 +193,24 @@ impl Parser {
     }
 
     fn import_declaration(&mut self) -> Result<Stmt, Diagnostic> {
-        let path_token = self.consume(TokenType::StringLiteral(String::new()), "Expected string literal for import path")?;
+        let path_token = self.consume(TokenType::StringLiteral(String::new()), "Expected string literal for import path/uri")?;
         let path = match path_token.token_type.clone() {
             TokenType::StringLiteral(s) => s,
-            _ => return Err(Diagnostic::error("Expected string literal for import path", path_token.span)),
+            _ => return Err(Diagnostic::error("Expected string literal for import path/uri", path_token.span)),
         };
-        self.consume(TokenType::Semicolon, "Expected ';' after import path")?;
-        Ok(Stmt::Import { filepath: path })
+        
+        if self.match_token(&[TokenType::As]) {
+            let alias_token = self.consume(TokenType::Identifier("".to_string()), "Expected alias after 'as'")?.clone();
+            let alias = match alias_token.token_type {
+                TokenType::Identifier(s) => s,
+                _ => return Err(Diagnostic::error("Expected alias identifier", alias_token.span)),
+            };
+            self.consume(TokenType::Semicolon, "Expected ';' after import statement")?;
+            Ok(Stmt::ImportModel { uri: path, alias })
+        } else {
+            self.consume(TokenType::Semicolon, "Expected ';' after import path")?;
+            Ok(Stmt::Import { filepath: path })
+        }
     }
 
     fn manifold_declaration(&mut self) -> Result<Stmt, Diagnostic> {
@@ -163,13 +235,63 @@ impl Parser {
         Ok(Stmt::TopologyDecl { name, body })
     }
     
-    fn tensor_declaration(&mut self) -> Result<Stmt, Diagnostic> {
+    fn tensor_declaration(&mut self, is_lazy: bool, is_unified: bool, is_latent: bool) -> Result<Stmt, Diagnostic> {
         let name_token = self.consume(TokenType::Identifier("".to_string()), "Expected tensor name")?.clone();
         let name = match name_token.token_type {
             TokenType::Identifier(s) => s,
             _ => return Err(Diagnostic::error("Expected tensor name", name_token.span)),
         };
-        self.tensor_declaration_with_name(name, false, None)
+        self.tensor_declaration_with_name(name, false, None, is_lazy, is_unified, is_latent)
+    }
+
+    fn vector_declaration(&mut self) -> Result<Stmt, Diagnostic> {
+        let name_token = self.consume(TokenType::Identifier("".to_string()), "Expected vector name")?.clone();
+        let name = match name_token.token_type {
+            TokenType::Identifier(s) => s,
+            _ => return Err(Diagnostic::error("Expected vector name", name_token.span)),
+        };
+
+        self.consume(TokenType::LBracket, "Expected '[' after vector name")?;
+        
+        let mut data_type = None;
+        let mut dim_expr = None;
+
+        // If the first thing is an identifier followed by a comma, it's the data type (e.g. f32, 16)
+        if let TokenType::Identifier(ref dt) = self.peek().token_type {
+            let next_is_comma = if self.current + 1 < self.tokens.len() {
+                self.tokens[self.current + 1].token_type == TokenType::Comma
+            } else {
+                false
+            };
+            if next_is_comma {
+                data_type = Some(dt.clone());
+                self.advance(); // consume identifier
+                self.advance(); // consume comma
+            }
+        }
+
+        dim_expr = Some(self.expression()?);
+        
+        self.consume(TokenType::RBracket, "Expected ']' after vector dimension")?;
+
+        let mut space = crate::ast::VectorSpace::AmbientEuclidean;
+        if self.match_token(&[TokenType::At]) {
+            let anchor_token = self.consume(TokenType::Identifier("".to_string()), "Expected anchor variable name after 'at'")?.clone();
+            let anchor_name = match anchor_token.token_type {
+                TokenType::Identifier(s) => s,
+                _ => return Err(Diagnostic::error("Expected anchor variable name", anchor_token.span)),
+            };
+            space = crate::ast::VectorSpace::TangentSpace { anchor: anchor_name };
+        }
+
+        self.consume(TokenType::Semicolon, "Expected ';' after vector declaration")?;
+
+        Ok(Stmt::VectorDecl {
+            name,
+            data_type,
+            dim: dim_expr.unwrap(),
+            space,
+        })
     }
 
     fn sequence_declaration(&mut self) -> Result<Stmt, Diagnostic> {
@@ -198,6 +320,42 @@ impl Parser {
         Ok(Stmt::BlockDecl { name, size })
     }
 
+    fn lattice_declaration(&mut self) -> Result<Stmt, Diagnostic> {
+        let name_token = self.consume(TokenType::Identifier("".to_string()), "Expected lattice name")?.clone();
+        let name = match name_token.token_type {
+            TokenType::Identifier(s) => s,
+            _ => return Err(Diagnostic::error("Expected lattice name", name_token.span)),
+        };
+        self.consume(TokenType::LBracket, "Expected '[' after lattice name")?;
+        let lattice_type_token = self.consume(TokenType::Identifier("".to_string()), "Expected lattice type (e.g. E8, Boolean)")?.clone();
+        let lattice_type = match lattice_type_token.token_type {
+            TokenType::Identifier(s) => s,
+            _ => return Err(Diagnostic::error("Expected lattice type", lattice_type_token.span)),
+        };
+        self.consume(TokenType::Comma, "Expected ',' after lattice type")?;
+        let dim = self.expression()?;
+        self.consume(TokenType::RBracket, "Expected ']' after lattice dimension")?;
+        self.consume(TokenType::Semicolon, "Expected ';' after lattice declaration")?;
+        Ok(Stmt::LatticeDecl { name, lattice_type, dim })
+    }
+
+    fn tree_declaration(&mut self) -> Result<Stmt, Diagnostic> {
+        let name_token = self.consume(TokenType::Identifier("".to_string()), "Expected tree name")?.clone();
+        let name = match name_token.token_type {
+            TokenType::Identifier(s) => s,
+            _ => return Err(Diagnostic::error("Expected tree name", name_token.span)),
+        };
+        self.consume(TokenType::Less, "Expected '<' after tree name")?;
+        let element_type_token = self.consume(TokenType::Identifier("".to_string()), "Expected tree element type (e.g. tensor)")?.clone();
+        let element_type = match element_type_token.token_type {
+            TokenType::Identifier(s) => s,
+            _ => return Err(Diagnostic::error("Expected tree element type", element_type_token.span)),
+        };
+        self.consume(TokenType::Greater, "Expected '>' after tree element type")?;
+        self.consume(TokenType::Semicolon, "Expected ';' after tree declaration")?;
+        Ok(Stmt::TreeDecl { name, element_type })
+    }
+
     fn parameter_declaration(&mut self) -> Result<Stmt, Diagnostic> {
         let mut optimizer = None;
         if self.match_token(&[TokenType::LBracket]) {
@@ -215,10 +373,10 @@ impl Parser {
             TokenType::Identifier(s) => s,
             _ => return Err(Diagnostic::error("Expected parameter name", name_token.span)),
         };
-        self.tensor_declaration_with_name(name, true, optimizer)
+        self.tensor_declaration_with_name(name, true, optimizer, false, false, false)
     }
 
-    fn tensor_declaration_with_name(&mut self, name: String, is_parameter: bool, optimizer: Option<crate::ast::OptimizerState>) -> Result<Stmt, Diagnostic> {
+    fn tensor_declaration_with_name(&mut self, name: String, is_parameter: bool, optimizer: Option<crate::ast::OptimizerState>, is_lazy: bool, is_unified: bool, is_latent: bool) -> Result<Stmt, Diagnostic> {
         self.consume(TokenType::LBracket, "Expected '[' after tensor name for shape")?;
         
         let mut shape = Vec::new();
@@ -251,11 +409,8 @@ impl Parser {
 
 
 
-        if let TokenType::Identifier(s) = &self.peek().token_type.clone() {
-            if s == "under" {
-                self.advance();
-                self.consume(TokenType::Identifier("".to_string()), "Expected precision type after 'under'")?;
-            }
+        if self.match_token(&[TokenType::Under]) {
+            self.consume(TokenType::Identifier("".to_string()), "Expected precision type after 'under'")?;
         }
         
         let mut layout = None;
@@ -334,6 +489,9 @@ impl Parser {
                 layout,
                 location,
                 backend,
+                is_lazy,
+                is_unified,
+                is_latent,
             })
         }
     }
@@ -349,6 +507,28 @@ impl Parser {
     }
 
 
+
+
+    fn pipeline_declaration(&mut self) -> Result<Stmt, Diagnostic> {
+        let name_token = self.consume(TokenType::Identifier("".to_string()), "Expected pipeline name")?.clone();
+        let name = match name_token.token_type {
+            TokenType::Identifier(s) => s,
+            _ => return Err(Diagnostic::error("Expected pipeline name", name_token.span)),
+        };
+
+        self.consume(TokenType::LBrace, "Expected '{' before pipeline body")?;
+        let mut layers = Vec::new();
+        while !self.check(&TokenType::RBrace) && !self.is_at_end() {
+            layers.push(self.expression()?);
+            if !self.check(&TokenType::RBrace) {
+                self.consume(TokenType::Comma, "Expected ',' between pipeline layers")?;
+            }
+        }
+        self.consume(TokenType::RBrace, "Expected '}' after pipeline body")?;
+        
+        Ok(Stmt::PipelineDecl { name, layers })
+    }
+
     fn struct_declaration(&mut self) -> Result<Stmt, Diagnostic> {
         let name_token = self.consume(TokenType::Identifier("".to_string()), "Expected struct name")?.clone();
         let name = match name_token.token_type {
@@ -360,7 +540,31 @@ impl Parser {
         
         let mut fields = Vec::new();
         while !self.check(&TokenType::RBrace) && !self.is_at_end() {
-            fields.push(self.declaration()?);
+            let field_name_token = self.consume(TokenType::Identifier("".to_string()), "Expected field name")?.clone();
+            let field_name = match field_name_token.token_type {
+                TokenType::Identifier(s) => s,
+                _ => return Err(Diagnostic::error("Expected field name", field_name_token.span)),
+            };
+            self.consume(TokenType::Colon, "Expected ':' after field name")?;
+            let mut type_name = String::new();
+            if self.match_token(&[TokenType::Tree]) {
+                type_name.push_str("tree");
+                if self.match_token(&[TokenType::Less]) {
+                    type_name.push('<');
+                    let inner = self.consume(TokenType::Identifier("".to_string()), "Expected inner type for tree")?.clone();
+                    if let TokenType::Identifier(s) = inner.token_type { type_name.push_str(&s); }
+                    self.consume(TokenType::Greater, "Expected '>' for tree type")?;
+                    type_name.push('>');
+                }
+            } else {
+                let type_token = self.consume(TokenType::Identifier("".to_string()), "Expected type name")?.clone();
+                match type_token.token_type {
+                    TokenType::Identifier(s) => type_name = s,
+                    _ => return Err(Diagnostic::error("Expected type name", type_token.span)),
+                }
+            }
+            self.consume(TokenType::Semicolon, "Expected ';' after field declaration")?;
+            fields.push(Stmt::FieldDecl { name: field_name, type_name });
         }
         
         self.consume(TokenType::RBrace, "Expected '}' after struct body")?;
@@ -392,6 +596,41 @@ impl Parser {
             pattern,
             replace,
         }))
+    }
+
+    fn parse_type_string(&mut self) -> Result<String, Diagnostic> {
+        if self.match_token(&[TokenType::Tensor]) {
+            return Ok("tensor".to_string());
+        }
+        if self.match_token(&[TokenType::Sequence]) {
+            return Ok("sequence".to_string());
+        }
+        if self.match_token(&[TokenType::Tree]) {
+            let mut ty = "tree".to_string();
+            if self.match_token(&[TokenType::Less]) {
+                ty.push('<');
+                let inner = match self.consume(TokenType::Identifier("".to_string()), "Expected inner type parameter")?.token_type.clone() {
+                    TokenType::Identifier(s) => s,
+                    _ => "".to_string(),
+                };
+                ty.push_str(&inner);
+                self.consume(TokenType::Greater, "Expected '>' after type parameter")?;
+                ty.push('>');
+            }
+            return Ok(ty);
+        }
+        
+        let token = self.peek().clone();
+        match &token.token_type {
+            TokenType::Identifier(s) => {
+                let ty = s.clone();
+                self.advance();
+                Ok(ty)
+            },
+            _ => {
+                Err(Diagnostic::error("Expected parameter type", token.span))
+            }
+        }
     }
 
     fn function_declaration(&mut self, is_agent_accessible: bool) -> Result<Stmt, Diagnostic> {
@@ -443,26 +682,7 @@ impl Parser {
                 };
                 self.consume(TokenType::Colon, "Expected ':' after parameter name")?;
                 
-                let mut p_shape = Vec::new();
-                let p_type = if self.match_token(&[TokenType::Tensor]) {
-                    if self.match_token(&[TokenType::LBracket]) {
-                        if !self.check(&TokenType::RBracket) {
-                            loop {
-                                p_shape.push(self.expression()?);
-                                if !self.match_token(&[TokenType::Comma]) {
-                                    break;
-                                }
-                            }
-                        }
-                        self.consume(TokenType::RBracket, "Expected ']' after tensor shape in parameter")?;
-                    }
-                    "tensor".to_string()
-                } else {
-                    println!("Next token: {:?}", self.peek()); match self.consume(TokenType::Identifier("".to_string()), "Expected parameter type")?.token_type.clone() {
-                        TokenType::Identifier(s) => s,
-                        _ => "tensor".to_string(),
-                    }
-                };
+                let p_type = self.parse_type_string()?;
                 
                 let mut p_manifold = None;
                 if self.match_token(&[TokenType::In]) {
@@ -482,7 +702,7 @@ impl Parser {
                 parameters.push(Parameter {
                     name: p_name,
                     type_name: p_type,
-                    shape: p_shape,
+                    shape: Vec::new(),
                     manifold: p_manifold,
                     is_borrow,
                     is_mutable,
@@ -497,14 +717,7 @@ impl Parser {
 
         let mut return_type = None;
         if self.match_token(&[TokenType::Arrow]) {
-            if self.match_token(&[TokenType::Tensor]) {
-                return_type = Some("tensor".to_string());
-            } else {
-                return_type = match self.consume(TokenType::Identifier("".to_string()), "Expected return type")?.token_type.clone() {
-                    TokenType::Identifier(s) => Some(s),
-                    _ => None,
-                };
-            }
+            return_type = Some(self.parse_type_string()?);
         }
 
         self.consume(TokenType::LBrace, "Expected '{' before function body")?;
@@ -549,28 +762,7 @@ impl Parser {
                 };
                 self.consume(TokenType::Colon, "Expected ':' after parameter name")?;
                 
-                let mut p_shape = Vec::new();
-                let p_type = if self.match_token(&[TokenType::Tensor]) {
-                    if self.match_token(&[TokenType::LBracket]) {
-                        if !self.check(&TokenType::RBracket) {
-                            loop {
-                                p_shape.push(self.expression()?);
-                                if !self.match_token(&[TokenType::Comma]) {
-                                    break;
-                                }
-                            }
-                        }
-                        self.consume(TokenType::RBracket, "Expected ']' after tensor shape in parameter")?;
-                    }
-                    "tensor".to_string()
-                } else if self.match_token(&[TokenType::Sequence]) {
-                    "sequence".to_string()
-                } else {
-                    println!("Next token: {:?}", self.peek()); match self.consume(TokenType::Identifier("".to_string()), "Expected parameter type")?.token_type.clone() {
-                        TokenType::Identifier(s) => s,
-                        _ => "tensor".to_string(), // Default or error fallback
-                    }
-                };
+                let p_type = self.parse_type_string()?;
                 
                 let mut p_manifold = None;
                 if self.match_token(&[TokenType::In]) {
@@ -590,7 +782,7 @@ impl Parser {
                 parameters.push(Parameter {
                     name: p_name,
                     type_name: p_type,
-                    shape: p_shape,
+                    shape: Vec::new(),
                     manifold: p_manifold,
                     is_borrow,
                     is_mutable,
@@ -605,10 +797,7 @@ impl Parser {
 
         let mut return_type = None;
         if self.match_token(&[TokenType::Arrow]) {
-            return_type = match self.consume(TokenType::Identifier("".to_string()), "Expected return type")?.token_type.clone() {
-                TokenType::Identifier(s) => Some(s),
-                _ => None,
-            };
+            return_type = Some(self.parse_type_string()?);
         }
 
         self.consume(TokenType::Semicolon, "Expected ';' after extern function declaration")?;
@@ -629,10 +818,10 @@ impl Parser {
 
         let value = if self.match_token(&[TokenType::Eq]) {
             if self.match_token(&[TokenType::Tensor]) {
-                return self.tensor_declaration_with_name(name, false, None);
+                return self.tensor_declaration_with_name(name, false, None, false, false, false);
             }
             if self.match_token(&[TokenType::Parameter]) {
-                return self.tensor_declaration_with_name(name, true, None);
+                return self.tensor_declaration_with_name(name, true, None, false, false, false);
             }
             self.expression()?
         } else {
@@ -648,24 +837,31 @@ impl Parser {
         if self.match_token(&[TokenType::LBrace]) {
             Ok(Stmt::Block(self.block()?))
         } else if self.match_token(&[TokenType::While]) {
-            self.consume(TokenType::LParen, "Expected '(' after 'while'")?;
+            let has_paren = self.match_token(&[TokenType::LParen]);
             let condition = self.expression()?;
-            self.consume(TokenType::RParen, "Expected ')' after condition")?;
+            if has_paren {
+                self.consume(TokenType::RParen, "Expected ')' after while condition")?;
+            }
             self.consume(TokenType::LBrace, "Expected '{' after while condition")?;
             let body = self.block()?;
             Ok(Stmt::While { condition, body })
         } else if self.match_token(&[TokenType::If]) {
-            self.consume(TokenType::LParen, "Expected '(' after 'if'")?;
+            let has_paren = self.match_token(&[TokenType::LParen]);
             let condition = self.expression()?;
-            self.consume(TokenType::RParen, "Expected ')' after condition")?;
+            if has_paren {
+                self.consume(TokenType::RParen, "Expected ')' after if condition")?;
+            }
             self.consume(TokenType::LBrace, "Expected '{' after if condition")?;
             let true_block = self.block()?;
             let mut false_block = None;
             if self.match_token(&[TokenType::Else]) {
-                // To support `else if`, we would need more logic. 
-                // But simple `else { }` is what we have in AST for now.
-                self.consume(TokenType::LBrace, "Expected '{' after 'else'")?;
-                false_block = Some(self.block()?);
+                if self.check(&TokenType::If) {
+                    let if_stmt = self.statement()?;
+                    false_block = Some(BlockStmt { statements: vec![if_stmt] });
+                } else {
+                    self.consume(TokenType::LBrace, "Expected '{' after 'else'")?;
+                    false_block = Some(self.block()?);
+                }
             }
             Ok(Stmt::If { condition, true_block, false_block })
         } else if self.match_token(&[TokenType::Match]) {
@@ -846,7 +1042,7 @@ impl Parser {
     }
 
     fn assignment(&mut self) -> Result<Expr, Diagnostic> {
-        let expr = self.equality()?;
+        let expr = self.logical_or()?;
         if self.match_token(&[TokenType::Eq, TokenType::PlusEq, TokenType::MinusEq, TokenType::StarEq, TokenType::SlashEq]) {
             let op = self.previous().token_type.clone();
             let value = self.assignment()?;
@@ -864,6 +1060,26 @@ impl Parser {
                 target: Box::new(expr),
                 value: Box::new(final_value),
             });
+        }
+        Ok(expr)
+    }
+
+    fn logical_or(&mut self) -> Result<Expr, Diagnostic> {
+        let mut expr = self.logical_and()?;
+        while self.match_token(&[TokenType::Or]) {
+            let op = "||".to_string();
+            let right = self.logical_and()?;
+            expr = Expr::BinaryOp { left: Box::new(expr), op, right: Box::new(right) };
+        }
+        Ok(expr)
+    }
+
+    fn logical_and(&mut self) -> Result<Expr, Diagnostic> {
+        let mut expr = self.equality()?;
+        while self.match_token(&[TokenType::And]) {
+            let op = "&&".to_string();
+            let right = self.equality()?;
+            expr = Expr::BinaryOp { left: Box::new(expr), op, right: Box::new(right) };
         }
         Ok(expr)
     }
@@ -935,6 +1151,14 @@ impl Parser {
             let target = self.unary()?;
             return Ok(Expr::Attention { target: Box::new(target), routing: routing_val });
         }
+        if self.match_token(&[TokenType::Ampersand]) {
+            let right = self.unary()?;
+            return Ok(Expr::AddressOf(Box::new(right)));
+        }
+        if self.match_token(&[TokenType::Star]) {
+            let right = self.unary()?;
+            return Ok(Expr::Dereference(Box::new(right)));
+        }
         if self.match_token(&[TokenType::Not, TokenType::Minus]) {
             let op = self.previous().lexeme.clone();
             let right = self.unary()?;
@@ -991,6 +1215,28 @@ impl Parser {
                     _ => return Err(Diagnostic::error("Expected identifier", self.previous().span)),
                 };
                 if self.match_token(&[TokenType::LParen]) {
+                    if let Expr::Identifier(ref obj_name) = expr {
+                        if obj_name == "Cartan" && name == "parallel_transport" {
+                            let vector_expr = self.expression()?;
+                            self.consume(TokenType::Comma, "Expected ','")?;
+                            self.consume(TokenType::From, "Expected 'from'")?;
+                            self.consume(TokenType::Colon, "Expected ':'")?;
+                            let from_expr = self.expression()?;
+                            self.consume(TokenType::Comma, "Expected ','")?;
+                            self.consume(TokenType::To, "Expected 'to'")?;
+                            self.consume(TokenType::Colon, "Expected ':'")?;
+                            let to_expr = self.expression()?;
+                            self.consume(TokenType::RParen, "Expected ')' after parallel_transport")?;
+                            
+                            expr = Expr::ParallelTransport {
+                                vector: Box::new(vector_expr),
+                                from: Box::new(from_expr),
+                                to: Box::new(to_expr),
+                            };
+                            continue;
+                        }
+                    }
+
                     let mut args = Vec::new();
                     if !self.check(&TokenType::RParen) {
                         loop {
@@ -1054,6 +1300,66 @@ impl Parser {
 
     
     fn primary(&mut self) -> Result<Expr, Diagnostic> {
+        if self.match_token(&[TokenType::ImportOnnx]) {
+            self.consume(TokenType::LParen, "Expected '(' after import_onnx!")?;
+            let path = match self.consume(TokenType::StringLiteral("".to_string()), "Expected ONNX path")?.token_type.clone() {
+                TokenType::StringLiteral(s) => s,
+                _ => return Err(Diagnostic::error("Expected string literal", self.previous().span)),
+            };
+            self.consume(TokenType::RParen, "Expected ')'")?;
+            // Conceptual stub for ONNX import. We parse it as a function call to a built-in macro handler.
+            return Ok(Expr::FunctionCall {
+                name: "cartan_internal_import_onnx".to_string(),
+                args: vec![Expr::StringLiteral(path)]
+            });
+        }
+
+        if self.match_token(&[TokenType::Quantize]) {
+            self.consume(TokenType::LParen, "Expected '(' after quantize")?;
+            let target = self.expression()?;
+            self.consume(TokenType::Comma, "Expected ','")?;
+            let dtype = match self.consume(TokenType::Identifier("".to_string()), "Expected dtype (e.g. INT8)")?.token_type.clone() {
+                TokenType::Identifier(s) => s,
+                _ => return Err(Diagnostic::error("Expected dtype identifier", self.previous().span)),
+            };
+            self.consume(TokenType::RParen, "Expected ')'")?;
+            return Ok(Expr::Quantize { target: Box::new(target), dtype });
+        }
+
+        if self.match_token(&[TokenType::Grad, TokenType::Vmap]) {
+            let op = self.previous().lexeme.clone();
+            if self.check(&TokenType::LParen) {
+                self.consume(TokenType::LParen, "Expected '('")?;
+                let target = self.expression()?;
+                self.consume(TokenType::RParen, "Expected ')'")?;
+                return Ok(Expr::Transform { op, target: Box::new(target) });
+            } else {
+                return Ok(Expr::Identifier(op)); // Normal identifier fallback
+            }
+        }
+
+        if self.match_token(&[TokenType::ProjectVocab]) {
+            self.consume(TokenType::LParen, "Expected '(' after 'project_vocab'")?;
+            let source = self.expression()?;
+            self.consume(TokenType::Comma, "Expected ',' between arguments")?;
+            let target = self.expression()?;
+            self.consume(TokenType::RParen, "Expected ')'")?;
+            return Ok(Expr::ProjectVocab { source: Box::new(source), target: Box::new(target) });
+        }
+
+        if self.match_token(&[TokenType::WeightDecay]) {
+            self.consume(TokenType::LParen, "Expected '(' after 'weight_decay'")?;
+            let target = self.expression()?;
+            self.consume(TokenType::Comma, "Expected ',' between arguments")?;
+            let amount = match self.consume(TokenType::FloatLiteral(0.0), "Expected float literal for weight decay amount")?.token_type.clone() {
+                TokenType::FloatLiteral(f) => f,
+                TokenType::IntLiteral(i) => i as f64,
+                _ => return Err(Diagnostic::error("Expected float literal", self.peek().span)),
+            };
+            self.consume(TokenType::RParen, "Expected ')'")?;
+            return Ok(Expr::WeightDecay { target: Box::new(target), amount });
+        }
+
         if self.match_token(&[TokenType::Stream]) {
             let mut modalities = Vec::new();
             if self.match_token(&[TokenType::LBracket]) {
@@ -1130,6 +1436,27 @@ impl Parser {
         
         let token = self.advance().clone();
         match token.token_type {
+            TokenType::Search => {
+                self.consume(TokenType::LParen, "Expected '(' after 'search'")?;
+                let algorithm = match self.consume(TokenType::Identifier("".to_string()), "Expected algorithm name (e.g., MCTS)")?.token_type.clone() {
+                    TokenType::Identifier(s) => s,
+                    _ => return Err(Diagnostic::error("Expected identifier for algorithm", self.previous().span)),
+                };
+                self.consume(TokenType::Comma, "Expected ',' after algorithm")?;
+                let tree = self.expression()?;
+                
+                let mut state = None;
+                if self.match_token(&[TokenType::Comma]) {
+                    state = Some(Box::new(self.expression()?));
+                }
+                
+                self.consume(TokenType::RParen, "Expected ')' after search arguments")?;
+                Ok(Expr::TreeSearch {
+                    tree: Box::new(tree),
+                    algorithm,
+                    state,
+                })
+            },
             TokenType::HotSwap => {
                 self.consume(TokenType::LParen, "Expected '(' after hotswap")?;
                 let target = self.expression()?;
@@ -1138,10 +1465,49 @@ impl Parser {
                 self.consume(TokenType::RParen, "Expected ')' after hotswap arguments")?;
                 Ok(Expr::HotSwap(Box::new(target), Box::new(new_graph)))
             },
+            TokenType::Lazy => {
+                let expr = self.expression()?;
+                Ok(Expr::Lazy { expr: Box::new(expr) })
+            },
+            TokenType::PagedAttention => {
+                self.consume(TokenType::LParen, "Expected '(' after paged_attention")?;
+                let query = self.expression()?;
+                self.consume(TokenType::Comma, "Expected ','")?;
+                let key = self.expression()?;
+                self.consume(TokenType::Comma, "Expected ','")?;
+                let value = self.expression()?;
+                self.consume(TokenType::RParen, "Expected ')'")?;
+                Ok(Expr::PagedAttention {
+                    query: Box::new(query),
+                    key: Box::new(key),
+                    value: Box::new(value),
+                })
+            },
             TokenType::IntLiteral(n) => Ok(Expr::Integer(n)),
             TokenType::FloatLiteral(n) => Ok(Expr::Float(n)),
             TokenType::StringLiteral(s) => Ok(Expr::StringLiteral(s)),
-            TokenType::Identifier(s) => Ok(Expr::Identifier(s)),
+            TokenType::PromptLiteral(s) => Ok(Expr::PromptLiteral(s)),
+            TokenType::Identifier(s) => {
+                if self.match_token(&[TokenType::LBrace]) {
+                    let mut fields = Vec::new();
+                    while !self.check(&TokenType::RBrace) && !self.is_at_end() {
+                        let field_name = match self.consume(TokenType::Identifier("".to_string()), "Expected field name in struct init")?.token_type.clone() {
+                            TokenType::Identifier(id) => id,
+                            _ => return Err(Diagnostic::error("Expected identifier", self.previous().span)),
+                        };
+                        self.consume(TokenType::Colon, "Expected ':' after field name")?;
+                        let val = self.expression()?;
+                        fields.push((field_name, Box::new(val)));
+                        if !self.match_token(&[TokenType::Comma]) {
+                            break;
+                        }
+                    }
+                    self.consume(TokenType::RBrace, "Expected '}' after struct init")?;
+                    Ok(Expr::StructInit { name: s, fields })
+                } else {
+                    Ok(Expr::Identifier(s))
+                }
+            },
             TokenType::Placeholder(s) => Ok(Expr::Placeholder(s)),
             TokenType::Quote => {
                 self.consume(TokenType::LBrace, "Expected '{' after 'quote'")?;
