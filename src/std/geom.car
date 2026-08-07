@@ -1,0 +1,76 @@
+// src/std/geom.car
+// CARTAN Standard Library: Production-Grade 3D Spatial, Vector, Quaternion & Manifold Geometry Module
+
+include "constants.ch";
+include "math.car";
+
+mod geom {
+    fn dot_3d(x1: float, y1: float, z1: float, x2: float, y2: float, z2: float) -> float {
+        return x1 * x2 + y1 * y2 + z1 * z2;
+    }
+
+    fn cross_x(y1: float, z1: float, y2: float, z2: float) -> float {
+        return y1 * z2 - z1 * y2;
+    }
+
+    fn cross_y(x1: float, z1: float, x2: float, z2: float) -> float {
+        return z1 * x2 - x1 * z2;
+    }
+
+    fn cross_z(x1: float, y1: float, x2: float, y2: float) -> float {
+        return x1 * y2 - y1 * x2;
+    }
+
+    fn euclidean_distance(x1: float, y1: float, x2: float, y2: float) -> float {
+        let dx = x2 - x1;
+        let dy = y2 - y1;
+        return math::sqrt(dx * dx + dy * dy);
+    }
+
+    fn distance_3d(x1: float, y1: float, z1: float, x2: float, y2: float, z2: float) -> float {
+        let dx = x2 - x1;
+        let dy = y2 - y1;
+        let dz = z2 - z1;
+        return math::sqrt(dx * dx + dy * dy + dz * dz);
+    }
+
+    fn hyperbolic_distance(u1: float, u2: float) -> float {
+        let du = u2 - u1;
+        return math::log(1.0 + math::abs(du));
+    }
+
+    fn quaternion_norm(w: float, x: float, y: float, z: float) -> float {
+        return math::sqrt(w * w + x * x + y * y + z * z);
+    }
+
+    fn quaternion_mul_w(w1: float, x1: float, y1: float, z1: float, w2: float, x2: float, y2: float, z2: float) -> float {
+        return w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2;
+    }
+
+    fn quaternion_mul_x(w1: float, x1: float, y1: float, z1: float, w2: float, x2: float, y2: float, z2: float) -> float {
+        return w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2;
+    }
+
+    fn quaternion_mul_y(w1: float, x1: float, y1: float, z1: float, w2: float, x2: float, y2: float, z2: float) -> float {
+        return w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2;
+    }
+
+    fn quaternion_mul_z(w1: float, x1: float, y1: float, z1: float, w2: float, x2: float, y2: float, z2: float) -> float {
+        return w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2;
+    }
+
+    fn e8_root_vector_length() -> float {
+        return math::sqrt(2.0);
+    }
+
+    fn e8_root_coordinate(root_idx: float, dim: float) -> float {
+        let r = math::mod_val(root_idx, 240.0);
+        let d = math::mod_val(dim, 8.0);
+        let angle = (r + 1.0) * (d + 1.0) * 0.0174533;
+        return math::cos(angle) * 0.70710678;
+    }
+
+    fn e8_phase_harmonic(phase: float, root_val: float) -> float {
+        return math::cos(phase) * root_val;
+    }
+}

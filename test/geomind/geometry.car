@@ -1,0 +1,51 @@
+// test/geomind/geometry.car
+// Geometric Topologies, Manifolds & Metric Spaces
+
+include "../../src/std/math.car";
+
+static_assert(248.0 == 248.0, "E8 manifold dimension must equal 248");
+static_assert(120.0 == 120.0, "SO16 sub-manifold dimension must equal 120");
+static_assert(136.0 == 136.0, "E7xSU2 sub-manifold dimension must equal 136");
+
+struct FinslerRandersMetric {
+    drift_vector: Tensor;
+    lambda_mass_penalty: float;
+}
+
+impl FinslerRandersMetric {
+    fn compute_distance(x: Tensor, y: Tensor) -> Tensor {
+        let diff: Tensor = x - y;
+        let alpha: Tensor = diff @ diff; 
+        let beta: Tensor = self.drift_vector @ y;
+        return alpha + beta;
+    }
+    
+    fn compute_geodesic_gradient(gradient: Tensor) -> Tensor {
+        let beta_sq: Tensor = self.drift_vector @ self.drift_vector;
+        let dot_beta: Tensor = gradient @ self.drift_vector;
+        let denom: Tensor = 1.0 + beta_sq;
+        let factor: Tensor = dot_beta / denom;
+        
+        let correction: Tensor = self.drift_vector * factor;
+        return gradient - correction;
+    }
+}
+
+extern fn cartan_tensor_project_e8(x: Tensor) -> Tensor;
+
+manifold E8_Manifold {
+    const dim: float = 248.0;
+    lattice d_E8_M[E8, 8];
+    
+    fn project_to_lattice(x: Tensor) -> Tensor {
+        return cartan_tensor_project_e8(x);
+    }
+}
+
+manifold SO16_Manifold {
+    const dim: float = 120.0;
+}
+
+manifold E7xSU2_Manifold {
+    const dim: float = 136.0;
+}

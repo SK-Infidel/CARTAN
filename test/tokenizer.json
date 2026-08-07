@@ -1,0 +1,20 @@
+{
+  "model": {
+    "vocab": {
+      "h": 0,
+      "e": 1,
+      "l": 2,
+      "o": 3,
+      "he": 4,
+      "ll": 5,
+      "hell": 6,
+      "hello": 7
+    },
+    "merges": [
+      "h e",
+      "l l",
+      "he ll",
+      "hell o"
+    ]
+  }
+}

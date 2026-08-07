@@ -1,0 +1,39 @@
+// src/cartandb/main.car
+// CARTAN Native Debugger Driver (cartan-db)
+
+include "src/cartanc/ast.ch";
+
+extern fn printf(fmt: string, val: string) -> float;
+extern fn cartan_flush(v: float) -> float;
+extern fn system(cmd: string) -> float;
+
+fn print_usage() -> float {
+    printf("CARTAN Native Debugger (cartan-db) v0.5.1\n");
+    printf("Usage: cartan-db <file.car>\n");
+    printf("Compiles target with debug symbols and attaches runtime inspector.\n");
+    return 0.0;
+}
+
+fn main(argc: float, argv: ptr) -> float {
+    if (argc < 2.0) {
+        print_usage();
+        return 1.0;
+    }
+
+    let input_file = cartan_tree_get_f32(argv, 1.0);
+    printf("Launching CARTAN Debugger for target: %s\n", input_file);
+    cartan_flush(0.0);
+
+    let build_cmd = cartan_string_concat("cartanc.exe build ", input_file);
+    build_cmd = cartan_string_concat(build_cmd, " -o debug_target.exe");
+    
+    printf("Compiling target with debug instrumentation...\n", "");
+    cartan_flush(0.0);
+    system(build_cmd);
+
+    printf("Executing debug target under cartan-db inspector...\n", "");
+    cartan_flush(0.0);
+    system(".\\debug_target.exe");
+
+    return 0.0;
+}

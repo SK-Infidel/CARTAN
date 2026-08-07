@@ -1,0 +1,91 @@
+// src/std/tensor.car
+// CARTAN Standard Library: Tensor Creation, Reductions & Activations
+
+extern fn malloc(size: float) -> ptr;
+extern fn free(p: ptr) -> void;
+extern fn cartan_relu(arr: ptr, size: float) -> void;
+extern fn cartan_matmul(A: ptr, B: ptr, out: ptr, M: float, K: float, N: float) -> void;
+extern fn cartan_tensor_add(A: ptr, B: ptr, size: float) -> ptr;
+extern fn cartan_tensor_sub(A: ptr, B: ptr, size: float) -> ptr;
+extern fn cartan_tensor_mul(A: ptr, B: ptr, size: float) -> ptr;
+
+extern fn cartan_tensor_sum(arr: ptr, size: float) -> float;
+extern fn cartan_tensor_mean(arr: ptr, size: float) -> float;
+extern fn cartan_tensor_max(arr: ptr, size: float) -> float;
+extern fn cartan_tensor_min(arr: ptr, size: float) -> float;
+extern fn cartan_tensor_softmax(arr: ptr, size: float) -> ptr;
+extern fn cartan_tensor_gelu(arr: ptr, size: float) -> ptr;
+extern fn cartan_tensor_silu(arr: ptr, size: float) -> ptr;
+extern fn cartan_tensor_sigmoid(arr: ptr, size: float) -> ptr;
+
+struct Tensor {
+    data: ptr;
+    size: float;
+}
+
+fn zeros(size: float) -> Tensor {
+    let bytes = size * 8.0;
+    let p = malloc(bytes);
+    return Tensor { data: p, size: size };
+}
+
+fn ones(size: float) -> Tensor {
+    let t = zeros(size);
+    return t;
+}
+
+fn relu(t: Tensor) {
+    cartan_relu(t.data, t.size);
+}
+
+fn add(a: Tensor, b: Tensor) -> Tensor {
+    let res_ptr = cartan_tensor_add(a.data, b.data, a.size);
+    return Tensor { data: res_ptr, size: a.size };
+}
+
+fn sub(a: Tensor, b: Tensor) -> Tensor {
+    let res_ptr = cartan_tensor_sub(a.data, b.data, a.size);
+    return Tensor { data: res_ptr, size: a.size };
+}
+
+fn mul(a: Tensor, b: Tensor) -> Tensor {
+    let res_ptr = cartan_tensor_mul(a.data, b.data, a.size);
+    return Tensor { data: res_ptr, size: a.size };
+}
+
+fn sum(t: Tensor) -> float {
+    return cartan_tensor_sum(t.data, t.size);
+}
+
+fn mean(t: Tensor) -> float {
+    return cartan_tensor_mean(t.data, t.size);
+}
+
+fn max(t: Tensor) -> float {
+    return cartan_tensor_max(t.data, t.size);
+}
+
+fn min(t: Tensor) -> float {
+    return cartan_tensor_min(t.data, t.size);
+}
+
+fn softmax(t: Tensor) -> Tensor {
+    let res_ptr = cartan_tensor_softmax(t.data, t.size);
+    return Tensor { data: res_ptr, size: t.size };
+}
+
+fn gelu(t: Tensor) -> Tensor {
+    let res_ptr = cartan_tensor_gelu(t.data, t.size);
+    return Tensor { data: res_ptr, size: t.size };
+}
+
+fn silu(t: Tensor) -> Tensor {
+    let res_ptr = cartan_tensor_silu(t.data, t.size);
+    return Tensor { data: res_ptr, size: t.size };
+}
+
+fn sigmoid(t: Tensor) -> Tensor {
+    let res_ptr = cartan_tensor_sigmoid(t.data, t.size);
+    return Tensor { data: res_ptr, size: t.size };
+}
+

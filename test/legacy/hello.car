@@ -1,0 +1,1 @@
+fn main() -> float { printf("Hello!\n"); return 0.0; }

@@ -15,3 +15,31 @@ compiler/target/
 tensor_runtime/target/
 *.lib
 
+# Cartan Build & Local Run Artifacts
+build/
+**/build/
+release/
+**/release/
+Scratch/
+scratch/
+*.py
+*.txt
+*.bin
+*.npy
+*.exe
+*.pdb
+*.ll
+*.bak
+test*.car
+*.rs
+src/archive/
+.zigcache/
+
+# Large Datasets & Model Checkpoints
+*.bin
+*.npy
+*.npz
+*.bin.*
+trainingdata/
+**/trainingdata/
+**/checkpoints/

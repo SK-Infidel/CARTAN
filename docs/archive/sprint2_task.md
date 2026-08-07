@@ -1,0 +1,5 @@
+- `[x]` Update `parser.car::consume()` to actually print the error message to `stderr` and abort/panic instead of returning `0.0`.
+- `[x]` Add a handler for `IndexAccess` (`if (disc == 21.0)`) inside `llvm_codegen.car::visit_expr`.
+- `[x]` Add native C implementations for `cartan_relu` and `cartan_matmul` in `C:\Users\rich-\.cartan\c_runtime.c`.
+- `[x]` Create `src/std/math.car` exposing `cartan_relu` and `cartan_matmul`.
+- `[x]` Verify by compiling a test program that throws a syntax error, uses array indexing, and invokes the standard library.

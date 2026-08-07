@@ -1,0 +1,29 @@
+- [x] Unify test suite under `tests/`
+    - [x] Create `tests/` directory at workspace root
+    - [x] Move and rename test files from `Scratch/tests/`
+    - [x] Move and rename test files from `Scratch/` root
+    - [x] Move test files from `compiler/` root
+    - [x] Move BPE `tokenizer.json` to `tests/`
+- [x] Unify and clean up documentation under `docs/`
+    - [x] Create `docs/archive/`
+    - [x] Move `implementation_plan_geometry.md` from root workspace to `docs/archive/`
+    - [x] Move walkthrough files from `documentation/` and `docs/` to `docs/archive/`
+    - [x] Delete `documentation/changelog.md`
+    - [x] Delete empty `documentation/` folder
+- [x] Clean up `Scratch/` folder
+    - [x] Delete obsolete Python scripts (`fix_*.py`, `update_*.py`) in `Scratch/`
+    - [x] Delete temp files (`foo.rs`, `line_test.rs`, `line_test.pdb`, `temp.rs`, `cartan_compiler.car`)
+    - [x] Delete empty `Scratch/tests/` folder
+- [x] Update `.gitignore`
+    - [x] Add `/build/`, `/release/`, and `/Scratch/` to `.gitignore`
+- [x] Clean up compiler, runtime, root, and stale self-hosted stubs
+    - [x] Delete stale python rewrite scripts (`rewrite_*.py`, `rewrite.rs`) in `compiler/`
+    - [x] Delete compiler intermediate artifacts (`ast_output.txt`, etc.) in `compiler/`
+    - [x] Delete stale scripts/intermediates in `gpu_runtime/` and `tensor_runtime/`
+    - [x] Delete stale `cartanc.exe` in root workspace
+    - [x] Delete empty `zig/` folder in root workspace
+    - [x] Delete obsolete `cartan_src/compiler/` folder
+- [x] Verify changes
+    - [x] Run cargo tests in `compiler/`
+    - [x] Run hello world test to ensure compiler runs cleanly
+    - [x] Verify `git status` output

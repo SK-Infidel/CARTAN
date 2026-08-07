@@ -1,0 +1,25 @@
+// Test strict static type annotations and native primitives
+var count: int = 5;
+var learning_rate: float = 0.05;
+var is_active: bool = true;
+var name: string = "Cartan Types Test";
+
+print(name);
+
+if (is_active) {
+    print("System is active. Types parsed successfully!");
+}
+
+fn add_bonus(val: int): int {
+    return val + 10;
+}
+
+var result: int = add_bonus(count);
+print("Static Function Result:");
+print(result);
+
+// Type Inference fallback
+var inferred_status = false;
+if (inferred_status == false) {
+    print("Type Inference fallback works!");
+}

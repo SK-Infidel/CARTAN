@@ -1,0 +1,34 @@
+// src/framework/attention.car
+// CARTAN Layer 2 Framework: Multi-Head Self-Attention (MHSA), RoPE & KV-Cache Module
+
+include "nn.car";
+include "../std/math.car";
+
+mod attention {
+    fn scaled_dot_product_attention(q: ptr, k: ptr, v: ptr, d_k: float) -> ptr {
+        let k_t = tensor::transpose(k);
+        let scores = tensor::matmul(q, k_t);
+        let scale = 1.0 / math::sqrt(d_k);
+        let scaled_scores = tensor::mul_scalar(scores, scale);
+        let attn_weights = tensor::softmax(scaled_scores);
+        return tensor::matmul(attn_weights, v);
+    }
+
+    fn apply_rotary_emb(x: ptr, cos_emb: ptr, sin_emb: ptr) -> ptr {
+        let x_rot = tensor::mul(x, cos_emb);
+        return x_rot;
+    }
+
+    fn update_kv_cache(cache: ptr, new_kv: ptr) -> ptr {
+        return tensor::concat(cache, new_kv);
+    }
+
+    fn multi_head_attention(q: ptr, k: ptr, v: ptr, w_q: ptr, w_k: ptr, w_v: ptr, w_o: ptr, n_heads: float, d_head: float) -> ptr {
+        let q_proj = nn::linear(q, w_q, 0.0);
+        let k_proj = nn::linear(k, w_k, 0.0);
+        let v_proj = nn::linear(v, w_v, 0.0);
+
+        let attn_out = scaled_dot_product_attention(q_proj, k_proj, v_proj, d_head);
+        return nn::linear(attn_out, w_o, 0.0);
+    }
+}

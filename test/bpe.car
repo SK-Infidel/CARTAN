@@ -1,0 +1,1 @@
+var tokens = tokenize_bpe("hello", "tests/tokenizer.json");

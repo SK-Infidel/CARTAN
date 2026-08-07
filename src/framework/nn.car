@@ -1,0 +1,78 @@
+// src/framework/nn.car
+// CARTAN Layer 2 Framework: Production Neural Network Primitives & Layers Module
+
+include "../std/tensor.car";
+include "../std/math.car";
+
+mod nn {
+    fn linear(x: ptr, w: ptr, b: ptr) -> ptr {
+        let out = tensor::matmul(x, w);
+        if (b != 0.0) {
+            return tensor::add(out, b);
+        }
+        return out;
+    }
+
+    fn relu(x: ptr) -> ptr {
+        return tensor::relu(x);
+    }
+
+    fn gelu(x: ptr) -> ptr {
+        return tensor::gelu(x);
+    }
+
+    fn silu(x: ptr) -> ptr {
+        return tensor::silu(x);
+    }
+
+    fn sigmoid(x: ptr) -> ptr {
+        return tensor::sigmoid(x);
+    }
+
+    fn softmax(x: ptr) -> ptr {
+        return tensor::softmax(x);
+    }
+
+    fn layer_norm(x: ptr, gamma: ptr, beta: ptr, eps: float) -> ptr {
+        let mean = tensor::mean(x);
+        let diff = tensor::sub(x, mean);
+        let var_val = tensor::mean(tensor::mul(diff, diff));
+        let std_dev = math::sqrt(var_val + eps);
+        let norm = tensor::div_scalar(diff, std_dev);
+        if (gamma != 0.0) {
+            let scaled = tensor::mul(norm, gamma);
+            if (beta != 0.0) {
+                return tensor::add(scaled, beta);
+            }
+            return scaled;
+        }
+        return norm;
+    }
+
+    fn sgd_step(param: ptr, grad: ptr, lr: float) {
+        let update = tensor::mul_scalar(grad, lr);
+        let new_param = tensor::sub(param, update);
+        tensor::copy(param, new_param);
+    }
+
+    fn adam_step(param: ptr, grad: ptr, m: ptr, v: ptr, lr: float, beta1: float, beta2: float, eps: float, step: float) {
+        let one_minus_b1 = 1.0 - beta1;
+        let one_minus_b2 = 1.0 - beta2;
+        
+        let m_update = tensor::add(tensor::mul_scalar(m, beta1), tensor::mul_scalar(grad, one_minus_b1));
+        let grad_sq = tensor::mul(grad, grad);
+        let v_update = tensor::add(tensor::mul_scalar(v, beta2), tensor::mul_scalar(grad_sq, one_minus_b2));
+        
+        tensor::copy(m, m_update);
+        tensor::copy(v, v_update);
+        
+        let m_hat = tensor::div_scalar(m_update, 1.0 - math::pow(beta1, step));
+        let v_hat = tensor::div_scalar(v_update, 1.0 - math::pow(beta2, step));
+        
+        let denom = tensor::add_scalar(tensor::sqrt(v_hat), eps);
+        let step_val = tensor::div(m_hat, denom);
+        
+        let new_param = tensor::sub(param, tensor::mul_scalar(step_val, lr));
+        tensor::copy(param, new_param);
+    }
+}

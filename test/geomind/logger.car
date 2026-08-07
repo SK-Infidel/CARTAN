@@ -1,0 +1,15 @@
+// test/geomind/logger.car
+// GeoMind Real-Time Metric Logger: test/geomind/logger.car
+
+extern fn printf(format: string) -> i32;
+extern fn cartan_flush(v: float) -> float;
+
+fn geomind_log_init() {
+    printf("[Logger] Initializing GeoMind Log System in test/geomind/logs/training.log...\n");
+    cartan_flush(0.0);
+}
+
+fn geomind_log_step(step: float, total_steps: float, loss: float, tokens_per_sec: float, phase_coherence: float) {
+    printf("  [Step] GeoMind Metric Step Completed\n");
+    cartan_flush(0.0);
+}

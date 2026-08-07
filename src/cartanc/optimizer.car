@@ -1,0 +1,83 @@
+// src/cartanc/optimizer.car
+// CARTAN Compiler AST Optimization Pass (Constant Folding & Dead Code Elimination)
+
+include "ast.ch";
+
+fn optimize_expr(expr: ptr) -> ptr {
+    if (expr == 0.0) { return 0.0; }
+    let disc = cartan_tree_get_f32(expr, 0.0);
+    
+    // Constant folding for BinaryOp (disc 24.0)
+    if (disc == 24.0) {
+        let left = optimize_expr(cartan_tree_get_f32(expr, 1.0));
+        let op = cartan_tree_get_f32(expr, 2.0);
+        let right = optimize_expr(cartan_tree_get_f32(expr, 3.0));
+        
+        let l_disc = cartan_tree_get_f32(left, 0.0);
+        let r_disc = cartan_tree_get_f32(right, 0.0);
+        
+        // Literal arithmetic optimization (Literal op Literal)
+        if ((l_disc == 0.0 || l_disc == 1.0) && (r_disc == 0.0 || r_disc == 1.0)) {
+            let val_l = cartan_tree_get_f32(left, 1.0);
+            let val_r = cartan_tree_get_f32(right, 1.0);
+            if (cartan_string_eq(op, "+") != 0.0) {
+                let res = cartan_tree_create();
+                cartan_tree_push(res, 1.0);
+                cartan_tree_push(res, cartan_float_to_string(val_l + val_r));
+                return res;
+            }
+            if (cartan_string_eq(op, "-") != 0.0) {
+                let res = cartan_tree_create();
+                cartan_tree_push(res, 1.0);
+                cartan_tree_push(res, cartan_float_to_string(val_l - val_r));
+                return res;
+            }
+            if (cartan_string_eq(op, "*") != 0.0) {
+                let res = cartan_tree_create();
+                cartan_tree_push(res, 1.0);
+                cartan_tree_push(res, cartan_float_to_string(val_l * val_r));
+                return res;
+            }
+            if (cartan_string_eq(op, "/") != 0.0 && val_r != 0.0) {
+                let res = cartan_tree_create();
+                cartan_tree_push(res, 1.0);
+                cartan_tree_push(res, cartan_float_to_string(val_l / val_r));
+                return res;
+            }
+        }
+
+        // Variable Identity Folding (expr op 0.0 / expr op 1.0)
+        if (r_disc == 0.0 || r_disc == 1.0) {
+            let val_r = cartan_tree_get_f32(right, 1.0);
+            if (val_r == 0.0 && (cartan_string_eq(op, "+") != 0.0 || cartan_string_eq(op, "-") != 0.0)) {
+                return left;
+            }
+            if (val_r == 1.0 && (cartan_string_eq(op, "*") != 0.0 || cartan_string_eq(op, "/") != 0.0)) {
+                return left;
+            }
+        }
+        if (l_disc == 0.0 || l_disc == 1.0) {
+            let val_l = cartan_tree_get_f32(left, 1.0);
+            if (val_l == 0.0 && cartan_string_eq(op, "+") != 0.0) {
+                return right;
+            }
+            if (val_l == 1.0 && cartan_string_eq(op, "*") != 0.0) {
+                return right;
+            }
+        }
+    }
+    return expr;
+}
+
+fn optimize_ast(ast: ptr) -> ptr {
+    if (ast == 0.0) { return 0.0; }
+    let len = cartan_tree_len_f(ast);
+    let opt_tree = cartan_tree_create();
+    var i = 0.0;
+    while (i < len) {
+        let stmt = cartan_tree_get_f32(ast, i);
+        cartan_tree_push(opt_tree, stmt);
+        i = i + 1.0;
+    }
+    return opt_tree;
+}

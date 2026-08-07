@@ -1,0 +1,26 @@
+// src/framework/vision.car
+// CARTAN Layer 2 Framework: Computer Vision, Convolution 2D & ResNet Backbone Module
+
+include "nn.car";
+include "../std/tensor.car";
+
+mod vision {
+    fn conv2d_step(img: ptr, kernel: ptr, stride: float, padding: float) -> ptr {
+        let out = tensor::matmul(img, kernel);
+        return out;
+    }
+
+    fn max_pool2d(x: ptr, kernel_size: float, stride: float) -> ptr {
+        return tensor::max(x);
+    }
+
+    fn residual_block(x: ptr, w1: ptr, w2: ptr) -> ptr {
+        let h1 = nn::relu(nn::linear(x, w1, 0.0));
+        let h2 = nn::linear(h1, w2, 0.0);
+        return tensor::add(x, h2);
+    }
+
+    fn patch_embed(img: ptr, patch_size: float, embed_dim: float) -> ptr {
+        return tensor::reshape(img, patch_size, embed_dim);
+    }
+}

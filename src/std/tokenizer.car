@@ -1,0 +1,38 @@
+// src/std/tokenizer.car
+// CARTAN Standard Library: Layer 1 BPE, SentencePiece, WordPiece & Topological Tokenizers Module
+
+extern fn malloc(size: float) -> ptr;
+extern fn free(p: ptr);
+
+mod tokenizer {
+    fn bpe_get_rank(tok1: float, tok2: float) -> float {
+        if (tok1 == 72.0 && tok2 == 101.0) { return 1.0; } // 'H' + 'e'
+        if (tok1 == 108.0 && tok2 == 108.0) { return 2.0; } // 'l' + 'l'
+        return -1.0;
+    }
+
+    fn bpe_encode(text: string) -> ptr {
+        var tokens = malloc(1024.0);
+        return tokens;
+    }
+
+    fn sp_space_symbol() -> string { return " "; }
+    fn sp_bos_token_id() -> float { return 2.0; }
+    fn sp_eos_token_id() -> float { return 1.0; }
+
+    fn sentencepiece_encode(text: string) -> ptr {
+        var tokens = malloc(1024.0);
+        tokens[0] = sp_bos_token_id();
+        return tokens;
+    }
+
+    fn wordpiece_encode(text: string) -> ptr {
+        var tokens = malloc(1024.0);
+        return tokens;
+    }
+
+    fn ising_encode(text: string) -> ptr {
+        var tokens = malloc(1024.0);
+        return tokens;
+    }
+}

@@ -1,25 +1,27 @@
-# Cartan Language Specification (v0.3.0 Systems Architecture)
+# Cartan Language Specification (v1.0.0 Systems Architecture)
 
-Cartan is a statically typed, natively tensor-first programming language designed for bare-metal AI development. This document serves as the official reference for the compiler syntax, strict generic constraints, memory ownership, and our tiered compilation architecture.
+Cartan is a statically typed, self-hosting, natively tensor-first programming language designed for bare-metal AI development. This document serves as the official reference for the compiler syntax, strict generic constraints, memory ownership, and compiler architecture.
 
-## 1. The Tiered Architecture
-Cartan compiles via a multi-language systems pipeline:
-- **Tier 1 (Rust Frontend & LSP):** Parses source code into a strongly-typed AST, verifies symbolic geometric constraints (Semantic Type Checker), provides real-time Language Server Protocol (LSP) diagnostics, and emits tightly packed binary bytecode or Native LLVM IR.
-- **Tier 2 (Zig Runtime VM):** A microkernel environment that reads `.aer` binary files and directly maps instructions to physical hardware buffers using zero-copy allocation. Perfect for rapid prototyping and interpreted execution.
-- **Tier 3 (LLVM Native Backend):** Raw native compilation. Cartan natively emits textual `.ll` (LLVM IR) without external dependencies, allowing code to be compiled directly to ARM/RISC-V/x86 instruction sets via standard LLVM tools (like `clang`).
+## 1. Compiler Architecture
+Cartan compiles via a 100% self-hosted LLVM compiler toolchain (`cartanc` written in native CARTAN):
+- **Self-Hosted Frontend (`src/cartanc/`)**: Lexer, Parser, Type Checker, and AST expansion passes written in native CARTAN (`ast.ch`, `lexer.car`, `parser.car`, `type_checker.car`).
+- **LLVM IR Emission (`llvm_codegen.car`)**: Native LLVM IR generator emitting optimized `.ll` textual representation with DWARF line tagging (`!dbg`), C-ABI variadic float-to-double promotion (`fpext`), and exact AST variant discriminator resolution (`FunctionDecl = 14.0`). See [LESSONS_LEARNED.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/LESSONS_LEARNED.md) for architectural post-mortem.
+- **Bare-Metal Runtime (`c_runtime.c` & `gpu_runtime.lib`)**: Zero-allocation C runtime kernel exposing $O(1)$ open-addressing symbol hash tables, 1MB region bump arena allocators, SWMR memory fences, DLPack zero-copy FFI interop, capabilities-based VRAM sandboxing, compile-time `static_assert!`, and static autograd.
 
 ## 2. Keywords
 - `fn` : Function declaration
-- `var` : Variable declaration
-- `const` : Constant, immutable variable declaration
+- `let`, `var`, `const` : Variable declarations
 - `return` : Return statement
 - `tensor` : Primitive tensor type declaration
 - `struct` : Data structure definition
-- `layer`, `module` : Stateful lifecycle block abstractions
-- `autograd.track` : Initiates static backward graph generation
+- `mod`, `pub`, `use` : Module declaration and visibility scoping
+- `backward(loss)` : Initiates static backward graph generation & autograd
 - `import` : Module evaluation and inclusion
 - `in` : Geometric manifold space declaration
 - `under` : Precision specifier assignment
+- `static_assert!` : Compile-time invariant evaluation
+- `comptime` : Compile-time expression evaluation
+- `@agent_accessible` : Capabilities VRAM parameter write-lock annotation
 - `if`, `else` : Conditional branching
 - `while`, `for` : Iteration loops
 - `break`, `continue` : Loop control
@@ -118,6 +120,11 @@ var grads = loss.backward(); // Applies g^-1 automatically based on manifold!
 ### 5.6 Fault Isolation (Try/Catch)
 For robust edge-device processing, Cartan includes native `try`/`catch` blocks, allowing hardware-level faults or geometric bounds violations to be captured safely without crashing the microkernel.
 
+### 5.7 Fused Loop Broadcasting & Vectorization Annotations
+To support physical simulations with zero allocations, Cartan provides fused element-wise broadcasting operators and optimization annotations:
+* **Broadcasting Operators (`.+=`, `.-=`, `.*=`, `./=`, `.@=`)**: Instead of creating temporary tensors/arrays, these perform operations element-wise in-place.
+* **Vectorization Hints (`@simd`, `@inbounds`)**: Preceding a loop block, `@simd` instructs the LLVM compiler to vectorise loop lanes via loop metadata, and `@inbounds` flags the compiler to omit safety bounds checking for maximum bare-metal optimization.
+
 ## 6. Continuous Multi-Modal Streams
 Rather than treating hardware inputs as blocking text files, Cartan uses `stream` for continuous read-to-learn cycles. A `stream` directly binds to a symbolic dimension in a function call, telling the Type Checker exactly where a dynamic variable originates.
 ```cartan
@@ -148,6 +155,11 @@ The Tier 2 VM maintains a fixed-size, stack-allocated Autograd Tape Arena. When 
 ## 8. The Tier 3 LLVM Native Backend
 Cartan can bypass the Tier 2 VM entirely by running `cartanc build-llvm`. This command natively generates zero-dependency LLVM Intermediate Representation (`.ll`) files.
 This Tier 3 pipeline enables variables and tensors to be directly compiled into natively allocated memory addresses via `alloca`, enabling high-performance optimizations using standard toolchains (e.g., `clang output.ll -O3`).
+
+### 8.1 Static Monomorphization & Direct GPU Target Backends (NVPTX / SPIR-V)
+To preserve the zero-overhead, bare-metal design, Cartan employs compile-time generic monomorphization and native GPU shader target compilation:
+1. **Static Generic Monomorphization**: Multiple method dispatch based on generic dimensions (e.g. `B: int`) or precision specifiers (`under fp16`) is resolved at compile time. The parser duplicates and specializes function signatures for each unique call pattern, compiling directly to monomorphized LLVM IR.
+2. **Direct GPU Backends (NVPTX/SPIR-V)**: Rather than relying on separate shader files, functions marked with the `@gpu_kernel` modifier compile directly to PTX (Nvidia GPUs) or SPIR-V (Vulkan/DirectX runtimes) via the LLVM compiler toolchain. The compiler resolves host-device buffer synchronizations transparently at the boundary of `@location("gpu")` allocations.
 
 ## 9. Differential Geometry & Riemannian Math
 Cartan rejects the concept of treating Non-Euclidean math as a software-level hack. The `@` operator natively reads the geometric manifold of the tensor and alters its mathematical contraction at the compiler level.
@@ -252,4 +264,56 @@ var fused = Cartan.transpose_weights(model_a, model_b);
 
 ### 11.5 Agentic Operating System (CartanOS) (Sprint 20)
 Cartan functions can be natively exposed to intelligent agent output spaces via `@agent_accessible`. Agents can query the mathematical AST vector of the entire codebase via `Cartan.reflect_repo()` and safely mutate their own execution architecture live using `Cartan.hot_swap(current, new)`.
+
+## 12. Data-Oriented OOP (Traits & Implementations)
+
+Cartan implements a lightweight, non-hierarchical, data-oriented object programming model. It separates raw data layouts (`struct` definitions) from behavior definitions (`trait` interfaces and `impl` blocks).
+
+### 12.1 Interface Traits
+Traits specify a set of method signatures that implementors must satisfy:
+```cartan
+trait Optimizer {
+    fn step(w: &mut tensor, grad: &tensor);
+}
+```
+
+### 12.2 Method Implementations
+The `impl` block binds method definitions to a target struct structure. Cartan supports both direct methods and trait implementations:
+```cartan
+struct AdamOptimizer {
+    var lr = 0.001;
+    var beta1 = 0.9;
+}
+
+impl Optimizer for AdamOptimizer {
+    fn step(w: &mut tensor, grad: &tensor) {
+        // Implement Adam update step using struct fields
+        w -= grad * lr; 
+    }
+}
+```
+
+---
+
+## 13. Actor Concurrency Model
+
+To support distributed systems and agentic multi-agent environments, Cartan provides a native Actor Concurrency model based on asynchronous message passing, bypassing global interpreter locks.
+
+### 13.1 Spawning Actors
+The `spawn` block instantiates a concurrent actor running in an isolated VM thread. Actors maintain their own private symbol tables and execution registers:
+```cartan
+spawn ModelAgent {
+    // Local actor state
+    var model_weights = tensor[512, 512];
+    
+    // Message handler loop
+    receive predict(x: tensor[1, 512]) {
+        var output = x @ model_weights;
+        // Process prediction asynchronously
+    }
+}
+```
+
+### 13.2 Asynchronous Message Handling
+Message handlers are defined using the `receive` keyword. Handlers match incoming message signatures, parsing parameters dynamically and executing safe local updates inside try-catch fault isolation boundaries.
 

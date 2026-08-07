@@ -1,0 +1,59 @@
+// test/geomind/sft_train.car
+// Dynamic Loss-Driven SFT Grokking Pass targeting L_SFT <= 0.40
+
+extern fn printf(format: string) -> i32;
+extern fn cartan_flush(v: float) -> float;
+extern fn cartan_init_magnetic_resonator(n_oscillators: float) -> Tensor;
+extern fn cartan_generate_e8_coordinates(n_oscillators: float) -> Tensor;
+extern fn cartan_alloc_sequence(size: float) -> Tensor;
+extern fn cartan_read_raw_file(dest: Tensor, path: string) -> float;
+extern fn cartan_load_model_checkpoint(w_q: Tensor, w_k: Tensor, w_v: Tensor, lm_head: Tensor, path: string) -> float;
+extern fn cartan_save_model_checkpoint(w_q: Tensor, w_k: Tensor, w_v: Tensor, lm_head: Tensor, path: string) -> float;
+extern fn cartan_train_sft_aligned_gpu(w_q: Tensor, w_k: Tensor, w_v: Tensor, lm_head: Tensor, dataset: Tensor, masks: Tensor, steps: float, lr: float) -> float;
+
+fn main() -> float {
+    printf("================================================================================\n");
+    printf("   GEOMIND DYNAMIC LOSS-DRIVEN SFT GROKKING ENGINE (CARTAN GPU)\n");
+    printf("   Frozen: W_Q, W_K (E8 Geometry) | Aligned: W_V, LM Head | Target: Loss <= 0.40\n");
+    printf("================================================================================\n\n");
+    cartan_flush(0.0);
+    
+    var n_oscillators = 1000000.0;
+    printf("[1/5] Allocating E8 Manifolds & Resonators...\n");
+    cartan_flush(0.0);
+    var phases = cartan_init_magnetic_resonator(n_oscillators);
+    var coordinates = cartan_generate_e8_coordinates(n_oscillators);
+    
+    @agent_accessible parameter[Adam] w_q[240, 240] in Euclidean;
+    @agent_accessible parameter[Adam] w_k[240, 240] in Euclidean;
+    @agent_accessible parameter[Adam] w_v[240, 240] in Euclidean;
+    @agent_accessible parameter[Adam] lm_head[240, 50257] in Euclidean;
+    
+    printf("[2/5] Loading Pre-Trained Target Checkpoint (geomind_pretrained.model)...\n");
+    cartan_flush(0.0);
+    cartan_load_model_checkpoint(w_q, w_k, w_v, lm_head, "test/geomind/checkpoints/geomind_pretrained.model");
+    
+    var dataset_size = 1000000.0;
+    printf("[3/5] Loading Active Direct GPT-2 SFT Dialogue Tokens...\n");
+    cartan_flush(0.0);
+    var active_tokens = cartan_alloc_sequence(dataset_size);
+    var dataset_masks = cartan_alloc_sequence(dataset_size);
+    
+    cartan_read_raw_file(active_tokens, "test/geomind/trainingdata/tinystories_direct_gpt2_ids.bin");
+    cartan_read_raw_file(dataset_masks, "test/geomind/trainingdata/tinystories_direct_gpt2_masks.bin");
+    
+    printf("[4/5] Executing Continuous Dynamic Loss-Driven SFT Grokking Pass (Target <= 0.40)...\n");
+    cartan_flush(0.0);
+    var n_steps = 10000000.0;
+    var lr = 0.002;
+    
+    var loss = cartan_train_sft_aligned_gpu(w_q, w_k, w_v, lm_head, active_tokens, dataset_masks, n_steps, lr);
+    
+    printf("[5/5] Serializing Grokked Checkpoint...\n");
+    cartan_flush(0.0);
+    cartan_save_model_checkpoint(w_q, w_k, w_v, lm_head, "test/geomind/checkpoints/geomind_sft_grokked.model");
+    
+    printf("Supervised Fine-Tuning Complete!\n");
+    cartan_flush(0.0);
+    return 0.0;
+}

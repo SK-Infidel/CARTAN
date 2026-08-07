@@ -4,6 +4,12 @@ All notable changes to the CARTAN compiler, language specification, and runtime 
 
 ## [Unreleased] - Current Session
 
+### Repository Reorganization & Cleanup (2026-07-20)
+- **Unified Test Suite**: Created a central, version-controlled `tests/` directory at the root workspace and relocated all active `.car` test scripts from `Scratch/`, `Scratch/tests/`, and `compiler/` roots.
+- **Unified Documentation**: Consolidated walk-throughs and design documents into `docs/archive/` and removed duplicate folders (`documentation/`) and redundant logs.
+- **Scratch & Compiler Cleanup**: Purged 100+ deprecated development patch/rewrite scripts (Python and Rust helper files) from `Scratch/` and `compiler/` directories.
+- **Git Ignore Updates**: Added `build/`, `release/`, and `Scratch/` to `.gitignore` to prevent transient build artifacts and local scratch runs from polluting the repository.
+
 ### Language Architecture Roadmap (Completed)
 - **Symbolic Structures (2026-07-16)**: Implemented `lattice` and `tree` primitives in CARTAN. This enables symbolic AI structures natively alongside connectionist types, supporting declarative structures like `lattice[Boolean, 128]` and `tree<tensor>`.
 - **Intrinsic Tangent Vectors (2026-07-16)**: Implemented native distinction between ambient Euclidean arrays (`vector[N]`) and intrinsic tangent vectors (`vector[N] at anchor`). Tangent vectors are verified at compile-time to share the exact same `ManifoldSpace` anchor point before any standard arithmetic operations are allowed, preventing unphysical geometric calculations.
@@ -15,7 +21,7 @@ All notable changes to the CARTAN compiler, language specification, and runtime 
 - **Lisp-Style Homoiconicity**: Implemented wildcard `$x` AST term rewriting for the macro engine and `quote` blocks. CARTAN can now programmatically rewrite and optimize its own neural execution pipelines with zero runtime overhead prior to LLVM compilation.
 - **Autodiff Unrolling**: Extended the LLVM-native in-place AST loop unrolling to map matrix multiplications natively inside the `backward Y` pass.
 - **Transpose Operator**: Natively supported `.T` in the AST parser, type checker, and lowering logic for zero-cost algebraic transposition on tensors.
-- **End-to-End E2E Model**: Shipped `e2e_model.ctn` proving out the seamless fusion of parameter allocation, block scoping, stream ingest, manifold matching, match statements, and autodiff.
+- **End-to-End E2E Model**: Shipped `e2e_model.car` proving out the seamless fusion of parameter allocation, block scoping, stream ingest, manifold matching, match statements, and autodiff.
 
 ### Agent OS Integration (Completed)
 - **Agent Accessible Functions**: Added `@agent_accessible` function decorator for dynamic DLL/SO function exportation to support AgentOS interfacing natively.
@@ -30,9 +36,9 @@ All notable changes to the CARTAN compiler, language specification, and runtime 
 - **Native BPE Tokenization Foundation**: Implemented `Expr::TokenizeBPE` in the AST. Added `compiler/src/bpe_compiler.rs` to ingest HuggingFace `tokenizer.json` files and extract vocabulary and merge rules at compile-time. Hooked up LLVM IR generation for BPE token array allocation.
 - **Dynamic Build Artifacts**: The compiler now intelligently routes generated `.ll` files to `build/` and compiled executables to `release/`, rather than polluting the root workspace.
 - **Master Roadmap Sync**: Re-aligned `docs/ROADMAP.md` with the ultimate bare-metal vision found in `TheBigIdea.md`.
-- **Runtime Linkage**: Pre-compiled `tensor_runtime` and `gpu_runtime` into optimized `.lib` files. Resolved the `lld-link` missing library error, enabling the `cartanc build-exe` command to successfully link and generate standalone `.exe` binaries from `.ctn` files.
+- **Runtime Linkage**: Pre-compiled `tensor_runtime` and `gpu_runtime` into optimized `.lib` files. Resolved the `lld-link` missing library error, enabling the `cartanc build-exe` command to successfully link and generate standalone `.exe` binaries from `.car` files.
 - **LLVM Type System Generation**: Rewrote `llvm_codegen.rs` mapping for `f32` types to resolve mismatch errors in `ExternFunctionDecl` and `FunctionDecl` when passing primitive numbers into `cartanc`.
-- **Standard Library Unification**: Unified arguments in `std/io.ctn` and `std/env.ctn` to `f32` exclusively to prevent integer-to-float IR type mismatch during cross-compilation.
+- **Standard Library Unification**: Unified arguments in `std/io.car` and `std/env.car` to `f32` exclusively to prevent integer-to-float IR type mismatch during cross-compilation.
 - **Topology-Aware Code Generation**: The `@` contraction operator now branches based on manifold type, dynamically routing to `@cartan_tensor_matmul_minkowski` or `@cartan_tensor_matmul_poincare`.
 - **Riemannian Autograd Backend**: Rewrote the reverse-mode auto-differentiation in the C runtime to correctly warp gradients back into curved spaces by applying the inverse metric tensor $g^{-1}$ for both Lorentzian (Minkowski) and Hyperbolic (Poincaré Disk) topologies.
 - **Strict Warning Compliance**: Resolved all IDE-flagged compiler warnings (`unused_imports`, `unused_mut`, `static_mut_refs`) in both `cartanc` and the `tensor_runtime`, ensuring a perfectly clean build process.
@@ -41,12 +47,14 @@ All notable changes to the CARTAN compiler, language specification, and runtime 
 ## [0.1.6] - Tier 3 Primitive Parsing
 ### Added
 - Implemented layer and graph logic in the compiler AST.
-- Implemented knowledge_base and ule primitives for neuro-symbolic logic.
+- Implemented knowledge_base and 
+ule primitives for neuro-symbolic logic.
 - Implemented evolve blocks for genetic algorithm structure.
 - Implemented spawn blocks for concurrent multi-agent structure.
 - Implemented dataframe blocks for relational data logic.
 - Implemented satisfy {} otherwise {} constraint blocks.
-- Added iemannian optimizer modifier to transform expressions.
+- Added 
+iemannian optimizer modifier to transform expressions.
 - Fixed AST matching structure in parser.rs and eval.rs.
 
 ### Fixed
@@ -56,7 +64,8 @@ All notable changes to the CARTAN compiler, language specification, and runtime 
 ### Added
 - Added 	rait keyword and parser integration for structural behavior signatures.
 - Added impl and impl ... for syntax for binding behaviors to flat data structs.
-- Added eceive block syntax to handle message passing within spawn actor declarations.
+- Added 
+eceive block syntax to handle message passing within spawn actor declarations.
 - Extended AST with TraitDecl, ImplDecl, and ReceiveDecl structures.
 - Updated 	oken.rs and lexer.rs to support new keywords natively.
 - Full type checker compatibility and parser stabilization.

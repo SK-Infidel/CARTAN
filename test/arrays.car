@@ -1,0 +1,32 @@
+struct Layer {
+    var weights = tensor[1, 1];
+    
+    fn forward(x) {
+        return x * weights;
+    }
+}
+
+print("Initializing Neural Network Array...");
+
+// Generic Collection: Array of Structs
+var network = [Layer(), Layer()];
+
+// Mutate specific indices in the struct's tensor
+network[0].weights[0] = 2.0;
+network[1].weights[0] = 3.0;
+
+print("Layer 0 initialized weights:");
+print(network[0].weights);
+
+print("Layer 1 initialized weights:");
+print(network[1].weights);
+
+var input = tensor[1, 1];
+input[0] = 5.0; 
+
+// Pass through the network
+var out = network[0].forward(input);
+out = network[1].forward(out);
+
+print("Final Network Output (5.0 * 2.0 * 3.0):");
+print(out);

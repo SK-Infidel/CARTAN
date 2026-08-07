@@ -1,0 +1,52 @@
+// test/geomind/ising_state_machine.car
+// Reusable E8-Hopfield Ising State Machine
+
+include "../../src/std/math.car";
+
+extern fn printf(format: string, v: float) -> float;
+extern fn cartan_flush(v: float) -> float;
+extern fn cartan_tensor_to_float(t: Tensor) -> float;
+extern fn cartan_assert(cond: float, msg: string) -> void;
+
+struct IsingStateMachine {
+    @agent_accessible phases: Tensor;
+    @agent_accessible coupling: Tensor;
+    dt: float;
+    coupling_strength: float;
+    entropy_threshold: float;
+}
+
+impl IsingStateMachine {
+    fn ingest_embeddings(embeddings: Tensor) -> float {
+        self.phases = embeddings;
+        return 1.0;
+    }
+    
+    fn absorb_attention_weights(external_weights: Tensor) -> float {
+        self.coupling = external_weights;
+        return 1.0;
+    }
+    
+    fn synchronize(max_steps: float) -> float {
+        cartan_assert(self.dt > 0.0, "Ising dt must be positive");
+        var step = 0.0;
+        var converged = 0.0;
+        
+        while (step < max_steps) {
+            var interactions: Tensor = self.coupling @ self.phases;
+            self.phases = self.phases + (interactions * self.dt);
+            
+            let variance: float = cartan_tensor_to_float(self.phases * self.phases);
+            if (variance < self.entropy_threshold) {
+                converged = 1.0;
+                break;
+            }
+            step = step + 1.0;
+        }
+        return step;
+    }
+    
+    fn get_attention_weights() -> Tensor {
+        return self.phases;
+    }
+}

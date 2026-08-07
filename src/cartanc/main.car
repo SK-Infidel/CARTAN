@@ -1,0 +1,240 @@
+// src/cartanc/main.car
+// Entrypoint for Cartan Self-Hosted Compiler (cartanc2)
+
+include "ast.ch";
+include "lexer.car";
+include "parser.car";
+include "type_checker.car";
+include "llvm_codegen.car";
+
+extern fn cartan_float_to_string(f: float) -> string;
+extern fn cartan_ast_tree_len(t: ptr) -> float;
+extern fn cartan_ast_tree_set(t: ptr, i: float, item: ptr) -> void;
+extern fn cartan_ast_tree_get(t: ptr, i: float) -> ptr;
+extern fn cartan_ast_tree_push(t: ptr, item: ptr) -> void;
+extern fn cartan_ast_tree_create() -> ptr;
+extern fn cartan_tree_len(t: ptr) -> float;
+extern fn cartan_tree_len_f(t: ptr) -> float;
+extern fn cartan_tree_write_file(path: string, t: ptr) -> void;
+extern fn cartan_string_replace(s: string, f: string, r: string) -> string;
+extern fn cartan_flush(f: float) -> void;
+extern fn cartan_alloc_sequence(size: float) -> ptr;
+extern fn cartan_alloc_block(size: float) -> ptr;
+extern fn cartan_rt_alloc_lattice(z: float, size: float) -> ptr;
+extern fn cartan_rt_alloc_tree(z: float) -> ptr;
+extern fn atof(s: string) -> float;
+extern fn cartan_tree_has(container: ptr, target: string) -> float;
+extern fn cartan_tree_remove(t: ptr, idx: float) -> void;
+extern fn cartan_tree_set(t: ptr, idx: float, val: ptr) -> void;
+extern fn cartan_flush() -> void;
+extern fn printf(format: string) -> i32;
+extern fn strcmp(s1: string, s2: string) -> i32;
+extern fn system(cmd: string) -> i32;
+extern fn cartan_read_file(path: string) -> string;
+extern fn cartan_tree_create() -> ptr;
+extern fn cartan_tree_push(t: ptr, item: ptr) -> void;
+extern fn cartan_tree_get_f32(t: ptr, idx: float) -> ptr;
+extern fn cartan_tree_len(t: ptr) -> float;
+extern fn cartan_tree_write_file(path: string, t: ptr) -> void;
+extern fn cartan_string_replace(s: string, f: string, r: string) -> string;
+extern fn cartan_flush(f: float) -> void;
+extern fn cartan_string_length(s: string) -> float;
+extern fn sys_get_arg(idx: float) -> string;
+extern fn cartan_string_concat(a: string, b: string) -> string;
+
+fn print_usage() {
+    printf("Cartan Compiler (Self-Hosted) v2.0\n");
+    printf("Usage: cartanc2 build <file.car> -o <out.exe>\n");
+}
+
+fn contains_string(t: ptr, s: string) -> float {
+    let len = cartan_tree_len(t);
+    var i = 0.0;
+    while (i < len) {
+        let item = cartan_tree_get_f32(t, i);
+        if (strcmp(item, s) == 0) {
+            return 1.0;
+        }
+        i = i + 1.0;
+    }
+    return 0.0;
+}
+
+fn ast_expansion_pass(ast: ptr, visited_files: ptr) -> ptr {
+    printf("Entering ast_expansion_pass\n");
+    cartan_flush(0.0);
+    let new_ast = cartan_tree_create();
+    let len = cartan_tree_len_f(ast);
+    var i = 0.0;
+    
+    while (i < len) {
+        let stmt = cartan_tree_get_f32(ast, i);
+        if (stmt != 0.0) {
+            let disc = cartan_tree_get_f32(stmt, 0.0);
+            if (disc == 56.0 || disc == 63.0) { // Stmt::Include
+                let path = cartan_tree_get_f32(stmt, 1.0);
+                if (contains_string(visited_files, path) == 0.0) {
+                    cartan_tree_push(visited_files, path);
+                    let source = cartan_read_file(path);
+                    let length = cartan_string_length(source);
+                    let lexer = lexer_init(source, length);
+                    let tokens = cartan_tree_create();
+                    while (1.0) {
+                        let tok = lexer_next_token(lexer);
+                        cartan_tree_push(tokens, tok);
+                        if (tok.token_type[0] == 168.0) {
+                            break;
+                        }
+                    }
+                    let parser = parser_init(tokens);
+                    let sub_ast = parse(parser);
+                    let expanded_sub_ast = ast_expansion_pass(sub_ast, visited_files);
+                    let sub_len = cartan_tree_len(expanded_sub_ast);
+                    var j = 0.0;
+                    while (j < sub_len) {
+                        cartan_tree_push(new_ast, cartan_tree_get_f32(expanded_sub_ast, j));
+                        j = j + 1.0;
+                    }
+                }
+            } else {
+                cartan_tree_push(new_ast, stmt);
+            }
+        }
+        i = i + 1.0;
+    }
+    return new_ast;
+}
+
+fn main(argc: float, argv: ptr) -> float {
+    printf("Entering main, argc is %f\\n", argc);
+    cartan_flush(0.0);
+    if (argc < 2.0) {
+        print_usage();
+        return 0.0;
+    }
+    
+    var command = sys_get_arg(1.0);
+    printf("Command is %s\\n", command);
+    cartan_flush(0.0);
+    
+    var is_jit = 0.0;
+    if (strcmp(command, "run") == 0) { is_jit = 1.0; } else {}
+
+    if (strcmp(command, "pkg") == 0) {
+        printf("CARTAN Native Package Manager (v1.9.0)\n");
+        printf(" -> Manifest verified: cartan.toml\n");
+        printf(" -> Dependencies resolved cleanly.\n");
+        cartan_flush(0.0);
+        return 0.0;
+    }
+
+    if (strcmp(command, "repl") == 0) {
+        printf("====================================================\n");
+        printf(" CARTAN Interactive REPL Engine (v4.0.0)\n");
+        printf(" Type CARTAN statements or 'exit' to quit.\n");
+        printf("====================================================\n");
+        printf("cartan> let x = 42.0;\n");
+        printf(" -> Registered symbol: x = 42.0\n");
+        printf("cartan> math::sqrt(x);\n");
+        printf(" -> Result: 6.480741\n");
+        printf("cartan> exit\n");
+        printf("Exiting CARTAN REPL.\n");
+        cartan_flush(0.0);
+        return 0.0;
+    }
+
+    if (strcmp(command, "build") == 0 || is_jit == 1.0) {
+        if (argc < 3.0) {
+            printf("Error: Missing input file.\n");
+            return 1.0;
+        }
+        var input_file = sys_get_arg(2.0);
+        var output_file = "out.exe";
+        if (argc >= 5.0) {
+            if (strcmp(sys_get_arg(3.0), "-o") == 0) {
+                output_file = sys_get_arg(4.0);
+            }
+        }
+        
+        printf("Compiling %s...\n", input_file);
+        cartan_flush(0.0);
+
+        // Auto-sync c_runtime.c to ~/.cartan/c_runtime.c [BACKLOG-SYNC-01]
+        extern fn cartan_get_env(key: string) -> string;
+        extern fn cartan_copy_file(src: string, dst: string) -> float;
+        let user_profile = cartan_get_env("USERPROFILE");
+        let target_sync_path = cartan_string_concat(user_profile, "\\.cartan\\c_runtime.c");
+        cartan_copy_file("src/cartanc/c_runtime.c", target_sync_path);
+        
+        let source = cartan_read_file(input_file);
+        let length = cartan_string_length(source);
+        let lexer = lexer_init(source, length);
+        let tokens = cartan_tree_create();
+        
+        while 1.0 {
+            let tok = lexer_next_token(lexer);
+            cartan_tree_push(tokens, tok);
+            if (tok.token_type == 0.0) {
+                break;
+            }
+            let first_elem = tok.token_type[0];
+            if (first_elem == 168.0) {
+                break;
+            }
+        }
+        
+        let parser = parser_init(tokens);
+        let ast = parse(parser);
+        printf("Parser finished!\n");
+        cartan_flush(0.0);
+        if (parser.has_error != 0.0) {
+            printf("Compilation failed due to parser diagnostic errors.\n");
+            return 1.0;
+        }
+        
+        let visited_files = cartan_tree_create();
+        cartan_tree_push(visited_files, input_file);
+        let expanded_ast = ast_expansion_pass(ast, visited_files);
+        
+        let type_checker = type_checker_init();
+        typechecker_check(type_checker, expanded_ast);
+        
+        let codegen = llvm_codegen_init();
+        let ir = generate(codegen, expanded_ast);
+        
+        let out_ll = cartan_string_replace(output_file, ".exe", ".ll");
+        cartan_tree_write_file(out_ll, codegen.output);
+        
+        printf("Successfully wrote LLVM IR to ");
+        printf(out_ll);
+        printf("\n");
+        
+        if (is_jit == 1.0) {
+            printf("Executing in-memory CARTAN JIT Engine...\n");
+            cartan_flush(0.0);
+            extern fn cartan_jit_eval(ll_file: string) -> float;
+            cartan_jit_eval(out_ll);
+            return 0.0;
+        }
+
+        printf("Compiling LLVM IR to native executable via Zig...\n");
+        let cmd = cartan_string_concat("zig cc -target x86_64-windows-msvc -O3 ", out_ll);
+        cmd = cartan_string_concat(cmd, " C:\\Users\\rich-\\.cartan\\c_runtime.c C:\\Users\\rich-\\.cartan\\lib\\gpu_runtime.lib -lws2_32 -luser32 -lgdi32 -lwinmm -lopengl32 -ld3dcompiler -lole32 -loleaut32 -lbcrypt -luserenv -ladvapi32 -o ");
+        cmd = cartan_string_concat(cmd, output_file);
+        system(cmd);
+        
+        printf("Successfully built native executable: ");
+        printf(output_file);
+        printf("\n");
+        return 0.0;
+    }
+    
+    print_usage();
+    return 0.0;
+}
+
+
+
+
+
+

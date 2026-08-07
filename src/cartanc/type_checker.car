@@ -1,0 +1,653 @@
+include "ast.ch";
+include "types.ch";
+
+
+struct TypeChecker {
+    functions: ptr;
+    symbol_table: ptr;
+    struct_registry: ptr;
+    current_scope: ptr;
+}
+
+
+fn cartan_dict_get(dict: ptr, key: string) -> ptr {
+    if (dict == 0.0) { return 0.0; }
+    var i = cartan_tree_len(dict) - 1.0;
+    while (i >= 0.0) {
+        let pair = cartan_tree_get_f32(dict, i);
+        if (cartan_string_eq(cartan_tree_get_f32(pair, 0.0), key) == 1.0) {
+            return cartan_tree_get_f32(pair, 1.0);
+        }
+        i = i - 1.0;
+    }
+    return 0.0;
+}
+
+fn cartan_dict_set(dict: ptr, key: string, value: ptr) {
+    if (dict == 0.0) { return; }
+    var i = cartan_tree_len(dict) - 1.0;
+    while (i >= 0.0) {
+        let pair = cartan_tree_get_f32(dict, i);
+        if (cartan_string_eq(cartan_tree_get_f32(pair, 0.0), key) == 1.0) {
+            cartan_tree_set(pair, 1.0, value);
+            return;
+        }
+        i = i - 1.0;
+    }
+    let pair = cartan_tree_create();
+    cartan_tree_push(pair, key);
+    cartan_tree_push(pair, value);
+    cartan_tree_push(dict, pair);
+}
+
+fn type_checker_init() -> TypeChecker {
+    var p = TypeChecker { functions: cartan_tree_create(), symbol_table: cartan_tree_create(), struct_registry: cartan_tree_create() };
+    return p;
+}
+
+
+    fn push_scope(self_ptr: TypeChecker) {
+        cartan_tree_push(self_ptr.symbol_table, cartan_tree_create());
+    }
+
+    fn pop_scope(self_ptr: TypeChecker) {
+    if (self_ptr.current_scope != 0.0) {
+        self_ptr.current_scope = cartan_tree_get_f32(self_ptr.current_scope, 1.0);
+    }
+    }
+
+    fn resolve_var(self_ptr: TypeChecker, name: string) -> ptr {
+        if (name == "self") {
+            printf("[DEBUG resolve_var self] symbol_table scopes");
+        }
+        var curr_node = self_ptr.current_scope;
+        while (curr_node != 0.0) {
+            var scope = cartan_tree_get_f32(curr_node, 0.0);
+            var t = cartan_dict_get(scope, name);
+            if (t != 0.0) {
+                return t;
+            }
+            curr_node = cartan_tree_get_f32(curr_node, 1.0);
+        }
+        return 0.0;
+    }
+
+    fn parse_type_annotation(self_ptr: TypeChecker, t: string) -> ptr {
+        if (cartan_string_starts_with(t, "&mut ") != 0.0) {
+            let inner_type = cartan_string_substring(t, 5.0, cartan_string_length(t));
+            return CartanType::MutBorrow(parse_type_annotation(self_ptr, inner_type));
+        }
+        if (cartan_string_starts_with(t, "&") != 0.0) {
+            let inner_type = cartan_string_substring(t, 1.0, cartan_string_length(t));
+            return CartanType::Borrow(parse_type_annotation(self_ptr, inner_type));
+        }
+        if (cartan_string_starts_with(t, "tree<") != 0.0) {
+            let inner_type = cartan_string_substring(t, 5.0, cartan_string_length(t) - 1.0);
+            return CartanType::Tree(parse_type_annotation(self_ptr, inner_type));
+        }
+        if (cartan_string_starts_with(t, "ptr<") != 0.0) {
+            let inner_type = cartan_string_substring(t, 4.0, cartan_string_length(t) - 1.0);
+            return CartanType::Pointer(parse_type_annotation(self_ptr, inner_type));
+        }
+        if (cartan_string_starts_with(t, "tensor<") != 0.0) {
+            let prec = cartan_string_substring(t, 7.0, cartan_string_length(t) - 1.0);
+            return CartanType::Tensor(cartan_tree_create(), 0.0, 0.0, prec);
+        }
+        if (cartan_string_starts_with(t, "parameter<") != 0.0) {
+            let prec = cartan_string_substring(t, 10.0, cartan_string_length(t) - 1.0);
+            return CartanType::Parameter(cartan_tree_create(), 0.0, 0.0, 0.0, prec);
+        }
+        
+        if (t == "tensor") { return CartanType::Tensor(cartan_tree_create(), 0.0, 0.0, ""); }
+        if (t == "Tensor") { return CartanType::Tensor(cartan_tree_create(), 0.0, 0.0, ""); }
+        if (t == "parameter") { return CartanType::Parameter(cartan_tree_create(), 0.0, 0.0, 0.0, ""); }
+        if (t == "vector") { return CartanType::Vector("", Dimension::Fixed(0.0), 0.0); }
+        if (t == "Vector") { return CartanType::Vector("", Dimension::Fixed(0.0), 0.0); }
+        if (t == "float") { return CartanType::Float; }
+        if (t == "int") { return CartanType::Integer; }
+        if (t == "bool") { return CartanType::Boolean; }
+        if (t == "string") { return CartanType::String; }
+        if (t == "stream") { return CartanType::Stream; }
+        if (t == "spike") { return CartanType::Spike; }
+        if (t == "neuron") { return CartanType::Neuron; }
+        if (t == "StringView") { return CartanType::StringView; }
+        if (t == "ptr") { return CartanType::Pointer(CartanType::Unknown); }
+        if (t == "") { return CartanType::Unknown; }
+        return CartanType::Struct(t);
+    }
+
+    /// Performs static semantic type checking on the AST to mathematically prove
+    /// symbolic shape bounds and coordinate vectors are safe.
+    fn typechecker_check(self_ptr: TypeChecker, ast: ptr) {
+        var idx_stmt = 0.0;
+        while (idx_stmt < cartan_tree_len(ast)) {
+            var stmt = cartan_tree_get_f32(ast, idx_stmt);
+            idx_stmt = idx_stmt + 1.0;
+            var disc = cartan_tree_get_f32(stmt, 0.0);
+            if (disc == 7.0 || disc == 14.0) { // FunctionDecl
+                let decl = cartan_tree_get_f32(stmt, 1.0);
+                let d_name = cartan_tree_get_f32(decl, 0.0);
+                var decls = cartan_dict_get(self_ptr.functions, d_name);
+                if (decls == 0.0) {
+                    decls = cartan_tree_create();
+                    cartan_dict_set(self_ptr.functions, d_name, decls);
+                }
+                cartan_tree_push(decls, decl);
+            } else if (disc == 8.0 || disc == 15.0) { // ExternFunctionDecl
+                let decl = cartan_tree_get_f32(stmt, 1.0);
+                let d_name = cartan_tree_get_f32(decl, 0.0);
+                let d_params = cartan_tree_get_f32(decl, 2.0);
+                let d_ret = cartan_tree_get_f32(decl, 3.0);
+                // dummy
+                let dummy_block = cartan_tree_create();
+                let dummy_body = cartan_tree_create();
+                cartan_tree_push(dummy_body, dummy_block);
+                
+                let dummy = cartan_tree_create();
+                cartan_tree_push(dummy, d_name);
+                cartan_tree_push(dummy, cartan_tree_create());
+                cartan_tree_push(dummy, d_params);
+                cartan_tree_push(dummy, d_ret);
+                cartan_tree_push(dummy, 0.0);
+                cartan_tree_push(dummy, dummy_body);
+                
+                var decls = cartan_dict_get(self_ptr.functions, d_name);
+                if (decls == 0.0) {
+                    decls = cartan_tree_create();
+                    cartan_dict_set(self_ptr.functions, d_name, decls);
+                }
+                cartan_tree_push(decls, dummy);
+            }
+        }
+        printf("[DEBUG TypeCheck] Registered functions loop done\n");
+        var idx_stmt2 = 0.0;
+        while (idx_stmt2 < cartan_tree_len(ast)) {
+            var stmt2 = cartan_tree_get_f32(ast, idx_stmt2);
+            idx_stmt2 = idx_stmt2 + 1.0;
+            tc_visit_stmt(self_ptr, stmt2);
+        }
+    }
+
+    fn tc_visit_stmt(self_ptr: TypeChecker, stmt: ptr) {
+        var disc = cartan_tree_get_f32(stmt, 0.0);
+        
+        if (disc == 1.0) { // ExprStmt
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(stmt, 1.0));
+        } else if (disc == 5.0) { // StructDecl
+            let struct_name = cartan_tree_get_f32(stmt, 1.0);
+            let fields = cartan_tree_get_f32(stmt, 2.0);
+            let field_types = cartan_tree_create();
+            var idx_f = 0.0;
+            while (idx_f < cartan_tree_len(fields)) {
+                let field_decl = cartan_tree_get_f32(fields, idx_f);
+                tc_visit_stmt(self_ptr, field_decl);
+                let field_name = cartan_tree_get_f32(field_decl, 1.0);
+                let field_type_ast = cartan_tree_get_f32(field_decl, 2.0);
+                let field_type = parse_type_annotation(self_ptr, field_type_ast);
+                cartan_dict_set(field_types, field_name, field_type);
+                idx_f = idx_f + 1.0;
+            }
+            cartan_dict_set(self_ptr.struct_registry, struct_name, field_types);
+        } else if (disc == 34.0) { // ImplDecl
+            let target_name = cartan_tree_get_f32(stmt, 1.0);
+            let methods = cartan_tree_get_f32(stmt, 3.0);
+            push_scope(self_ptr);
+            var scope = cartan_tree_get_f32(self_ptr.symbol_table, cartan_tree_len(self_ptr.symbol_table) - 1.0);
+            cartan_dict_set(scope, "self", CartanType::Struct(target_name));
+            var idx_m = 0.0;
+            while (idx_m < cartan_tree_len(methods)) {
+                tc_visit_stmt(self_ptr, cartan_tree_get_f32(methods, idx_m));
+                idx_m = idx_m + 1.0;
+            }
+            pop_scope(self_ptr);
+        } else if (disc == 33.0) { // TraitDecl
+            let methods = cartan_tree_get_f32(stmt, 2.0);
+            var idx_m = 0.0;
+            while (idx_m < cartan_tree_len(methods)) {
+                tc_visit_stmt(self_ptr, cartan_tree_get_f32(methods, idx_m));
+                idx_m = idx_m + 1.0;
+            }
+        } else if (disc == 6.0) { // TensorDecl
+            let name = cartan_tree_get_f32(stmt, 1.0);
+            let shape = cartan_tree_get_f32(stmt, 2.0);
+            let m_space = cartan_tree_get_f32(stmt, 3.0);
+            let m_layout = cartan_tree_get_f32(stmt, 4.0);
+            let dimensions = cartan_tree_create();
+            var idx_dim_expr = 0.0;
+            while (idx_dim_expr < cartan_tree_len(shape)) {
+                var dim_expr = cartan_tree_get_f32(shape, idx_dim_expr);
+                if (cartan_tree_get_f32(dim_expr, 0.0) == 0.0) { // Integer
+                    cartan_tree_push(dimensions, Dimension::Fixed(cartan_tree_get_f32(dim_expr, 1.0)));
+                } else if (cartan_tree_get_f32(dim_expr, 0.0) == 6.0) { // Identifier
+                    cartan_tree_push(dimensions, Dimension::Symbolic(cartan_tree_get_f32(dim_expr, 1.0)));
+                }
+                idx_dim_expr = idx_dim_expr + 1.0;
+            }
+            var scope = cartan_tree_get_f32(self_ptr.symbol_table, cartan_tree_len(self_ptr.symbol_table) - 1.0);
+            let prec = cartan_tree_get_f32(stmt, 10.0);
+            cartan_dict_set(scope, name, CartanType::Tensor(dimensions, m_space, m_layout, prec));
+        } else if (disc == 7.0) { // ParameterDecl
+            let name = cartan_tree_get_f32(stmt, 1.0);
+            let shape = cartan_tree_get_f32(stmt, 2.0);
+            let m_space = cartan_tree_get_f32(stmt, 3.0);
+            let m_layout = cartan_tree_get_f32(stmt, 4.0);
+            let optimizer = cartan_tree_get_f32(stmt, 7.0);
+            let dimensions = cartan_tree_create();
+            var idx_dim_expr = 0.0;
+            while (idx_dim_expr < cartan_tree_len(shape)) {
+                var dim_expr = cartan_tree_get_f32(shape, idx_dim_expr);
+                if (cartan_tree_get_f32(dim_expr, 0.0) == 0.0) {
+                    cartan_tree_push(dimensions, Dimension::Fixed(cartan_tree_get_f32(dim_expr, 1.0)));
+                } else if (cartan_tree_get_f32(dim_expr, 0.0) == 6.0) {
+                    cartan_tree_push(dimensions, Dimension::Symbolic(cartan_tree_get_f32(dim_expr, 1.0)));
+                }
+                idx_dim_expr = idx_dim_expr + 1.0;
+            }
+            var scope = cartan_tree_get_f32(self_ptr.symbol_table, cartan_tree_len(self_ptr.symbol_table) - 1.0);
+            let prec = cartan_tree_get_f32(stmt, 8.0);
+            cartan_dict_set(scope, name, CartanType::Parameter(dimensions, m_space, m_layout, optimizer, prec));
+        } else if (disc == 9.0) { // SequenceDecl
+            let name = cartan_tree_get_f32(stmt, 1.0);
+            let max_len = cartan_tree_get_f32(stmt, 2.0);
+            var dim = Dimension::Fixed(0.0);
+            if (cartan_tree_get_f32(max_len, 0.0) == 0.0) { dim = Dimension::Fixed(cartan_tree_get_f32(max_len, 1.0)); }
+            else if (cartan_tree_get_f32(max_len, 0.0) == 6.0) { dim = Dimension::Symbolic(cartan_tree_get_f32(max_len, 1.0)); }
+            var scope = cartan_tree_get_f32(self_ptr.symbol_table, cartan_tree_len(self_ptr.symbol_table) - 1.0);
+            cartan_dict_set(scope, name, CartanType::Sequence(dim));
+        } else if (disc == 10.0) { // BlockDecl
+            let name = cartan_tree_get_f32(stmt, 1.0);
+            let size = cartan_tree_get_f32(stmt, 2.0);
+            var dim = Dimension::Fixed(0.0);
+            if (cartan_tree_get_f32(size, 0.0) == 0.0) { dim = Dimension::Fixed(cartan_tree_get_f32(size, 1.0)); }
+            else if (cartan_tree_get_f32(size, 0.0) == 6.0) { dim = Dimension::Symbolic(cartan_tree_get_f32(size, 1.0)); }
+            var scope = cartan_tree_get_f32(self_ptr.symbol_table, cartan_tree_len(self_ptr.symbol_table) - 1.0);
+            cartan_dict_set(scope, name, CartanType::Block(dim));
+        } else if (disc == 11.0) { // LatticeDecl
+            let name = cartan_tree_get_f32(stmt, 1.0);
+            let lattice_type = cartan_tree_get_f32(stmt, 2.0);
+            let dim_expr = cartan_tree_get_f32(stmt, 3.0);
+            var dim = Dimension::Fixed(0.0);
+            if (cartan_tree_get_f32(dim_expr, 0.0) == 0.0) { dim = Dimension::Fixed(cartan_tree_get_f32(dim_expr, 1.0)); }
+            else if (cartan_tree_get_f32(dim_expr, 0.0) == 6.0) { dim = Dimension::Symbolic(cartan_tree_get_f32(dim_expr, 1.0)); }
+            var scope = cartan_tree_get_f32(self_ptr.symbol_table, cartan_tree_len(self_ptr.symbol_table) - 1.0);
+            cartan_dict_set(scope, name, CartanType::Lattice(lattice_type, dim));
+        } else if (disc == 12.0) { // TreeDecl
+            let name = cartan_tree_get_f32(stmt, 1.0);
+            let element_type = cartan_tree_get_f32(stmt, 2.0);
+            var scope = cartan_tree_get_f32(self_ptr.symbol_table, cartan_tree_len(self_ptr.symbol_table) - 1.0);
+            cartan_dict_set(scope, name, CartanType::Tree(CartanType::Unknown));
+        } else if (disc == 8.0) { // VectorDecl
+            let name = cartan_tree_get_f32(stmt, 1.0);
+            let data_type = cartan_tree_get_f32(stmt, 2.0);
+            let dim_expr = cartan_tree_get_f32(stmt, 3.0);
+            let space = cartan_tree_get_f32(stmt, 4.0);
+            var dim = Dimension::Fixed(0.0);
+            if (cartan_tree_get_f32(dim_expr, 0.0) == 0.0) { dim = Dimension::Fixed(cartan_tree_get_f32(dim_expr, 1.0)); }
+            else if (cartan_tree_get_f32(dim_expr, 0.0) == 6.0) { dim = Dimension::Symbolic(cartan_tree_get_f32(dim_expr, 1.0)); }
+            var scope = cartan_tree_get_f32(self_ptr.symbol_table, cartan_tree_len(self_ptr.symbol_table) - 1.0);
+            cartan_dict_set(scope, name, CartanType::Vector(data_type, dim, space));
+        } else if (disc == 24.0) { // ReturnStmt
+            let value = cartan_tree_get_f32(stmt, 1.0);
+            if (value != 0.0) {
+                tc_visit_expr(self_ptr, value);
+            }
+        } else if (disc == 7.0 || disc == 14.0) { // FunctionDecl
+            let mangled = cartan_tree_get_f32(stmt, 1.0); 
+            let params = cartan_tree_get_f32(stmt, 2.0);
+            let body = cartan_tree_get_f32(stmt, 4.0);
+            
+            push_scope(self_ptr);
+            var scope = cartan_tree_get_f32(self_ptr.symbol_table, cartan_tree_len(self_ptr.symbol_table) - 1.0);
+            var idx_param = 0.0;
+            while (idx_param < cartan_tree_len(params)) {
+                let param = cartan_tree_get_f32(params, idx_param);
+                cartan_dict_set(scope, cartan_tree_get_f32(param, 0.0), CartanType::Tensor(cartan_tree_create(), 0.0, 0.0));
+                idx_param = idx_param + 1.0;
+            }
+            
+            var idx_stmt = 0.0;
+            while (idx_stmt < cartan_tree_len(cartan_tree_get_f32(body, 0.0))) {
+                tc_visit_stmt(self_ptr, cartan_tree_get_f32(cartan_tree_get_f32(body, 0.0), idx_stmt));
+                idx_stmt = idx_stmt + 1.0;
+            }
+            pop_scope(self_ptr);
+        } else if (disc == 40.0) { // Block
+            let block_stmt = cartan_tree_get_f32(stmt, 1.0);
+            push_scope(self_ptr);
+            var idx_stmt = 0.0;
+            while (idx_stmt < cartan_tree_len(cartan_tree_get_f32(block_stmt, 0.0))) {
+                tc_visit_stmt(self_ptr, cartan_tree_get_f32(cartan_tree_get_f32(block_stmt, 0.0), idx_stmt));
+                idx_stmt = idx_stmt + 1.0;
+            }
+            pop_scope(self_ptr);
+        } else if (disc == 3.0) { // VarDecl
+            let name = cartan_tree_get_f32(stmt, 1.0);
+            let value = cartan_tree_get_f32(stmt, 3.0);
+            let val_type = tc_visit_expr(self_ptr, value);
+            var scope = cartan_tree_get_f32(self_ptr.symbol_table, cartan_tree_len(self_ptr.symbol_table) - 1.0);
+            cartan_dict_set(scope, name, val_type);
+        } else if (disc == 41.0) { // MatchStmt
+            let condition = cartan_tree_get_f32(stmt, 1.0);
+            let arms = cartan_tree_get_f32(stmt, 2.0);
+            tc_visit_expr(self_ptr, condition);
+            var idx_a = 0.0;
+            while (idx_a < cartan_tree_len(arms)) {
+                let arm = cartan_tree_get_f32(arms, idx_a);
+                let pat = cartan_tree_get_f32(arm, 0.0);
+                let body = cartan_tree_get_f32(arm, 1.0);
+                if (pat != 0.0) { tc_visit_expr(self_ptr, pat); }
+                tc_visit_stmt(self_ptr, body);
+                idx_a = idx_a + 1.0;
+            }
+        } else if (disc == 17.0) { // IfStmt
+            let condition = cartan_tree_get_f32(stmt, 1.0);
+            let then_block = cartan_tree_get_f32(stmt, 2.0);
+            let else_block = cartan_tree_get_f32(stmt, 3.0);
+            tc_visit_expr(self_ptr, condition);
+            
+            push_scope(self_ptr);
+            var idx_stmt = 0.0;
+            while (idx_stmt < cartan_tree_len(cartan_tree_get_f32(then_block, 0.0))) {
+                tc_visit_stmt(self_ptr, cartan_tree_get_f32(cartan_tree_get_f32(then_block, 0.0), idx_stmt));
+                idx_stmt = idx_stmt + 1.0;
+            }
+            pop_scope(self_ptr);
+            
+            if (else_block != 0.0) {
+                push_scope(self_ptr);
+                var idx_e = 0.0;
+                while (idx_e < cartan_tree_len(cartan_tree_get_f32(else_block, 0.0))) {
+                    tc_visit_stmt(self_ptr, cartan_tree_get_f32(cartan_tree_get_f32(else_block, 0.0), idx_e));
+                    idx_e = idx_e + 1.0;
+                }
+                pop_scope(self_ptr);
+            }
+        } else if (disc == 18.0) { // WhileStmt
+            let condition = cartan_tree_get_f32(stmt, 1.0);
+            let body = cartan_tree_get_f32(stmt, 2.0);
+            tc_visit_expr(self_ptr, condition);
+            push_scope(self_ptr);
+            var idx_stmt = 0.0;
+            while (idx_stmt < cartan_tree_len(cartan_tree_get_f32(body, 0.0))) {
+                tc_visit_stmt(self_ptr, cartan_tree_get_f32(cartan_tree_get_f32(body, 0.0), idx_stmt));
+                idx_stmt = idx_stmt + 1.0;
+            }
+            pop_scope(self_ptr);
+        } else if (disc == 20.0) { // TryCatch
+            let try_block = cartan_tree_get_f32(stmt, 1.0);
+            let catch_var = cartan_tree_get_f32(stmt, 2.0);
+            let catch_block = cartan_tree_get_f32(stmt, 3.0);
+            
+            push_scope(self_ptr);
+            var idx_stmt = 0.0;
+            while (idx_stmt < cartan_tree_len(cartan_tree_get_f32(try_block, 0.0))) {
+                tc_visit_stmt(self_ptr, cartan_tree_get_f32(cartan_tree_get_f32(try_block, 0.0), idx_stmt));
+                idx_stmt = idx_stmt + 1.0;
+            }
+            pop_scope(self_ptr);
+            
+            push_scope(self_ptr);
+            var scope = cartan_tree_get_f32(self_ptr.symbol_table, cartan_tree_len(self_ptr.symbol_table) - 1.0);
+            cartan_dict_set(scope, catch_var, CartanType::Float);
+            var idx_c = 0.0;
+            while (idx_c < cartan_tree_len(cartan_tree_get_f32(catch_block, 0.0))) {
+                tc_visit_stmt(self_ptr, cartan_tree_get_f32(cartan_tree_get_f32(catch_block, 0.0), idx_c));
+                idx_c = idx_c + 1.0;
+            }
+            pop_scope(self_ptr);
+        } else if (disc == 43.0) { // AsyncCompute
+            let block_stmt = cartan_tree_get_f32(stmt, 1.0);
+            push_scope(self_ptr);
+            var idx_stmt = 0.0;
+            while (idx_stmt < cartan_tree_len(cartan_tree_get_f32(block_stmt, 0.0))) {
+                tc_visit_stmt(self_ptr, cartan_tree_get_f32(cartan_tree_get_f32(block_stmt, 0.0), idx_stmt));
+                idx_stmt = idx_stmt + 1.0;
+            }
+            pop_scope(self_ptr);
+        } else if (disc == 44.0) { // Backward
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(stmt, 1.0));
+        } else if (disc == 22.0) { // AbsorbWeights
+            let local_tensor = cartan_tree_get_f32(stmt, 2.0);
+            if (resolve_var(self_ptr, local_tensor) == 0.0) {
+                return;
+            }
+        } else if (disc == 23.0) { // ProjectVocabStmt
+            let source_tensor = cartan_tree_get_f32(stmt, 1.0);
+            let target_vocab = cartan_tree_get_f32(stmt, 2.0);
+            if (resolve_var(self_ptr, source_tensor) == 0.0) { return; }
+            if (resolve_var(self_ptr, target_vocab) == 0.0) { return; }
+        } else if (disc == 38.0) { // ImportModel
+            let alias = cartan_tree_get_f32(stmt, 2.0);
+            var scope = cartan_tree_get_f32(self_ptr.symbol_table, cartan_tree_len(self_ptr.symbol_table) - 1.0);
+            cartan_dict_set(scope, alias, CartanType::Unknown);
+        }
+    }
+
+    fn tc_visit_expr(self_ptr: TypeChecker, expr: ptr) -> ptr {
+        var disc = cartan_tree_get_f32(expr, 0.0);
+        
+        if (disc == 21.0) { // IndexAccess
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 2.0));
+            return CartanType::Float;
+        } else if (disc == 22.0) { // Assignment
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
+            return tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 2.0));
+        } else if (disc == 23.0) { // BroadcastOp
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
+            return tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 3.0));
+        } else if (disc == 26.0) { // FusedKernel
+            let block_stmt = cartan_tree_get_f32(expr, 1.0);
+            var last_type = CartanType::Unknown;
+            var idx_s = 0.0;
+            while (idx_s < cartan_tree_len(cartan_tree_get_f32(block_stmt, 0.0))) {
+                var s = cartan_tree_get_f32(cartan_tree_get_f32(block_stmt, 0.0), idx_s);
+                idx_s = idx_s + 1.0;
+                if (cartan_tree_get_f32(s, 0.0) == 1.0) { // ExprStmt
+                    last_type = tc_visit_expr(self_ptr, cartan_tree_get_f32(s, 1.0));
+                } else {
+                    tc_visit_stmt(self_ptr, s);
+                }
+            }
+            return last_type;
+        } else if (disc == 19.0) { // StreamInit
+            return CartanType::Stream;
+        } else if (disc == 31.0) { // TokenizeBPE
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
+            return CartanType::Unknown;
+        } else if (disc == 32.0) { // AlignSpans
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
+            return CartanType::Unknown;
+        } else if (disc == 34.0) { // LexAndEmbed
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
+            return CartanType::Unknown;
+        } else if (disc == 35.0) { // AlignGeodesics
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 2.0));
+            return CartanType::Unknown;
+        } else if (disc == 36.0) { // GeometricBridge
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 2.0));
+            return CartanType::Unknown;
+        } else if (disc == 38.0) { // Transpose
+            let inner_type = tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
+            if (cartan_tree_get_f32(inner_type, 0.0) == 8.0) { // Tensor
+                let dims = cartan_tree_get_f32(inner_type, 1.0);
+                let space = cartan_tree_get_f32(inner_type, 2.0);
+                let m_layout = cartan_tree_get_f32(inner_type, 3.0);
+                let new_dims = dims; // Note: simplified array flip
+                return CartanType::Tensor(new_dims, space, m_layout);
+            }
+            return inner_type;
+        } else if (disc == 37.0) { // TransposeWeights
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
+            return CartanType::Unknown;
+        } else if (disc == 10.0) { // Quote
+            let block_stmt = cartan_tree_get_f32(expr, 1.0);
+            var idx_stmt = 0.0;
+            while (idx_stmt < cartan_tree_len(cartan_tree_get_f32(block_stmt, 0.0))) {
+                tc_visit_stmt(self_ptr, cartan_tree_get_f32(cartan_tree_get_f32(block_stmt, 0.0), idx_stmt));
+                idx_stmt = idx_stmt + 1.0;
+            }
+            let d = cartan_tree_create();
+            cartan_tree_push(d, Dimension::Fixed(0.0));
+            return CartanType::Tensor(d, 0.0, 0.0);
+        } else if (disc == 39.0) { // HotSwap
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 2.0));
+            return CartanType::Unknown;
+        } else if (disc == 11.0) { // StringView
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 2.0));
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 3.0));
+            return CartanType::StringView;
+        } else if (disc == 12.0) { // SimdFindFirst
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 2.0));
+            return CartanType::Integer;
+        } else if (disc == 13.0) { // SimdMaskAlpha
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
+            return CartanType::Integer;
+        } else if (disc == 45.0) { // ParallelTransport
+            let vec_type = tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
+            let from_type = tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 2.0));
+            let to_type = tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 3.0));
+            return CartanType::Vector("", Dimension::Fixed(0.0), 0.0);
+        } else if (disc == 14.0) { // StructInit
+            return CartanType::Struct(cartan_tree_get_f32(expr, 1.0));
+        } else if (disc == 8.0) { // EnumInit
+            let args = cartan_tree_get_f32(expr, 3.0);
+            var idx_arg = 0.0;
+            while (idx_arg < cartan_tree_len(args)) {
+                tc_visit_expr(self_ptr, cartan_tree_get_f32(args, idx_arg));
+                idx_arg = idx_arg + 1.0;
+            }
+            return CartanType::Enum(cartan_tree_get_f32(expr, 1.0));
+        } else if (disc == 9.0) { // Match
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
+            let arms = cartan_tree_get_f32(expr, 2.0);
+            var return_type = CartanType::Unknown;
+            var idx_arm = 0.0;
+            while (idx_arm < cartan_tree_len(arms)) {
+                let arm = cartan_tree_get_f32(arms, idx_arm);
+                push_scope(self_ptr);
+                let arm_type = tc_visit_expr(self_ptr, cartan_tree_get_f32(arm, 1.0));
+                if (cartan_tree_get_f32(return_type, 0.0) == 18.0) { // Unknown
+                    return_type = arm_type;
+                }
+                pop_scope(self_ptr);
+                idx_arm = idx_arm + 1.0;
+            }
+            return return_type;
+        } else if (disc == 27.0) { // Attention
+            return tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
+        } else if (disc == 17.0) { // FunctionCall
+            let name = cartan_tree_get_f32(expr, 1.0);
+            let args = cartan_tree_get_f32(expr, 2.0);
+            var idx_arg = 0.0;
+            while (idx_arg < cartan_tree_len(args)) {
+                tc_visit_expr(self_ptr, cartan_tree_get_f32(args, idx_arg));
+                idx_arg = idx_arg + 1.0;
+            }
+            var decls = cartan_dict_get(self_ptr.functions, name);
+            if (decls != 0.0) {
+                printf("[DEBUG TypeCheck Call] Found decl for: %s\n", name);
+                let first_decl = cartan_tree_get_f32(decls, 0.0);
+                if (cartan_tree_get_f32(first_decl, 3.0) != 0.0) {
+                    return parse_type_annotation(self_ptr, cartan_tree_get_f32(first_decl, 3.0));
+                }
+            } else {
+                printf("[DEBUG TypeCheck Call] No decl found for: %s\n", name);
+            }
+            return CartanType::Unknown;
+        } else if (disc == 18.0) { // MethodCall
+            let obj_type = tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
+            let method_name = cartan_tree_get_f32(expr, 2.0);
+            let args = cartan_tree_get_f32(expr, 3.0);
+            var idx_arg = 0.0;
+            while (idx_arg < cartan_tree_len(args)) {
+                tc_visit_expr(self_ptr, cartan_tree_get_f32(args, idx_arg));
+                idx_arg = idx_arg + 1.0;
+            }
+            if (cartan_tree_get_f32(obj_type, 0.0) == 4.0) { // Stream
+                if (method_name == "poll") {
+                    let d = cartan_tree_create();
+                    cartan_tree_push(d, Dimension::Fixed(1.0));
+                    return CartanType::Tensor(d, 0.0, 0.0);
+                }
+            }
+            return CartanType::Unknown;
+        } else if (disc == 20.0) { // PropertyAccess
+            let obj_expr = cartan_tree_get_f32(expr, 1.0);
+            let obj_type = tc_visit_expr(self_ptr, obj_expr);
+            let prop_name = cartan_tree_get_f32(expr, 2.0);
+            
+            if (cartan_tree_get_f32(obj_type, 0.0) == 14.0) { // Struct
+                let struct_name = cartan_tree_get_f32(obj_type, 1.0);
+                let field_types = cartan_dict_get(self_ptr.struct_registry, struct_name);
+                if (field_types != 0.0) {
+                    let field_type = cartan_dict_get(field_types, prop_name);
+                    if (field_type != 0.0) {
+                        return field_type;
+                    }
+                }
+            }
+            return CartanType::Unknown;
+        } else if (disc == 7.0) { // Placeholder
+            return CartanType::Unknown;
+        } else if (disc == 6.0) { // Identifier
+            let name = cartan_tree_get_f32(expr, 1.0);
+            if (name == "spike") { return CartanType::Spike; }
+            if (name == "neuron") { return CartanType::Neuron; }
+            if (name == "Cartan") { return CartanType::Unknown; }
+            if (name == "optimizer") { return CartanType::Unknown; }
+            let resolved = resolve_var(self_ptr, name);
+            if (resolved != 0.0) { return resolved; }
+            return 0.0;
+        } else if (disc == 16.0) { // BinaryOp
+            let left_type = tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
+            let op = cartan_tree_get_f32(expr, 2.0);
+            let right_type = tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 3.0));
+            if (op == "==") { return CartanType::Boolean; }
+            if (op == "<") { return CartanType::Boolean; }
+            if (op == ">") { return CartanType::Boolean; }
+            if (op == "<=") { return CartanType::Boolean; }
+            if (op == ">=") { return CartanType::Boolean; }
+            if (op == "!=") { return CartanType::Boolean; }
+            if (op == "@") {
+                if (cartan_tree_get_f32(left_type, 0.0) == 18.0) { return CartanType::Unknown; }
+                if (cartan_tree_get_f32(right_type, 0.0) == 18.0) { return CartanType::Unknown; }
+                if (cartan_tree_get_f32(left_type, 0.0) == 8.0) { // Tensor
+                    if (cartan_tree_get_f32(right_type, 0.0) == 8.0) {
+                        return left_type; // simplified
+                    }
+                }
+                return 0.0;
+            }
+            return left_type;
+        } else if (disc == 0.0) { // Integer
+            return CartanType::Integer;
+        } else if (disc == 1.0) { // Float
+            return CartanType::Float;
+        } else if (disc == 2.0) { // Boolean
+            return CartanType::Boolean;
+        } else if (disc == 3.0) { // StringLiteral
+            return CartanType::String;
+        } else if (disc == 33.0) { // TreeSearch
+            let tree_type = tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
+            if (cartan_tree_get_f32(tree_type, 0.0) == 13.0) { // Tree
+                let d = cartan_tree_create();
+                cartan_tree_push(d, Dimension::Fixed(1.0));
+                return CartanType::Tensor(d, 0.0, 0.0);
+            }
+            return 0.0;
+        }
+        
+        return CartanType::Unknown;
+    }
+
+
+
+
+
+

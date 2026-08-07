@@ -1,0 +1,99 @@
+// test/geomind/streams.car
+// Neural Stream Topologies & Fractal Attention Blocks
+
+import "geomind/geometry.car";
+
+struct CosformerStream {
+    @agent_accessible W_Q: Tensor;
+    @agent_accessible W_K: Tensor;
+    @agent_accessible W_V: Tensor;
+    @agent_accessible W_O: Tensor;
+}
+impl CosformerStream {
+    fn process(x: Tensor) -> Tensor {
+        let Q: Tensor = x @ self.W_Q;
+        let K: Tensor = x @ self.W_K;
+        let V: Tensor = x @ self.W_V;
+        let attn: Tensor = Q @ K;
+        let out: Tensor = attn @ V;
+        return out @ self.W_O;
+    }
+}
+
+struct SSMStream {
+    @agent_accessible A: Tensor;
+    @agent_accessible B: Tensor;
+    @agent_accessible C: Tensor;
+    @agent_accessible D: Tensor;
+}
+impl SSMStream {
+    fn process(x: Tensor) -> Tensor {
+        let state: Tensor = x @ self.A + x @ self.B;
+        return state @ self.C + x @ self.D;
+    }
+}
+
+struct SpectralStream {
+    @agent_accessible W_in: Tensor;
+    @agent_accessible W_out: Tensor;
+}
+impl SpectralStream {
+    fn process(x: Tensor) -> Tensor { return (x @ self.W_in) @ self.W_out; }
+}
+
+struct PoincareStream {
+    @agent_accessible W_in: Tensor;
+    @agent_accessible W_out: Tensor;
+}
+impl PoincareStream {
+    fn process(x: Tensor) -> Tensor { return (x @ self.W_in) @ self.W_out; }
+}
+
+struct HomologyStream {
+    @agent_accessible W_in: Tensor;
+    @agent_accessible W_out: Tensor;
+}
+impl HomologyStream {
+    fn process(x: Tensor) -> Tensor { return (x @ self.W_in) @ self.W_out; }
+}
+
+struct EikonalStream {
+    @agent_accessible W_in: Tensor;
+    @agent_accessible W_out: Tensor;
+}
+impl EikonalStream {
+    fn process(x: Tensor) -> Tensor { return (x @ self.W_in) @ self.W_out; }
+}
+
+struct HeatKernelStream {
+    @agent_accessible W_in: Tensor;
+    @agent_accessible W_out: Tensor;
+}
+impl HeatKernelStream {
+    fn process(x: Tensor) -> Tensor { return (x @ self.W_in) @ self.W_out; }
+}
+
+struct TrialityStream {
+    @agent_accessible W_in: Tensor;
+    @agent_accessible W_out: Tensor;
+}
+impl TrialityStream {
+    fn process(x: Tensor) -> Tensor { return (x @ self.W_in) @ self.W_out; }
+}
+
+struct FractalAttention {
+    @agent_accessible W_Q: Tensor;
+    @agent_accessible W_K: Tensor;
+    @agent_accessible W_V: Tensor;
+}
+impl FractalAttention {
+    fn process(x: Tensor) -> Tensor {
+        let Q: Tensor = x @ self.W_Q;
+        let K: Tensor = x @ self.W_K;
+        let V: Tensor = x @ self.W_V;
+        
+        let attn_scores: Tensor = Q @ K;
+        let output: Tensor = attn_scores @ V;
+        return output;
+    }
+}

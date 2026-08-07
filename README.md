@@ -17,7 +17,7 @@ By bringing Riemannian geometry, automatic differentiation, and zero-copy memory
 ## The Architecture
 
 Cartan compiles via a highly specialized systems pipeline:
-1. **Frontend (`cartanc`)**: A Rust-based compiler that parses Cartan source (`.ctn`), verifies symbolic geometric constraints, calculates static tensor memory offsets (Liveness Analysis), and emits optimized LLVM IR (`.ll`).
+1. **Frontend (`cartanc`)**: A Rust-based compiler that parses Cartan source (`.car`), verifies symbolic geometric constraints, calculates static tensor memory offsets (Liveness Analysis), and emits optimized LLVM IR (`.ll`).
 2. **Standard Library (`aether`)**: Pre-built AI workflows and primitives such as `run_causal_pretrain`, `run_sft_train`, and `run_generate`.
 3. **Hardware Runtime**: A fast C/Rust-based `tensor_runtime` that implements memory allocation, C-FFI interconnects, and reverse-mode automatic differentiation.
 
@@ -32,10 +32,10 @@ cargo build --release
 ```
 
 ### 2. Compile an AI Workflow
-You can compile Cartan `.ctn` files into standalone executables. The entry point of the AI operating system is `aether/geomind.ctn`.
+You can compile Cartan `.car` files into standalone executables. The entry point of the AI operating system is `aether/geomind.car`.
 
 ```bash
-cartanc build-exe aether/geomind.ctn
+cartanc build-exe aether/geomind.car
 ```
 
 This will produce a fast, standalone native binary `release/geomind.exe`.
@@ -63,7 +63,7 @@ Example: Train a causal model with debug output:
 A quick look at the Cartan syntax:
 
 ```cartan
-import "std/io.ctn"
+import "std/io.car"
 
 // Standard main entry point
 fn main() -> f32 {

@@ -1,0 +1,14 @@
+fn main() {
+    // 1. Valid matrix mult (2D @ 2D): 2x3 @ 3x4 -> 2x4
+    let A = tensor[2, 3] layout(SoA);
+    let B = parameter[3, 4] layout(Tiled(8, 8));
+    let C = A @ B;
+
+    // 2. Valid vector-matrix mult (1D @ 2D): 3 @ 3x4 -> 4
+    let v = tensor[3];
+    let v_out = v @ B;
+
+    // 3. Invalid matrix mult: 2x3 @ 4x5
+    let W = parameter[4, 5];
+    let mismatch = A @ W;
+}

@@ -1,0 +1,23 @@
+// src/std/ingest.car
+// CARTAN Standard Library: Layer 1 Web Ingestion & Data Pipeline Module
+
+include "http.car";
+include "string.car";
+
+mod ingest {
+    fn fetch_url(url: string) -> string {
+        return http::get(url);
+    }
+
+    fn parse_csv_line(line: string) -> float {
+        let len = string::len(line);
+        if (len <= 0.0) { return 0.0; }
+        return 1.0;
+    }
+
+    fn parse_json_lines(payload: string) -> float {
+        let len = string::len(payload);
+        if (len <= 0.0) { return 0.0; }
+        return 1.0;
+    }
+}

@@ -1,0 +1,20 @@
+- [x] Comment compiler source code
+    - [x] Comment `compiler/src/ast.rs`
+    - [x] Comment `compiler/src/parser.rs`
+    - [x] Comment `compiler/src/type_checker.rs`
+    - [x] Comment `compiler/src/llvm_codegen.rs`
+    - [x] Comment `compiler/src/eval.rs`
+- [x] Fix C runtime linkage errors in `tensor_runtime/src/lib.rs`
+    - [x] Implement string utilities stubs and functions
+    - [x] Implement tree/lattice/search runtime stubs
+    - [x] Implement cognitive reasoning block stubs
+    - [x] Implement vectorization, sync, and attention stubs
+    - [x] Implement BPE, grafting, and transport stubs
+- [x] Update documentation files
+    - [x] Update `docs/spec.md` with traits, impls, spawn, and receive definitions
+    - [x] Update `docs/LANGUAGE_REFERENCE.md` with all new features and syntax examples
+- [x] Verify changes
+    - [x] Run cargo tests in `compiler/`
+    - [x] Build `tensor_runtime` in release mode
+    - [x] Run hello world test to verify compiler
+    - [x] Run OOP method dispatch tests to verify runtime

@@ -1,0 +1,316 @@
+// src/cartanc/lexer.car
+
+extern fn cartan_arena_alloc(size: float) -> ptr;
+extern fn free(p: ptr);
+extern fn cartan_string_eq(s1: string, s2: string) -> float;
+
+struct Lexer {
+    source: string; 
+    length: float;
+    current: float;
+    line: float;
+    col: float;
+}
+
+fn is_alpha(c: float) -> float {
+    if ((c >= 65.0 && c <= 90.0) || (c >= 97.0 && c <= 122.0) || c == 95.0) { // A-Z, a-z, _
+        return 1.0;
+    }
+    return 0.0;
+}
+
+fn is_digit(c: float) -> float {
+    if (c >= 48.0 && c <= 57.0) { // 0-9
+        return 1.0;
+    }
+    return 0.0;
+}
+
+fn is_alphanumeric(c: float) -> float {
+    if (is_alpha(c) == 1.0 || is_digit(c) == 1.0) {
+        return 1.0;
+    }
+    return 0.0;
+}
+
+extern fn cartan_ast_string_substring(s: string, start: float, end: float) -> string;
+fn substring(src_str: string, start: float, end: float) -> string {
+    return cartan_ast_string_substring(src_str, start, end);
+}
+
+extern fn c_cartan_string_length(s: string) -> float;
+fn check_keyword(lexeme: string) -> ptr {
+    printf("check_keyword: [%s] (len=%f)\n", lexeme, c_cartan_string_length(lexeme)); cartan_flush(0.0);
+    if (cartan_string_eq(lexeme, "fn") != 0.0) { printf("LEXER: fn\n"); cartan_flush(0.0); return TokenType::Fn;}
+    if (cartan_string_eq(lexeme, "let") != 0.0) { return TokenType::Let;}
+    if (cartan_string_eq(lexeme, "const") != 0.0) { return TokenType::Const;}
+    if (cartan_string_eq(lexeme, "var") != 0.0) { return TokenType::Var;}
+    if (cartan_string_eq(lexeme, "struct") != 0.0) { return TokenType::Struct;}
+    if (cartan_string_eq(lexeme, "tensor") != 0.0) { return TokenType::Tensor;}
+    if (cartan_string_eq(lexeme, "vector") != 0.0) { return TokenType::Vector;}
+    if (cartan_string_eq(lexeme, "tree") != 0.0) { return TokenType::Tree;}
+    if (cartan_string_eq(lexeme, "if") != 0.0) { return TokenType::If;}
+    if (cartan_string_eq(lexeme, "else") != 0.0) { return TokenType::Else;}
+    if (cartan_string_eq(lexeme, "while") != 0.0) { return TokenType::While;}
+    if (cartan_string_eq(lexeme, "for") != 0.0) { return TokenType::For;}
+    if (cartan_string_eq(lexeme, "return") != 0.0) { return TokenType::Return;}
+    if (cartan_string_eq(lexeme, "extern") != 0.0) { return TokenType::Extern;}
+    if (cartan_string_eq(lexeme, "true") != 0.0) { return TokenType::BoolLiteral(1.0);}
+    if (cartan_string_eq(lexeme, "false") != 0.0) { return TokenType::BoolLiteral(0.0);}
+    if (cartan_string_eq(lexeme, "enum") != 0.0) { return TokenType::Enum;}
+    if (cartan_string_eq(lexeme, "match") != 0.0) { return TokenType::Match;}
+    if (cartan_string_eq(lexeme, "include") != 0.0) { return TokenType::Include;}
+    if (cartan_string_eq(lexeme, "mut") != 0.0) { return TokenType::Mut;}
+    if (cartan_string_eq(lexeme, "parameter") != 0.0) { return TokenType::Parameter;}
+    if (cartan_string_eq(lexeme, "under") != 0.0) { return TokenType::Under;}
+    if (cartan_string_eq(lexeme, "import") != 0.0) { return TokenType::Import;}
+    return TokenType::Identifier(lexeme);
+}
+
+fn lexer_init(source_str: string, length: float) -> Lexer {
+    var l = Lexer {
+        source: source_str,
+        length: length,
+        current: 0.0,
+        line: 1.0,
+        col: 1.0
+    };
+    return l;
+}
+
+fn lexer_peek(lexer: Lexer) -> float {
+    if (lexer.current >= lexer.length) {
+        return 0.0; // EOF
+    }
+    var ptr_s: ptr = lexer.source; 
+    return ptr_s[lexer.current];
+}
+
+fn lexer_peek_next(lexer: Lexer) -> float {
+    if (lexer.current + 1.0 >= lexer.length) {
+        return 0.0; // EOF
+    }
+    var ptr_s: ptr = lexer.source; 
+    return ptr_s[lexer.current + 1.0];
+}
+
+fn lexer_advance(lexer: Lexer) -> float {
+    var c = lexer_peek(lexer);
+    if (c != 0.0) {
+        lexer.current = lexer.current + 1.0;
+        if (c == 10.0) { //  \n 
+            lexer.line = lexer.line + 1.0;
+            lexer.col = 1.0;
+        } else {
+            lexer.col = lexer.col + 1.0;
+        }
+    }
+    return c;
+}
+
+fn lexer_match(lexer: Lexer, expected: float) -> float {
+    if (lexer_peek(lexer) == expected) {
+        lexer_advance(lexer);
+        return 1.0;
+    }
+    return 0.0;
+}
+
+fn lexer_next_token(lexer: Lexer) -> Token {
+    while (1.0) {
+        var c = lexer_peek(lexer);
+        if (c == 0.0) {
+            var tok_eof = Token {
+                token_type: TokenType::EOF,
+                span: Span { line: lexer.line, col_start: lexer.col, col_end: lexer.col, line_end: lexer.line }
+            };
+            return tok_eof;
+        }
+        
+        var start_col = lexer.col;
+        var start_line = lexer.line;
+        
+        // Skip whitespace
+        if (c == 32.0 || c == 9.0 || c == 10.0 || c == 13.0) {
+            lexer_advance(lexer);
+            continue;
+        }
+        
+        // Comments
+        if (c == 47.0) { //  / 
+            if (lexer_peek_next(lexer) == 47.0) { //  // 
+                while (lexer_peek(lexer) != 0.0 && lexer_peek(lexer) != 10.0) {
+                    lexer_advance(lexer);
+                }
+                continue;
+            }
+        }
+        
+        var start_current = lexer.current;
+        
+        // Identifiers and Keywords
+        if (is_alpha(c) == 1.0) {
+            while (is_alphanumeric(lexer_peek(lexer)) == 1.0) {
+                lexer_advance(lexer);
+            }
+            var lexeme = substring(lexer.source, start_current, lexer.current);
+            var ttype = check_keyword(lexeme);
+            var tok_id = Token {
+                token_type: ttype,
+                span: Span { line: start_line, col_start: start_col, col_end: lexer.col, line_end: lexer.line }
+            };
+            return tok_id;
+        }
+        
+        // Numbers
+        if (is_digit(c) == 1.0) {
+            while (is_digit(lexer_peek(lexer)) == 1.0) {
+                lexer_advance(lexer);
+            }
+            if (lexer_peek(lexer) == 46.0 && is_digit(lexer_peek_next(lexer)) == 1.0) { //  . 
+                lexer_advance(lexer); // consume  . 
+                while (is_digit(lexer_peek(lexer)) == 1.0) {
+                    lexer_advance(lexer);
+                }
+                var lexeme_f = substring(lexer.source, start_current, lexer.current);
+                // Currently float literal conversion from string isn t here, assuming we store string or have `str_to_float`
+                // For now just pass the float inside Enum? Wait, Cartan currently doesn t have `str_to_float`.
+                // For now, let s keep it as string if needed, or dummy 0.0? 
+                // Ah, in Cartan `FloatLiteral` takes a float. We will need `atof(lexeme_f)`.
+                // I ll add `atof` declaration.
+                var tok_float = Token {
+                    token_type: TokenType::FloatLiteral(atof(lexeme_f)),
+                    span: Span { line: start_line, col_start: start_col, col_end: lexer.col, line_end: lexer.line }
+                };
+                return tok_float;
+            }
+            var lexeme_i = substring(lexer.source, start_current, lexer.current);
+            var tok_int = Token {
+                token_type: TokenType::IntLiteral(atof(lexeme_i)),
+                span: Span { line: start_line, col_start: start_col, col_end: lexer.col, line_end: lexer.line }
+            };
+            return tok_int;
+        }
+        
+        // String Literals
+        if (c == 34.0) { //  " 
+            lexer_advance(lexer); // skip opening quote
+            start_current = lexer.current; // don t include quote in lexeme
+            while (lexer_peek(lexer) != 34.0 && lexer_peek(lexer) != 0.0) {
+                if (lexer_peek(lexer) == 92.0) { // '\'
+                    lexer_advance(lexer); // skip \
+                    lexer_advance(lexer); // skip escaped char
+                    continue;
+                }
+                lexer_advance(lexer);
+            }
+            var lexeme_s = substring(lexer.source, start_current, lexer.current);
+            if (lexer_peek(lexer) == 34.0) {
+                lexer_advance(lexer); // skip closing quote
+            }
+            var tok_str = Token {
+                token_type: TokenType::StringLiteral(lexeme_s),
+                span: Span { line: start_line, col_start: start_col, col_end: lexer.col, line_end: lexer.line }
+            };
+            return tok_str;
+        }
+        
+        // Single/Double char tokens
+        lexer_advance(lexer);
+        
+        var ttype_op: ptr = TokenType::EOF;
+        if (c == 43.0) {
+            if (lexer_match(lexer, 61.0) == 1.0) { ttype_op = TokenType::PlusEq; }
+            else { ttype_op = TokenType::Plus; }
+        }
+        else if (c == 45.0) {
+            if (lexer_match(lexer, 62.0) == 1.0) { ttype_op = TokenType::Arrow; }
+            else if (lexer_match(lexer, 61.0) == 1.0) { ttype_op = TokenType::MinusEq; }
+            else { ttype_op = TokenType::Minus; }
+        }
+        else if (c == 42.0) {
+            if (lexer_match(lexer, 61.0) == 1.0) { ttype_op = TokenType::StarEq; }
+            else { ttype_op = TokenType::Star; }
+        }
+        else if (c == 47.0) {
+            if (lexer_match(lexer, 61.0) == 1.0) { ttype_op = TokenType::SlashEq; }
+            else { ttype_op = TokenType::Slash; }
+        }
+        else if (c == 40.0) { ttype_op = TokenType::LParen;}
+        else if (c == 41.0) { ttype_op = TokenType::RParen;}
+        else if (c == 123.0) { ttype_op = TokenType::LBrace;}
+        else if (c == 125.0) { ttype_op = TokenType::RBrace;}
+        else if (c == 91.0) { ttype_op = TokenType::LBracket;}
+        else if (c == 93.0) { ttype_op = TokenType::RBracket;}
+        else if (c == 44.0) { ttype_op = TokenType::Comma;}
+        else if (c == 59.0) { ttype_op = TokenType::Semicolon;}
+        else if (c == 58.0) { 
+            if (lexer_match(lexer, 58.0) == 1.0) { //  :: 
+                ttype_op = TokenType::DoubleColon;
+            } else {
+                ttype_op = TokenType::Colon;
+            }
+        }
+        else if (c == 46.0) { ttype_op = TokenType::Dot;}
+        else if (c == 61.0) {
+            if (lexer_match(lexer, 61.0) == 1.0) { //  == 
+                ttype_op = TokenType::EqEq;
+            } else if (lexer_match(lexer, 62.0) == 1.0) { //  => 
+                ttype_op = TokenType::FatArrow;
+            } else {
+                ttype_op = TokenType::Eq;
+            }
+        }
+        else if (c == 33.0) {
+            if (lexer_match(lexer, 61.0) == 1.0) {
+                ttype_op = TokenType::NotEq;
+            }
+        }
+        else if (c == 60.0) {
+            if (lexer_match(lexer, 61.0) == 1.0) {
+                ttype_op = TokenType::LessEq;
+            } else {
+                ttype_op = TokenType::Less;
+            }
+        }
+        else if (c == 62.0) {
+            if (lexer_match(lexer, 61.0) == 1.0) {
+                ttype_op = TokenType::GreaterEq;
+            } else {
+                ttype_op = TokenType::Greater;
+            }
+        }
+        else if (c == 38.0) {
+            if (lexer_match(lexer, 38.0) == 1.0) {
+                ttype_op = TokenType::And;
+            } else if (lexer_match(lexer, 61.0) == 1.0) {
+                ttype_op = TokenType::AmpersandEq;
+            } else {
+                ttype_op = TokenType::Ampersand;
+            }
+        }
+        else if (c == 124.0) {
+            if (lexer_match(lexer, 124.0) == 1.0) {
+                ttype_op = TokenType::Or;
+            } else {
+                ttype_op = TokenType::Pipe;
+            }
+        }
+        
+        var tok_op = Token {
+            token_type: ttype_op,
+            span: Span { line: start_line, col_start: start_col, col_end: lexer.col, line_end: lexer.line }
+        };
+        return tok_op;
+    }
+    
+    // Unreachable
+    var tok2 = Token {
+        token_type: TokenType::EOF,
+        span: Span { line: lexer.line, col_start: lexer.col, col_end: lexer.col, line_end: lexer.line }
+    };
+    return tok2;
+}
+
+
+
