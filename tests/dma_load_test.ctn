@@ -1,3 +1,0 @@
-fn main() {
-    let weights = Cartan.load_dma("model.aew", "SRAM");
-}

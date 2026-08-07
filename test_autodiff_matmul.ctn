@@ -1,4 +1,0 @@
-tensor A[2, 3];
-tensor B[3, 4];
-let C = A @ B;
-backward C;

@@ -1,5 +1,0 @@
-let x = 5.0;
-
-let blueprint = quote {
-    let y = x * 2.0;
-};

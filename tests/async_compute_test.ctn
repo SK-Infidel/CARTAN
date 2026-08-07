@@ -1,6 +1,0 @@
-fn main() {
-    async_compute {
-        let x = 1.0;
-        let y = x + 2.0;
-    }
-}

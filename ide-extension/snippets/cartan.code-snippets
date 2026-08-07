@@ -2,7 +2,7 @@
   "Tensor Forward Pass": {
     "prefix": "fnfor",
     "body": [
-      "fn forward<${1:B}: int>(x: tensor[${1:B}, ${2:512}], w: tensor[${2:512}, ${3:128}]) -> tensor[${1:B}, ${3:128}] {",
+      "fn forward(x: tensor[${1:B}, ${2:512}], w: tensor[${2:512}, ${3:128}]) -> tensor[${1:B}, ${3:128}] {",
       "    return x @ w;",
       "}"
     ],
@@ -11,17 +11,52 @@
   "Tensor Declaration": {
     "prefix": "tensor",
     "body": [
-      "var ${1:weights} = tensor[${2:512}, ${3:128}] under ${4|fp16,bf16,int8,fp32|} @location(\"${5|sram,hbm,dram,analog|}\");"
+      "var ${1:weights} = tensor[${2:512}, ${3:128}] under ${4|fp16,bf16,int8,fp32|};"
     ],
-    "description": "Declare an Cartan tensor with precision and hardware location"
+    "description": "Declare a CARTAN tensor with precision"
+  },
+  "Parameter Declaration": {
+    "prefix": "parameter",
+    "body": [
+      "parameter[${1|Adam,SGD|}] ${2:weights}[${3:512}, ${4:128}] in ${5|Euclidean,PoincareDisk,Minkowski|};"
+    ],
+    "description": "Declare a learnable model parameter with manifold topology"
+  },
+  "Extern Function": {
+    "prefix": "extern",
+    "body": [
+      "extern fn ${1:cartan_gpu_fn}(${2:param}: ${3:ptr}) -> ${4:float};"
+    ],
+    "description": "Declare an external FFI C/Rust library binding"
+  },
+  "Trait Definition": {
+    "prefix": "trait",
+    "body": [
+      "trait ${1:Tokenizer} {",
+      "    fn encode(text: string) -> tree<i32> {}",
+      "    fn decode(tokens: tree<i32>) -> string {}",
+      "}"
+    ],
+    "description": "Define a CARTAN trait protocol"
+  },
+  "Impl Block": {
+    "prefix": "impl",
+    "body": [
+      "impl ${1:Tokenizer} for ${2:WordLevel} {",
+      "    fn encode(text: string) -> tree<i32> {",
+      "        ${3:// Implementation}",
+      "    }",
+      "}"
+    ],
+    "description": "Implement a trait for a struct"
   },
   "Struct Scope": {
     "prefix": "struct",
     "body": [
       "struct ${1:Model} {",
-      "    ${2:// Declare tensors here}",
+      "    ${2:// Declare tensors and fields}",
       "}"
     ],
-    "description": "Define an isolated memory structure"
+    "description": "Define a memory structure"
   }
 }

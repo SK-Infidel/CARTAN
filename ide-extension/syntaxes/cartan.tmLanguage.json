@@ -27,39 +27,39 @@
         {
           "begin": "/\\*",
           "end": "\\*/",
-          "name": "comment.block.ctn"
+          "name": "comment.block.car"
         },
         {
           "match": "//.*$",
-          "name": "comment.line.double-slash.ctn"
+          "name": "comment.line.double-slash.car"
         }
       ]
     },
     "keywords": {
       "patterns": [
         {
-          "match": "\\b(fn|var|const|return|struct|import|in|under)\\b",
-          "name": "keyword.control.ctn"
+          "match": "\\b(fn|var|let|mut|const|return|struct|class|trait|impl|import|in|under|parameter|extern)\\b",
+          "name": "keyword.control.car"
         },
         {
-          "match": "\\b(if|else|while|for|break|continue|try|catch|throw)\\b",
-          "name": "keyword.control.flow.ctn"
+          "match": "\\b(if|else|while|for|break|continue|try|catch|throw|match|self)\\b",
+          "name": "keyword.control.flow.car"
         },
         {
           "match": "\\b(true|false)\\b",
-          "name": "constant.language.boolean.ctn"
+          "name": "constant.language.boolean.car"
         }
       ]
     },
     "types": {
       "patterns": [
         {
-          "match": "\\b(tensor|stream|int|float|bool|string|fp16|fp32|bf16|int8)\\b",
-          "name": "support.type.ctn"
+          "match": "\\b(tensor|vector|stream|int|i32|f32|float|bool|string|fp16|fp32|bf16|int8|tree|spike|neuron|sequence|block|lattice|ptr)\\b",
+          "name": "support.type.car"
         },
         {
-          "match": "\\b(PoincaréDisk|Minkowski)\\b",
-          "name": "support.class.ctn"
+          "match": "\\b(Euclidean|PoincaréDisk|PoincareDisk|Minkowski|Adam|SGD|Hopfield|Kuramoto|LieGroup|Weyl)\\b",
+          "name": "support.class.car"
         }
       ]
     },
@@ -68,11 +68,11 @@
         {
           "begin": "\"",
           "end": "\"",
-          "name": "string.quoted.double.ctn",
+          "name": "string.quoted.double.car",
           "patterns": [
             {
               "match": "\\\\.",
-              "name": "constant.character.escape.ctn"
+              "name": "constant.character.escape.car"
             }
           ]
         }
@@ -81,8 +81,8 @@
     "operators": {
       "patterns": [
         {
-          "match": "(@|\\+|-|\\*|/|%|==|!=|>|<|>=|<=|&&|\\|\\||!|&mut|&)",
-          "name": "keyword.operator.ctn"
+          "match": "(@|->|=>|\\+|-|\\*|/|%|==|!=|>|<|>=|<=|&&|\\|\\||!|&mut|&)",
+          "name": "keyword.operator.car"
         }
       ]
     },
@@ -90,10 +90,10 @@
       "patterns": [
         {
           "match": "@(location)\\b",
-          "name": "entity.name.function.decorator.ctn"
+          "name": "entity.name.function.decorator.car"
         }
       ]
     }
   },
-  "scopeName": "source.ctn"
+  "scopeName": "source.car"
 }
