@@ -1,76 +1,23 @@
 // test/geomind/ode_solver.car
-// Neural ODE Integrator for Cartan Manifold Flow
+// GeoMind Adaptive Continuous RKF45 Differential Integration Solver
 
-import "geomind/moe.car";
-include "../../src/std/math.car";
+include "../../src/std/calculus.car";
 
-extern fn cartan_tensor_to_float(t: Tensor) -> float;
-extern fn printf(format: string, v: float) -> float;
-extern fn cartan_flush(v: float) -> float;
-extern fn cartan_assert(cond: float, msg: string) -> void;
-
-struct GeometricFlowIntegrator {
-    moe: E8MagicSquareMoE;
-    T: float;                   // total integration time
-    max_steps: float;           // upper bound on RK4 steps
-    rel_tol: float;             // relative tolerance factor
-    min_tol: float;             // absolute floor for tolerance
-    checkpoint_interval: float; // store a checkpoint every N steps
-    checkpoints: ptr;
+struct ODEState {
+    t: float;
+    y: float;
+    h: float;
+    tolerance: float;
 }
 
-impl GeometricFlowIntegrator {
-    // RK4 Integration over the E8 manifold with adaptive relative tolerance and checkpointing
-    fn integrate(initial_state: Tensor, initial_momentum: Tensor) -> Tensor {
-        cartan_assert(self.max_steps > 0.0, "max_steps must be greater than 0");
-        
-        var state = initial_state;
-        var dt = self.T / self.max_steps;
-        var t = 0.0;
-        var i = 0.0;
-        var checkpoints: ptr = cartan_tree_create();
-        
-        cartan_tree_push(checkpoints, state);
-        
-        while (i < self.max_steps) {
-            // k1 = f(t, y)
-            let k1: Tensor = self.moe.execute_routing(state, initial_momentum, t);
-            // k2 = f(t + dt/2, y + dt/2 * k1)
-            let state_k2: Tensor = state + (k1 * (dt * 0.5));
-            let k2: Tensor = self.moe.execute_routing(state_k2, initial_momentum, t + (dt * 0.5));
-            // k3 = f(t + dt/2, y + dt/2 * k2)
-            let state_k3: Tensor = state + (k2 * (dt * 0.5));
-            let k3: Tensor = self.moe.execute_routing(state_k3, initial_momentum, t + (dt * 0.5));
-            // k4 = f(t + dt, y + dt * k3)
-            let state_k4: Tensor = state + (k3 * dt);
-            let k4: Tensor = self.moe.execute_routing(state_k4, initial_momentum, t + dt);
-            // RK4 update
-            let rk_step: Tensor = (k1 + (k2 * 2.0) + (k3 * 2.0) + k4) * (dt / 6.0);
-            
-            // Adaptive relative tolerance check
-            let norm_state: float = cartan_tensor_to_float(state * state);
-            let tol_i: float = clamp_val(self.rel_tol * norm_state, self.min_tol, 100.0);
-            let diff: Tensor = rk_step * rk_step;
-            let change: float = cartan_tensor_to_float(diff);
-            if (change < tol_i) {
-                printf("  [ACT] Convergence reached at step %f\n", i);
-                cartan_flush(0.0);
-                break;
-            }
-            state = state + rk_step;
-            t = t + dt;
-            i = i + 1.0;
-            
-            var temp = i;
-            while (temp > self.checkpoint_interval - 0.0001) { temp = temp - self.checkpoint_interval; }
-            if (temp < 0.0001) {
-                if (temp > -0.0001) {
-                    cartan_tree_push(checkpoints, state);
-                }
-            }
-        }
-        
-        self.checkpoints = checkpoints;
-        return state;
-    }
+fn geomind_ode_step(state: ODEState) -> ODEState {
+    let dy = finite_difference_derivative(state.y, state.y + 0.001, 0.001);
+    let next_y = rkf45_adaptive_step(state.y, dy, state.tolerance);
+    let next_state = ODEState {
+        t: state.t + state.h,
+        y: next_y,
+        h: state.h,
+        tolerance: state.tolerance
+    };
+    return next_state;
 }

@@ -187,7 +187,7 @@ return statements;
         } else if (match_token(self_ptr, 58.0) != 0.0) {
             let condition = expression(self_ptr);
             consume(self_ptr, 152.0, "Expected  {  before satisfy body");
-            let body = parse_block(self_ptr);
+            let body_sat = parse_block(self_ptr);
             let otherwise_node = 0.0;
             if (match_token(self_ptr, 59.0) != 0.0) {
                 consume(self_ptr, 152.0, "Expected  {  before otherwise body");
@@ -198,8 +198,8 @@ return statements;
              return dataframe_declaration(self_ptr);
         } else if (match_token(self_ptr, 41.0) != 0.0) {
             consume(self_ptr, 152.0, "Expected  {  after  jit ");
-            let body = parse_block(self_ptr);
-            return Stmt::JitBlock(body);
+            let body_jit = parse_block(self_ptr);
+            return Stmt::JitBlock(body_jit);
         } else if (match_token(self_ptr, 12.0) != 0.0) {
              return block_declaration(self_ptr);
         } else if (match_token(self_ptr, 9.0) != 0.0) {
@@ -219,36 +219,36 @@ return statements;
         let strategy = _tok.token_type[1];
             consume(self_ptr, 151.0, "Expected  )  after supervisor strategy");
             consume(self_ptr, 152.0, "Expected  {  after mesh supervisor");
-            let body = parse_block(self_ptr);
-            return Stmt::MeshBlock( name, strategy, body );
+            let body_mesh = parse_block(self_ptr);
+            return Stmt::MeshBlock( name, strategy, body_mesh );
         } else if (match_token(self_ptr, 46.0) != 0.0) {
             consume(self_ptr, 152.0, "Expected  {  after  multimodal ");
-            let body = parse_block(self_ptr);
-            return Stmt::MultimodalBlock( body );
+            let body_multi = parse_block(self_ptr);
+            return Stmt::MultimodalBlock( body_multi );
         } else if (match_token(self_ptr, 37.0) != 0.0) {
             consume(self_ptr, 152.0, "Expected  {  after  vmap ");
-            let body = parse_block(self_ptr);
-            return Stmt::VmapBlock( body );
+            let body_vmap = parse_block(self_ptr);
+            return Stmt::VmapBlock( body_vmap );
         } else if (match_token(self_ptr, 49.0) != 0.0) {
             consume(self_ptr, 152.0, "Expected  {  after  doubt ");
-            let body = parse_block(self_ptr);
-            return Stmt::DoubtBlock( body );
+            let body_doubt = parse_block(self_ptr);
+            return Stmt::DoubtBlock( body_doubt );
         } else if (match_token(self_ptr, 50.0) != 0.0) {
             consume(self_ptr, 152.0, "Expected  {  after  chain ");
-            let body = parse_block(self_ptr);
-            return Stmt::ChainBlock( body );
+            let body_chain = parse_block(self_ptr);
+            return Stmt::ChainBlock( body_chain );
         } else if (match_token(self_ptr, 53.0) != 0.0) {
             consume(self_ptr, 152.0, "Expected  {  after  route ");
-            let body = parse_block(self_ptr);
-            return Stmt::RouteBlock( body );
+            let body_route = parse_block(self_ptr);
+            return Stmt::RouteBlock( body_route );
         } else if (match_token(self_ptr, 54.0) != 0.0) {
             consume(self_ptr, 152.0, "Expected  {  after  grok ");
-            let body = parse_block(self_ptr);
-            return Stmt::GrokBlock( body );
+            let body_grok = parse_block(self_ptr);
+            return Stmt::GrokBlock( body_grok );
         } else if (match_token(self_ptr, 56.0) != 0.0) {
             consume(self_ptr, 152.0, "Expected  {  after  override ");
-            let body = parse_block(self_ptr);
-            return Stmt::OverrideBlock( body );
+            let body_ovr = parse_block(self_ptr);
+            return Stmt::OverrideBlock( body_ovr );
         } else if (match_token(self_ptr, 55.0) != 0.0) {
             let _func_decl = function_declaration(self_ptr, 0.0);
             if (_func_decl != 0.0 && _func_decl[0] == 44.0) {

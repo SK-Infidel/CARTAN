@@ -4,39 +4,37 @@
 include "net.car";
 include "io.car";
 
-mod http {
-    fn get(url: string) -> string {
-        let sock = net::socket();
-        if (sock <= 0.0) { return ""; }
+fn http_get(url: string) -> string {
+    let sock = net_socket();
+    if (sock <= 0.0) { return ""; }
 
-        let conn = net::connect(sock, url, 80.0);
-        if (conn == 0.0) {
-            net::close(sock);
-            return "";
-        }
-
-        let req = "GET / HTTP/1.1\r\nHost: cartan-lang.org\r\nConnection: close\r\n\r\n";
-        net::send(sock, req);
-        let resp = net::recv(sock);
-        net::close(sock);
-        return resp;
+    let conn = net_connect(sock, url, 80.0);
+    if (conn == 0.0) {
+        net_close(sock);
+        return "";
     }
 
-    fn post(url: string, body: string) -> string {
-        let sock = net::socket();
-        if (sock <= 0.0) { return ""; }
+    let req = "GET / HTTP/1.1\r\nHost: cartan-lang.org\r\nConnection: close\r\n\r\n";
+    net_send(sock, req);
+    let resp = net_recv(sock);
+    net_close(sock);
+    return resp;
+}
 
-        let conn = net::connect(sock, url, 80.0);
-        if (conn == 0.0) {
-            net::close(sock);
-            return "";
-        }
+fn http_post(url: string, body: string) -> string {
+    let sock = net_socket();
+    if (sock <= 0.0) { return ""; }
 
-        let req = "POST / HTTP/1.1\r\nHost: cartan-lang.org\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n";
-        net::send(sock, req);
-        net::send(sock, body);
-        let resp = net::recv(sock);
-        net::close(sock);
-        return resp;
+    let conn = net_connect(sock, url, 80.0);
+    if (conn == 0.0) {
+        net_close(sock);
+        return "";
     }
+
+    let req = "POST / HTTP/1.1\r\nHost: cartan-lang.org\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n";
+    net_send(sock, req);
+    net_send(sock, body);
+    let resp = net_recv(sock);
+    net_close(sock);
+    return resp;
 }

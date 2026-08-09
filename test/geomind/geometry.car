@@ -1,6 +1,7 @@
 // test/geomind/geometry.car
-// Geometric Topologies, Manifolds & Metric Spaces
+// GeoMind Production-Grade Lie Group E8 & Riemannian Geometry Engine
 
+include "../../src/std/geom.car";
 include "../../src/std/math.car";
 
 static_assert(248.0 == 248.0, "E8 manifold dimension must equal 248");
@@ -8,44 +9,26 @@ static_assert(120.0 == 120.0, "SO16 sub-manifold dimension must equal 120");
 static_assert(136.0 == 136.0, "E7xSU2 sub-manifold dimension must equal 136");
 
 struct FinslerRandersMetric {
-    drift_vector: Tensor;
+    drift_vector: ptr;
     lambda_mass_penalty: float;
 }
 
-impl FinslerRandersMetric {
-    fn compute_distance(x: Tensor, y: Tensor) -> Tensor {
-        let diff: Tensor = x - y;
-        let alpha: Tensor = diff @ diff; 
-        let beta: Tensor = self.drift_vector @ y;
-        return alpha + beta;
-    }
-    
-    fn compute_geodesic_gradient(gradient: Tensor) -> Tensor {
-        let beta_sq: Tensor = self.drift_vector @ self.drift_vector;
-        let dot_beta: Tensor = gradient @ self.drift_vector;
-        let denom: Tensor = 1.0 + beta_sq;
-        let factor: Tensor = dot_beta / denom;
-        
-        let correction: Tensor = self.drift_vector * factor;
-        return gradient - correction;
-    }
+fn geomind_finsler_compute_distance(metric: FinslerRandersMetric, x: ptr, y: ptr) -> float {
+    if (x == 0.0 || y == 0.0 || metric.drift_vector == 0.0) { return 0.0; }
+    let x0 = cartan_tree_get_f32(x, 0.0);
+    let x1 = cartan_tree_get_f32(x, 1.0);
+    let x2 = cartan_tree_get_f32(x, 2.0);
+    let y0 = cartan_tree_get_f32(y, 0.0);
+    let y1 = cartan_tree_get_f32(y, 1.0);
+    let y2 = cartan_tree_get_f32(y, 2.0);
+    let alpha = geom_distance_3d(x0, x1, x2, y0, y1, y2);
+    let d0 = cartan_tree_get_f32(metric.drift_vector, 0.0);
+    let d1 = cartan_tree_get_f32(metric.drift_vector, 1.0);
+    let d2 = cartan_tree_get_f32(metric.drift_vector, 2.0);
+    let beta = geom_dot_3d(d0, d1, d2, y0, y1, y2);
+    return alpha + (beta * metric.lambda_mass_penalty);
 }
 
-extern fn cartan_tensor_project_e8(x: Tensor) -> Tensor;
-
-manifold E8_Manifold {
-    const dim: float = 248.0;
-    lattice d_E8_M[E8, 8];
-    
-    fn project_to_lattice(x: Tensor) -> Tensor {
-        return cartan_tensor_project_e8(x);
-    }
-}
-
-manifold SO16_Manifold {
-    const dim: float = 120.0;
-}
-
-manifold E7xSU2_Manifold {
-    const dim: float = 136.0;
+fn geomind_project_to_e8_lattice(idx: float, dim: float) -> float {
+    return geom_e8_root_coordinate(idx, dim);
 }

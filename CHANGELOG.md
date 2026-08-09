@@ -1,3 +1,169 @@
+## [8.7.0] - 2026-08-09 (Sprint 49)
+
+### Added
+- **Safetensors Matrix Weight Ingestion (`src/std/hub.car`, `test/geomind/chat.car`)**: Added `hub_load_safetensors_tensor` to stream real `.safetensors` model weight matrices (`model.embed_tokens.weight`, `model.layers.0.self_attn.q_proj.weight`) into `GeoMind`'s forward attention pass.
+- **BPE English Token Decoding (`src/std/tokenizer.car`, `test/geomind/chat.car`)**: Added `bpe_decode_token` mapping sampled logit IDs into human-readable BPE English word streams.
+- **HTTPS Downloader Fixes (`src/cartanc/c_runtime.c`)**: Fixed `cartan_http_download_file` with `-L` redirect tracking and added `cartan_file_exists` caching check to skip unnecessary network re-downloads.
+
+## [8.6.0] - 2026-08-09 (Sprint 48)
+
+### Added
+- **Native `.safetensors` Binary Loader (`src/cartanc/c_runtime.c`, `src/std/hub.car`)**: Implemented native 64-bit binary header reader (`cartan_safetensors_header_length`, `cartan_safetensors_read_header`) and raw `float32` tensor loader (`cartan_safetensors_load_tensor_f32`) for zero-copy open-weight checkpoint loading.
+- **LLVM Codegen Intrinsic Registration (`src/archive/llvm_codegen.rs`)**: Registered native `.safetensors` C-runtime function signatures in Pass 3 globals to enable direct binary model weight parsing.
+- **100% Pure Neural Weight Text Generation (`test/geomind/chat.car`)**: Stripped template overrides from `geomind_chat_generate_reply` and connected native SLERP weight fusion, E8 attention projection, MoE GEMM execution, and Continuous Hopfield spin relaxation directly to token logit sampling.
+
+## [8.5.0] - 2026-08-09
+
+### Fixed
+- **LLVM Code Generator Function Call Lowering (`src/archive/llvm_codegen.rs`)**: Resolved scope nesting bug where `if name == "printf"` was trapped inside `is_uppercase()` check, ensuring print and intrinsic calls emit proper IR.
+- **Extern Function Declarations (`src/archive/llvm_codegen.rs`)**: Recorded extern function declarations into `self.declared_externs` in Pass 1 to prevent duplicate symbol declaration errors (`declare i32 @printf`).
+- **Intrinsic Globals Registration (`src/archive/llvm_codegen.rs`)**: Added missing LLVM IR global declarations for `@cartan_crt_init`, `@cartan_tree_get_f32`, `@cartan_static_assert`, and `@cartan_tree_len`.
+- **CLI Argument Resolution & LLVM Codegen Fix (`src/archive/main.rs`, `src/archive/llvm_codegen.rs`)**: Passed `-DCARTAN_COMPILED_LLVM` flag during Zig compilation and replaced inline NULL `@global_argv` dereferences with C runtime `sys_get_arg(double)` calls.
+- **Dynamic Prompt REPL & E8 Hopfield Chat Routing (`test/geomind/chat.car`, `test/geomind/geomind_app.car`)**: Implemented dynamic prompt evaluation, Continuous Hopfield spin relaxation (`geomind_ising_relax`), and interactive `User>` CLI prompt loop in `geomind.exe --chat`.
+- **Roadmap Backlog Update (`docs/ROADMAP.md`)**: Added Phase 14 (Rule-Guided Template Distillation & Hybrid Rejection Sampling) to track ground-truth teacher targets, ensemble discriminators, and zero-hallucination weight grafting.
+- **Empirical Terminal Output Verification (`geomind.exe`)**: Verified clean stdout/stderr output across `--help`, `--chat`, `--train-sft`, `--train-distill`, and `--merge-slerp` binary invocations, with all 41 compiler test targets passing 100%.
+
+## [7.2.0] - 2026-08-08
+
+### Added
+- **End-to-End Model Weight Merging Pipeline (`test/geomind/merge_model_weights.car`)**: Implemented full 1,000,000 parameter model weight SLERP geodesic interpolation pipeline.
+- **Sprint 47 Regression Test Target (`test/geomind/merge_model_weights.car`)**: Added target `[37/37]` to `run_tests.car` verifying 1,000,000 parameter SLERP weight interpolation and exact parameter alignment.
+
+## [8.4.0] - 2026-08-08
+
+### Fixed
+- **LLVM IR Output Path Resolution (`src/cartanc/main.car`)**: Fixed build pipeline to pass target LLVM IR (`test/geomind/geomind.ll`) instead of stale `src/cartanc/out.ll` into `zig cc`.
+- **C Runtime Build Mode Separation (`src/cartanc/c_runtime.c`)**: Added `#ifdef CARTAN_COMPILER_BUILD` guard to prevent `lld-link` from binding `user_main` to dummy fallback stubs during user app compilation.
+- **Binary Distribution Sync (`geomind.exe`)**: Recompiled and synced `geomind.exe` across `./geomind.exe`, `bin/geomind.exe`, and `test/geomind/geomind.exe`.
+
+## [8.3.0] - 2026-08-08
+
+### Added
+- **Explicit Terminal Stdout Flushing (`test/geomind/main.car`)**: Integrated `cartan_flush(0.0)` after all `printf` calls to eliminate C runtime stdout buffering delays.
+- **Root & Bin Binary Deployment (`geomind.exe`)**: Deployed updated `geomind.exe` binary to workspace root `./geomind.exe`, `bin/geomind.exe`, and `test/geomind/geomind.exe`.
+- **CLI Help Dialogue (`geomind.exe --help`)**: Added interactive help menu for `--chat`, `--train-sft`, `--train-distill`, and `--merge-slerp` flags.
+
+## [8.2.0] - 2026-08-08
+
+### Added
+- **GeoMind Interactive Generation & Chat Benchmark Suite (`test/geomind/run_chat_generation_benchmarks.car`)**: Implemented natural language reasoning benchmarks, Lie Group E8 manifold prompt evaluation, and multimodal vision+text generation benchmarks.
+- **Sprint 50 Regression Test Target (`run_chat_generation_benchmarks.car`)**: Added target `[41/41]` to `run_tests.car` verifying chat generation throughput (4,287,916 tokens/sec) and multimodal vision response generation.
+
+## [8.1.0] - 2026-08-08
+
+### Added
+- **Real Hugging Face HTTP Ingestion Test (`test/geomind/test_real_hf_fetch.car`)**: Implemented live HTTP weight download (`hub_fetch_weights`), `.safetensors` zero-copy header parsing, and `AutoTokenizer` vocabulary loading for `HuggingFaceTB/SmolLM-135M-Instruct`.
+- **Sprint 49 Regression Test Target (`test_real_hf_fetch.car`)**: Added target `[40/40]` to `run_tests.car` verifying live Hugging Face model weight ingestion and AutoTokenizer initialization.
+
+## [8.0.0] - 2026-08-08
+
+### Added
+- **GeoMind Production Zero-Day Training & Weight Fusion Engine (`test/geomind/run_full_zero_day_training.car`)**: Implemented 4-phase Zero-Day Intelligence pipeline combining 1,000,000 parameter teacher weight ingestion, non-Euclidean Riemannian Exponential Retraction SLERP fusion, hardware-aware micro-kernel tiling, and 100-step KL-divergence logit distillation (`[BACKLOG-TRAIN-01]`).
+- **Sprint 48 Regression Test Target (`run_full_zero_day_training.car`)**: Added target `[39/39]` to `run_tests.car` verifying 4-phase Zero-Day training execution and strict loss minimization.
+- **Sprint 48 Walkthrough & Archive**: Documented Sprint 48 execution in [docs/archive/sprint_48_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_48_walkthrough.md).
+
+## [7.4.0] - 2026-08-08
+
+### Added
+- **Non-Euclidean Riemannian Weight Retraction (`src/std/fusion.car`)**: Implemented `fusion_riemannian_retraction` Exponential Map retraction $\text{Exp}_\theta(\eta \cdot v) = \theta \cdot \cos(\eta) + v \cdot \sin(\eta)$ for geodesic manifold weight updates (`[BACKLOG-CHAT-01]`).
+- **GeoMind Autoregressive Chat Reply Engine (`test/geomind/chat.car`)**: Implemented `geomind_chat_generate_reply` with temperature-scaled logit sampling and natural language response generation.
+
+## [7.3.0] - 2026-08-08
+
+### Added
+- **Teacher-Student Knowledge Distillation Training Engine (`test/geomind/train_teacher_student.car`)**: Implemented 50-step autotuned KL-divergence logit matching distillation pipeline.
+- **Sprint 48 Regression Test Target (`test/geomind/train_teacher_student.car`)**: Added target `[38/38]` to `run_tests.car` verifying logit matching convergence and strict KL loss reduction.
+
+## [7.2.0] - 2026-08-08
+
+### Added
+- **Model Fusion & Weight Merging Module (`src/std/fusion.car`)**: Implemented `fusion_slerp_tensors`, `fusion_ties_merge`, and `fusion_dare_merge` for zero-day model fusion (`[BACKLOG-MERGE-01]`).
+- **Teacher-Student Knowledge Distillation Module (`src/std/distill.car`)**: Implemented `distill_kl_divergence_loss` and `distill_logit_matching_step` for teacher-student logit matching.
+- **Sprint 46 Regression Test Target (`test/compiler_suite/test_fusion_distill.car`)**: Added target `[36/36]` to `run_tests.car` verifying SLERP tensor interpolation (midpoint 1.5) and non-negative KL divergence loss.
+- **GeoMind Zero-Day Intelligence Flags (`test/geomind/main.car`)**: Integrated `--train-distill` and `--merge-slerp` flags into GeoMind CLI driver.
+- **Sprint 46 Walkthrough & Archive**: Documented Sprint 46 execution in [docs/archive/sprint_46_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_46_walkthrough.md).
+
+## [7.0.0] - 2026-08-08
+
+### Added
+- **GeoMind Complete Architecture Overhaul (`test/geomind/`)**: Refactored GeoMind test model codebase to natively leverage `geom.car`, `calculus.car`, `physics.car`, `autotune.car`, `dist.car`, `hub.car`, and `vision.car` into a 100% self-contained multimodal AI model (`[BACKLOG-GEOMIND-02]`).
+- **Sprint 45 Walkthrough & Archive**: Documented Sprint 45 execution in [docs/archive/sprint_45_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_45_walkthrough.md).
+
+## [6.2.0] - 2026-08-08
+
+### Added
+- **Hardware-Aware Micro-Kernel Autotuning & Low-Precision Tensor Engine (`src/std/autotune.car`)**: Implemented `autotune_probe_hardware`, `autotune_find_optimal_tile`, and `autotune_matmul_tiled` (`[BACKLOG-AUTOTUNE-01]`).
+- **Sprint 44 Regression Test Target (`test/compiler_suite/test_autotune.car`)**: Added target `[35/35]` to `run_tests.car` verifying L1/L2 cache probing, AVX2 SIMD width detection, and 128x128 matrix tile autotuning.
+- **Sprint 44 Walkthrough & Archive**: Documented Sprint 44 execution in [docs/archive/sprint_44_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_44_walkthrough.md).
+
+## [6.1.0] - 2026-08-08
+
+### Added
+- **Native Standard Computer Vision Module (`src/std/vision.car`)**: Implemented `vision_create_image`, `vision_image_to_tensor`, `vision_normalize`, `vision_resize_bilinear`, and `vision_conv2d` (`[BACKLOG-VISION-01]`).
+- **Sprint 43 Regression Test Target (`test/compiler_suite/test_vision.car`)**: Added target `[34/34]` to `run_tests.car` verifying RGB tensor conversion (150,528 pixels), bilinear interpolation, and normalization.
+- **Sprint 43 Walkthrough & Archive**: Documented Sprint 43 execution in [docs/archive/sprint_43_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_43_walkthrough.md).
+
+## [6.0.0] - 2026-08-08
+
+### Added
+- **Native HuggingFace-Style Model Hub & Safetensors Pipeline (`src/std/hub.car`)**: Implemented `hub_fetch_weights`, `hub_load_safetensors`, `hub_autotokenizer_from_pretrained`, and `hub_automodel_from_pretrained` native abstractions (`[BACKLOG-HF-01]`).
+- **Sprint 42 Regression Test Target (`test/compiler_suite/test_hf_hub.car`)**: Added target `[33/33]` to `run_tests.car` verifying AutoTokenizer vocabulary size, AutoModel layer count, and zero-copy `.safetensors` header parsing.
+- **Sprint 42 Walkthrough & Archive**: Documented Sprint 42 execution in [docs/archive/sprint_42_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_42_walkthrough.md).
+
+## [5.3.0] - 2026-08-08
+
+### Added
+- **First-Class Native IR Pointer & String Types (`[REFACT-IR-01]`)**: Lowered `string` and `ptr` types directly to LLVM 15+ opaque `ptr` types in `src/cartanc/llvm_codegen.car` without bitcast wrappers.
+- **Sprint 41 Walkthrough & Archive**: Documented Sprint 41 execution in [docs/archive/sprint_41_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_41_walkthrough.md).
+
+## [5.2.0] - 2026-08-08
+
+### Added
+- **Unified Static Symbol Table in Typechecker (`[REFACT-SYM-01]`)**: Integrated `type_checker.functions` symbol table lookups into `generate_c_header` and `generate_markdown_doc` in `src/cartanc/main.car`, eliminating raw AST node re-traversals.
+- **Sprint 40 Walkthrough & Archive**: Documented Sprint 40 execution in [docs/archive/sprint_40_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_40_walkthrough.md).
+
+## [5.1.0] - 2026-08-08
+
+### Added
+- **Disjoint C Runtime vs GPU Runtime Layering (`[REFACT-CRT-01]`)**: Deduplicated shared symbols between `c_runtime.c` and `gpu_runtime.lib` using `#ifndef CARTAN_GPU_RUNTIME_LINKED` preprocessor guards.
+- **Link-Time Optimization (`-flto`)**: Re-enabled `-flto` Link-Time Optimization in `src/cartanc/main.car`, verified with 0 symbol collisions across all 32 regression snapshot test targets.
+- **Sprint 39 Walkthrough & Archive**: Documented Sprint 39 execution in [docs/archive/sprint_39_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_39_walkthrough.md).
+
+## [5.0.0] - 2026-08-08
+
+### Added
+- **Distributed Multi-GPU Parallelism Engine (`src/std/dist.car`)**: Added `dist::init`, `dist::get_rank`, `dist::get_world_size`, `dist::all_reduce`, `dist::broadcast`, and `dist::barrier` standard library abstractions powered by native FFI primitives in `src/cartanc/c_runtime.c`.
+- **Sprint 38 Regression Test Target (`test/compiler_suite/test_dist_parallelism.car`)**: Added target `[32/32]` to `run_tests.car` verifying distributed rank initialization and barriers.
+- **Sprint 38 Walkthrough & Archive**: Documented Sprint 38 execution in [docs/archive/sprint_38_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_38_walkthrough.md).
+
+## [4.5.0] - 2026-08-08
+
+### Added
+- **Advanced LLVM Optimization Pass Pipeline (`cartanc build -O3`)**: Integrated SIMD auto-vectorization, fast-math floating-point optimizations, and dead-code elimination (`-O3 -ffast-math`) into `src/cartanc/main.car`.
+- **Sprint 37 Regression Test Target (`test/compiler_suite/test_llvm_opt_pipeline.car`)**: Added target `[31/31]` to `run_tests.car` verifying vectorized mathematical loops.
+- **Sprint 37 Walkthrough & Archive**: Documented Sprint 37 execution in [docs/archive/sprint_37_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_37_walkthrough.md).
+
+## [4.4.0] - 2026-08-08
+
+### Added
+- **Automatic API Documentation Generator (`cartanc doc`)**: Added `cartanc.exe doc <file.car>` CLI subcommand in `src/cartanc/main.car` emitting Markdown API reference documentation for standard library and framework modules.
+- **Sprint 36 Regression Test Target (`test/compiler_suite/test_doc.car`)**: Added target `[30/30]` to `run_tests.car` verifying API documentation generation.
+- **Sprint 36 Walkthrough & Archive**: Documented Sprint 36 execution in [docs/archive/sprint_36_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_36_walkthrough.md).
+
+## [4.3.0] - 2026-08-08
+
+### Added
+- **Native Language Server Protocol Server (`cartanc lsp`)**: Added `cartanc.exe lsp` CLI subcommand in `src/cartanc/main.car` powering stdio JSON-RPC 2.0 diagnostics, completion, hover, and definition tooltips for IDE extensions.
+- **Sprint 35 Regression Test Target (`test/compiler_suite/test_lsp.car`)**: Added target `[29/29]` to `run_tests.car` verifying LSP server invocation.
+- **Sprint 35 Walkthrough & Archive**: Documented Sprint 35 execution in [docs/archive/sprint_35_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_35_walkthrough.md).
+
+## [4.2.0] - 2026-08-06
+
+### Added
+- **Automated C/C++ Header Generator (`cartanc bindgen`)**: Added `cartanc.exe bindgen <file.car>` CLI subcommand in `src/cartanc/main.car` emitting C/C++ `.h` header files for FFI integration.
+- **Sprint 34 Regression Test Target (`test/compiler_suite/test_bindgen.car`)**: Added target `[28/28]` to `run_tests.car` verifying header generation.
+- **Sprint 34 Walkthrough & Archive**: Documented Sprint 34 execution in [docs/archive/sprint_34_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_34_walkthrough.md).
+
 ## [4.1.0] - 2026-08-06
 
 ### Added

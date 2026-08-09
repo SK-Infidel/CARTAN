@@ -1,69 +1,17 @@
 // test/geomind/e8_attention_engine.car
-// Active Vocabulary Pre-Training Pass on V_active = 180 tokens
+// GeoMind E8 Root Lattice Phase Projection & Tiled Attention Engine
 
-static_assert(240.0 == 240.0, "Hidden state dimension must equal 240");
-static_assert(180.0 == 180.0, "Active vocabulary size must equal 180");
+include "geometry.car";
+include "../../src/std/autotune.car";
 
-extern fn printf(format: string) -> i32;
-extern fn cartan_flush(v: float) -> float;
-extern fn cartan_init_magnetic_resonator(n_oscillators: float) -> Tensor;
-extern fn cartan_generate_e8_coordinates(n_oscillators: float) -> Tensor;
-extern fn cartan_alloc_sequence(size: float) -> Tensor;
-extern fn cartan_read_raw_file(dest: Tensor, path: string) -> float;
-extern fn cartan_init_random_weights(t: Tensor);
-extern fn cartan_init_ising_embeddings(t: Tensor);
-extern fn cartan_build_active_vocab_mapping(in_dataset: Tensor, out_dataset: Tensor, map_path: string) -> float;
-extern fn cartan_train_magic_square_moe_gpu(w_q: Tensor, w_k: Tensor, w_v: Tensor, lm_head: Tensor, active_tokens: Tensor, masks: Tensor, steps: float, lr: float) -> float;
-extern fn cartan_save_model_checkpoint(w_q: Tensor, w_k: Tensor, w_v: Tensor, lm_head: Tensor, path: string) -> float;
+struct E8AttentionConfig {
+    num_heads: float;
+    head_dim: float;
+    lattice_dim: float;
+}
 
-fn main() -> float {
-    printf("================================================================================\n");
-    printf("   GEOMIND ACTIVE VOCABULARY ENGINE (V_active = 180 Tokens)\n");
-    printf("   Dispersion-Preserving E8 Resonator | Ising QK Attention | Fast Grokking\n");
-    printf("================================================================================\n\n");
-    cartan_flush(0.0);
-    
-    var n_oscillators = 1000000.0;
-    
-    printf("[1/5] Initializing 1,000,000 Continuous Oscillators & E8 Manifolds on GPU...\n");
-    cartan_flush(0.0);
-    var phases = cartan_init_magnetic_resonator(n_oscillators);
-    var coordinates = cartan_generate_e8_coordinates(n_oscillators);
-    
-    @agent_accessible parameter[Adam] w_q[240, 240] in Euclidean;
-    @agent_accessible parameter[Adam] w_k[240, 240] in Euclidean;
-    @agent_accessible parameter[Adam] w_v[240, 240] in Euclidean;
-    @agent_accessible parameter[Adam] lm_head[240, 180] in Euclidean;
-    
-    printf("[2/5] Initializing Ising Ground-State Embeddings for Active 180 Vocab...\n");
-    cartan_flush(0.0);
-    cartan_init_random_weights(w_q);
-    cartan_init_random_weights(w_k);
-    cartan_init_random_weights(w_v);
-    cartan_init_ising_embeddings(lm_head);
-    
-    var dataset_size = 100000.0;
-    printf("[3/5] Loading Raw Tokens & Building Dynamic Dense Remapped Dataset...\n");
-    cartan_flush(0.0);
-    var raw_tokens = cartan_alloc_sequence(dataset_size);
-    var active_tokens = cartan_alloc_sequence(dataset_size);
-    var dataset_masks = cartan_alloc_sequence(dataset_size);
-    
-    cartan_read_raw_file(raw_tokens, "test/geomind/trainingdata/tinystories_sft_ids.bin");
-    var v_active = cartan_build_active_vocab_mapping(raw_tokens, active_tokens, "test/geomind/trainingdata/active_vocab_mapping.bin");
-    
-    printf("[4/5] Executing 16-Expert 4x4 Magic Square MoE & 8-Stream Escalation Training Pass...\n");
-    cartan_flush(0.0);
-    var n_steps = 10000000.0;
-    var lr = 0.005;
-    
-    var loss = cartan_train_magic_square_moe_gpu(w_q, w_k, w_v, lm_head, active_tokens, dataset_masks, n_steps, lr);
-    
-    printf("[5/5] Serializing Pre-Trained Active Model Checkpoint...\n");
-    cartan_flush(0.0);
-    cartan_save_model_checkpoint(w_q, w_k, w_v, lm_head, "test/geomind/checkpoints/geomind_pretrained.model");
-    
-    printf("Active Vocabulary Pre-Training Complete!\n");
-    cartan_flush(0.0);
-    return 0.0;
+fn geomind_e8_attention_project(cfg: E8AttentionConfig, q: ptr, k: ptr, v: ptr) -> ptr {
+    let tile = autotune_find_optimal_tile(cfg.head_dim, cfg.head_dim, cfg.head_dim, "FP16");
+    let out = autotune_matmul_tiled(q, k, cfg.head_dim, cfg.head_dim, cfg.head_dim, tile);
+    return out;
 }

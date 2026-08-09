@@ -23,69 +23,64 @@ struct Tensor {
     size: float;
 }
 
-fn zeros(size: float) -> Tensor {
-    let bytes = size * 8.0;
-    let p = malloc(bytes);
-    return Tensor { data: p, size: size };
+fn zeros(size: float) -> ptr {
+    return cartan_tensor_alloc(size);
 }
 
-fn ones(size: float) -> Tensor {
-    let t = zeros(size);
+fn ones(size: float) -> ptr {
+    let t = cartan_tensor_alloc(size);
+    var i = 0.0;
+    while (i < size) {
+        cartan_tree_set(t, i, 1.0);
+        i = i + 1.0;
+    }
     return t;
 }
 
-fn relu(t: Tensor) {
-    cartan_relu(t.data, t.size);
+fn relu(t: ptr) {
+    cartan_relu(t, cartan_tree_len(t));
 }
 
-fn add(a: Tensor, b: Tensor) -> Tensor {
-    let res_ptr = cartan_tensor_add(a.data, b.data, a.size);
-    return Tensor { data: res_ptr, size: a.size };
+fn add(a: ptr, b: ptr) -> ptr {
+    return cartan_tensor_add(a, b, cartan_tree_len(a));
 }
 
-fn sub(a: Tensor, b: Tensor) -> Tensor {
-    let res_ptr = cartan_tensor_sub(a.data, b.data, a.size);
-    return Tensor { data: res_ptr, size: a.size };
+fn sub(a: ptr, b: ptr) -> ptr {
+    return cartan_tensor_sub(a, b, cartan_tree_len(a));
 }
 
-fn mul(a: Tensor, b: Tensor) -> Tensor {
-    let res_ptr = cartan_tensor_mul(a.data, b.data, a.size);
-    return Tensor { data: res_ptr, size: a.size };
+fn mul(a: ptr, b: ptr) -> ptr {
+    return cartan_tensor_mul(a, b, cartan_tree_len(a));
 }
 
-fn sum(t: Tensor) -> float {
-    return cartan_tensor_sum(t.data, t.size);
+fn sum(t: ptr) -> float {
+    return cartan_tensor_sum(t, cartan_tree_len(t));
 }
 
-fn mean(t: Tensor) -> float {
-    return cartan_tensor_mean(t.data, t.size);
+fn mean(t: ptr) -> float {
+    return cartan_tensor_mean(t, cartan_tree_len(t));
 }
 
-fn max(t: Tensor) -> float {
-    return cartan_tensor_max(t.data, t.size);
+fn max(t: ptr) -> float {
+    return cartan_tensor_max(t, cartan_tree_len(t));
 }
 
-fn min(t: Tensor) -> float {
-    return cartan_tensor_min(t.data, t.size);
+fn min(t: ptr) -> float {
+    return cartan_tensor_min(t, cartan_tree_len(t));
 }
 
-fn softmax(t: Tensor) -> Tensor {
-    let res_ptr = cartan_tensor_softmax(t.data, t.size);
-    return Tensor { data: res_ptr, size: t.size };
+fn softmax(t: ptr) -> ptr {
+    return cartan_tensor_softmax(t, cartan_tree_len(t));
 }
 
-fn gelu(t: Tensor) -> Tensor {
-    let res_ptr = cartan_tensor_gelu(t.data, t.size);
-    return Tensor { data: res_ptr, size: t.size };
+fn gelu(t: ptr) -> ptr {
+    return cartan_tensor_gelu(t, cartan_tree_len(t));
 }
 
-fn silu(t: Tensor) -> Tensor {
-    let res_ptr = cartan_tensor_silu(t.data, t.size);
-    return Tensor { data: res_ptr, size: t.size };
+fn silu(t: ptr) -> ptr {
+    return cartan_tensor_silu(t, cartan_tree_len(t));
 }
 
-fn sigmoid(t: Tensor) -> Tensor {
-    let res_ptr = cartan_tensor_sigmoid(t.data, t.size);
-    return Tensor { data: res_ptr, size: t.size };
+fn sigmoid(t: ptr) -> ptr {
+    return cartan_tensor_sigmoid(t, cartan_tree_len(t));
 }
-

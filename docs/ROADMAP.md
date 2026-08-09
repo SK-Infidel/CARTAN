@@ -143,3 +143,8 @@ This roadmap tracks the implementation of the advanced AI optimizations and nati
 - [x] **Sub-Second WebGPU Geodesic Reinforcement (`cartan_train_e8_sft_gpu`)**: Dispatched winning candidate sequences to CARTAN's WebGPU SFT engine, updating weights in **0.01s** at **6.75M tokens/second**.
 - [x] **Reinforced Alignment Export**: Saved fine-tuned instruction alignment parameters to `geomind/checkpoints/tinystories_sft_lm_head.bin`.
 
+## Phase 14: Rule-Guided Template Distillation & Hybrid Rejection Sampling (Backlog / Future Possibility)
+- [ ] **Deterministic Ground Truth Teacher Target**: Map template logits directly into `distill_kl_loss` targets during `geomind.exe --train-distill` passes.
+- [ ] **Hybrid Ensemble Discriminator**: Implement a dual-score evaluator in `test/geomind/chat.car` comparing continuous Hopfield energy minimum against template match confidence to pick optimal response trajectories.
+- [ ] **Zero-Hallucination Weight Grafting**: Merge template-distilled weights with open-ended transformer weights via SLERP geodesic interpolation (`src/std/fusion.car`).
+

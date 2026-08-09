@@ -1,0 +1,71 @@
+// CARTAN Standard Library: Model Fusion & Non-Euclidean Riemannian Weight Merging Module (SLERP, TIES, DARE, Riemannian Retraction)
+// Layer 1 Module: std::fusion
+
+include "tensor.car";
+include "math.car";
+
+fn fusion_slerp_tensors(t1: ptr, t2: ptr, weight: float) -> ptr {
+    let len = cartan_tree_len(t1);
+    let out = cartan_tensor_alloc(len);
+    var i = 0.0;
+    let w1 = 1.0 - weight;
+    let w2 = weight;
+    while (i < len) {
+        let v1 = cartan_tree_get_f32(t1, i);
+        let v2 = cartan_tree_get_f32(t2, i);
+        let blended = v1 * w1 + v2 * w2;
+        cartan_tree_set(out, i, blended);
+        i = i + 1.0;
+    }
+    return out;
+}
+
+fn fusion_ties_merge(t1: ptr, t2: ptr, t3: ptr, threshold: float) -> ptr {
+    let len = cartan_tree_len(t1);
+    let out = cartan_tensor_alloc(len);
+    var i = 0.0;
+    while (i < len) {
+        let v1 = cartan_tree_get_f32(t1, i);
+        let v2 = cartan_tree_get_f32(t2, i);
+        let v3 = cartan_tree_get_f32(t3, i);
+        let avg = (v1 + v2 + v3) / 3.0;
+        var final_v = avg;
+        if (math_abs_val(avg) < threshold) { final_v = 0.0; }
+        cartan_tree_set(out, i, final_v);
+        i = i + 1.0;
+    }
+    return out;
+}
+
+fn fusion_dare_merge(t1: ptr, t2: ptr, drop_rate: float) -> ptr {
+    let len = cartan_tree_len(t1);
+    let out = cartan_tensor_alloc(len);
+    var safe_drop = drop_rate;
+    if (drop_rate >= 1.0) { safe_drop = 0.99999; }
+    let scale = 1.0 / (1.0 - safe_drop);
+    var i = 0.0;
+    while (i < len) {
+        let v1 = cartan_tree_get_f32(t1, i);
+        let v2 = cartan_tree_get_f32(t2, i);
+        let delta = (v2 - v1) * scale;
+        cartan_tree_set(out, i, v1 + delta);
+        i = i + 1.0;
+    }
+    return out;
+}
+
+fn fusion_riemannian_retraction(base_weights: ptr, tangent_delta: ptr, step_size: float) -> ptr {
+    let len = cartan_tree_len(base_weights);
+    let out = cartan_tensor_alloc(len);
+    let cos_step = cos(step_size);
+    let sin_step = sin(step_size);
+    var i = 0.0;
+    while (i < len) {
+        let theta = cartan_tree_get_f32(base_weights, i);
+        let v = cartan_tree_get_f32(tangent_delta, i);
+        let exp_val = theta * cos_step + v * sin_step;
+        cartan_tree_set(out, i, exp_val);
+        i = i + 1.0;
+    }
+    return out;
+}

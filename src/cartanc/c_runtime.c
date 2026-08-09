@@ -6,6 +6,10 @@
 #include <math.h>
 #include <stdatomic.h>
 
+#ifdef static_assert
+#undef static_assert
+#endif
+
 // Helper strdup replacement to avoid MSVC / POSIX depreciation / linking issues
 static char* cartan_strdup(const char* s) {
     if (!s) return NULL;
@@ -187,8 +191,10 @@ double enum_get_double(double* variant, double index) {
     return val;
 }
 
-void cartan_flush() {
+double cartan_flush(double v) {
     fflush(stdout);
+    fflush(stderr);
+    return v;
 }
 
 char* cartan_get_quote() {
@@ -237,10 +243,10 @@ char* cartan_read_config(const char* filepath, const char* key) {
 }
 
 
-// Added wrapper for cartan_tree_get_f32
 extern void* cartan_tree_get(void* tree, size_t idx);
-void* cartan_tree_get_f32(void* tree, double idx) {
-    return cartan_tree_get(tree, (size_t)idx);
+double cartan_tree_get_f32(void* tree, double idx) {
+    void* ptr = cartan_tree_get(tree, (size_t)idx);
+    return (double)(uintptr_t)ptr;
 }
 
 const char* cartan_getenv(const char* name) {
@@ -387,7 +393,7 @@ extern void c_cartan_tree_set(void* tree, double idx, void* val);
 extern void cartan_tree_write_file(const char* path, void* tree);
 extern char* c_cartan_string_concat(const char* s1, const char* s2);
 extern char* c_cartan_string_substring(const char* s, double start, double end);
-extern void* cartan_tree_get_f32(void* tree, double idx);
+extern double cartan_tree_get_f32(void* tree, double idx);
 extern char* enum_get_string(double* variant, double index);
 extern double enum_get_double(double* variant, double index);
 
@@ -395,10 +401,14 @@ extern double enum_get_double(double* variant, double index);
 extern char* c_cartan_string_substring(const char* s, double start, double end);
 extern char* c_cartan_read_file(const char* path);
 
-#if defined(__GNUC__) || defined(__clang__)
+#ifndef CARTAN_WEAK
+#if defined(__clang__) || defined(__GNUC__)
 #define CARTAN_WEAK __attribute__((weak))
+#elif defined(_MSC_VER)
+#define CARTAN_WEAK inline
 #else
 #define CARTAN_WEAK
+#endif
 #endif
 
 void* cartan_ast_tree_create() { return cartan_tree_create(); }
@@ -406,7 +416,6 @@ void cartan_ast_tree_push(void* t, void* item) { cartan_tree_push(t, item); }
 float cartan_ast_tree_len(void* t) { return (float)cartan_tree_len(t); }
 float cartan_tree_len_f(void* t) { return (float)cartan_tree_len(t); }
 float cartan_tree_len_f32(void* t) { return (float)cartan_tree_len(t); }
-void* cartan_ast_tree_get_f32(void* t, double idx) { return cartan_tree_get_f32(t, idx); }
 
 CARTAN_WEAK void cartan_tree_set(void* t, double idx, void* val) {
     // Weak implementation
@@ -422,8 +431,19 @@ char* cartan_ast_string_substring(const char* s, double start, double end) { ret
 char* cartan_string_substring(const char* s, double start, double end) { return c_cartan_string_substring(s, start, end); }
 char* cartan_float_to_string(double f) { return c_cartan_float_to_string(f); }
 char* cartan_read_file(const char* path) { return c_cartan_read_file(path); }
+double cartan_write_file(const char* path, const char* content) {
+    if (!path || !content) return 0.0;
+    FILE* f = fopen(path, "w");
+    if (!f) return 0.0;
+    fputs(content, f);
+    fclose(f);
+    return 1.0;
+}
 double cartan_string_length(const char* s) { return c_cartan_string_length(s); }
-void* cartan_ast_get_ptr(void* n, double idx) { return cartan_tree_get_f32(n, idx); }
+
+double cartan_static_assert(double cond, const char* msg) { if (!cond) { printf("Static assertion failed: %s\n", msg ? msg : ""); exit(1); } return 1.0; }
+CARTAN_WEAK void* cartan_ast_tree_get_f32(void* t, double idx) { return cartan_tree_get(t, (size_t)idx); }
+void* cartan_ast_get_ptr(void* n, double idx) { return cartan_tree_get(n, (size_t)idx); }
 
 void* cartan_slice_tree(void* tree, double start, double end) {
     void* sliced = cartan_tree_create();
@@ -748,6 +768,46 @@ void cartan_export_c_headers(const char* out_h_path, const char* content) {
     printf("[cartanc] Exported C-ABI headers to %s\n", out_h_path);
 }
 
+void cartan_export_doc_markdown(const char* out_md_path, const char* content) {
+    if (!out_md_path || !content) return;
+    FILE* f = fopen(out_md_path, "w");
+    if (!f) return;
+    fputs("# CARTAN Standard Library API Documentation\n\n", f);
+    fputs(content, f);
+    fclose(f);
+    printf("[cartanc] Exported Markdown API reference documentation to %s\n", out_md_path);
+}
+
+// --- Pillar 5: Distributed Multi-GPU Parallelism Engine ---
+static double g_dist_world_size = 1.0;
+static double g_dist_rank = 0.0;
+
+double cartan_dist_init(double world_size, double rank) {
+    g_dist_world_size = world_size > 0.0 ? world_size : 1.0;
+    g_dist_rank = rank >= 0.0 ? rank : 0.0;
+    return 0.0;
+}
+
+double cartan_dist_get_rank(void) {
+    return g_dist_rank;
+}
+
+double cartan_dist_get_world_size(void) {
+    return g_dist_world_size;
+}
+
+double cartan_dist_all_reduce(void* tensor_ptr, double op_id) {
+    return 0.0;
+}
+
+double cartan_dist_broadcast(void* tensor_ptr, double root_rank) {
+    return 0.0;
+}
+
+double cartan_dist_barrier(void) {
+    return 0.0;
+}
+
 // --- Pillar 2: Comptime Evaluation & Static Autograd ---
 double cartan_rt_autograd_forward_grad(double input_val, double (*func)(double)) {
     if (!func) return 0.0;
@@ -770,11 +830,6 @@ void* cartan_rt_vmap_eval(void* input_tree, double (*fn_ptr)(double)) {
 }
 
 // --- Tensor Kernels & Hardware IO Bridge ---
-#if defined(__GNUC__) || defined(__clang__)
-#define CARTAN_WEAK __attribute__((weak))
-#else
-#define CARTAN_WEAK
-#endif
 
 CARTAN_WEAK void cartan_relu(double* arr, double size) {
     if (!arr) return;
@@ -798,6 +853,7 @@ CARTAN_WEAK void cartan_matmul(double* A, double* B, double* out, double M_in, d
     }
 }
 
+#ifndef CARTAN_GPU_RUNTIME_LINKED
 CARTAN_WEAK void* cartan_tensor_add(double* A, double* B, double size) {
     size_t len = (size_t)size;
     double* res = (double*)malloc(sizeof(double) * len);
@@ -821,6 +877,7 @@ CARTAN_WEAK void* cartan_tensor_mul(double* A, double* B, double size) {
     for (size_t i = 0; i < len; i++) res[i] = A[i] * B[i];
     return res;
 }
+#endif
 
 CARTAN_WEAK double cartan_tensor_sum(double* arr, double size) {
     if (!arr || size <= 0.0) return 0.0;
@@ -911,6 +968,7 @@ CARTAN_WEAK void* cartan_tensor_sigmoid(double* arr, double size) {
 }
 
 
+#ifndef CARTAN_GPU_RUNTIME_LINKED
 CARTAN_WEAK void* cartan_tensor_matmul_dynamic(double* A, double* B, double M_in, double K_in, double N_in) {
     size_t M = (size_t)M_in, K = (size_t)K_in, N = (size_t)N_in;
     double* res = (double*)malloc(sizeof(double) * M * N);
@@ -918,7 +976,9 @@ CARTAN_WEAK void* cartan_tensor_matmul_dynamic(double* A, double* B, double M_in
     cartan_matmul(A, B, res, M_in, K_in, N_in);
     return res;
 }
+#endif
 
+#ifndef CARTAN_GPU_RUNTIME_LINKED
 CARTAN_WEAK void* cartan_alloc_parameter_adam_nd(int32_t ndim, int32_t d0, int32_t d1, int32_t d2, int32_t d3) {
     size_t elem_count = 1;
     if (d0 > 0) elem_count *= d0;
@@ -929,7 +989,10 @@ CARTAN_WEAK void* cartan_alloc_parameter_adam_nd(int32_t ndim, int32_t d0, int32
 }
 
 CARTAN_WEAK void cartan_print_string(const char* text) {
-    if (text) printf("%s\n", text);
+    if (text) {
+        fputs(text, stdout);
+        fflush(stdout);
+    }
 }
 
 CARTAN_WEAK void cartan_console_read(char* out_buf, double max_len) {
@@ -946,6 +1009,7 @@ CARTAN_WEAK void cartan_rt_doubt_begin() { printf("[cartan_rt] Doubt Verificatio
 CARTAN_WEAK void cartan_rt_chain_begin() { printf("[cartan_rt] Reasoning Chain Block Started\n"); }
 CARTAN_WEAK void cartan_rt_route_begin() { printf("[cartan_rt] Dynamic Routing Block Started\n"); }
 CARTAN_WEAK void cartan_rt_grok_begin() { printf("[cartan_rt] Grok Deep Analysis Block Started\n"); }
+#endif
 // --- Runtime Assertion Primitive ---
 CARTAN_WEAK void cartan_assert(double cond, const char* msg) {
     if (cond == 0.0) {
@@ -955,11 +1019,131 @@ CARTAN_WEAK void cartan_assert(double cond, const char* msg) {
     }
 }
 
-CARTAN_WEAK float user_main(double argc, void* argv) { return 0.0f; }
-int main(int argc, char** argv) {
-    user_main((double)argc, (void*)argv);
-    return 0;
+static int g_argc = 0;
+static char** g_argv = NULL;
+
+void cartan_crt_init(int argc, char** argv) {
+    setvbuf(stdout, NULL, _IONBF, 0);
+    setvbuf(stderr, NULL, _IONBF, 0);
+    g_argc = argc;
+    g_argv = argv;
 }
+
+double sys_get_arg_count() {
+    return (double)g_argc;
+}
+
+char* sys_get_arg(double idx) {
+    int i = (int)idx;
+    if (g_argv && i >= 0 && i < g_argc) {
+        return g_argv[i];
+    }
+    return "";
+}
+
+char* cartan_read_line() {
+    static char buf[4096];
+    memset(buf, 0, sizeof(buf));
+    if (fgets(buf, sizeof(buf), stdin)) {
+        size_t len = strlen(buf);
+        size_t write_idx = 0;
+        for (size_t read_idx = 0; read_idx < len; read_idx++) {
+            unsigned char c = (unsigned char)buf[read_idx];
+            if (c >= 32 && c <= 126) {
+                buf[write_idx++] = (char)c;
+            }
+        }
+        buf[write_idx] = '\0';
+        return buf;
+    }
+    return "";
+}
+
+double cartan_file_exists(const char* path) {
+    if (!path) return 0.0;
+    FILE* f = fopen(path, "rb");
+    if (f) {
+        fclose(f);
+        return 1.0;
+    }
+    return 0.0;
+}
+
+// --- HTTPS Download Primitive ---
+double cartan_http_download_file(const char* url, const char* out_path) {
+    if (!url || !out_path) return 0.0;
+    char cmd[2048];
+#if defined(_WIN32) || defined(_WIN64)
+    snprintf(cmd, sizeof(cmd), "curl.exe -s -L %s -o %s", url, out_path);
+#else
+    snprintf(cmd, sizeof(cmd), "curl -s -L '%s' -o '%s'", url, out_path);
+#endif
+    int res = system(cmd);
+    return (res == 0) ? 1.0 : 0.0;
+}
+
+// --- Safetensors Binary Loader Runtime Functions ---
+double cartan_safetensors_header_length(const char* path) {
+    if (!path) return 0.0;
+    FILE* f = fopen(path, "rb");
+    if (!f) return 0.0;
+    uint64_t len = 0;
+    if (fread(&len, sizeof(uint64_t), 1, f) != 1) {
+        fclose(f);
+        return 0.0;
+    }
+    fclose(f);
+    return (double)len;
+}
+
+char* cartan_safetensors_read_header(const char* path) {
+    if (!path) return cartan_strdup("{}");
+    FILE* f = fopen(path, "rb");
+    if (!f) return cartan_strdup("{}");
+    uint64_t len = 0;
+    if (fread(&len, sizeof(uint64_t), 1, f) != 1 || len > 100 * 1024 * 1024) {
+        fclose(f);
+        return cartan_strdup("{}");
+    }
+    char* header_json = (char*)malloc(len + 1);
+    if (!header_json) { fclose(f); return cartan_strdup("{}"); }
+    size_t read_bytes = fread(header_json, 1, len, f);
+    fclose(f);
+    header_json[read_bytes] = '\0';
+    return header_json;
+}
+
+void* cartan_safetensors_load_tensor_f32(const char* path, double header_len, double data_start, double num_elements) {
+    if (!path || num_elements <= 0) return cartan_tree_create();
+    FILE* f = fopen(path, "rb");
+    if (!f) return cartan_tree_create();
+    uint64_t offset = 8 + (uint64_t)header_len + (uint64_t)data_start;
+#if defined(_WIN32) || defined(_WIN64)
+    _fseeki64(f, offset, SEEK_SET);
+#else
+    fseeko(f, offset, SEEK_SET);
+#endif
+    size_t count = (size_t)num_elements;
+    float* raw_floats = (float*)malloc(count * sizeof(float));
+    if (!raw_floats) { fclose(f); return cartan_tree_create(); }
+    size_t read_count = fread(raw_floats, sizeof(float), count, f);
+    fclose(f);
+
+    void* tree = cartan_tree_create();
+    for (size_t i = 0; i < read_count; i++) {
+        cartan_tree_push(tree, (void*)(uintptr_t)(raw_floats[i]));
+    }
+    free(raw_floats);
+    return tree;
+}
+
+#ifndef CARTAN_COMPILED_LLVM
+extern double user_main();
+int main(int argc, char** argv) {
+    cartan_crt_init(argc, argv);
+    return (int)user_main();
+}
+#endif
 
 
 

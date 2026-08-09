@@ -323,7 +323,7 @@ while (idx_stmt < cartan_tree_len(ast)) {
         cartan_tree_push(self_ptr.output, "declare ptr @cartan_tensor_alloc_temporary(float)\n");
         cartan_tree_push(self_ptr.output, "declare ptr @cartan_tree_create()\n");
         cartan_tree_push(self_ptr.output, "declare void @cartan_tree_push(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.output, "declare ptr @cartan_tree_get_f32(ptr, float)\n");
+        cartan_tree_push(self_ptr.output, "declare double @cartan_tree_get_f32(ptr, double)\n");
         cartan_tree_push(self_ptr.output, "declare float @cartan_tree_len(ptr)\n");
         cartan_tree_push(self_ptr.output, "declare void @cartan_tree_remove(ptr, float)\n");
         cartan_tree_push(self_ptr.output, "declare ptr @cartan_dict_get(ptr, ptr)\n");
@@ -669,7 +669,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
             }
 
             var safe_name = "";
-            if (fn_name == "main") {
+            if (cartan_string_eq(fn_name, "main") != 0.0) {
                 safe_name = "user_main";
             } else if (struct_name != 0.0) {
                 safe_name = cartan_string_concat(cartan_string_concat(struct_name, "_"), fn_name);
@@ -764,9 +764,10 @@ while (idx_method < cartan_tree_len_f(methods)) {
             idx_stmt = idx_stmt + 1.0;
             let stmt_disc = cartan_tree_get_f32(stmt, 0.0);
             if (stmt_disc == 44.0) {
-                let fn_name = cartan_tree_get_f32(stmt, 1.0);
-                let parameters = cartan_tree_get_f32(stmt, 2.0);
-                if (fn_name == "main") {
+                let decl = cartan_tree_get_f32(stmt, 1.0);
+                let fn_name = cartan_tree_get_f32(decl, 0.0);
+                let parameters = cartan_tree_get_f32(decl, 2.0);
+                if (cartan_string_eq(fn_name, "main") != 0.0) {
                     has_main = 1.0;
                     main_params_count = cartan_tree_len_f(parameters);
                 } else {}
@@ -775,8 +776,8 @@ while (idx_method < cartan_tree_len_f(methods)) {
         
         cartan_tree_push(self_ptr.output, "define i32 @main(i32 %argc, ptr %argv) {\n");
         cartan_tree_push(self_ptr.output, "entry:\n");
-        cartan_tree_push(self_ptr.output, "  %argc_float = sitofp i32 %argc to float\n");
-        cartan_tree_push(self_ptr.output, "  store float %argc_float, ptr @global_argc, align 4\n");
+        cartan_tree_push(self_ptr.output, "  call void @cartan_crt_init(i32 %argc, ptr %argv)\n");
+        cartan_tree_push(self_ptr.output, "  store i32 %argc, ptr @global_argc, align 4\n");
         cartan_tree_push(self_ptr.output, "  store ptr %argv, ptr @global_argv, align 8\n");
 
         idx_stmt = 0.0;
@@ -789,7 +790,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 let is_agent = cartan_tree_get_f32(stmt, 5.0);
                 if (is_agent != 0.0) {
                     var target_fn = fn_name;
-                    if (fn_name == "main") {
+                    if (cartan_string_eq(fn_name, "main") != 0.0) {
                         target_fn = "user_main";
                     } else {}
                     let str_ptr = cartan_string_concat("@.str.agent.", fn_name);
@@ -800,43 +801,36 @@ while (idx_method < cartan_tree_len_f(methods)) {
             } else {}
         }
 
-        var idx_stmt = 0.0;
-while (idx_stmt < cartan_tree_len_f(ast)) {
-    var stmt = cartan_tree_get_f32(ast, idx_stmt);
-    idx_stmt = idx_stmt + 1.0;
-            let skip = 0.0;
-            let disc = cartan_tree_get_f32(stmt, 0.0);
-            if (disc == 7.0) { skip = 1.0; }
-            if (disc == 48.0) { skip = 1.0; }
-            if (disc == 44.0) { skip = 1.0; }
-            if (disc == 4.0) {
-                let is_const = cartan_tree_get_f32(stmt, 2.0);
-                if (is_const == 1.0) { skip = 1.0; }
-            }
-            if (skip == 0.0) {
-                llvm_visit_stmt(self_ptr, stmt);
-            }
-        }
-
         if (has_main != 0.0) {
             var ret_type = cartan_dict_get(self_ptr.func_return_types, "user_main");
             if (ret_type == 0.0) { ret_type = "void"; }
-            let call_args = "";
-            if (main_params_count == 2.0) {
-                cartan_tree_push(self_ptr.output, "  %argc_float = sitofp i32 %argc to float\n");
-                call_args = "(float %argc_float, ptr %argv)";
-            } else {
-                call_args = "()";
-            }
+            let call_args = "()";
             if (ret_type == "void") {
-                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat("  call void @user_main", call_args), "\n"));
+                cartan_tree_push(self_ptr.output, "  call void @user_main()\n");
                 cartan_tree_push(self_ptr.output, "  ret i32 0\n");
             } else {
-                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat("  %exit_code_float = call float @user_main", call_args), "\n"));
-                cartan_tree_push(self_ptr.output, "  %exit_code_int = fptosi float %exit_code_float to i32\n");
+                cartan_tree_push(self_ptr.output, "  %exit_code_float = call double @user_main()\n");
+                cartan_tree_push(self_ptr.output, "  %exit_code_int = fptosi double %exit_code_float to i32\n");
                 cartan_tree_push(self_ptr.output, "  ret i32 %exit_code_int\n");
             }
         } else {
+            var idx_stmt = 0.0;
+            while (idx_stmt < cartan_tree_len_f(ast)) {
+                var stmt = cartan_tree_get_f32(ast, idx_stmt);
+                idx_stmt = idx_stmt + 1.0;
+                let skip = 0.0;
+                let disc = cartan_tree_get_f32(stmt, 0.0);
+                if (disc == 7.0) { skip = 1.0; }
+                if (disc == 48.0) { skip = 1.0; }
+                if (disc == 44.0) { skip = 1.0; }
+                if (disc == 4.0) {
+                    let is_const = cartan_tree_get_f32(stmt, 2.0);
+                    if (is_const == 1.0) { skip = 1.0; }
+                }
+                if (skip == 0.0) {
+                    llvm_visit_stmt(self_ptr, stmt);
+                }
+            }
             cartan_tree_push(self_ptr.output, "  ret i32 0\n");
         }
         cartan_tree_push(self_ptr.output, "}\n\n");
@@ -1995,11 +1989,13 @@ while (idx_stmt < cartan_tree_len_f(stmts)) {
                 if ((cartan_string_starts_with(arg_reg, "ptr:") != 0.0) || (cartan_string_starts_with(arg_reg, "string:") != 0.0) || (cartan_string_starts_with(arg_reg, "array:") != 0.0) || (cartan_string_starts_with(arg_reg, "struct:") != 0.0)) {
                     let clean = cartan_string_replace(cartan_string_replace(cartan_string_replace(cartan_string_replace(arg_reg, "ptr:", ""), "string:", ""), "array:", ""), "struct:", "");
                     formatted_arg = cartan_string_concat("ptr ", clean);
-                if (cartan_string_eq(name, "printf") != 0.0 && idx_a > 0.0 && (cartan_string_starts_with(arg_reg, "ptr:") == 0.0) && (cartan_string_starts_with(arg_reg, "string:") == 0.0)) {
+                } else if (cartan_string_eq(name, "printf") != 0.0 && idx_a > 0.0) {
                     let dbl_reg = next_reg(self_ptr);
                     cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", dbl_reg), " = fpext float "), arg_reg), " to double\n"));
                     formatted_arg = cartan_string_concat("double ", dbl_reg);
-                } else {}
+                } else {
+                    formatted_arg = cartan_string_concat("float ", as_float(self_ptr, arg_reg));
+                }
 
                 if (idx_a > 0.0) {
                     arg_str = cartan_string_concat(arg_str, ", ");
@@ -2013,21 +2009,38 @@ while (idx_stmt < cartan_tree_len_f(stmts)) {
             }
             let res_reg = next_reg(self_ptr);
             let p1 = cartan_string_concat("  ", res_reg);
-            var call_prefix = " = call float @";
             if (cartan_string_eq(name, "printf") != 0.0) {
                 let i32_reg = next_reg(self_ptr);
                 cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", i32_reg), " = call i32 (ptr, ...) @printf("), arg_str), ")\n"));
                 cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", res_reg), " = sitofp i32 "), i32_reg), " to float\n"));
                 return res_reg;
             } else {}
-            let p2 = cartan_string_concat(p1, call_prefix);
-            let p3 = cartan_string_concat(p2, name);
-            let p4 = cartan_string_concat(p3, "(");
-            let p5 = cartan_string_concat(p4, arg_str);
-            let p6 = cartan_string_concat(p5, ")
-");
-            cartan_tree_push(self_ptr.output, p6);
-            return res_reg;
+
+            var ret_type = cartan_dict_get(self_ptr.func_return_types, name);
+            var ret_type_str = "double";
+            var is_ptr_ret = 0.0;
+            if (cartan_string_eq(name, "cartan_tree_create") != 0.0 || cartan_string_starts_with(name, "cartan_tensor_") != 0.0 || cartan_string_eq(name, "malloc") != 0.0) {
+                ret_type_str = "ptr";
+                is_ptr_ret = 1.0;
+            } else if (ret_type != 0.0) {
+                if (cartan_string_eq(ret_type, "ptr") != 0.0 || cartan_string_eq(ret_type, "string") != 0.0 || cartan_string_starts_with(ret_type, "%") != 0.0) {
+                    ret_type_str = "ptr";
+                    is_ptr_ret = 1.0;
+                } else if (cartan_string_eq(ret_type, "void") != 0.0) {
+                    ret_type_str = "void";
+                }
+            }
+
+            if (is_ptr_ret != 0.0) {
+                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(p1, " = call ptr @"), name), "("), arg_str), ")\n"));
+                return cartan_string_concat("ptr:", res_reg);
+            } else if (cartan_string_eq(ret_type_str, "void") != 0.0) {
+                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  call void @", name), "("), arg_str), ")\n"));
+                return "0.0";
+            } else {
+                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(p1, " = call double @"), name), "("), arg_str), ")\n"));
+                return res_reg;
+            }
         }
         if (disc == 29.0) {
             let object = cartan_tree_get_f32(expr, 1.0);

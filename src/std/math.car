@@ -23,32 +23,30 @@ extern fn ceil(x: float) -> float;
 extern fn fmod(x: float, y: float) -> float;
 extern fn copysign(x: float, y: float) -> float;
 
-mod math {
-    fn abs(x: float) -> float { return fabs(x); }
-    fn sqrt(x: float) -> float { return sqrt(x); }
-    fn pow(base: float, exp_val: float) -> float { return pow(base, exp_val); }
-    fn exp(x: float) -> float { return exp(x); }
-    fn log(x: float) -> float { return log(x); }
-    fn log10(x: float) -> float { return log10(x); }
-    fn log2(x: float) -> float { return log2(x); }
-    fn sin(x: float) -> float { return sin(x); }
-    fn cos(x: float) -> float { return cos(x); }
-    fn tan(x: float) -> float { return tan(x); }
-    fn asin(x: float) -> float { return asin(x); }
-    fn acos(x: float) -> float { return acos(x); }
-    fn atan(x: float) -> float { return atan(x); }
-    fn atan2(y: float, x: float) -> float { return atan2(y, x); }
-    fn sinh(x: float) -> float { return sinh(x); }
-    fn cosh(x: float) -> float { return cosh(x); }
-    fn tanh(x: float) -> float { return tanh(x); }
-    fn floor(x: float) -> float { return floor(x); }
-    fn ceil(x: float) -> float { return ceil(x); }
-    fn mod_val(x: float, y: float) -> float { if (y == 0.0) { return 0.0; } return fmod(x, y); }
-    fn hypot(x: float, y: float) -> float { return sqrt(x * x + y * y); }
-    fn clamp(val: float, min_val: float, max_val: float) -> float {
-        if (val < min_val) { return min_val; }
-        if (val > max_val) { return max_val; }
-        return val;
-    }
-    fn lerp(a: float, b: float, t: float) -> float { return a + t * (b - a); }
+fn math_abs_val(x: float) -> float { return fabs(x); }
+fn math_sqrt(x: float) -> float { return sqrt(x); }
+fn math_pow(base: float, exp_val: float) -> float { return pow(base, exp_val); }
+fn math_exp(x: float) -> float { return exp(x); }
+fn math_log(x: float) -> float { return log(x); }
+fn math_log10(x: float) -> float { return log10(x); }
+fn math_log2(x: float) -> float { return log2(x); }
+fn math_sin(x: float) -> float { return sin(x); }
+fn math_cos(x: float) -> float { return cos(x); }
+fn math_tan(x: float) -> float { return tan(x); }
+fn math_asin(x: float) -> float { return asin(x); }
+fn math_acos(x: float) -> float { return acos(x); }
+fn math_atan(x: float) -> float { return atan(x); }
+fn math_atan2(y: float, x: float) -> float { return atan2(y, x); }
+fn math_sinh(x: float) -> float { return sinh(x); }
+fn math_cosh(x: float) -> float { return cosh(x); }
+fn math_tanh(x: float) -> float { return tanh(x); }
+fn math_floor(x: float) -> float { return floor(x); }
+fn math_ceil(x: float) -> float { return ceil(x); }
+fn math_mod_val(x: float, y: float) -> float { if (y == 0.0) { return 0.0; } return fmod(x, y); }
+fn math_hypot(x: float, y: float) -> float { return sqrt(x * x + y * y); }
+fn math_clamp(val: float, min_val: float, max_val: float) -> float {
+    if (val < min_val) { return min_val; }
+    if (val > max_val) { return max_val; }
+    return val;
 }
+fn math_lerp(a: float, b: float, t: float) -> float { return a + t * (b - a); }

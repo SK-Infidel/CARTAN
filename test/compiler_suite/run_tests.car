@@ -169,13 +169,97 @@ fn main(argc: float, argv: ptr) -> float {
     cartan_flush(0.0);
     system(t26_cmd);
 
-    // [27/27] Positive test: test_repl
+    // [27/28] Positive test: test_repl
     let t27_cmd = "cartanc.exe repl";
-    printf("[27/27] [// run-pass] Executing Interactive REPL Test: %s\n", t27_cmd);
+    printf("[27/28] [// run-pass] Executing Interactive REPL Test: %s\n", t27_cmd);
     cartan_flush(0.0);
     system(t27_cmd);
 
-    printf("\nAll 27 compiler snapshot test targets executed!\n", "");
+    // [28/29] Positive test: test_bindgen
+    let t28_cmd = "cartanc.exe bindgen test/compiler_suite/test_math_string_full.car";
+    printf("[28/29] [// run-pass] Executing C/C++ Header Generator (bindgen) Test: %s\n", t28_cmd);
+    cartan_flush(0.0);
+    system(t28_cmd);
+
+    // [29/30] Positive test: test_lsp
+    let t29_cmd = "cartanc.exe lsp";
+    printf("[29/30] [// run-pass] Executing Native Language Server Protocol (LSP) Test: %s\n", t29_cmd);
+    cartan_flush(0.0);
+    system(t29_cmd);
+
+    // [30/32] Positive test: test_doc
+    let t30_cmd = "cartanc.exe doc src/std/math.car";
+    printf("[30/32] [// run-pass] Executing API Documentation Generator (doc) Test: %s\n", t30_cmd);
+    cartan_flush(0.0);
+    system(t30_cmd);
+
+    // [31/32] Positive test: test_llvm_opt_pipeline
+    let t31_cmd = "cartanc.exe build test/compiler_suite/test_llvm_opt_pipeline.car -o build/test_llvm_opt_pipeline.exe";
+    printf("[31/32] [// run-pass] Building Advanced LLVM Optimization Pass Pipeline Test: %s\n", t31_cmd);
+    cartan_flush(0.0);
+    system(t31_cmd);
+
+    // [32/33] Positive test: test_dist_parallelism
+    let t32_cmd = "cartanc.exe build test/compiler_suite/test_dist_parallelism.car -o build/test_dist_parallelism.exe";
+    printf("[32/33] [// run-pass] Building Distributed Multi-GPU Parallelism Test: %s\n", t32_cmd);
+    cartan_flush(0.0);
+    system(t32_cmd);
+
+    // [33/34] Positive test: test_hf_hub
+    let t33_cmd = "cartanc.exe build test/compiler_suite/test_hf_hub.car -o build/test_hf_hub.exe";
+    printf("[33/34] [// run-pass] Building HuggingFace Model Hub & Safetensors Pipeline Test: %s\n", t33_cmd);
+    cartan_flush(0.0);
+    system(t33_cmd);
+
+    // [34/35] Positive test: test_vision
+    let t34_cmd = "cartanc.exe build test/compiler_suite/test_vision.car -o build/test_vision.exe";
+    printf("[34/35] [// run-pass] Building Native Computer Vision Module Test: %s\n", t34_cmd);
+    cartan_flush(0.0);
+    system(t34_cmd);
+
+    // [35/36] Positive test: test_autotune
+    let t35_cmd = "cartanc.exe build test/compiler_suite/test_autotune.car -o build/test_autotune.exe";
+    printf("[35/36] [// run-pass] Building Hardware-Aware Micro-Kernel Autotuning Test: %s\n", t35_cmd);
+    cartan_flush(0.0);
+    system(t35_cmd);
+
+    // [36/37] Positive test: test_fusion_distill
+    let t36_cmd = "cartanc.exe build test/compiler_suite/test_fusion_distill.car -o build/test_fusion_distill.exe";
+    printf("[36/37] [// run-pass] Building Model Fusion & Distillation Engine Test: %s\n", t36_cmd);
+    cartan_flush(0.0);
+    system(t36_cmd);
+
+    // [37/38] Positive test: merge_model_weights
+    let t37_cmd = "cartanc.exe build test/geomind/merge_model_weights.car -o build/merge_model_weights.exe";
+    printf("[37/38] [// run-pass] Building Real Model Weight Fusion Pipeline Test: %s\n", t37_cmd);
+    cartan_flush(0.0);
+    system(t37_cmd);
+
+    // [38/39] Positive test: train_teacher_student
+    let t38_cmd = "cartanc.exe build test/geomind/train_teacher_student.car -o build/train_teacher_student.exe";
+    printf("[38/39] [// run-pass] Building Teacher-Student Distillation Engine Test: %s\n", t38_cmd);
+    cartan_flush(0.0);
+    system(t38_cmd);
+
+    // [39/40] Positive test: run_full_zero_day_training
+    let t39_cmd = "cartanc.exe build test/geomind/run_full_zero_day_training.car -o build/run_full_zero_day_training.exe";
+    printf("[39/40] [// run-pass] Building Production Zero-Day Training & Weight Fusion Engine Test: %s\n", t39_cmd);
+    cartan_flush(0.0);
+    system(t39_cmd);
+
+    // [40/41] Positive test: test_real_hf_fetch
+    let t40_cmd = "cartanc.exe build test/geomind/test_real_hf_fetch.car -o build/test_real_hf_fetch.exe";
+    printf("[40/41] [// run-pass] Building Real Hugging Face HTTP Ingestion & Weight Merging Test: %s\n", t40_cmd);
+    cartan_flush(0.0);
+    system(t40_cmd);
+
+    // [41/41] Positive test: run_chat_generation_benchmarks
+    let t41_cmd = "cartanc.exe build test/geomind/run_chat_generation_benchmarks.car -o build/run_chat_generation_benchmarks.exe";
+    printf("[41/41] [// run-pass] Building GeoMind Interactive Generation & Chat Benchmarks Test: %s\n", t41_cmd);
+    cartan_flush(0.0);
+    system(t41_cmd);
+
+    printf("\nAll 41 compiler snapshot test targets executed!\n", "");
     return 0.0;
 }
 

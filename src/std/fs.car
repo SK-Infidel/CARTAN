@@ -6,20 +6,18 @@ extern fn cartan_copy_file(src: string, dst: string) -> float;
 extern fn cartan_read_file(path: string) -> string;
 extern fn cartan_write_file(path: string, content: string) -> float;
 
-mod fs {
-    fn exists(path: string) -> float {
-        return cartan_file_exists(path);
-    }
+fn fs_exists(path: string) -> float {
+    return cartan_file_exists(path);
+}
 
-    fn copy(src: string, dst: string) -> float {
-        return cartan_copy_file(src, dst);
-    }
+fn fs_copy(src: string, dst: string) -> float {
+    return cartan_copy_file(src, dst);
+}
 
-    fn read_all(path: string) -> string {
-        return cartan_read_file(path);
-    }
+fn fs_read_all(path: string) -> string {
+    return cartan_read_file(path);
+}
 
-    fn write_all(path: string, content: string) -> float {
-        return cartan_write_file(path, content);
-    }
+fn fs_write_all(path: string, content: string) -> float {
+    return cartan_write_file(path, content);
 }

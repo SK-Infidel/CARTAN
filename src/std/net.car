@@ -7,24 +7,22 @@ extern fn cartan_socket_send(sock: float, data: string) -> float;
 extern fn cartan_socket_recv(sock: float) -> string;
 extern fn cartan_socket_close(sock: float) -> float;
 
-mod net {
-    fn socket() -> float {
-        return cartan_socket_create();
-    }
+fn net_socket() -> float {
+    return cartan_socket_create();
+}
 
-    fn connect(sock: float, host: string, port: float) -> float {
-        return cartan_socket_connect(sock, host, port);
-    }
+fn net_connect(sock: float, host: string, port: float) -> float {
+    return cartan_socket_connect(sock, host, port);
+}
 
-    fn send(sock: float, data: string) -> float {
-        return cartan_socket_send(sock, data);
-    }
+fn net_send(sock: float, data: string) -> float {
+    return cartan_socket_send(sock, data);
+}
 
-    fn recv(sock: float) -> string {
-        return cartan_socket_recv(sock);
-    }
+fn net_recv(sock: float) -> string {
+    return cartan_socket_recv(sock);
+}
 
-    fn close(sock: float) -> float {
-        return cartan_socket_close(sock);
-    }
+fn net_close(sock: float) -> float {
+    return cartan_socket_close(sock);
 }

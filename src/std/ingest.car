@@ -4,20 +4,18 @@
 include "http.car";
 include "string.car";
 
-mod ingest {
-    fn fetch_url(url: string) -> string {
-        return http::get(url);
-    }
+fn ingest_fetch_url(url: string) -> string {
+    return http_get(url);
+}
 
-    fn parse_csv_line(line: string) -> float {
-        let len = string::len(line);
-        if (len <= 0.0) { return 0.0; }
-        return 1.0;
-    }
+fn ingest_parse_csv_line(line: string) -> float {
+    let len = cartan_string_length(line);
+    if (len <= 0.0) { return 0.0; }
+    return 1.0;
+}
 
-    fn parse_json_lines(payload: string) -> float {
-        let len = string::len(payload);
-        if (len <= 0.0) { return 0.0; }
-        return 1.0;
-    }
+fn ingest_parse_json_lines(payload: string) -> float {
+    let len = cartan_string_length(payload);
+    if (len <= 0.0) { return 0.0; }
+    return 1.0;
 }
