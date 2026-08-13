@@ -34,7 +34,7 @@ test*.car
 *.rs
 src/archive/
 .zigcache/
-
+*.safetensors
 # Large Datasets & Model Checkpoints
 *.bin
 *.npy
