@@ -1262,7 +1262,7 @@ double sys_get_arg_count() {
     return 0.0;
 }
 
-char* sys_get_arg(double idx) {
+char* c_sys_get_arg(double idx) {
     int i = (int)idx;
     if (g_argv && i >= 0 && i < g_argc) {
         char* arg = g_argv[i];

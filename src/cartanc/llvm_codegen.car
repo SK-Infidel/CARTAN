@@ -212,9 +212,12 @@ while (idx_stmt < cartan_tree_len(ast)) {
         cartan_tree_push(self_ptr.output, "declare void @free(ptr)\n");
         cartan_tree_push(self_ptr.output, "declare float @strcmp(ptr, ptr)\n");
         cartan_tree_push(self_ptr.output, "declare void @cartan_debug_break(ptr, double, ptr)\n");
+        cartan_tree_push(self_ptr.output, "declare ptr @c_sys_get_arg(double)\n");
+        cartan_tree_push(self_ptr.output, "declare void @cartan_crt_init(i32, ptr)\n");
         
         // Tensor Runtime declarations
         let declared_externs = cartan_tree_create();
+        cartan_tree_push(declared_externs, "c_sys_get_arg");
         cartan_tree_push(declared_externs, "malloc");
         cartan_tree_push(declared_externs, "free");
         cartan_tree_push(declared_externs, "strcmp");
@@ -754,11 +757,8 @@ while (idx_method < cartan_tree_len_f(methods)) {
         cartan_tree_push(self_ptr.output, "@global_argv = global ptr null, align 8\n\n");
         cartan_tree_push(self_ptr.output, "define ptr @sys_get_arg(double %index) {\n");
         cartan_tree_push(self_ptr.output, "entry:\n");
-        cartan_tree_push(self_ptr.output, "  %int_idx = fptosi double %index to i32\n");
-        cartan_tree_push(self_ptr.output, "  %argv_base = load ptr, ptr @global_argv, align 8\n");
-        cartan_tree_push(self_ptr.output, "  %arg_ptr = getelementptr inbounds ptr, ptr %argv_base, i32 %int_idx\n");
-        cartan_tree_push(self_ptr.output, "  %arg_str = load ptr, ptr %arg_ptr, align 8\n");
-        cartan_tree_push(self_ptr.output, "  ret ptr %arg_str\n");
+        cartan_tree_push(self_ptr.output, "  %res = call ptr @c_sys_get_arg(double %index)\n");
+        cartan_tree_push(self_ptr.output, "  ret ptr %res\n");
         cartan_tree_push(self_ptr.output, "}\n\n");
         
         let has_main = 0.0;
@@ -2049,6 +2049,11 @@ while (idx_stmt < cartan_tree_len_f(stmts)) {
 
             if (is_ptr_ret != 0.0) {
                 cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(p1, " = call ptr @"), name), "("), arg_str), ")\n"));
+                if (ret_type != 0.0) {
+                    if (cartan_string_eq(ret_type, "string") != 0.0) {
+                        return cartan_string_concat("string:", res_reg);
+                    }
+                }
                 return cartan_string_concat("ptr:", res_reg);
             } else if (cartan_string_eq(ret_type_str, "void") != 0.0) {
                 cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  call void @", name), "("), arg_str), ")\n"));
