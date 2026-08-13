@@ -1,3 +1,15 @@
+## [8.126.0] - 2026-08-13 (Sprint 169)
+
+### Fixed & Hardened
+- **Compiler LLVM Codegen AST Discriminator & Float/Double ABI Unification**:
+  - Aligned `Stmt::FunctionDecl` (`131.0`), `Expr::StringLiteral` (`67.0`), and `Expr::Identifier` (`70.0`) AST discriminators in `src/cartanc/llvm_codegen.car`.
+  - Unified compiler function parameters, allocas, returns, and `fcmp` comparisons to `double` precision across LLVM IR lowering, matching C runtime double ABI signatures.
+  - Fixed `@sys_get_arg` parameter lowering to double and delegated implementation to `c_sys_get_arg` in `src/cartanc/c_runtime.c`.
+- **Workspace File & Directory Architecture Consolidation**:
+  - Purged ~30 pairs of duplicate `.car`/`.cl` GeoMind model files from the repository root, consolidating official AI test models under `test/geomind/`.
+  - Cleaned up redundant `.car` files in `src/std/`, enforcing `.cl` for library implementations and `.ch` for headers.
+  - Verified atomic regression suite execution via `.\build\run_tests.exe` across all 42 compiler snapshot targets (`exit code 0`).
+
 ## [8.125.0] - 2026-08-12 (Sprint 168)
 
 ### Added & Verified

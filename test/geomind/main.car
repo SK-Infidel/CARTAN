@@ -1,14 +1,14 @@
 // test/geomind/main.cl
 // GeoMind Unified Multi-Phase Model Driver
 
-include "geometry.car";
-include "ode_solver.car";
-include "ising_state_machine.car";
-include "moe.car";
-include "e8_attention_engine.car";
+include "geometry.cl";
+include "ode_solver.cl";
+include "ising_state_machine.cl";
+include "moe.cl";
+include "e8_attention_engine.cl";
 include "chat.car";
-include "sft_train.car";
-include "azr_engine.car";
+include "sft_train.cl";
+include "azr_engine.cl";
 
 
 extern fn strcmp(s1: string, s2: string) -> i32;

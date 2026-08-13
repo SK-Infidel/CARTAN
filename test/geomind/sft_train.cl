@@ -1,12 +1,12 @@
 // test/geomind/sft_train.cl
 // GeoMind Supervised Fine-Tuning, Model Fusion & Knowledge Distillation Pipeline
 
-include "../../src/std/hub.car";
-include "../../src/std/dist.car";
-include "../../src/std/distill.car";
-include "../../src/std/fs.car";
-include "../../src/std/semantics.car";
-include "../../src/std/tokenizer.car";
+include "../../src/std/hub.cl";
+include "../../src/std/dist.cl";
+include "../../src/std/distill.cl";
+include "../../src/std/fs.cl";
+include "../../src/std/semantics.cl";
+include "../../src/std/tokenizer.cl";
 
 
 fn geomind_sft_train_run(repo_id: string, epochs: float, lr: float) -> float {
