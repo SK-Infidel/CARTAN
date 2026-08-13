@@ -71,7 +71,12 @@ This file tracks technical debt and bugs identified during repository code revie
 
 # Active Issues
 
-*No active unresolved bugs.*
+## [ISSUE-010] Mock/Stubbed CLI Subcommand Handlers in `src/cartanc/main.car`
+
+- **Severity**: Medium (Technical Debt / Rule Violation)
+- **Component**: `src/cartanc/main.car` -> `main()` (`pkg`, `repl`, `lsp`, `doc`, `bindgen` CLI subcommands)
+- **Description**: The `pkg`, `repl`, `lsp`, `doc`, and `bindgen` subcommands in `main.car` currently print hardcoded output strings rather than performing genuine interactive input loops or live file transformations.
+- **Proposed Fix**: Replace static output strings with genuine interactive state loops or actual AST-driven transformations.
 
 ---
 

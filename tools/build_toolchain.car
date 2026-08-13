@@ -6,6 +6,8 @@ include "src/cartanc/ast.ch";
 extern fn printf(fmt: string, val: string) -> float;
 extern fn cartan_flush(v: float) -> float;
 extern fn system(cmd: string) -> float;
+extern fn cartan_get_env(key: string) -> string;
+extern fn cartan_string_concat(a: string, b: string) -> string;
 
 fn main(argc: float, argv: ptr) -> float {
     printf("====================================================\n", "");
@@ -13,16 +15,34 @@ fn main(argc: float, argv: ptr) -> float {
     printf("====================================================\n\n", "");
     cartan_flush(0.0);
 
+    let user_profile = cartan_get_env("USERPROFILE");
+
     // [Step 1] Synchronize c_runtime.c to ~/.cartan/
     printf("[1/2] Synchronizing C Runtime Kernel to ~/.cartan/c_runtime.c...\n", "");
     cartan_flush(0.0);
-    system("cmd.exe /c copy /Y src\\cartanc\\c_runtime.c C:\\Users\\rich-\\.cartan\\c_runtime.c");
+    let sync_cmd = cartan_string_concat("cmd.exe /c copy /Y src\\cartanc\\c_runtime.c ", user_profile);
+    sync_cmd = cartan_string_concat(sync_cmd, "\\.cartan\\c_runtime.c");
+    let status1 = system(sync_cmd);
+    if (status1 != 0.0) {
+        printf("Error: C Runtime kernel sync failed with status %f\n", cartan_float_to_string(status1));
+        return 1.0;
+    }
     printf(" -> Sync Complete.\n", "");
 
-    // [Step 2] Execute 13-target Compiler Regression Test Suite
-    printf("[2/2] Executing 13-Target Compiler Regression Suite...\n", "");
+    // [Step 2] Build & Execute 42-Target Compiler Regression Test Suite
+    printf("[2/2] Building and Executing 42-Target Compiler Regression Suite...\n", "");
     cartan_flush(0.0);
-    system("cartanc.exe build test/compiler_suite/run_tests.car -o run_tests.exe");
+    let build_cmd = "cartanc.exe build test/compiler_suite/run_tests.car -o build/run_tests.exe";
+    let status2 = system(build_cmd);
+    if (status2 != 0.0) {
+        printf("Error: Harness build failed with status %f\n", cartan_float_to_string(status2));
+        return 1.0;
+    }
+    let exec_status = system(".\\build\\run_tests.exe");
+    if (exec_status != 0.0) {
+        printf("Error: Harness execution failed with status %f\n", cartan_float_to_string(exec_status));
+        return 1.0;
+    }
 
     printf("\nAtomic Toolchain Build & Verification Complete!\n", "");
     return 0.0;

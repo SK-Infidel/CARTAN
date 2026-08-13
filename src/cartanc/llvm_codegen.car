@@ -66,6 +66,8 @@ fn llvm_codegen_init() -> LLVMGenerator {
     cartan_dict_set(l.func_return_types, "cartan_string_char_at", "string");
     cartan_dict_set(l.func_return_types, "cartan_string_replace", "string");
     cartan_dict_set(l.func_return_types, "cartan_read_file", "string");
+    cartan_dict_set(l.func_return_types, "cartan_read_line", "string");
+    cartan_dict_set(l.func_return_types, "sys_get_arg", "string");
     cartan_dict_set(l.func_return_types, "malloc", "ptr");
     return l;
 }
@@ -805,12 +807,24 @@ while (idx_method < cartan_tree_len_f(methods)) {
         if (has_main != 0.0) {
             var ret_type = cartan_dict_get(self_ptr.func_return_types, "user_main");
             if (ret_type == 0.0) { ret_type = "void"; }
-            let call_args = "()";
+            var call_instr = "  call void @user_main()";
+            if (main_params_count > 0.0) {
+                if (ret_type == "void") {
+                    call_instr = "  %conv_argc = sitofp i32 %argc to double\n  call void @user_main(double %conv_argc, ptr %argv)";
+                } else {
+                    call_instr = "  %conv_argc = sitofp i32 %argc to double\n  %exit_code_float = call double @user_main(double %conv_argc, ptr %argv)";
+                }
+            } else {
+                if (ret_type != "void") {
+                    call_instr = "  %exit_code_float = call double @user_main()";
+                }
+            }
+
             if (ret_type == "void") {
-                cartan_tree_push(self_ptr.output, "  call void @user_main()\n");
+                cartan_tree_push(self_ptr.output, cartan_string_concat(call_instr, "\n"));
                 cartan_tree_push(self_ptr.output, "  ret i32 0\n");
             } else {
-                cartan_tree_push(self_ptr.output, "  %exit_code_float = call double @user_main()\n");
+                cartan_tree_push(self_ptr.output, cartan_string_concat(call_instr, "\n"));
                 cartan_tree_push(self_ptr.output, "  %exit_code_int = fptosi double %exit_code_float to i32\n");
                 cartan_tree_push(self_ptr.output, "  ret i32 %exit_code_int\n");
             }

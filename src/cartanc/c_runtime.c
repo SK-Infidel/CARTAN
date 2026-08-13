@@ -10,6 +10,11 @@
 #undef static_assert
 #endif
 
+#if defined(_WIN32) || defined(_WIN64)
+#include <windows.h>
+#include <shellapi.h>
+#endif
+
 // Helper strdup replacement to avoid MSVC / POSIX depreciation / linking issues
 static char* cartan_strdup(const char* s) {
     if (!s) return NULL;
@@ -1250,14 +1255,24 @@ void cartan_crt_init(int argc, char** argv) {
 
 
 double sys_get_arg_count() {
+    if (g_argc > 0) return (double)g_argc;
 #if defined(_WIN32) || defined(_WIN64)
-    if (__argc > 1) return (double)__argc;
+    if (__argc > 0) return (double)__argc;
 #endif
-    return (double)g_argc;
+    return 0.0;
 }
 
 char* sys_get_arg(double idx) {
     int i = (int)idx;
+    if (g_argv && i >= 0 && i < g_argc) {
+        char* arg = g_argv[i];
+        size_t len = strlen(arg);
+        while (len > 0 && (arg[len-1] == '\r' || arg[len-1] == '\n' || arg[len-1] == ' ')) {
+            arg[len-1] = '\0';
+            len--;
+        }
+        return arg;
+    }
 #if defined(_WIN32) || defined(_WIN64)
     if (__argv && i >= 0 && i < __argc) {
         char* arg = __argv[i];
@@ -1269,15 +1284,6 @@ char* sys_get_arg(double idx) {
         return arg;
     }
 #endif
-    if (g_argv && i >= 0 && i < g_argc) {
-        char* arg = g_argv[i];
-        size_t len = strlen(arg);
-        while (len > 0 && (arg[len-1] == '\r' || arg[len-1] == '\n' || arg[len-1] == ' ')) {
-            arg[len-1] = '\0';
-            len--;
-        }
-        return arg;
-    }
     return "";
 }
 
