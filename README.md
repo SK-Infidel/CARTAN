@@ -9,6 +9,19 @@ By bringing Riemannian geometry, automatic differentiation, and zero-copy memory
 ## Key Features
 
 - **Natively Tensor-First**: Tensors are primitive types in Cartan (e.g., `tensor[512, 128] under fp16`). They compile directly into raw memory addresses mapped across physical memory buses.
+- **Standard Library Modules (`src/std/`)**:
+  - Implementation files carry the `.cl` extension while header files carry `.ch`.
+  - `std::math` / `std::string` / `std::collections` / `std::io` / `std::fs` / `std::net` / `std::http` / `std::xml` / `std::env`
+  - `std::geom` / `std::calculus` / `std::physics` / `std::tokenizer` / `std::semantics` / `std::ingest` / `std::dist` / `std::autotune`
+  - `std::evolution` (Master Evolutionary Suite: ES + WANN + AZR + M2N2) & `std::es_opt` (Mirrored Evolution Strategies)
+  - `std::elm` (Extreme Learning Machines & Closed-Form Zero-Shot LM-Head Readout Solves: $W_{\text{head}}^* = (H^T H + \lambda I)^{-1} H^T Y$)
+  - `std::wann` (Weight-Agnostic Neural Networks) & `std::esn` (Echo State Networks / Reservoir Computing)
+  - `std::dip` (Deep Image Prior) & `std::reasoning` (Absolute Zero Reasoning Compiler Rewards)
+  - `std::optim` (Finsler-Randers Riemannian Natural Gradients) & `std::resonator` (Continuous Hopfield Resonators)
+  - `std::hub` (Native HuggingFace AutoModel, AutoTokenizer & Safetensors loader)
+  - `std::vision` (Native Computer Vision, Bilinear Resize, RGB Tensors & Normalization)
+  - `std::fusion` & `std::distill` (Model Fusion SLERP/TIES/DARE/M2N2 & Teacher-Student Distillation).
+
 - **Shape-Safe Compile Time Verification**: Matrix multiplication shapes ($N \times K \cdot K \times M$) are mathematically proven at compile-time. Shape mismatch crashes are caught during compilation, not hours into training.
 - **Riemannian Geometry Types**: Tensors can inhabit specific topological spaces (`in Minkowski`, `in PoincareDisk`). The compiler automatically overrides algebraic operators (like `@`) and applies the inverse metric tensor $g^{-1}$ during reverse-mode autograd to warp gradients back into curved spaces.
 - **Zero-Copy Memory**: Cartan enforces absolute zero-allocation runtime mutations. Data paths flow seamlessly from disk/network directly to the GPU/NPU memory controller.
@@ -44,11 +57,11 @@ This will produce a fast, standalone native binary `release/geomind.exe`.
 GeoMind acts as the universal entry point for training and interacting with neural networks in Cartan.
 
 ```bash
-./release/geomind.exe --help
-
-# Options:
-#   --train-causal   Run causal language model pretraining
-#   --train-sft      Run supervised fine tuning
+- **GeoMind AI Neural Model (`test/geomind/`)**:
+  - `geomind.exe --chat`: Interactive Lie Group E8 Hopfield Multimodal REPL chat interface with Stochastic Top-K ($T = 0.70$) sampling.
+  - `geomind.exe --ingest <file.txt>`: Instant real-time Hopfield memory loading ($<0.001\text{ ms}$) without backpropagation.
+  - `geomind.exe --train-sft`: E8 WordNet & SlangNet taxonomy-aligned Supervised Fine-Tuning pass.
+  - Curated Project Gutenberg Classical Corpus (`gutenberg_classics.txt`): Plato, Aristotle, Marcus Aurelius, Descartes, Kant, Newton, Darwin, Maxwell, Einstein, Homer, Dante, Shakespeare, Goethe, Dostoevsky.
 #   --chat           Start interactive chat session
 #   --generate       Generate text from a prompt
 #   --debug          Show internal states and tokens

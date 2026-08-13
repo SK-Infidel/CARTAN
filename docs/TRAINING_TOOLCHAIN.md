@@ -64,4 +64,61 @@ This document provides a comprehensive technical overview of the $E_8$ Physical 
 | **Step Latency** | < 1 ms | < 1 ms | < 5 ms / generated token |
 | **Attractor Dynamics** | E8 Phase Relaxation | Weyl Manifold MoE | **15-Step Hopfield Next-Word Predictor** |
 | **Penalty Engine** | — | — | **Dynamic Recency Geodesic Penalty** |
-| **Output Checkpoint** | `geomind_pretrained.model` | `geomind_sft_grokked.model` | Live Storytelling Stream |
+---
+
+## 4. GeoMind 4-Stage Hybrid Training & Instant Adaptation Pathway
+
+GeoMind integrates a 4-stage hybrid optimization pipeline combining continuous Riemannian autograd, instant zero-shot ELM readout solves, Evolution Strategies macro-alignment, and Hopfield attractor grounding:
+
+```
+ ┌─────────────────────────────────────────────────────────────────────────────────────────┐
+ │               STAGE 1: BASE PRE-TRAINING (Dense E8 Riemannian Autograd)                │
+ │  32-layer E8 Lie algebra manifold transformer pre-trained via Finsler-Randers natural   │
+ │  gradients on Gutenberg Classics & TinyStories corpora.                                │
+ └──────────────────────────────────────────┬──────────────────────────────────────────────┘
+                                            │ E8 Features (h_t)
+                                            ▼
+ ┌─────────────────────────────────────────────────────────────────────────────────────────┐
+ │            STAGE 2: INSTANT DOMAIN ADAPTATION (Extreme Learning Machines ELM)           │
+ │  Instant zero-shot LM-Head readout solve: W_head* = (H^T H + lambda I)^-1 H^T Y.        │
+ │  Adapts vocabulary projections to any new domain corpus in O(1) linear algebra time.    │
+ └──────────────────────────────────────────┬──────────────────────────────────────────────┘
+                                            │ Adapted LM-Head (W_head*)
+                                            ▼
+ ┌─────────────────────────────────────────────────────────────────────────────────────────┐
+ │             STAGE 3: MACRO POLICY ALIGNMENT (Evolution Strategies ES)                   │
+ │  Antithetic Mirrored ES noise perturbation (theta_i = theta +- sigma epsilon_i) for     │
+ │  AZR compiler self-play & non-differentiable rewards without PPO reward hacking.       │
+ └──────────────────────────────────────────┬──────────────────────────────────────────────┘
+                                            │ Aligned Model Checkpoint
+                                            ▼
+ ┌─────────────────────────────────────────────────────────────────────────────────────────┐
+ │            STAGE 4: ATTRACTOR GROUNDING & INFERENCE (Continuous Hopfield)                │
+ │  Interleaved 15-step Banach contraction mapping T(h) = tanh(beta W h + E) pulling       │
+ │  latent vectors into stable semantic attractor basins prior to token emission.           │
+ └─────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Pathway Execution Commands
+
+1. **Stage 1 (Base SFT & Finsler-Randers Autograd)**:
+   ```bash
+   cartanc.exe build test/geomind/main.car -o geomind.exe
+   ./geomind.exe --train-sft
+   ```
+2. **Stage 2 (Instant Zero-Shot ELM Readout Solve)**:
+   ```cartan
+   include "src/std/elm.cl";
+   var w_head_adapted = elm_fit_zero_shot(e8_hidden_matrix, target_vocab_matrix, 0.01);
+   ```
+3. **Stage 3 (Macro ES Alignment & AZR Compiler Self-Play)**:
+   ```cartan
+   include "src/std/es_opt.cl";
+   var es_opt = es_optimizer_create(dimension, 50.0, 1.0, 0.1);
+   es_optimizer_step(es_opt, fitness_positive, fitness_negative);
+   ```
+4. **Stage 4 (Hopfield Attractor Chat REPL)**:
+   ```bash
+   ./geomind.exe --chat
+   ```
+

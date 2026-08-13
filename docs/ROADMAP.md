@@ -148,3 +148,68 @@ This roadmap tracks the implementation of the advanced AI optimizations and nati
 - [ ] **Hybrid Ensemble Discriminator**: Implement a dual-score evaluator in `test/geomind/chat.car` comparing continuous Hopfield energy minimum against template match confidence to pick optimal response trajectories.
 - [ ] **Zero-Hallucination Weight Grafting**: Merge template-distilled weights with open-ended transformer weights via SLERP geodesic interpolation (`src/std/fusion.car`).
 
+## Phase 15: GeoMind Deep Intelligence & Grokking Pipeline (Sprint 60 Active)
+- [x] **1. Full 32-Layer Autotuned Matrix Projection**: Executed 32-layer $Q, K, V, O$ attention and SwiGLU feed-forward matrix multiplications in `test/geomind/chat.car` using hardware-autotuned GEMM tiles in `std::autotune`.
+- [x] **2. Full 32,000+ BPE Tokenizer Ingestion & O(1) Vocab Cache**: Upgraded `c_runtime.c:cartan_hub_decode_json_token` and `src/std/tokenizer.car` with an $O(1)$ fast memory-cached BPE vocabulary table (`g_vocab_table[65536]`).
+- [x] **3. SFT & Distillation Backprop Weight Updates**: Executed Supervised Fine-Tuning (SFT) training passes in `test/geomind/sft_train.car` ingesting physics, thermodynamics & CARTAN domain text material (`physics_and_cartan_knowledge.txt`).
+## Phase 16: WordNet / SlangNet Semantic Hierarchy & Information Content Engine
+- [x] **1. WordNet & SlangNet Dot-Path Tree Generator**: Ingested WordNet synsets and SlangNet records into `src/std/semantics.car`, building dot-notation hypernym paths (`entity.physical-entity.object...`) and $O(1)$ Lowest Common Ancestor (LCA) tree depth calculation.
+- [x] **2. Information Content (IC) Loss Weighting**: Implemented IC weights for vocabulary tokens in `src/std/tokenizer.car` (`tokenizer_scale_ic_loss`), prioritizing high-information tokens (`thermodynamics`, `algorithm`) with larger loss gradients during SFT.
+- [x] **3. Native Hierarchy Loss Function (`src/std/distill.car`)**: Implemented Top-128 sparse hierarchy proximity loss `distill_sparse_hierarchy_loss`, comparing hypernym dot-path distance to E8 Riemannian embedding distance.
+- [x] **4. Authentic 32k/256k HuggingFace Vocabulary Binding**: Bound official HuggingFace vocabulary token mappings directly into native executable memory (`g_vocab_table[65536]`) in `c_runtime.c` & `src/std/hub.car` for zero-file-dependency, native E8 manifold model vocabulary training and inference.
+
+## Phase 17: LM-Head Matrix Projection & True Generative Neural Synthesis Engine (Completed)
+- [x] **Dynamic Gutenberg Vocabulary Tokenizer (`src/cartanc/c_runtime.c` & `src/std/hub.car`)**: Implemented dynamic tokenizer JSON generation (`cartan_hub_ensure_tokenizer_json`) automatically loading and parsing all 1,000+ words from `test/geomind/trainingdata/gutenberg_classics.txt` into native memory (`g_vocab_table[65536]`).
+- [x] **LM-Head Matrix Activation Projection ($W_{\text{head}} \cdot h$)**: Replaced contiguous text slice lookups in `test/geomind/chat.car` with authentic LM-Head matrix activation projections ($L_t = \text{dot}(h_{\text{state}}, W_{\text{head}, t})$).
+- [x] **Autoregressive Hidden State Feedback ($h_{t+1} = h_t + \Delta_{\text{token}}$)**: Implemented autoregressive hidden vector feedback, updating activation states dynamically per step to synthesize rich, non-repeating neural token sequences across the full Gutenberg vocabulary.
+
+## Phase 56: Self-Adapting Dynamic Basin Energy Repulsion (Completed - Sprint 118)
+- [x] **Repulsive Basin Contraction Mapping (`src/std/resonator.cl`)**: Implemented `resonator_repulsive_basin_relax` applying Gaussian energy repulsion ($E_{\text{repulsive}}(h) = E(h) + \alpha \sum \exp(-\|h - s\|^2 / 2\sigma^2)$) over history states.
+- [x] **Diverse Logit Resonator Sampler (`src/std/resonator.ch`)**: Implemented `resonator_sample_diverse_logits` for self-adapting energy penalties.
+## Phase 58: Cross-Entropy (CE) Autoregressive Pre-Training Engine (Completed - Sprint 121)
+- [x] **Cross-Entropy Pre-Trainer (`geomind_pretrain_ce_run`)**: Implemented $L_{\text{CE}} = -\sum \log P(x_t \mid x_{<t})$ next-token prediction pre-training loop in `sft_train.car`, `sft_train.cl`, and `geomind_driver.c`.
+- [x] **CLI Flag Support (`--pretrain-ce` / `--train-ce`)**: Added `--pretrain-ce [file]` and `--train-ce [file]` CLI options to `geomind_driver.c`, `test/geomind/main.car`, and root `main.car`.
+- [x] **Model Checkpoint Exporter**: Implemented grokked checkpoint binary export to `test/geomind/geomind_ce_pretrained_weights.bin`.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

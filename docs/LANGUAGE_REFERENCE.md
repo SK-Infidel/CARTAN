@@ -116,10 +116,29 @@ block AgentBlock [ 16 ];
 
 ## 7. The Standard Library
 
-The standard library is located in the `std/` directory.
+The standard library is located in `src/std/`. Implementations use the `.cl` extension and public declarations use `.ch`.
 
-- `std/env.car`: Exposes environment arguments (`cartan_has_arg`, `cartan_get_arg_int`, etc.).
-- `std/io.car`: Exposes the `ConsoleStream` for I/O interactions.
+### 7.1 Core & Infrastructure Modules
+- `src/std/math.cl` / `src/std/constants.ch`: Standard math & physical constants.
+- `src/std/string.cl` / `src/std/collections.cl`: High-performance strings, dynamic trees, vectors, and memory pools.
+- `src/std/io.cl` / `src/std/fs.cl` / `src/std/net.cl` / `src/std/http.cl` / `src/std/xml.cl`: Systems I/O, networking, HTTP clients, and XML parsing.
+- `src/std/env.cl`: Command-line environment argument parsing.
+
+### 7.2 AI & Machine Learning Breakthrough Modules
+- `src/std/evolution.cl` / `src/std/evolution.ch`: Master Evolutionary Suite unifying ES, WANNs, AZR, and M2N2.
+- `src/std/es_opt.cl` / `src/std/es_opt.ch`: Mirrored Evolution Strategies (ES) Gaussian Noise Perturbation & Score Function Gradient Estimation ($\theta \pm \sigma \epsilon_i$).
+- `src/std/elm.cl` / `src/std/elm.ch`: Extreme Learning Machines (ELM) & Closed-Form Zero-Shot Readout Solves ($W_{\text{head}}^* = (H^T H + \lambda I)^{-1} H^T Y$).
+- `src/std/wann.cl` / `src/std/wann.ch`: Weight-Agnostic Neural Networks (WANNs) DAG topology evolution over shared scalar weights.
+- `src/std/esn.cl` / `src/std/esn.ch`: Echo State Networks (ESNs) & Reservoir Computing ($\rho < 1.0$) with Ridge regression readouts.
+- `src/std/dip.cl` / `src/std/dip.ch`: Deep Image Prior (DIP) spatial/structural priors for signal reconstruction & $E_8$ trajectory smoothing.
+- `src/std/reasoning.cl` / `src/std/reasoning.ch`: Absolute Zero Reasoning (AZR) compiler self-play & binary execution rewards ($R \in \{0, 1\}$).
+- `src/std/optim.cl` / `src/std/optim.ch`: Finsler-Randers Riemannian Natural Gradient Optimizers ($F(x,y) = \alpha + \beta \cdot y$).
+- `src/std/resonator.cl` / `src/std/resonator.ch`: Continuous Hopfield Banach Contraction Resonators ($T(h) = \tanh(\beta W h + E)$).
+- `src/std/fusion.cl` / `src/std/fusion.ch`: Sakana AI M2N2 niche crossover, KnOTS SVD task subspaces, SLERP, TIES, DARE.
+- `src/std/distill.cl`: Teacher-Student KL Divergence Distillation.
+- `src/std/hub.cl`: Native HuggingFace Hub Safetensors checkpoint loader & AutoTokenizer.
+- `src/std/vision.cl`: Computer Vision, Bilinear Resize, RGB Tensors & Image Processing.
+
 
 ---
 
@@ -228,10 +247,29 @@ Cartan provides standard library modules written in native CARTAN:
 - `write_string_to_file(path, content)`: Writes string to target path.
 - `file_exists(path)`: Returns `1.0` if file exists, else `0.0`.
 
-### 12.3 `std/collections.car`
+### 12.3 `std/semantics.car`
+```cartan
+include "src/std/semantics.car";
+
+let path = "entity.physical_entity.object.organism.canine.dog";
+let depth = semantics_dot_path_depth(path); // returns 6.0
+let distance = semantics_lca_tree_distance(path, "entity.physical_entity.object.organism.canine.wolf");
+```
+
+---
+
+## 12.4 Information Content & Tokenizer Scaling (`std/tokenizer`)
+
+```cartan
+include "src/std/tokenizer.car";
+
+let scaled_loss = tokenizer_scale_ic_loss(1.5, 35.0); // scales cross-entropy loss by IC weight
+```
+
+### 12.5 `std/collections.car`
 - `list_create()` / `list_push(l, item)` / `list_get(l, idx)` / `list_len(l)`: Dynamic heap-allocated tree lists.
 - `map_create()` / `map_set(m, key, val)` / `map_get(m, key)`: $O(1)$ open-addressing hash dictionaries.
 
-### 12.4 `std/math.car` & `std/io.car`
+### 12.6 `std/math.car` & `std/io.car`
 - `sin(x)`, `cos(x)`, `tan(x)`, `exp(x)`, `log(x)`, `sqrt(x)`, `pow(x, y)`: Scalar math wrappers.
 - `println(text)` / `eprintln(text)`: Formatted stdout and stderr printing helpers.

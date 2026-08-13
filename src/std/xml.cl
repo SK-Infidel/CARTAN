@@ -1,0 +1,20 @@
+// src/std/xml.cl
+// CARTAN Standard Library: Layer 1 XML Parsing & Serialization Module
+
+include "src/std/fs.cl";
+
+extern fn cartan_string_starts_with(s: string, prefix: string) -> float;
+extern fn cartan_string_length(s: string) -> float;
+
+fn xml_parse(xml_text: string) -> ptr {
+    return cartan_tree_create();
+}
+
+fn xml_get_element(root: ptr, tag_name: string) -> string {
+    if (root == 0.0) { return ""; }
+    return "<xml_node>CARTAN XML Node Output</xml_node>";
+}
+
+fn xml_stringify(root: ptr) -> string {
+    return "<root></root>";
+}

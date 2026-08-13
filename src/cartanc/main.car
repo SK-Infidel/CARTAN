@@ -368,11 +368,12 @@ fn generate_markdown_doc(type_checker: ptr, input_file: string, out_md: string) 
             return 0.0;
         }
 
-        printf("Compiling LLVM IR to native executable via Zig (-O3 -flto SIMD Vectorized Pass Pipeline)...\n");
-        let cmd = cartan_string_concat("zig cc -target x86_64-windows-msvc -O3 -ffast-math -flto -Xlinker /subsystem:console -DCARTAN_GPU_RUNTIME_LINKED -DCARTAN_COMPILED_LLVM ", out_ll);
+        printf("Compiling LLVM IR to native executable via Zig (-O2 SIMD Vectorized Pass Pipeline)...\n");
+        let cmd = cartan_string_concat("C:\\Users\\rich-\\AppData\\Local\\Microsoft\\WinGet\\Links\\zig.exe cc -target x86_64-windows-msvc -O2 -Xlinker /subsystem:console -DCARTAN_GPU_RUNTIME_LINKED -DCARTAN_COMPILED_LLVM -D_CRT_SECURE_NO_WARNINGS ", out_ll);
         cmd = cartan_string_concat(cmd, " C:\\Users\\rich-\\.cartan\\c_runtime.c C:\\Users\\rich-\\.cartan\\lib\\gpu_runtime.lib -lws2_32 -luser32 -lgdi32 -lwinmm -lopengl32 -ld3dcompiler -lole32 -loleaut32 -lbcrypt -luserenv -ladvapi32 -o ");
         cmd = cartan_string_concat(cmd, output_file);
         system(cmd);
+
         
         printf("Successfully built native optimized executable: ");
         printf(output_file);

@@ -14,7 +14,8 @@ Cartan compiles via a 100% self-hosted LLVM compiler toolchain (`cartanc` writte
 - `return` : Return statement
 - `tensor` : Primitive tensor type declaration
 - `struct` : Data structure definition
-- `mod`, `pub`, `use` : Module declaration and visibility scoping
+- **Standard Library Ecosystem (`src/std/`)**: Native implementation files carry the `.cl` extension (CARTAN Library) while public declaration header files carry the `.ch` extension (CARTAN Header). Includes `evolution.cl`/`evolution.ch` (Master Evolutionary Suite: ES + WANN + AZR + M2N2), `es_opt.cl`/`es_opt.ch` (Mirrored Evolution Strategies), `elm.cl`/`elm.ch` (Extreme Learning Machines zero-shot readout solve), `wann.cl`/`wann.ch` (Weight-Agnostic Neural Networks), `esn.cl`/`esn.ch` (Reservoir Computing), `dip.cl`/`dip.ch` (Deep Image Prior), `reasoning.cl`/`reasoning.ch` (Absolute Zero Reasoning compiler self-play), `optim.cl`/`optim.ch` (Finsler-Randers Riemannian natural gradients), `resonator.cl`/`resonator.ch` (Continuous Hopfield energy basins), `fusion.cl`/`fusion.ch` (M2N2 niche crossover, KnOTS SVD, SLERP, TIES, DARE), `distill.cl` (KL distillation), `hub.cl` (HuggingFace Hub), `tokenizer.cl` (Dynamic Gutenberg BPE tokenizer), and `vision.cl` (Computer Vision).
+
 - `backward(loss)` : Initiates static backward graph generation & autograd
 - `import` : Module evaluation and inclusion
 - `in` : Geometric manifold space declaration

@@ -253,14 +253,55 @@ fn main(argc: float, argv: ptr) -> float {
     cartan_flush(0.0);
     system(t40_cmd);
 
-    // [41/41] Positive test: run_chat_generation_benchmarks
+    // [41/42] Positive test: run_chat_generation_benchmarks
     let t41_cmd = "cartanc.exe build test/geomind/run_chat_generation_benchmarks.car -o build/run_chat_generation_benchmarks.exe";
-    printf("[41/41] [// run-pass] Building GeoMind Interactive Generation & Chat Benchmarks Test: %s\n", t41_cmd);
+    printf("[41/42] [// run-pass] Building GeoMind Interactive Generation & Chat Benchmarks Test: %s\n", t41_cmd);
     cartan_flush(0.0);
     system(t41_cmd);
 
-    printf("\nAll 41 compiler snapshot test targets executed!\n", "");
+    // [42/43] Positive test: test_semantics_ic
+    let t42_cmd = "cartanc.exe build test/compiler_suite/test_semantics_ic.car -o build/test_semantics_ic.exe";
+    printf("[42/43] [// run-pass] Building WordNet Taxonomy & IC Loss Engine Test: %s\n", t42_cmd);
+    cartan_flush(0.0);
+    system(t42_cmd);
+
+    // [43/44] Positive test: test_novel_ai_libs
+    let t43_cmd = "cartanc.exe build test/compiler_suite/test_novel_ai_libs.car -o build/test_novel_ai_libs.exe";
+    printf("[43/44] [// run-pass] Building 4 Novel AI Breakthrough Libraries (WANN, ESN, DIP, ELM) Test: %s\n", t43_cmd);
+    cartan_flush(0.0);
+    system(t43_cmd);
+
+    // [44/45] Positive test: test_es_opt
+    let t44_cmd = "cartanc.exe build test/compiler_suite/test_es_opt.car -o build/test_es_opt.exe";
+    printf("[44/45] [// run-pass] Building Evolution Strategies (ES) Optimizer Library Test: %s\n", t44_cmd);
+    cartan_flush(0.0);
+    system(t44_cmd);
+
+    // [45/46] Positive test: test_evolution_master
+    let t45_cmd = "cartanc.exe build test/compiler_suite/test_evolution_master.car -o build/test_evolution_master.exe";
+    printf("[45/46] [// run-pass] Building Master Evolutionary Learning Suite (ES+WANN+AZR+M2N2) Test: %s\n", t45_cmd);
+    cartan_flush(0.0);
+    system(t45_cmd);
+
+    // [46/47] Positive test: run_geomind_hybrid_training
+    let t46_cmd = "cartanc.exe build test/geomind/run_geomind_hybrid_training.car -o build/run_geomind_hybrid_training.exe";
+    printf("[46/47] [// run-pass] Building GeoMind 4-Stage Production Hybrid Training & Instant Adaptation Engine Test: %s\n", t46_cmd);
+    cartan_flush(0.0);
+    system(t46_cmd);
+
+    // [47/47] Positive test: run_heavy_production_training
+    let t47_cmd = "cartanc.exe build test/geomind/run_heavy_production_training.car -o build/run_heavy_production_training.exe";
+    printf("[47/47] [// run-pass] Building GeoMind Heavy Production Training & Evolutionary Self-Play Engine Test: %s\n", t47_cmd);
+    cartan_flush(0.0);
+    system(t47_cmd);
+
+    printf("\nAll 47 compiler snapshot test targets executed!\n", "");
     return 0.0;
 }
+
+
+
+
+
 
 

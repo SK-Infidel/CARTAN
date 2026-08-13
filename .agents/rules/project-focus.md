@@ -19,4 +19,6 @@ trigger: always_on
    - `tools/`: Reusable, long-term developer tools, build helpers, AST inspectors, and diagnostic utilities built to assist everyday tasking.
    - `scratch/`: Disposable single-use experiment scripts, temporary debug dumps, and throwaway test runs.
 
-
+8. **STRICT ZERO-MOCK AND ZERO-SIMULATION RULE**:
+   - DO NOT create mock, stubbed, placeholder, or simulated functionality in any project or test project.
+   - All tests, training passes, matrix multiplications, loss metrics, and evaluations MUST perform genuine calculations and real operations. Mocking or simulating outputs, metrics, or loops is strictly forbidden under all circumstances.

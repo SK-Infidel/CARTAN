@@ -329,17 +329,18 @@ while (idx_stmt < cartan_tree_len(ast)) {
         cartan_tree_push(self_ptr.output, "declare ptr @cartan_dict_get(ptr, ptr)\n");
         cartan_tree_push(self_ptr.output, "declare void @cartan_dict_set(ptr, ptr, ptr)\n");
         cartan_tree_push(self_ptr.output, "declare ptr @cartan_string_replace(ptr, ptr, ptr)\n");
-        cartan_tree_push(self_ptr.output, "declare float @cartan_string_contains(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.output, "declare float @cartan_string_starts_with(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.output, "declare float @cartan_string_eq(ptr, ptr)\n");
+        cartan_tree_push(self_ptr.output, "declare double @cartan_string_contains(ptr, ptr)\n");
+        cartan_tree_push(self_ptr.output, "declare double @cartan_string_starts_with(ptr, ptr)\n");
+        cartan_tree_push(self_ptr.output, "declare double @cartan_string_eq(ptr, ptr)\n");
         cartan_tree_push(self_ptr.output, "declare ptr @cartan_string_to_lowercase(ptr)\n");
-        cartan_tree_push(self_ptr.output, "declare ptr @cartan_float_to_string(float)\n");
-        cartan_tree_push(self_ptr.output, "declare ptr @cartan_int_to_string(float)\n");
-        cartan_tree_push(self_ptr.output, "declare ptr @cartan_string_substring(ptr, float, float)\n");
-        cartan_tree_push(self_ptr.output, "declare float @cartan_string_length(ptr)\n");
+        cartan_tree_push(self_ptr.output, "declare ptr @cartan_float_to_string(double)\n");
+        cartan_tree_push(self_ptr.output, "declare ptr @cartan_int_to_string(double)\n");
+        cartan_tree_push(self_ptr.output, "declare ptr @cartan_string_substring(ptr, double, double)\n");
+        cartan_tree_push(self_ptr.output, "declare double @cartan_string_length(ptr)\n");
         cartan_tree_push(self_ptr.output, "declare ptr @cartan_string_concat(ptr, ptr)\n");
         cartan_tree_push(self_ptr.output, "declare ptr @cartan_read_file(ptr)\n");
-        cartan_tree_push(self_ptr.output, "declare float @cartan_file_exists(ptr)\n");
+        cartan_tree_push(self_ptr.output, "declare double @cartan_file_exists(ptr)\n");
+
         cartan_tree_push(self_ptr.output, "declare ptr @cartan_string_char_at(ptr, float)\n");
         cartan_tree_push(self_ptr.output, "declare float @cartan_is_alpha(ptr)\n");
         cartan_tree_push(self_ptr.output, "declare float @cartan_is_alphanumeric(ptr)\n");

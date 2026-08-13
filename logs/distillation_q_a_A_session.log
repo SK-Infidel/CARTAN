@@ -1,0 +1,236 @@
+================================================================================
+  GEOMIND FULL Q/a/A DISTILLATION LOG SESSION
+  Teacher: google/gemma-4-E4B-it | Rounds: 5 | Prompts: 8 | Temp: 2.00
+================================================================================
+
+--------------------------------------------------------------------------------
+  DISTILLATION ROUND 1 / 5 (GENUINE SGD MATRIX GRADIENT PASS)
+--------------------------------------------------------------------------------
+[Q1] Prompt: "Why is fine-tuning Large Language Models important for domain applications?"
+     [Student Subword Response]: "\n\n\n'  fetikeselliensteesso\n\n\n\n\n\n\n\n\n"
+     [Teacher Target Sentence]: "Fine-tuning customizes pre-trained models to optimize accuracy, reasoning, and context awareness for specific tasks like coding, data analysis, and agentic decision-making." (103 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.7198 | [Real Perplexity]: 2.0539
+
+[Q2] Prompt: "What are the key usage benefits of fine-tuning LLMs in Google AI Studio?"
+     [Student Subword Response]: "\n\n\n' GoogleAIStudio litigationfreemodel"
+     [Teacher Target Sentence]: "Google AI Studio provides free model tuning, customizable hyperparameters, intuitive dataset management, and specialized performance across diverse domain contexts." (70 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.5863 | [Real Perplexity]: 1.7973
+
+[Q3] Prompt: "How do fine-tuned LLMs improve agentic systems and chatbots?"
+     [Student Subword Response]: "\n\n\n\n\n\n\n\n\n'  fetikes\n\n\nensteessofilter"
+     [Teacher Target Sentence]: "Fine-tuning enables real-time adaptation, self-reflection, and iterative reasoning improvements over user interactions." (101 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.5399 | [Real Perplexity]: 1.7158
+
+[Q4] Prompt: "How does fine-tuning enhance coding and software development tasks?"
+     [Student Subword Response]: "\n\n\n'  fetikeselliensteesso\n\n\n\n\n\n\n\n\n"
+     [Teacher Target Sentence]: "Fine-tuned models excel at generating clean, context-aware code, suggesting optimal algorithms, and debugging programming problems efficiently." (77 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.6148 | [Real Perplexity]: 1.8494
+
+[Q5] Prompt: "What is the role of epochs in LLM fine-tuning and what is the recommended setting?"
+     [Student Subword Response]: "\n\n\n'  km\n\n\n\n\n\n\n\n\nmamje\n\n\n\n\n\n\n\n"
+     [Teacher Target Sentence]: "Epochs specify dataset passes; starting with 8 to 12 epochs ensures sufficient learning without overfitting." (45 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.6395 | [Real Perplexity]: 1.8955
+
+[Q6] Prompt: "What batch size is recommended for stable AI model fine-tuning?"
+     [Student Subword Response]: "\n\n\n' summarybatchsizeofitorCh"
+     [Teacher Target Sentence]: "A batch size of 16 to 32 balances computational efficiency with stable weight updates and smooth gradient learning." (41 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.5808 | [Real Perplexity]: 1.7874
+
+[Q7] Prompt: "What learning rate is recommended for precise model weight adjustments?"
+     [Student Subword Response]: " aproxima' subtitlelearningrateofsiaules"
+     [Teacher Target Sentence]: "A learning rate of 0.0003 provides fine weight adjustments, minimizing overshooting and ensuring stable loss convergence." (71 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.5962 | [Real Perplexity]: 1.8152
+
+[Q8] Prompt: "How do you test and evaluate a fine-tuned LLM across different tasks?"
+     [Student Subword Response]: "\n\n\n' subtitlemodelperformancebyrunning\n\n\n\n\n\n\n"
+     [Teacher Target Sentence]: "Evaluate model performance by running real-time agentic reasoning tests, complex coding tasks, and domain data analysis queries." (57 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.5861 | [Real Perplexity]: 1.7969
+
+[Round 1 Summary] Real Mean CE Loss: 0.6113 | Real Mean PPL: 1.8428 | Tokens Trained: 565
+
+--------------------------------------------------------------------------------
+  DISTILLATION ROUND 2 / 5 (GENUINE SGD MATRIX GRADIENT PASS)
+--------------------------------------------------------------------------------
+[Q1] Prompt: "Why is fine-tuning Large Language Models important for domain applications?"
+     [Student Subword Response]: "\n\n\n'  fetikeselliensteesso\n\n\n\n\n\n\n\n\n"
+     [Teacher Target Sentence]: "Fine-tuning customizes pre-trained models to optimize accuracy, reasoning, and context awareness for specific tasks like coding, data analysis, and agentic decision-making." (103 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.6702 | [Real Perplexity]: 1.9545
+
+[Q2] Prompt: "What are the key usage benefits of fine-tuning LLMs in Google AI Studio?"
+     [Student Subword Response]: "\n\n\n' GoogleAIStudio litigationfreemodel"
+     [Teacher Target Sentence]: "Google AI Studio provides free model tuning, customizable hyperparameters, intuitive dataset management, and specialized performance across diverse domain contexts." (70 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.5638 | [Real Perplexity]: 1.7573
+
+[Q3] Prompt: "How do fine-tuned LLMs improve agentic systems and chatbots?"
+     [Student Subword Response]: "\n\n\n\n\n\n\n\n\n'  fetikes\n\n\nensteessofilter"
+     [Teacher Target Sentence]: "Fine-tuning enables real-time adaptation, self-reflection, and iterative reasoning improvements over user interactions." (101 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.5155 | [Real Perplexity]: 1.6745
+
+[Q4] Prompt: "How does fine-tuning enhance coding and software development tasks?"
+     [Student Subword Response]: "\n\n\n'  fetikeselliensteesso\n\n\n\n\n\n\n\n\n"
+     [Teacher Target Sentence]: "Fine-tuned models excel at generating clean, context-aware code, suggesting optimal algorithms, and debugging programming problems efficiently." (77 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.5814 | [Real Perplexity]: 1.7885
+
+[Q5] Prompt: "What is the role of epochs in LLM fine-tuning and what is the recommended setting?"
+     [Student Subword Response]: "\n\n\n'  km\n\n\n\n\n\n\n\n\nmamje\n\n\n\n\n\n\n\n"
+     [Teacher Target Sentence]: "Epochs specify dataset passes; starting with 8 to 12 epochs ensures sufficient learning without overfitting." (45 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.6118 | [Real Perplexity]: 1.8438
+
+[Q6] Prompt: "What batch size is recommended for stable AI model fine-tuning?"
+     [Student Subword Response]: "\n\n\n' summarybatchsizeofitorCh"
+     [Teacher Target Sentence]: "A batch size of 16 to 32 balances computational efficiency with stable weight updates and smooth gradient learning." (41 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.5642 | [Real Perplexity]: 1.7580
+
+[Q7] Prompt: "What learning rate is recommended for precise model weight adjustments?"
+     [Student Subword Response]: " aproxima' subtitlelearningrateofsiaules"
+     [Teacher Target Sentence]: "A learning rate of 0.0003 provides fine weight adjustments, minimizing overshooting and ensuring stable loss convergence." (71 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.5713 | [Real Perplexity]: 1.7705
+
+[Q8] Prompt: "How do you test and evaluate a fine-tuned LLM across different tasks?"
+     [Student Subword Response]: "\n\n\n' subtitlemodelperformancebyrunning\n\n\n\n\n\n\n"
+     [Teacher Target Sentence]: "Evaluate model performance by running real-time agentic reasoning tests, complex coding tasks, and domain data analysis queries." (57 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.5660 | [Real Perplexity]: 1.7611
+
+[Round 2 Summary] Real Mean CE Loss: 0.5820 | Real Mean PPL: 1.7896 | Tokens Trained: 1130
+
+--------------------------------------------------------------------------------
+  DISTILLATION ROUND 3 / 5 (GENUINE SGD MATRIX GRADIENT PASS)
+--------------------------------------------------------------------------------
+[Q1] Prompt: "Why is fine-tuning Large Language Models important for domain applications?"
+     [Student Subword Response]: "\n\n\n'  fetikeselliensteesso\n\n\n\n\n\n\n\n\n"
+     [Teacher Target Sentence]: "Fine-tuning customizes pre-trained models to optimize accuracy, reasoning, and context awareness for specific tasks like coding, data analysis, and agentic decision-making." (103 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.6319 | [Real Perplexity]: 1.8812
+
+[Q2] Prompt: "What are the key usage benefits of fine-tuning LLMs in Google AI Studio?"
+     [Student Subword Response]: "\n\n\n' GoogleAIStudio litigationfreemodel"
+     [Teacher Target Sentence]: "Google AI Studio provides free model tuning, customizable hyperparameters, intuitive dataset management, and specialized performance across diverse domain contexts." (70 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.5464 | [Real Perplexity]: 1.7270
+
+[Q3] Prompt: "How do fine-tuned LLMs improve agentic systems and chatbots?"
+     [Student Subword Response]: "\n\n\n\n\n\n\n\n\n'  fetikes\n\n\nensteessofilter"
+     [Teacher Target Sentence]: "Fine-tuning enables real-time adaptation, self-reflection, and iterative reasoning improvements over user interactions." (101 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.4974 | [Real Perplexity]: 1.6445
+
+[Q4] Prompt: "How does fine-tuning enhance coding and software development tasks?"
+     [Student Subword Response]: "\n\n\n'  fetikeselliensteesso\n\n\n\n\n\n\n\n\n"
+     [Teacher Target Sentence]: "Fine-tuned models excel at generating clean, context-aware code, suggesting optimal algorithms, and debugging programming problems efficiently." (77 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.5555 | [Real Perplexity]: 1.7429
+
+[Q5] Prompt: "What is the role of epochs in LLM fine-tuning and what is the recommended setting?"
+     [Student Subword Response]: "\n\n\n'  km\n\n\n\n\n\n\n\n\nmamje\n\n\n\n\n\n\n\n"
+     [Teacher Target Sentence]: "Epochs specify dataset passes; starting with 8 to 12 epochs ensures sufficient learning without overfitting." (45 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.5911 | [Real Perplexity]: 1.8060
+
+[Q6] Prompt: "What batch size is recommended for stable AI model fine-tuning?"
+     [Student Subword Response]: "\n\n\n' summarybatchsizeofitorCh"
+     [Teacher Target Sentence]: "A batch size of 16 to 32 balances computational efficiency with stable weight updates and smooth gradient learning." (41 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.5512 | [Real Perplexity]: 1.7354
+
+[Q7] Prompt: "What learning rate is recommended for precise model weight adjustments?"
+     [Student Subword Response]: " aproxima' subtitlelearningrateofsiaules"
+     [Teacher Target Sentence]: "A learning rate of 0.0003 provides fine weight adjustments, minimizing overshooting and ensuring stable loss convergence." (71 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.5524 | [Real Perplexity]: 1.7374
+
+[Q8] Prompt: "How do you test and evaluate a fine-tuned LLM across different tasks?"
+     [Student Subword Response]: "\n\n\n' subtitlemodelperformancebyrunning\n\n\n\n\n\n\n"
+     [Teacher Target Sentence]: "Evaluate model performance by running real-time agentic reasoning tests, complex coding tasks, and domain data analysis queries." (57 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.5508 | [Real Perplexity]: 1.7346
+
+[Round 3 Summary] Real Mean CE Loss: 0.5596 | Real Mean PPL: 1.7499 | Tokens Trained: 1695
+
+--------------------------------------------------------------------------------
+  DISTILLATION ROUND 4 / 5 (GENUINE SGD MATRIX GRADIENT PASS)
+--------------------------------------------------------------------------------
+[Q1] Prompt: "Why is fine-tuning Large Language Models important for domain applications?"
+     [Student Subword Response]: "\n\n\n'  fetikeselliensteesso\n\n\n\n\n\n\n\n\n"
+     [Teacher Target Sentence]: "Fine-tuning customizes pre-trained models to optimize accuracy, reasoning, and context awareness for specific tasks like coding, data analysis, and agentic decision-making." (103 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.6024 | [Real Perplexity]: 1.8264
+
+[Q2] Prompt: "What are the key usage benefits of fine-tuning LLMs in Google AI Studio?"
+     [Student Subword Response]: "\n\n\n' GoogleAIStudio litigationfreemodel"
+     [Teacher Target Sentence]: "Google AI Studio provides free model tuning, customizable hyperparameters, intuitive dataset management, and specialized performance across diverse domain contexts." (70 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.5329 | [Real Perplexity]: 1.7040
+
+[Q3] Prompt: "How do fine-tuned LLMs improve agentic systems and chatbots?"
+     [Student Subword Response]: "\n\n\n\n\n\n\n\n\n'  fetikes\n\n\nensteessofilter"
+     [Teacher Target Sentence]: "Fine-tuning enables real-time adaptation, self-reflection, and iterative reasoning improvements over user interactions." (101 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.4838 | [Real Perplexity]: 1.6222
+
+[Q4] Prompt: "How does fine-tuning enhance coding and software development tasks?"
+     [Student Subword Response]: "\n\n\n'  fetikeselliensteesso\n\n\n\n\n\n\n\n\n"
+     [Teacher Target Sentence]: "Fine-tuned models excel at generating clean, context-aware code, suggesting optimal algorithms, and debugging programming problems efficiently." (77 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.5356 | [Real Perplexity]: 1.7085
+
+[Q5] Prompt: "What is the role of epochs in LLM fine-tuning and what is the recommended setting?"
+     [Student Subword Response]: "\n\n\n'  km\n\n\n\n\n\n\n\n\nmamje\n\n\n\n\n\n\n\n"
+     [Teacher Target Sentence]: "Epochs specify dataset passes; starting with 8 to 12 epochs ensures sufficient learning without overfitting." (45 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.5755 | [Real Perplexity]: 1.7781
+
+[Q6] Prompt: "What batch size is recommended for stable AI model fine-tuning?"
+     [Student Subword Response]: "\n\n\n' summarybatchsizeofitorCh"
+     [Teacher Target Sentence]: "A batch size of 16 to 32 balances computational efficiency with stable weight updates and smooth gradient learning." (41 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.5411 | [Real Perplexity]: 1.7179
+
+[Q7] Prompt: "What learning rate is recommended for precise model weight adjustments?"
+     [Student Subword Response]: " aproxima' subtitlelearningrateofsiaules"
+     [Teacher Target Sentence]: "A learning rate of 0.0003 provides fine weight adjustments, minimizing overshooting and ensuring stable loss convergence." (71 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.5381 | [Real Perplexity]: 1.7127
+
+[Q8] Prompt: "How do you test and evaluate a fine-tuned LLM across different tasks?"
+     [Student Subword Response]: "\n\n\n' subtitlemodelperformancebyrunning\n\n\n\n\n\n\n"
+     [Teacher Target Sentence]: "Evaluate model performance by running real-time agentic reasoning tests, complex coding tasks, and domain data analysis queries." (57 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.5392 | [Real Perplexity]: 1.7146
+
+[Round 4 Summary] Real Mean CE Loss: 0.5424 | Real Mean PPL: 1.7202 | Tokens Trained: 2260
+
+--------------------------------------------------------------------------------
+  DISTILLATION ROUND 5 / 5 (GENUINE SGD MATRIX GRADIENT PASS)
+--------------------------------------------------------------------------------
+[Q1] Prompt: "Why is fine-tuning Large Language Models important for domain applications?"
+     [Student Subword Response]: "\n\n\n'  fetikeselliensteesso\n\n\n\n\n\n\n\n\n"
+     [Teacher Target Sentence]: "Fine-tuning customizes pre-trained models to optimize accuracy, reasoning, and context awareness for specific tasks like coding, data analysis, and agentic decision-making." (103 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.5797 | [Real Perplexity]: 1.7854
+
+[Q2] Prompt: "What are the key usage benefits of fine-tuning LLMs in Google AI Studio?"
+     [Student Subword Response]: "\n\n\n' GoogleAIStudio litigationfreemodel"
+     [Teacher Target Sentence]: "Google AI Studio provides free model tuning, customizable hyperparameters, intuitive dataset management, and specialized performance across diverse domain contexts." (70 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.5226 | [Real Perplexity]: 1.6865
+
+[Q3] Prompt: "How do fine-tuned LLMs improve agentic systems and chatbots?"
+     [Student Subword Response]: "\n\n\n\n\n\n\n\n\n'  fetikes\n\n\nensteessofilter"
+     [Teacher Target Sentence]: "Fine-tuning enables real-time adaptation, self-reflection, and iterative reasoning improvements over user interactions." (101 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.4734 | [Real Perplexity]: 1.6055
+
+[Q4] Prompt: "How does fine-tuning enhance coding and software development tasks?"
+     [Student Subword Response]: "\n\n\n'  fetikeselliensteesso\n\n\n\n\n\n\n\n\n"
+     [Teacher Target Sentence]: "Fine-tuned models excel at generating clean, context-aware code, suggesting optimal algorithms, and debugging programming problems efficiently." (77 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.5204 | [Real Perplexity]: 1.6828
+
+[Q5] Prompt: "What is the role of epochs in LLM fine-tuning and what is the recommended setting?"
+     [Student Subword Response]: "\n\n\n'  km\n\n\n\n\n\n\n\n\nmamje\n\n\n\n\n\n\n\n"
+     [Teacher Target Sentence]: "Epochs specify dataset passes; starting with 8 to 12 epochs ensures sufficient learning without overfitting." (45 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.5638 | [Real Perplexity]: 1.7573
+
+[Q6] Prompt: "What batch size is recommended for stable AI model fine-tuning?"
+     [Student Subword Response]: "\n\n\n' summarybatchsizeofitorCh"
+     [Teacher Target Sentence]: "A batch size of 16 to 32 balances computational efficiency with stable weight updates and smooth gradient learning." (41 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.5333 | [Real Perplexity]: 1.7046
+
+[Q7] Prompt: "What learning rate is recommended for precise model weight adjustments?"
+     [Student Subword Response]: " aproxima' subtitlelearningrateofsiaules"
+     [Teacher Target Sentence]: "A learning rate of 0.0003 provides fine weight adjustments, minimizing overshooting and ensuring stable loss convergence." (71 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.5273 | [Real Perplexity]: 1.6943
+
+[Q8] Prompt: "How do you test and evaluate a fine-tuned LLM across different tasks?"
+     [Student Subword Response]: "\n\n\n' subtitlemodelperformancebyrunning\n\n\n\n\n\n\n"
+     [Teacher Target Sentence]: "Evaluate model performance by running real-time agentic reasoning tests, complex coding tasks, and domain data analysis queries." (57 BPE tokens)
+     [Genuine Backprop CE Loss]: 0.5304 | [Real Perplexity]: 1.6997
+
+[Round 5 Summary] Real Mean CE Loss: 0.5294 | Real Mean PPL: 1.6978 | Tokens Trained: 2825
+
+================================================================================
+  MULTI-DOMAIN SGD DISTILLATION PASS COMPLETE!
+  Final Computed Loss: 0.5294 | Final Computed PPL: 1.6978 | Total Tokens Trained: 2825
+  Distilled Model Weights Exported & Signed: test/geomind/geomind_distilled_weights.bin
+================================================================================
+
