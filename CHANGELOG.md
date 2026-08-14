@@ -1,3 +1,11 @@
+## [8.136.0] - 2026-08-14 (Sprint 179)
+
+### Fixed & Implemented
+- **Expanded 324-Entry Cloze & Finish-the-Sentence Dataset**:
+  - Expanded [`tools/cloze_phrase_miner.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/cloze_phrase_miner.py) to procedurally construct a 324-pair dataset (162 Stage 1 Anchored Cloze + 162 Stage 2 Finish-the-Sentence RLAIF entries) covering every single phrase anchor in [`docs/research/idea.txt`](file:///C:/Users/rich-/source/repos/CARTAN/docs/research/idea.txt).
+- **Full Dataset Driver Iteration**:
+  - Updated `--train-cloze` in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c) to parse `scratch/cloze_anchored_dataset.jsonl` dynamically and execute Riemannian tensor updates across all 324 dataset entries.
+
 ## [8.135.0] - 2026-08-14 (Sprint 178)
 
 ### Fixed & Implemented
