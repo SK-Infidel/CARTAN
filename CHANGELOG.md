@@ -1,3 +1,12 @@
+## [8.133.0] - 2026-08-14 (Sprint 176)
+
+### Fixed & Implemented
+- **Zero-Allocation Stack Top-K Sampling Array**:
+  - Replaced heap `malloc`/`qsort` over 65,536 vocabulary items in `cartan_tokenizer_sample_topp_topk` in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c) with a zero-allocation 50-element stack array.
+  - Eliminated heap memory fragmentation and premature session exit during interactive CLI chat turns.
+- **64-Bit File Offset Header Length Calculator**:
+  - Replaced 32-bit `ftell` with `_ftelli64` in `cartan_safetensors_header_length` in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c), enabling 16 GB model file inspection without negative overflow.
+
 ## [8.132.0] - 2026-08-14 (Sprint 175)
 
 ### Fixed & Implemented
