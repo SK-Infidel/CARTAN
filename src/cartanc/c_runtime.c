@@ -1952,56 +1952,50 @@ CARTAN_WEAK double e8_attention_compute_energy(void* hidden_ptr) {
     return energy > 0.0 ? energy : 0.0006;
 }
 
-typedef struct {
-    size_t id;
-    double logit;
-} TokenCandidate;
-
-static int compare_candidates(const void* a, const void* b) {
-    double l_a = ((const TokenCandidate*)a)->logit;
-    double l_b = ((const TokenCandidate*)b)->logit;
-    if (l_a > l_b) return -1;
-    if (l_a < l_b) return 1;
-    return 0;
-}
-
 CARTAN_WEAK double cartan_tokenizer_sample_topp_topk(void* logits_ptr, double top_k, double top_p, double temp) {
     if (!logits_ptr) return 9259.0;
     CartanVector* logits = (CartanVector*)logits_ptr;
     if (logits->size == 0) return 9259.0;
 
     size_t k = (size_t)(top_k > 0 ? top_k : 50);
+    if (k > 50) k = 50;
     if (k > logits->size) k = logits->size;
 
-    TokenCandidate* candidates = (TokenCandidate*)malloc(logits->size * sizeof(TokenCandidate));
-    if (!candidates) return 9259.0;
-
-    for (size_t i = 0; i < logits->size; i++) {
-        candidates[i].id = i;
-        candidates[i].logit = logits->data[i];
+    size_t top_ids[50];
+    double top_logits[50];
+    for (size_t i = 0; i < k; i++) {
+        top_ids[i] = 0;
+        top_logits[i] = -1e9;
     }
 
-    qsort(candidates, logits->size, sizeof(TokenCandidate), compare_candidates);
+    for (size_t i = 0; i < logits->size; i++) {
+        double val = logits->data[i];
+        if (val > top_logits[k - 1]) {
+            size_t pos = k - 1;
+            while (pos > 0 && val > top_logits[pos - 1]) {
+                top_logits[pos] = top_logits[pos - 1];
+                top_ids[pos] = top_ids[pos - 1];
+                pos--;
+            }
+            top_logits[pos] = val;
+            top_ids[pos] = i;
+        }
+    }
 
-    size_t chosen_id = candidates[0].id;
-    
-    // Top-P Nucleus Sampling over top K candidates
     double t = temp > 0.0 ? temp : 0.70;
-    double max_l = candidates[0].logit;
+    double max_l = top_logits[0];
     double sum_exp = 0.0;
-    double exp_vals[128];
-    size_t pool_size = k < 128 ? k : 128;
+    double exp_vals[50];
 
-    for (size_t i = 0; i < pool_size; i++) {
-        exp_vals[i] = exp((candidates[i].logit - max_l) / t);
+    for (size_t i = 0; i < k; i++) {
+        exp_vals[i] = exp((top_logits[i] - max_l) / t);
         sum_exp += exp_vals[i];
     }
 
-    // Accumulate probabilities for Top-P threshold
     double p_thresh = top_p > 0.0 ? top_p : 0.90;
     double cum_p = 0.0;
-    size_t p_cutoff = pool_size;
-    for (size_t i = 0; i < pool_size; i++) {
+    size_t p_cutoff = k;
+    for (size_t i = 0; i < k; i++) {
         cum_p += exp_vals[i] / sum_exp;
         if (cum_p >= p_thresh) {
             p_cutoff = i + 1;
@@ -2009,18 +2003,17 @@ CARTAN_WEAK double cartan_tokenizer_sample_topp_topk(void* logits_ptr, double to
         }
     }
 
-    // Weighted random selection from nucleus
     double r = ((double)rand() / (double)RAND_MAX) * cum_p;
     double run_p = 0.0;
+    size_t chosen_id = top_ids[0];
     for (size_t i = 0; i < p_cutoff; i++) {
         run_p += exp_vals[i] / sum_exp;
         if (r <= run_p) {
-            chosen_id = candidates[i].id;
+            chosen_id = top_ids[i];
             break;
         }
     }
 
-    free(candidates);
     return (double)chosen_id;
 }
 
