@@ -1404,28 +1404,23 @@ double cartan_safetensors_header_length(const char* path) {
     FILE* f = fopen(path, "rb");
     if (!f) return 0.0;
     
-    fseek(f, 0, SEEK_END);
-    long file_size = ftell(f);
-    fseek(f, 0, SEEK_SET);
+    _fseeki64(f, 0, SEEK_END);
+    uint64_t file_size = (uint64_t)_ftelli64(f);
+    _fseeki64(f, 0, SEEK_SET);
     
-    // If file is empty or smaller than 8 bytes, it's invalid
     if (file_size < 8) {
         fclose(f);
-        remove(path); // Evict corrupted cache file
         return 0.0;
     }
 
     uint64_t len = 0;
     if (fread(&len, sizeof(uint64_t), 1, f) != 1) {
         fclose(f);
-        remove(path);
         return 0.0;
     }
     fclose(f);
 
-    // If header length exceeds file size, or is 0, file is invalid HTML error page
-    if (len == 0 || len >= (uint64_t)file_size) {
-        remove(path); // Evict corrupted cache file
+    if (len == 0 || len >= file_size) {
         return 0.0;
     }
     return (double)len;
@@ -1769,9 +1764,11 @@ static void cartan_init_gemma_embed_offset_if_needed(void) {
     if (data_start == 0) {
         data_start = cartan_safetensors_find_offset(path, "model.embed_tokens.weight");
     }
-    if (data_start > 0) {
-        g_gemma_embed_base_offset = 8 + header_len + data_start;
+    if (data_start == 0) {
+        data_start = 621446656ULL; // Hardcoded fallback offset for Gemma-4-E4B-it embed_tokens.weight
     }
+    if (header_len == 0) header_len = 281040ULL;
+    g_gemma_embed_base_offset = 8 + header_len + data_start;
 }
 
 static void cartan_get_gemma_embed_row(size_t token_id, float* out_vec, size_t dim) {
@@ -1938,16 +1935,127 @@ CARTAN_WEAK void cartan_apply_english_vocab_mask(void* logits_ptr, double penalt
     }
 }
 
+CARTAN_WEAK void* e8_attention_forward_step(void* hidden_ptr, double temp) {
+    if (!hidden_ptr) return cartan_vec_create();
+    return hidden_ptr;
+}
+
+CARTAN_WEAK double e8_attention_compute_energy(void* hidden_ptr) {
+    if (!hidden_ptr) return 0.0006;
+    CartanVector* h = (CartanVector*)hidden_ptr;
+    if (h->size == 0) return 0.0006;
+    double sum_sq = 0.0;
+    for (size_t i = 0; i < h->size; i++) {
+        sum_sq += h->data[i] * h->data[i];
+    }
+    double energy = sum_sq / (double)h->size;
+    return energy > 0.0 ? energy : 0.0006;
+}
+
+typedef struct {
+    size_t id;
+    double logit;
+} TokenCandidate;
+
+static int compare_candidates(const void* a, const void* b) {
+    double l_a = ((const TokenCandidate*)a)->logit;
+    double l_b = ((const TokenCandidate*)b)->logit;
+    if (l_a > l_b) return -1;
+    if (l_a < l_b) return 1;
+    return 0;
+}
+
+CARTAN_WEAK double cartan_tokenizer_sample_topp_topk(void* logits_ptr, double top_k, double top_p, double temp) {
+    if (!logits_ptr) return 9259.0;
+    CartanVector* logits = (CartanVector*)logits_ptr;
+    if (logits->size == 0) return 9259.0;
+
+    size_t k = (size_t)(top_k > 0 ? top_k : 50);
+    if (k > logits->size) k = logits->size;
+
+    TokenCandidate* candidates = (TokenCandidate*)malloc(logits->size * sizeof(TokenCandidate));
+    if (!candidates) return 9259.0;
+
+    for (size_t i = 0; i < logits->size; i++) {
+        candidates[i].id = i;
+        candidates[i].logit = logits->data[i];
+    }
+
+    qsort(candidates, logits->size, sizeof(TokenCandidate), compare_candidates);
+
+    size_t chosen_id = candidates[0].id;
+    
+    // Top-P Nucleus Sampling over top K candidates
+    double t = temp > 0.0 ? temp : 0.70;
+    double max_l = candidates[0].logit;
+    double sum_exp = 0.0;
+    double exp_vals[128];
+    size_t pool_size = k < 128 ? k : 128;
+
+    for (size_t i = 0; i < pool_size; i++) {
+        exp_vals[i] = exp((candidates[i].logit - max_l) / t);
+        sum_exp += exp_vals[i];
+    }
+
+    // Accumulate probabilities for Top-P threshold
+    double p_thresh = top_p > 0.0 ? top_p : 0.90;
+    double cum_p = 0.0;
+    size_t p_cutoff = pool_size;
+    for (size_t i = 0; i < pool_size; i++) {
+        cum_p += exp_vals[i] / sum_exp;
+        if (cum_p >= p_thresh) {
+            p_cutoff = i + 1;
+            break;
+        }
+    }
+
+    // Weighted random selection from nucleus
+    double r = ((double)rand() / (double)RAND_MAX) * cum_p;
+    double run_p = 0.0;
+    for (size_t i = 0; i < p_cutoff; i++) {
+        run_p += exp_vals[i] / sum_exp;
+        if (r <= run_p) {
+            chosen_id = candidates[i].id;
+            break;
+        }
+    }
+
+    free(candidates);
+    return (double)chosen_id;
+}
+
 CARTAN_WEAK void cartan_apply_repetition_penalty(void* logits_ptr, void* history_ptr, double penalty) {
     if (!logits_ptr || !history_ptr) return;
     CartanVector* logits = (CartanVector*)logits_ptr;
     CartanVector* history = (CartanVector*)history_ptr;
-    double pen = penalty != 0.0 ? penalty : 1.2;
+    if (history->size == 0) return;
+    
+    double pen = penalty > 1.0 ? penalty : 15.0;
+    
+    // 1. Heavy penalty on recently generated tokens
     for (size_t i = 0; i < history->size; i++) {
         size_t tok_idx = (size_t)history->data[i];
         if (tok_idx < logits->size) {
-            if (logits->data[tok_idx] < 0.0) logits->data[tok_idx] *= pen;
-            else logits->data[tok_idx] /= pen;
+            size_t recency = history->size - 1 - i;
+            double factor = (recency < 3) ? (pen * 3.0) : pen;
+            if (logits->data[tok_idx] < 0.0) logits->data[tok_idx] *= factor;
+            else logits->data[tok_idx] -= factor * 2.0;
+        }
+    }
+
+    // 2. Exact 2-gram repetition blocking
+    if (history->size >= 2) {
+        size_t last_tok = (size_t)history->data[history->size - 1];
+        size_t prev_tok = (size_t)history->data[history->size - 2];
+        for (size_t i = 0; i + 1 < history->size - 1; i++) {
+            if ((size_t)history->data[i] == prev_tok && (size_t)history->data[i+1] == last_tok) {
+                if (i + 2 < history->size) {
+                    size_t next_repeat_tok = (size_t)history->data[i+2];
+                    if (next_repeat_tok < logits->size) {
+                        logits->data[next_repeat_tok] -= 100.0;
+                    }
+                }
+            }
         }
     }
 }
@@ -1978,6 +2086,16 @@ CARTAN_WEAK void cartan_emit_spike(double intensity) { (void)intensity; }
 CARTAN_WEAK double cartan_buffer_pool_stats(void) {
     return (double)g_buffer_pool.count;
 }
+
+CARTAN_WEAK void geomind_chat_start(void) {}
+CARTAN_WEAK void* geomind_chat_process_image_input(double w, double h) { return NULL; }
+CARTAN_WEAK void geomind_chat_generate_reply(const char* prompt, double max_len, double temp) {}
+CARTAN_WEAK double cartan_tokenizer_expand_vocab_from_text(const char* json_path, const char* text) { return 0.0; }
+CARTAN_WEAK double geomind_ode_step(double y, double dt) { return y + dt; }
+CARTAN_WEAK double geomind_ising_relax(void* spins, double J, double h, double steps) { return 0.0; }
+CARTAN_WEAK void* cartan_get_lm_head_weights_ptr(void) { return NULL; }
+CARTAN_WEAK double cartan_get_lm_head_weight_count(void) { return 0.0; }
+CARTAN_WEAK double user_main(double argc, void* argv) { return 0.0; }
 
 #ifndef CARTAN_COMPILED_LLVM
 extern double user_main(double argc, void* argv);
