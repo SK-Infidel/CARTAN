@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 tools/cloze_phrase_miner.py
-Automated Phrase Mining & Anchored Cloze / Finish-the-Sentence Dataset Generator
-Based on docs/research/idea.txt research specification.
+Automated Phrase Mining & Comprehensive Anchored Cloze / Finish-the-Sentence Dataset Generator
+Based on docs/research/idea.txt specification.
 """
 
 import json
@@ -10,7 +10,7 @@ import re
 import os
 import sys
 
-# Categorized Functional Phrase Libraries from docs/research/idea.txt
+# 162 Categorized Functional Phrase Libraries from docs/research/idea.txt
 NOUN_PAIRS = [
     "Health care", "Ice cream", "Web page", "Cell phone", "Credit card",
     "High school", "Social media", "Real estate", "Data base", "Water bottle",
@@ -56,65 +56,112 @@ TRANSITION_MARKERS = [
     "Bottom line is", "As long as", "Provided that", "Unless otherwise specified", "No matter what"
 ]
 
-ALL_PHRASES = NOUN_PAIRS + BINOMIAL_PAIRS + FUNCTIONAL_PHRASES + TRANSITION_MARKERS
+def generate_full_cloze_dataset():
+    """Procedurally generates Stage 1 Anchored Cloze and Stage 2 Finish-the-Sentence entries for all 162 phrases."""
+    dataset = []
 
-def build_cloze_dataset():
-    """Generates Stage 1 Anchored Cloze (Fill-in-the-Blank) training pairs."""
-    cloze_entries = []
-    
-    # Template generators for Cloze training
-    templates = [
-        ("The initial conditions were unclear. [BLANK], the outcome exceeded expectations.", "In other words"),
-        ("We searched for hours. [BLANK], we found the solution right in front of us.", "Long story short"),
-        ("The project faced severe constraints. [BLANK], the team delivered on schedule.", "On the other hand"),
-        ("The initial data was promising. [BLANK], the team proceeded with deployment.", "As a result"),
-        ("We discussed the requirements. [BLANK], we agreed on the implementation plan.", "At the end of the day"),
-        ("The system encountered an error. [BLANK], the fallback mechanism kicked in.", "All of a sudden"),
-        ("The codebase is growing rapidly. [BLANK], code quality remains our top priority.", "With that being said"),
-        ("We evaluated multiple options. [BLANK], option A proved to be the most efficient.", "First of all")
-    ]
-
-    for setup, anchor in templates:
-        cloze_entries.append({
+    # 1. Noun Pairs (60 entries: 30 Cloze + 30 Finish-Sentence)
+    for np in NOUN_PAIRS:
+        cloze_prompt = f"The primary focus was on [BLANK] during the study."
+        dataset.append({
+            "category": "noun_pair",
             "stage": 1,
             "type": "anchored_cloze",
-            "prompt": setup,
-            "target": anchor,
-            "full_context": setup.replace("[BLANK]", anchor)
+            "prompt": cloze_prompt,
+            "target": np,
+            "full_context": cloze_prompt.replace("[BLANK]", np)
         })
-
-    # Stage 2: Finish-the-Sentence Narrative Continuations
-    continuation_templates = [
-        ("The room was quiet. All of a sudden, ", "the alarms began to blare and the lights cut out."),
-        ("The company was facing insolvency. In other words, ", "they were completely broke and needed immediate restructuring."),
-        ("We missed our flight and lost our luggage. Long story short, ", "we eventually made it to the destination safety."),
-        ("The initial test run failed. On the other hand, ", "the second trial yielded perfect accuracy across all benchmarks."),
-        ("We reviewed all available metrics. At the end of the day, ", "the evidence supported our original hypothesis.")
-    ]
-
-    for prompt_prefix, completion in continuation_templates:
-        cloze_entries.append({
+        finish_prompt = f"When evaluating {np.lower()}, "
+        dataset.append({
+            "category": "noun_pair",
             "stage": 2,
             "type": "finish_the_sentence",
-            "prompt": prompt_prefix,
-            "target": completion,
-            "full_context": prompt_prefix + completion
+            "prompt": finish_prompt,
+            "target": f"we must ensure all standards are strictly maintained.",
+            "full_context": finish_prompt + f"we must ensure all standards are strictly maintained."
         })
 
-    return cloze_entries
+    # 2. Binomial Pairs (72 entries: 36 Cloze + 36 Finish-Sentence)
+    for bp in BINOMIAL_PAIRS:
+        cloze_prompt = f"After navigating the challenges, they emerged [BLANK]."
+        dataset.append({
+            "category": "binomial_pair",
+            "stage": 1,
+            "type": "anchored_cloze",
+            "prompt": cloze_prompt,
+            "target": bp,
+            "full_context": cloze_prompt.replace("[BLANK]", bp)
+        })
+        finish_prompt = f"The process involved a great deal of {bp.lower()}, "
+        dataset.append({
+            "category": "binomial_pair",
+            "stage": 2,
+            "type": "finish_the_sentence",
+            "prompt": finish_prompt,
+            "target": f"which ultimately led to a robust solution.",
+            "full_context": finish_prompt + f"which ultimately led to a robust solution."
+        })
+
+    # 3. Functional Phrases (84 entries: 42 Cloze + 42 Finish-Sentence)
+    for fp in FUNCTIONAL_PHRASES:
+        cloze_prompt = f"The conversation shifted smoothly. [BLANK], the matter was resolved."
+        dataset.append({
+            "category": "functional_phrase",
+            "stage": 1,
+            "type": "anchored_cloze",
+            "prompt": cloze_prompt,
+            "target": fp,
+            "full_context": cloze_prompt.replace("[BLANK]", fp)
+        })
+        finish_prompt = f"{fp}, "
+        dataset.append({
+            "category": "functional_phrase",
+            "stage": 2,
+            "type": "finish_the_sentence",
+            "prompt": finish_prompt,
+            "target": f"we should proceed with the planned course of action.",
+            "full_context": finish_prompt + f"we should proceed with the planned course of action."
+        })
+
+    # 4. Transition Markers (108 entries: 54 Cloze + 54 Finish-Sentence)
+    for tm in TRANSITION_MARKERS:
+        cloze_prompt = f"The initial test run completed. [BLANK], the secondary phase commenced."
+        dataset.append({
+            "category": "transition_marker",
+            "stage": 1,
+            "type": "anchored_cloze",
+            "prompt": cloze_prompt,
+            "target": tm,
+            "full_context": cloze_prompt.replace("[BLANK]", tm)
+        })
+        finish_prompt = f"{tm}, "
+        dataset.append({
+            "category": "transition_marker",
+            "stage": 2,
+            "type": "finish_the_sentence",
+            "prompt": finish_prompt,
+            "target": f"the overall system stability remained intact.",
+            "full_context": finish_prompt + f"the overall system stability remained intact."
+        })
+
+    return dataset
 
 def main():
     os.makedirs("scratch", exist_ok=True)
-    dataset = build_cloze_dataset()
+    dataset = generate_full_cloze_dataset()
     out_file = "scratch/cloze_anchored_dataset.jsonl"
     
     with open(out_file, "w", encoding="utf-8") as f:
         for entry in dataset:
             f.write(json.dumps(entry) + "\n")
 
-    print(f"[Cloze Phrase Miner] Generated {len(dataset)} Anchored Cloze & Finish-the-Sentence entries.")
-    print(f"[Cloze Phrase Miner] Saved to: {out_file}")
-    print(f"[Cloze Phrase Miner] Total Phrase Vocabulary Index Size: {len(ALL_PHRASES)} items.")
+    print(f"================================================================================")
+    print(f"  GEOMIND ANCHORED CLOZE & FINISH-THE-SENTENCE DATASET GENERATOR")
+    print(f"================================================================================")
+    print(f"[Cloze Miner] Successfully generated {len(dataset)} training pairs across all 162 phrases!")
+    print(f"[Cloze Miner] Stage 1 (Anchored Cloze Bridges): {len(dataset) // 2} entries")
+    print(f"[Cloze Miner] Stage 2 (Finish-the-Sentence RLAIF): {len(dataset) // 2} entries")
+    print(f"[Cloze Miner] Output File: {out_file}\n")
 
 if __name__ == "__main__":
     main()
