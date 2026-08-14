@@ -1521,11 +1521,15 @@ static void cartan_init_gemma_vocab_if_needed(void) {
 
     const char* paths[] = {
         "cache_google_gemma-4-E4B-it_tokenizer.json",
-        "tokenizer.json"
+        "../cache_google_gemma-4-E4B-it_tokenizer.json",
+        "C:/Users/rich-/source/repos/CARTAN/cache_google_gemma-4-E4B-it_tokenizer.json",
+        "tokenizer.json",
+        "../tokenizer.json"
     };
 
     const char* target_path = NULL;
-    for (int p = 0; p < 3; p++) {
+    size_t num_paths = sizeof(paths) / sizeof(paths[0]);
+    for (size_t p = 0; p < num_paths; p++) {
         FILE* check = fopen(paths[p], "rb");
         if (check) {
             fclose(check);
@@ -1753,16 +1757,33 @@ static void cartan_init_gemma_embed_offset_if_needed(void) {
     if (g_gemma_embed_offset_init) return;
     g_gemma_embed_offset_init = 1;
 
-    const char* path = "cache_google_gemma-4-E4B-it_model.safetensors";
-    g_gemma_safetensors_file = fopen(path, "rb");
+    const char* sf_paths[] = {
+        "cache_google_gemma-4-E4B-it_model.safetensors",
+        "../cache_google_gemma-4-E4B-it_model.safetensors",
+        "C:/Users/rich-/source/repos/CARTAN/cache_google_gemma-4-E4B-it_model.safetensors"
+    };
+
+    const char* target_sf_path = NULL;
+    size_t num_sf = sizeof(sf_paths) / sizeof(sf_paths[0]);
+    for (size_t p = 0; p < num_sf; p++) {
+        FILE* test_f = fopen(sf_paths[p], "rb");
+        if (test_f) {
+            fclose(test_f);
+            target_sf_path = sf_paths[p];
+            break;
+        }
+    }
+
+    if (!target_sf_path) return;
+    g_gemma_safetensors_file = fopen(target_sf_path, "rb");
     if (!g_gemma_safetensors_file) return;
 
-    uint64_t header_len = cartan_safetensors_header_length(path);
+    uint64_t header_len = cartan_safetensors_header_length(target_sf_path);
     if (header_len == 0) return;
 
-    uint64_t data_start = cartan_safetensors_find_offset(path, "model.language_model.embed_tokens.weight");
+    uint64_t data_start = cartan_safetensors_find_offset(target_sf_path, "model.language_model.embed_tokens.weight");
     if (data_start == 0) {
-        data_start = cartan_safetensors_find_offset(path, "model.embed_tokens.weight");
+        data_start = cartan_safetensors_find_offset(target_sf_path, "model.embed_tokens.weight");
     }
     if (data_start == 0) {
         data_start = 621446656ULL; // Hardcoded fallback offset for Gemma-4-E4B-it embed_tokens.weight
