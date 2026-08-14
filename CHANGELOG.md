@@ -1,3 +1,13 @@
+## [8.135.0] - 2026-08-14 (Sprint 178)
+
+### Fixed & Implemented
+- **Anchored Cloze & Finish-the-Sentence Curriculum Engine**:
+  - Implemented Stage 1 (Anchored Cloze fill-in-the-blank transition bridge) and Stage 2 (Finish-the-Sentence narrative continuation) curriculum training loops in [`test/geomind/cloze_engine.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/cloze_engine.cl) based on [`docs/research/idea.txt`](file:///C:/Users/rich-/source/repos/CARTAN/docs/research/idea.txt).
+- **Phrase Miner & Data Generator**:
+  - Built [`tools/cloze_phrase_miner.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/cloze_phrase_miner.py) indexing 162 functional phrase anchors (noun pairs, binomial pairs, discourse markers, transition markers) and exporting JSONL dataset to `scratch/cloze_anchored_dataset.jsonl`.
+- **CLI Driver Integration**:
+  - Added `--train-cloze` CLI command flag to [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c).
+
 ## [8.134.0] - 2026-08-14 (Sprint 177)
 
 ### Fixed & Implemented
