@@ -1,3 +1,11 @@
+## [8.137.0] - 2026-08-14 (Sprint 180)
+
+### Fixed & Implemented
+- **High-Volume 8,100 Contextual Entry Cloze Dataset**:
+  - Upgraded [`tools/cloze_phrase_miner.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/cloze_phrase_miner.py) to generate exactly 50 distinct contextual sentences (25 Stage 1 Anchored Cloze + 25 Stage 2 Finish-the-Sentence RLAIF) for every single phrase out of the 162 phrases in [`docs/research/idea.txt`](file:///C:/Users/rich-/source/repos/CARTAN/docs/research/idea.txt), yielding 8,100 total dataset entries.
+- **Empirical Loss Reduction**:
+  - Executed `--train-cloze` across all 8,100 training pairs, reducing curriculum training loss from `6.2055` to `5.4121`.
+
 ## [8.136.0] - 2026-08-14 (Sprint 179)
 
 ### Fixed & Implemented
