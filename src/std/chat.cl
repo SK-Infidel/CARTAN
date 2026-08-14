@@ -49,23 +49,32 @@ fn geomind_chat_generate_reply(prompt: string, max_tokens: float, temp: float) -
     printf("[GeoMind Chat] Processing User Prompt...\n");
     printf("[GeoMind Chat] Executing 100%% Pure Neural Forward Pass (E8 Attention + SLERP Merged Weights + MoE + Hopfield)...\n");
 
+    let prompt_tokens = cartan_hub_encode_text_to_tokens(prompt);
+    let num_prompt_toks = cartan_vec_len(prompt_tokens);
+    printf("[GeoMind Neural] Encoded prompt into %s BPE input tokens.\n", cartan_float_to_string(num_prompt_toks));
 
+    let hidden_state = cartan_tensor_compute_hidden_state_from_tokens(prompt_tokens);
+    let relaxed_h = e8_attention_forward_step(hidden_state, temp);
+    let hopfield_energy = e8_attention_compute_energy(relaxed_h);
 
     printf("[GeoMind Chat] GeoMind Neural Output:\n");
     cartan_flush(0.0);
 
+    let history = cartan_vec_create();
     var step = 0.0;
     var max_t = 22.0;
-    var p_val = 13.0;
-
     while (step < max_t) {
-        let p_hash = math_abs_val(sin(p_val * 0.17 + (step + 1.0) * 0.83 + temp * 3.14) * 250.0);
-        var cand_tok = math_abs_val(p_hash - math_abs_val(p_hash / 130.0) * 130.0);
-        c_cartan_print_token(cand_tok);
-        p_val = p_val + cand_tok * 0.1;
+        let logits_vec = cartan_tensor_compute_lm_head_logits(relaxed_h, temp);
+        cartan_apply_english_vocab_mask(logits_vec, 50.0);
+        cartan_apply_repetition_penalty(logits_vec, history, 1.25);
+        let sampled_tok = cartan_tokenizer_sample_topp_topk(logits_vec, 50.0, 0.90, temp + step * 0.01);
+        c_cartan_print_token(sampled_tok);
+        cartan_vec_push_f32(history, sampled_tok);
+        cartan_tensor_update_autoregressive_state(relaxed_h, sampled_tok);
         step = step + 1.0;
     }
-    printf(" [Hopfield Energy Minimum: 2.0]\n");
+
+    printf(" [Hopfield Energy Minimum: %s]\n", cartan_float_to_string(hopfield_energy));
     cartan_flush(0.0);
 
     return 1.0;

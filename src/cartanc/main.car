@@ -72,7 +72,7 @@ fn ast_expansion_pass(ast: ptr, visited_files: ptr) -> ptr {
         let stmt = cartan_tree_get_f32(ast, i);
         if (stmt != 0.0) {
             let disc = cartan_tree_get_f32(stmt, 0.0);
-            if (disc == 56.0 || disc == 63.0) { // Stmt::Include
+            if (disc == 63.0) { // Stmt::Include (Index 63)
                 let path = cartan_tree_get_f32(stmt, 1.0);
                 if (contains_string(visited_files, path) == 0.0) {
                     cartan_tree_push(visited_files, path);
@@ -343,7 +343,7 @@ fn main(argc: float, argv: ptr) -> float {
         let lexer = lexer_init(source, length);
         let tokens = cartan_tree_create();
         
-        while 1.0 {
+        while (1.0) {
             let tok = lexer_next_token(lexer);
             cartan_tree_push(tokens, tok);
             if (tok.token_type == 0.0) {
@@ -392,13 +392,14 @@ fn main(argc: float, argv: ptr) -> float {
 
         printf("Compiling LLVM IR to native executable via Zig (-O2 SIMD Vectorized Pass Pipeline)...\n");
         let zig_cmd = cartan_string_concat("zig cc -target x86_64-windows-msvc -O2 -Xlinker /subsystem:console -DCARTAN_GPU_RUNTIME_LINKED -DCARTAN_COMPILED_LLVM -D_CRT_SECURE_NO_WARNINGS ", out_ll);
-        let cmd = cartan_string_concat(zig_cmd, " ");
+        let cmd = cartan_string_concat(zig_cmd, " \"");
         cmd = cartan_string_concat(cmd, user_profile);
-        cmd = cartan_string_concat(cmd, "\\.cartan\\c_runtime.c ");
+        cmd = cartan_string_concat(cmd, "\\.cartan\\c_runtime.c\" ");
         let gpu_lib_path = cartan_string_concat(user_profile, "\\.cartan\\lib\\gpu_runtime.lib");
         if (cartan_file_exists(gpu_lib_path) != 0.0) {
+            cmd = cartan_string_concat(cmd, "\"");
             cmd = cartan_string_concat(cmd, gpu_lib_path);
-            cmd = cartan_string_concat(cmd, " ");
+            cmd = cartan_string_concat(cmd, "\" ");
         } else {}
         cmd = cartan_string_concat(cmd, "-lshell32 -lws2_32 -luser32 -lgdi32 -lwinmm -lopengl32 -ld3dcompiler -lole32 -loleaut32 -lbcrypt -luserenv -ladvapi32 -o ");
         cmd = cartan_string_concat(cmd, output_file);

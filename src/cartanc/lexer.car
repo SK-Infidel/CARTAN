@@ -40,8 +40,7 @@ fn substring(src_str: string, start: float, end: float) -> string {
 
 extern fn c_cartan_string_length(s: string) -> float;
 fn check_keyword(lexeme: string) -> ptr {
-    printf("check_keyword: [%s] (len=%f)\n", lexeme, c_cartan_string_length(lexeme)); cartan_flush(0.0);
-    if (cartan_string_eq(lexeme, "fn") != 0.0) { printf("LEXER: fn\n"); cartan_flush(0.0); return TokenType::Fn;}
+    if (cartan_string_eq(lexeme, "fn") != 0.0) { return TokenType::Fn;}
     if (cartan_string_eq(lexeme, "let") != 0.0) { return TokenType::Let;}
     if (cartan_string_eq(lexeme, "const") != 0.0) { return TokenType::Const;}
     if (cartan_string_eq(lexeme, "var") != 0.0) { return TokenType::Var;}

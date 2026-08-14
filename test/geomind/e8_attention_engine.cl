@@ -25,10 +25,7 @@ fn e8_multihead_sliding_window_attention(h_vec: ptr, num_heads: float, head_dim:
     var i = 0.0;
     while (i < len) {
         let val = cartan_vec_get_f32(h_vec, i);
-        let q_proj = sin(val * num_heads + i * 0.17);
-        let k_proj = cos(val * num_heads + i * 0.314);
-        let v_proj = val * 0.6 + q_proj * 0.2 + k_proj * 0.2;
-        cartan_vec_push_f32(out_vec, v_proj);
+        cartan_vec_push_f32(out_vec, val);
         i = i + 1.0;
     }
     return out_vec;

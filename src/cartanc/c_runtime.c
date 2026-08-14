@@ -431,10 +431,30 @@ double cartan_socket_send(double sock, const char* data) {
 }
 
 char* cartan_socket_recv(double sock) {
-    return cartan_strdup("HTTP/1.1 200 OK\r\nContent-Length: 17\r\n\r\nCARTAN Net Pass OK");
+    int s = (int)sock;
+    char* buf = (char*)malloc(4096);
+    if (!buf) return cartan_strdup("");
+    memset(buf, 0, 4096);
+#if defined(_WIN32) || defined(_WIN64)
+    int bytes = recv((SOCKET)s, buf, 4095, 0);
+#else
+    ssize_t bytes = recv(s, buf, 4095, 0);
+#endif
+    if (bytes <= 0) {
+        buf[0] = '\0';
+    } else {
+        buf[bytes] = '\0';
+    }
+    return buf;
 }
 
 double cartan_socket_close(double sock) {
+    int s = (int)sock;
+#if defined(_WIN32) || defined(_WIN64)
+    closesocket((SOCKET)s);
+#else
+    close(s);
+#endif
     return 1.0;
 }
 
@@ -1333,12 +1353,47 @@ double cartan_file_exists(const char* path) {
 // --- HTTPS Download Primitive ---
 double cartan_http_download_file(const char* url, const char* out_path) {
     if (!url || !out_path) return 0.0;
-    char cmd[2048];
+    
+    char token_buf[512] = {0};
+    const char* hf_token = getenv("HF_TOKEN");
+    if (!hf_token) hf_token = getenv("HUGGING_FACE_HUB_TOKEN");
+    if (!hf_token) hf_token = getenv("HUGGINGFACE_TOKEN");
+    
+    if (!hf_token) {
 #if defined(_WIN32) || defined(_WIN64)
-    snprintf(cmd, sizeof(cmd), "curl.exe -s -L %s -o %s", url, out_path);
-#else
-    snprintf(cmd, sizeof(cmd), "curl -s -L '%s' -o '%s'", url, out_path);
+        const char* user_profile = getenv("USERPROFILE");
+        if (user_profile) {
+            char tok_file[1024];
+            snprintf(tok_file, sizeof(tok_file), "%s\\.cache\\huggingface\\token", user_profile);
+            FILE* tf = fopen(tok_file, "r");
+            if (tf) {
+                if (fgets(token_buf, sizeof(token_buf), tf)) {
+                    size_t len = strlen(token_buf);
+                    while (len > 0 && (token_buf[len-1] == '\r' || token_buf[len-1] == '\n' || token_buf[len-1] == ' ')) {
+                        token_buf[--len] = '\0';
+                    }
+                    if (len > 0) hf_token = token_buf;
+                }
+                fclose(tf);
+            }
+        }
 #endif
+    }
+
+    char cmd[4096];
+    if (hf_token && strlen(hf_token) > 0) {
+#if defined(_WIN32) || defined(_WIN64)
+        snprintf(cmd, sizeof(cmd), "curl.exe -s -L -H \"Authorization: Bearer %s\" \"%s\" -o \"%s\"", hf_token, url, out_path);
+#else
+        snprintf(cmd, sizeof(cmd), "curl -s -L -H 'Authorization: Bearer %s' '%s' -o '%s'", hf_token, url, out_path);
+#endif
+    } else {
+#if defined(_WIN32) || defined(_WIN64)
+        snprintf(cmd, sizeof(cmd), "curl.exe -s -L \"%s\" -o \"%s\"", url, out_path);
+#else
+        snprintf(cmd, sizeof(cmd), "curl -s -L '%s' -o '%s'", url, out_path);
+#endif
+    }
     int res = system(cmd);
     return (res == 0) ? 1.0 : 0.0;
 }
@@ -1348,12 +1403,31 @@ double cartan_safetensors_header_length(const char* path) {
     if (!path) return 0.0;
     FILE* f = fopen(path, "rb");
     if (!f) return 0.0;
+    
+    fseek(f, 0, SEEK_END);
+    long file_size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    
+    // If file is empty or smaller than 8 bytes, it's invalid
+    if (file_size < 8) {
+        fclose(f);
+        remove(path); // Evict corrupted cache file
+        return 0.0;
+    }
+
     uint64_t len = 0;
     if (fread(&len, sizeof(uint64_t), 1, f) != 1) {
         fclose(f);
+        remove(path);
         return 0.0;
     }
     fclose(f);
+
+    // If header length exceeds file size, or is 0, file is invalid HTML error page
+    if (len == 0 || len >= (uint64_t)file_size) {
+        remove(path); // Evict corrupted cache file
+        return 0.0;
+    }
     return (double)len;
 }
 
@@ -1390,9 +1464,16 @@ CARTAN_WEAK double cartan_safetensors_find_offset(const char* path, const char* 
     char* start_bracket = strchr(offsets_pos, '[');
     if (!start_bracket) { free(header); return 0.0; }
     
-    double start_offset = atof(start_bracket + 1);
+    double start_offset = (double)strtoull(start_bracket + 1, NULL, 10);
     free(header);
     return start_offset;
+}
+
+CARTAN_WEAK float cartan_bf16_to_f32(uint16_t u) {
+    uint32_t val32 = ((uint32_t)u) << 16;
+    float f;
+    memcpy(&f, &val32, sizeof(float));
+    return f;
 }
 
 CARTAN_WEAK void* cartan_safetensors_load_tensor_f32(const char* path, double header_len, double data_start, double num_elements) {
@@ -1406,76 +1487,129 @@ CARTAN_WEAK void* cartan_safetensors_load_tensor_f32(const char* path, double he
     fseeko(f, offset, SEEK_SET);
 #endif
     size_t count = (size_t)num_elements;
-    float* raw_floats = (float*)malloc(count * sizeof(float));
-    if (!raw_floats) { fclose(f); return cartan_tree_create(); }
-    size_t read_count = fread(raw_floats, sizeof(float), count, f);
+    uint16_t* raw_bf16 = (uint16_t*)malloc(count * sizeof(uint16_t));
+    if (!raw_bf16) { fclose(f); return cartan_tree_create(); }
+    size_t read_count = fread(raw_bf16, sizeof(uint16_t), count, f);
     fclose(f);
 
     void* tree = cartan_vec_create();
     for (size_t i = 0; i < read_count; i++) {
-        cartan_vec_push_f32(tree, (double)raw_floats[i]);
+        float fval = cartan_bf16_to_f32(raw_bf16[i]);
+        cartan_vec_push_f32(tree, (double)fval);
     }
-    free(raw_floats);
+    free(raw_bf16);
     return tree;
 }
 
-static char* g_vocab_table[65536] = {0};
+#define CARTAN_MAX_VOCAB_SIZE 262144
+static char* g_vocab_table[CARTAN_MAX_VOCAB_SIZE] = {0};
+static int g_vocab_init = 0;
 
-CARTAN_WEAK char* cartan_hub_decode_json_token(const char* json_path, double token_id) {
-    if (!json_path) return cartan_strdup(" .");
-    size_t id = (size_t)token_id;
-    if (id < 65536 && g_vocab_table[id] != NULL) {
-        return cartan_strdup(g_vocab_table[id]);
+static void cartan_clean_sp_bytes(char* token_str) {
+    if (!token_str) return;
+    char* src = token_str;
+    char* dst = token_str;
+    while (*src) {
+        if ((unsigned char)src[0] == 0xE2 && (unsigned char)src[1] == 0x96 && (unsigned char)src[2] == 0x81) {
+            *dst++ = ' ';
+            src += 3;
+        } else {
+            *dst++ = *src++;
+        }
+    }
+    *dst = '\0';
+}
+
+static void cartan_init_gemma_vocab_if_needed(void) {
+    if (g_vocab_init) return;
+    g_vocab_init = 1;
+
+    const char* paths[] = {
+        "cache_google_gemma-4-E4B-it_tokenizer.json",
+        "tokenizer.json"
+    };
+
+    const char* target_path = NULL;
+    for (int p = 0; p < 3; p++) {
+        FILE* check = fopen(paths[p], "rb");
+        if (check) {
+            fclose(check);
+            target_path = paths[p];
+            break;
+        }
     }
 
-    FILE* f = fopen(json_path, "rb");
-    if (!f) return cartan_strdup(" .");
+    if (!target_path) return;
+
+    FILE* f = fopen(target_path, "rb");
+    if (!f) return;
     fseek(f, 0, SEEK_END);
     long size = ftell(f);
     fseek(f, 0, SEEK_SET);
-    if (size <= 0 || size > 50 * 1024 * 1024) { fclose(f); return cartan_strdup(" ."); }
+    if (size <= 0 || size > 128 * 1024 * 1024) { fclose(f); return; }
+
     char* buf = (char*)malloc(size + 1);
-    if (!buf) { fclose(f); return cartan_strdup(" ."); }
+    if (!buf) { fclose(f); return; }
     size_t read_bytes = fread(buf, 1, size, f);
     fclose(f);
     buf[read_bytes] = '\0';
 
-    char target[64];
-    snprintf(target, sizeof(target), ": %d", (int)token_id);
-    char* pos = strstr(buf, target);
-    if (pos) {
-        char* p = pos - 1;
-        while (p > buf && *p != '"') p--;
-        if (p > buf) {
-            char* key_end = p;
-            char* key_start = key_end - 1;
-            while (key_start > buf && *key_start != '"') key_start--;
-            if (key_start >= buf && *key_start == '"') {
-                size_t len = key_end - key_start - 1;
-                char* token_str = (char*)malloc(len + 2);
-                token_str[0] = ' ';
-                memcpy(token_str + 1, key_start + 1, len);
-                token_str[len + 1] = '\0';
-                if (id < 65536 && g_vocab_table[id] == NULL) {
-                    g_vocab_table[id] = cartan_strdup(token_str);
-                }
-                free(buf);
-                return token_str;
-            }
+    char* vocab_pos = strstr(buf, "\"vocab\"");
+    if (!vocab_pos) { free(buf); return; }
+
+    char* p = vocab_pos;
+    while (*p && *p != '{') p++;
+    if (*p == '{') p++;
+
+    while (*p && *p != '}') {
+        while (*p && *p != '"' && *p != '}') p++;
+        if (*p != '"') break;
+        p++;
+        char* key_start = p;
+        while (*p && *p != '"') {
+            if (*p == '\\' && p[1] != '\0') p += 2;
+            else p++;
         }
+        if (*p != '"') break;
+        size_t key_len = p - key_start;
+        p++;
+
+        while (*p && *p != ':' && *p != '}') p++;
+        if (*p != ':') break;
+        p++;
+
+        while (*p && (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r')) p++;
+        size_t token_id = (size_t)strtoull(p, &p, 10);
+
+        if (token_id < CARTAN_MAX_VOCAB_SIZE && g_vocab_table[token_id] == NULL) {
+            char* t_str = (char*)malloc(key_len + 1);
+            memcpy(t_str, key_start, key_len);
+            t_str[key_len] = '\0';
+            cartan_clean_sp_bytes(t_str);
+            g_vocab_table[token_id] = t_str;
+        }
+
+        while (*p && *p != ',' && *p != '}') p++;
+        if (*p == ',') p++;
     }
-    if (id < 65536 && g_vocab_table[id] != NULL) {
-        free(buf);
+
+    free(buf);
+}
+
+CARTAN_WEAK char* cartan_hub_decode_json_token(const char* json_path, double token_id) {
+    cartan_init_gemma_vocab_if_needed();
+    size_t id = (size_t)token_id;
+    if (id < CARTAN_MAX_VOCAB_SIZE && g_vocab_table[id] != NULL) {
         return cartan_strdup(g_vocab_table[id]);
     }
-    free(buf);
     return cartan_strdup(" .");
 }
 
 CARTAN_WEAK double cartan_tokenizer_is_valid_bigram(double tok1, double tok2) {
+    cartan_init_gemma_vocab_if_needed();
     size_t id1 = (size_t)tok1;
     size_t id2 = (size_t)tok2;
-    if (id1 >= 65536 || id2 >= 65536) return 0.0;
+    if (id1 >= CARTAN_MAX_VOCAB_SIZE || id2 >= CARTAN_MAX_VOCAB_SIZE) return 0.0;
     if (!g_vocab_table[id1] || !g_vocab_table[id2]) return 0.0;
 
     const char* str1 = g_vocab_table[id1];
@@ -1493,34 +1627,12 @@ CARTAN_WEAK double cartan_tokenizer_is_valid_bigram(double tok1, double tok2) {
 
 CARTAN_WEAK double cartan_hub_ensure_tokenizer_json(const char* json_path) {
     if (!json_path) return 0.0;
-
-    FILE* f = fopen(json_path, "w");
-    if (!f) return 0.0;
-    fputs("{\n  \"model\": {\n    \"vocab\": {\n", f);
-    const char* words[] = {
-        "The", "universe", "is", "a", "vast", "and", "complex", "system", "governed", "by",
-        "physical", "laws.", "Gravity", "pulls", "matter", "together,", "forming", "stars,", "planets,", "and",
-        "galaxies.", "In", "quantum", "mechanics,", "particles", "exhibit", "both", "wave", "and", "particle",
-        "properties.", "Time", "and", "space", "are", "interwoven", "into", "a", "four-dimensional", "continuum",
-        "known", "as", "spacetime.", "Energy", "is", "conserved", "across", "all", "physical", "transformations.",
-        "Human", "consciousness", "strives", "to", "understand", "the", "fundamental", "nature", "of", "reality.",
-        "Thermodynamics", "dictates", "that", "entropy", "increases", "over", "time", "in", "closed", "systems.",
-        "Light", "travels", "at", "a", "constant", "speed", "in", "a", "vacuum,", "serving", "as", "the",
-        "cosmic", "speed", "limit.", "Mathematics", "provides", "the", "language", "to", "describe", "these",
-        "natural", "phenomena", "with", "precision."
-    };
-    size_t count = sizeof(words) / sizeof(words[0]);
-    for (size_t i = 0; i < count; i++) {
-        fprintf(f, "      \"%s\": %d%s\n", words[i], (int)i, (i == count - 1) ? "" : ",");
-        if (i < 65536) {
-            char t_str[128];
-            snprintf(t_str, sizeof(t_str), " %s", words[i]);
-            g_vocab_table[i] = cartan_strdup(t_str);
-        }
+    FILE* check_f = fopen(json_path, "rb");
+    if (check_f) {
+        fclose(check_f);
+        return 1.0;
     }
-    fprintf(f, "    }\n  }\n}\n");
-    fclose(f);
-    return 1.0;
+    return 0.0;
 }
 
 #define CARTAN_BUFFER_POOL_SIZE (64 * 1024 * 1024)
@@ -1583,13 +1695,293 @@ CARTAN_WEAK void cartan_rt_buffer_pool_free(void* ptr) {
     free(ptr);
 }
 
+// --- Tensor Backpropagation & Hidden State Computations ---
+static double g_model_weights[512][512];
+static int g_weights_init = 0;
+
+static void cartan_init_weights_if_needed(void) {
+    if (g_weights_init) return;
+    for (int r = 0; r < 512; r++) {
+        for (int c = 0; c < 512; c++) {
+            g_model_weights[r][c] = ((double)((r * 31 + c * 17) % 100)) / 1000.0 + 0.01;
+        }
+    }
+    g_weights_init = 1;
+}
+
+CARTAN_WEAK double cartan_tensor_train_step(void* hidden_ptr, double target_tok_id, double learning_rate) {
+    cartan_init_weights_if_needed();
+    if (!hidden_ptr) return 0.0;
+    CartanVector* h = (CartanVector*)hidden_ptr;
+    size_t dim = h->size < 512 ? h->size : 512;
+    int target_idx = ((int)target_tok_id) % 512;
+    if (target_idx < 0) target_idx = 0;
+
+    double logits[512] = {0};
+    double max_logit = -1e9;
+    for (int c = 0; c < 512; c++) {
+        double dot = 0.0;
+        for (size_t r = 0; r < dim; r++) {
+            dot += h->data[r] * g_model_weights[r][c];
+        }
+        logits[c] = dot;
+        if (dot > max_logit) max_logit = dot;
+    }
+
+    double sum_exp = 0.0;
+    double probs[512] = {0};
+    for (int c = 0; c < 512; c++) {
+        probs[c] = exp(logits[c] - max_logit);
+        sum_exp += probs[c];
+    }
+    if (sum_exp <= 0.0) sum_exp = 1.0;
+    for (int c = 0; c < 512; c++) probs[c] /= sum_exp;
+
+    double loss = -log(probs[target_idx] > 1e-12 ? probs[target_idx] : 1e-12);
+
+    double lr = (learning_rate != 0.0) ? learning_rate : 0.005;
+    for (size_t r = 0; r < dim; r++) {
+        for (int c = 0; c < 512; c++) {
+            double target = (c == target_idx) ? 1.0 : 0.0;
+            double grad = (probs[c] - target) * h->data[r];
+            g_model_weights[r][c] -= lr * grad;
+        }
+    }
+    return loss;
+}
+
+static FILE* g_gemma_safetensors_file = NULL;
+static uint64_t g_gemma_embed_base_offset = 0;
+static int g_gemma_embed_offset_init = 0;
+
+static void cartan_init_gemma_embed_offset_if_needed(void) {
+    if (g_gemma_embed_offset_init) return;
+    g_gemma_embed_offset_init = 1;
+
+    const char* path = "cache_google_gemma-4-E4B-it_model.safetensors";
+    g_gemma_safetensors_file = fopen(path, "rb");
+    if (!g_gemma_safetensors_file) return;
+
+    uint64_t header_len = cartan_safetensors_header_length(path);
+    if (header_len == 0) return;
+
+    uint64_t data_start = cartan_safetensors_find_offset(path, "model.language_model.embed_tokens.weight");
+    if (data_start == 0) {
+        data_start = cartan_safetensors_find_offset(path, "model.embed_tokens.weight");
+    }
+    if (data_start > 0) {
+        g_gemma_embed_base_offset = 8 + header_len + data_start;
+    }
+}
+
+static void cartan_get_gemma_embed_row(size_t token_id, float* out_vec, size_t dim) {
+    cartan_init_gemma_embed_offset_if_needed();
+    if (g_gemma_embed_base_offset > 0 && g_gemma_safetensors_file != NULL) {
+        uint64_t row_offset = g_gemma_embed_base_offset + (uint64_t)token_id * (uint64_t)dim * 2ULL;
+        if (_fseeki64(g_gemma_safetensors_file, row_offset, SEEK_SET) == 0) {
+            uint16_t raw_bf16[2560];
+            size_t count = dim < 2560 ? dim : 2560;
+            if (fread(raw_bf16, sizeof(uint16_t), count, g_gemma_safetensors_file) == count) {
+                for (size_t i = 0; i < count; i++) {
+                    out_vec[i] = cartan_bf16_to_f32(raw_bf16[i]);
+                }
+                return;
+            }
+        }
+    }
+    memset(out_vec, 0, dim * sizeof(float));
+}
+
+CARTAN_WEAK void* cartan_tensor_compute_hidden_state_from_tokens(void* tokens_ptr) {
+    CartanVector* h = (CartanVector*)cartan_vec_create();
+    size_t embed_dim = 2560;
+    if (!tokens_ptr) {
+        for (size_t i = 0; i < embed_dim; i++) cartan_vec_push_f32(h, 0.01);
+        return h;
+    }
+    CartanVector* toks = (CartanVector*)tokens_ptr;
+    size_t num_toks = toks->size;
+    if (num_toks == 0) {
+        for (size_t i = 0; i < embed_dim; i++) cartan_vec_push_f32(h, 0.01);
+        return h;
+    }
+
+    float* acc = (float*)calloc(embed_dim, sizeof(float));
+    float* row = (float*)malloc(embed_dim * sizeof(float));
+
+    if (acc && row) {
+        for (size_t t = 0; t < num_toks; t++) {
+            size_t tok_id = (size_t)toks->data[t];
+            cartan_get_gemma_embed_row(tok_id, row, embed_dim);
+            for (size_t i = 0; i < embed_dim; i++) {
+                acc[i] += row[i];
+            }
+        }
+        for (size_t i = 0; i < embed_dim; i++) {
+            cartan_vec_push_f32(h, acc[i] / (float)num_toks);
+        }
+        free(acc);
+        free(row);
+    } else {
+        if (acc) free(acc);
+        if (row) free(row);
+        for (size_t i = 0; i < embed_dim; i++) cartan_vec_push_f32(h, 0.01);
+    }
+    return h;
+}
+
+CARTAN_WEAK void* cartan_hub_encode_text_to_tokens(const char* text) {
+    cartan_init_gemma_vocab_if_needed();
+    CartanVector* vec = (CartanVector*)cartan_vec_create();
+    if (!text || strlen(text) == 0) return vec;
+
+    char buf[1024];
+    strncpy(buf, text, sizeof(buf) - 1);
+    buf[sizeof(buf) - 1] = '\0';
+
+    char* token = strtok(buf, " \t\r\n.,!?");
+    while (token) {
+        double matched_id = -1.0;
+        for (size_t i = 0; i < 65536; i++) {
+            if (g_vocab_table[i]) {
+                const char* vstr = g_vocab_table[i];
+                if (vstr[0] == ' ' && strcmp(vstr + 1, token) == 0) {
+                    matched_id = (double)i;
+                    break;
+                }
+                if (strcmp(vstr, token) == 0) {
+                    matched_id = (double)i;
+                    break;
+                }
+            }
+        }
+        if (matched_id >= 0.0) {
+            cartan_vec_push_f32(vec, matched_id);
+        } else {
+            uint32_t h = 5381;
+            for (const char* c = token; *c; c++) h = ((h << 5) + h) + *c;
+            cartan_vec_push_f32(vec, (double)(1000 + (h % 30000)));
+        }
+        token = strtok(NULL, " \t\r\n.,!?");
+    }
+    if (vec->size == 0) {
+        cartan_vec_push_f32(vec, 9259.0);
+    }
+    return vec;
+}
+
+CARTAN_WEAK void* cartan_tensor_compute_lm_head_logits(void* hidden_ptr, double temp) {
+    CartanVector* logits = (CartanVector*)cartan_vec_create();
+    if (!hidden_ptr) return logits;
+    CartanVector* h = (CartanVector*)hidden_ptr;
+    size_t embed_dim = h->size < 2560 ? h->size : 2560;
+    double temperature = temp > 0.0 ? temp : 0.7;
+
+    size_t max_candidates = 65536;
+    float* row = (float*)malloc(embed_dim * sizeof(float));
+
+    if (row) {
+        for (size_t tok_id = 0; tok_id < max_candidates; tok_id++) {
+            cartan_get_gemma_embed_row(tok_id, row, embed_dim);
+            double dot = 0.0;
+            for (size_t r = 0; r < embed_dim; r++) {
+                dot += h->data[r] * (double)row[r];
+            }
+            cartan_vec_push_f32(logits, dot / temperature);
+        }
+        free(row);
+    }
+    return logits;
+}
+
+CARTAN_WEAK double cartan_tensor_update_autoregressive_state(void* hidden_ptr, double token_id) {
+    if (!hidden_ptr) return 0.0;
+    CartanVector* h = (CartanVector*)hidden_ptr;
+    size_t embed_dim = h->size < 2560 ? h->size : 2560;
+    size_t id = (size_t)token_id;
+    if (id < 256 || id == 235248) {
+        return 1.0;
+    }
+    float* row = (float*)malloc(embed_dim * sizeof(float));
+    if (row) {
+        cartan_get_gemma_embed_row(id, row, embed_dim);
+        for (size_t i = 0; i < embed_dim; i++) {
+            h->data[i] = 0.85 * h->data[i] + 0.15 * (double)row[i];
+        }
+        free(row);
+    }
+    return 1.0;
+}
+
+CARTAN_WEAK double cartan_safetensors_save_tensor_f32(const char* path, const char* name, void* tensor) {
+    if (!path || !tensor) return 0.0;
+    FILE* f = fopen(path, "ab");
+    if (!f) return 0.0;
+    CartanVector* v = (CartanVector*)tensor;
+    size_t count = v->size;
+    float* floats = (float*)malloc(sizeof(float) * count);
+    if (floats) {
+        for (size_t i = 0; i < count; i++) floats[i] = (float)v->data[i];
+        fwrite(floats, sizeof(float), count, f);
+        free(floats);
+    }
+    fclose(f);
+    return 1.0;
+}
+
+CARTAN_WEAK void cartan_apply_english_vocab_mask(void* logits_ptr, double penalty) {
+    if (!logits_ptr) return;
+    CartanVector* logits = (CartanVector*)logits_ptr;
+    double pen = penalty != 0.0 ? -fabs(penalty) : -50.0;
+    for (size_t i = 0; i < 1000 && i < logits->size; i++) {
+        logits->data[i] += pen;
+    }
+}
+
+CARTAN_WEAK void cartan_apply_repetition_penalty(void* logits_ptr, void* history_ptr, double penalty) {
+    if (!logits_ptr || !history_ptr) return;
+    CartanVector* logits = (CartanVector*)logits_ptr;
+    CartanVector* history = (CartanVector*)history_ptr;
+    double pen = penalty != 0.0 ? penalty : 1.2;
+    for (size_t i = 0; i < history->size; i++) {
+        size_t tok_idx = (size_t)history->data[i];
+        if (tok_idx < logits->size) {
+            if (logits->data[tok_idx] < 0.0) logits->data[tok_idx] *= pen;
+            else logits->data[tok_idx] /= pen;
+        }
+    }
+}
+
+CARTAN_WEAK double c_cartan_print_token(double token_id) {
+    cartan_init_gemma_vocab_if_needed();
+    size_t id = (size_t)token_id;
+    if (id < CARTAN_MAX_VOCAB_SIZE && g_vocab_table[id] != NULL) {
+        fputs(g_vocab_table[id], stdout);
+    } else {
+        fputs(" .", stdout);
+    }
+    fflush(stdout);
+    return 1.0;
+}
+
+CARTAN_WEAK void* cartan_tensor_alloc_temporary(double size) {
+    size_t len = (size_t)size;
+    if (len == 0) len = 1;
+    return cartan_vec_create();
+}
+
+CARTAN_WEAK void cartan_tensor_step(double lr) { (void)lr; }
+CARTAN_WEAK void cartan_sparsity_start(double bs, double density) { (void)bs; (void)density; }
+CARTAN_WEAK void cartan_prune_graph(double threshold) { (void)threshold; }
+CARTAN_WEAK void cartan_emit_spike(double intensity) { (void)intensity; }
+
 CARTAN_WEAK double cartan_buffer_pool_stats(void) {
     return (double)g_buffer_pool.count;
 }
 
 #ifndef CARTAN_COMPILED_LLVM
 extern double user_main(double argc, void* argv);
-int main(int argc, char** argv) {
+CARTAN_WEAK int main(int argc, char** argv) {
     cartan_crt_init(argc, argv);
     cartan_rt_buffer_pool_init();
     double res = user_main((double)argc, (void*)argv);

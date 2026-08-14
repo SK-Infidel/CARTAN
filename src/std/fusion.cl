@@ -23,6 +23,7 @@ fn fusion_slerp_tensors(t1: ptr, t2: ptr, weight: float) -> ptr {
     }
     norm1 = sqrt(norm1 + 0.000001);
     norm2 = sqrt(norm2 + 0.000001);
+    let target_norm = norm1 * (1.0 - weight) + norm2 * weight;
     
     var cos_omega = dot / (norm1 * norm2);
     if (cos_omega > 0.9995) {
@@ -45,12 +46,26 @@ fn fusion_slerp_tensors(t1: ptr, t2: ptr, weight: float) -> ptr {
     let scale1 = sin((1.0 - weight) * omega) / sin_omega;
     let scale2 = sin(weight * omega) / sin_omega;
 
+    // 2. Compute SLERP directional unit vectors
+    var out_raw = cartan_vec_create();
+    var norm_out = 0.0;
     i = 0.0;
     while (i < len) {
         let v1 = cartan_vec_get_f32(t1, i);
         let v2 = cartan_vec_get_f32(t2, i);
         let slerp_v = v1 * scale1 + v2 * scale2;
-        cartan_vec_push_f32(out, slerp_v);
+        norm_out = norm_out + slerp_v * slerp_v;
+        cartan_vec_push_f32(out_raw, slerp_v);
+        i = i + 1.0;
+    }
+    norm_out = sqrt(norm_out + 0.000001);
+
+    // 3. Riemannian Manifold Volume-Preserving Rescaling (prevents manifold warping)
+    let manifold_scale = target_norm / norm_out;
+    i = 0.0;
+    while (i < len) {
+        let raw_v = cartan_vec_get_f32(out_raw, i);
+        cartan_vec_push_f32(out, raw_v * manifold_scale);
         i = i + 1.0;
     }
     return out;
@@ -83,6 +98,21 @@ fn fusion_dare_rescale(t1: ptr, drop_p: float) -> ptr {
         var rescaled = val * scale;
         if (math_mod_val(i, 2.0) == 0.0) { rescaled = 0.0; }
         cartan_vec_push_f32(out, rescaled);
+        i = i + 1.0;
+    }
+    return out;
+}
+
+fn fusion_tangent_space_slerp(base_w: ptr, target_w: ptr, alpha: float) -> ptr {
+    let len = cartan_vec_len(base_w);
+    let out = cartan_vec_create();
+    
+    var i = 0.0;
+    while (i < len) {
+        let b = cartan_vec_get_f32(base_w, i);
+        let t = cartan_vec_get_f32(target_w, i);
+        let delta = t - b;
+        cartan_vec_push_f32(out, b + delta * alpha);
         i = i + 1.0;
     }
     return out;

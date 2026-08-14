@@ -110,10 +110,14 @@ fn geomind_distill_train_run(teacher_model: string, student_epochs: float) {
     printf("[GeoMind Distill] Initial KL Divergence Loss: %s\n", cartan_float_to_string(loss));
 }
 
+extern fn cartan_safetensors_save_tensor_f32(path: string, name: string, tensor: ptr) -> float;
+
 fn geomind_merge_models_slerp(m1_weights: ptr, m2_weights: ptr, weight: float) -> ptr {
     printf("[GeoMind Fusion] Executing Zero-Day SLERP Weight Merging along Geodesic Manifold...\n");
     cartan_flush(0.0);
-    return fusion_slerp_tensors(m1_weights, m2_weights, weight);
+    let fused = fusion_slerp_tensors(m1_weights, m2_weights, weight);
+    cartan_safetensors_save_tensor_f32("test/geomind/trainingdata/checkpoints/geomind_slerp_fused_weights.bin", "model.fused", fused);
+    return fused;
 }
 
 fn geomind_pretrain_ce_run(corpus_path: string, epochs: float) -> float {

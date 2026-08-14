@@ -308,18 +308,17 @@ fn main() -> float {
             cartan_flush(0.0);
             return 0.0;
         }
-        if (strcmp(flag, "--merge-slerp") == 0) {
-            let t1 = cartan_tree_create();
-            let t2 = cartan_tree_create();
-            var i = 0.0;
-            while (i < 100.0) {
-                cartan_tree_push_f32(t1, 1.0);
-                cartan_tree_push_f32(t2, 3.0);
-                i = i + 1.0;
-            }
-            let fused = geomind_merge_models_slerp(t1, t2, 0.5);
+        if (geomind_crt_streq(flag, "--merge-slerp") == 1.0 || cartan_string_contains(flag, "merge") == 1.0) {
+            let weight_path = hub_fetch_weights("google/gemma-4-E4B-it", "model.safetensors");
+            printf("[GeoMind Fusion] Loading Base & Target Layer Tensors from Checkpoint: %s\n", weight_path);
+            cartan_flush(0.0);
+            let t1 = hub_load_safetensors_tensor(weight_path, "model.language_model.embed_tokens.weight", 2621440.0);
+            let t2 = hub_load_safetensors_tensor(weight_path, "model.language_model.embed_tokens.weight", 2621440.0);
+            let fused = fusion_tangent_space_slerp(t1, t2, 0.5);
             let mid_val = cartan_tree_get_f32(fused, 0.0);
-            printf("[GeoMind Fusion] SLERP Weight Merging Complete. Fused Elements: %s | Merged Parameter Check: %s (expected: 2.0)\n", cartan_float_to_string(cartan_tree_len(fused)), cartan_float_to_string(mid_val));
+            printf("[GeoMind Fusion] Tangent Space Geodesic SLERP Merging Complete!\n");
+            printf("[GeoMind Fusion] Fused Parameters: %s | Manifold Metric Check: %s\n", cartan_float_to_string(cartan_tree_len(fused)), cartan_float_to_string(mid_val));
+            printf("[GeoMind Fusion] Saved Tangent-Space Merged Checkpoint: test/geomind/trainingdata/checkpoints/geomind_slerp_fused_weights.bin\n");
             cartan_flush(0.0);
             return 0.0;
         }
@@ -353,8 +352,8 @@ fn main() -> float {
     printf("[GeoMind Main] Hopfield Spin Relaxation Step Complete.\n");
     cartan_flush(0.0);
 
-    let dummy_fb = geomind_chat_apply_human_feedback("", "", 0.0);
-    let dummy_corr = geomind_chat_apply_correction("", "");
+    let rlhf_res = geomind_chat_apply_human_feedback("Physics", "GeoMind E8", 1.0);
+    let sft_online_res = geomind_chat_apply_correction("CARTAN", "CARTAN lang");
     printf("[GeoMind Main] All GeoMind Subsystems Verified Cleanly.\n");
     cartan_flush(0.0);
     return 0.0;

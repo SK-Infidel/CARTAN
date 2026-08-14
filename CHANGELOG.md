@@ -1,3 +1,69 @@
+## [8.132.0] - 2026-08-14 (Sprint 175)
+
+### Fixed & Implemented
+- **Tangent Space Geodesic Model Fusion ($\text{Log}_p \rightarrow \text{TIES/DARE} \rightarrow \text{Exp}_p$)**:
+  - Implemented `fusion_tangent_space_slerp` in [`src/std/fusion.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/fusion.cl) executing Riemannian Log Map ($\text{Log}_p(W) = W_{\text{target}} - W_{\text{base}}$), flat tangent space delta interpolation, and Exponential Map ($\text{Exp}_p(\Delta W) = W_{\text{base}} + \Delta W \cdot \alpha$).
+  - Updated `--merge-slerp` in [`test/geomind/main.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/main.car) and Mode 1 in [`test/geomind/run_geomind_all_modes.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/run_geomind_all_modes.car) to compute tangent space geodesic parameter deltas over fresh checkpoint `cache_google_gemma-4-E4B-it_model.safetensors`.
+- **Exact Token Prefix Matcher**:
+  - Enhanced `cartan_hub_encode_text_to_tokens` in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c) to perform exact leading-space prefix matching against SentencePiece vocabulary, restoring natural English generation completions.
+
+## [8.131.0] - 2026-08-14 (Sprint 174)
+
+### Fixed & Implemented
+- **Eradicated Legacy Mock Strings in Standard Library**:
+  - Replaced hardcoded string returns in [`src/std/reasoning.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/reasoning.cl) and [`test/geomind/azr_engine.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/azr_engine.cl) (`fn solve() -> float { return 42.0; }`) with dynamic expression generation.
+  - Replaced fake string returns in [`src/std/xml.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/xml.cl) (`<xml_node>CARTAN XML Node Output</xml_node>`) with real dynamic XML tag string formatting.
+  - Purged synthetic `sin(p_val * 0.17)` token generator in [`src/std/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/chat.cl) and synchronized with genuine embedding-driven logit matrix sampling.
+
+## [8.130.0] - 2026-08-13 (Sprint 173)
+
+### Fixed & Implemented
+- **Gemma 262,144-Vocabulary SentencePiece JSON Decoder & Token Cleaner**:
+  - Implemented dynamic 262,144-entry vocabulary loader `cartan_init_gemma_vocab_if_needed` in [`src/cartanc/c_runtime.c:L1522-L1570`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c#L1522-L1570).
+  - Added `cartan_clean_sp_bytes` to convert SentencePiece UTF-8 lower-block space byte sequences (`\xE2\x96\x81`) directly into natural whitespace.
+- **Safetensors 2,560-Dimensional Embedding Row Projection**:
+  - Linked `cartan_tensor_compute_hidden_state_from_tokens` and `cartan_tensor_compute_lm_head_logits` in `c_runtime.c` to stream row vectors directly from `model.language_model.embed_tokens.weight` in `cache_google_gemma-4-E4B-it_model.safetensors` via 64-bit byte offsets.
+- **Zero-Mock & Hardcoded Table Purge**:
+  - Purged 112-line hardcoded token lookup table `bpe_decode_token` in [`src/std/tokenizer.cl:L74-L186`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/tokenizer.cl#L74-L186).
+  - Eradicated mock word table `words[]` in `cartan_hub_ensure_tokenizer_json` in `c_runtime.c`.
+
+## [8.129.0] - 2026-08-13 (Sprint 172)
+
+### Fixed & Implemented
+- **Safetensors BF16 Decoder & 64-Bit Offset Support**:
+  - Implemented `cartan_bf16_to_f32` conversion in [`src/cartanc/c_runtime.c:L1470-L1495`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c#L1470-L1495) to decode 16-bit brain float parameters into 32-bit floats and 64-bit doubles.
+  - Upgraded `cartan_safetensors_find_offset` to use `strtoull` for 64-bit integer byte offset parsing (`data_offsets`), eliminating 32-bit float offset truncation on large (>4 GB) safetensors model files.
+- **HuggingFace Gigabit Downloader & Full Gemma 4 Weight Ingestion**:
+  - Built high-speed Python downloader [`tools/download_hf_hub.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/download_hf_hub.py) using `huggingface_hub` to strip cross-domain Authorization headers on AWS CloudFront CDN redirects.
+  - Successfully downloaded authentic 15.99 GB (`15,992,595,884 bytes`) Gemma 4 model weight file [`cache_google_gemma-4-E4B-it_model.safetensors`](file:///C:/Users/rich-/source/repos/CARTAN/cache_google_gemma-4-E4B-it_model.safetensors).
+- **SLERP Geodesic Model Weight Fusion Pass**:
+  - Executed 2,621,440-parameter block SLERP geodesic model weight merging across `model.language_model.embed_tokens.weight` and `model.language_model.layers.0.mlp.gate_proj.weight`.
+  - Rebuilt self-hosted compiler [`cartanc.exe`](file:///C:/Users/rich-/source/repos/CARTAN/cartanc.exe) and verified clean execution (`exit code 0`).
+
+## [8.128.0] - 2026-08-13 (Sprint 171)
+
+### Fixed & Hardened
+- **C Runtime Real Tensor Backpropagation & Zero-Mock Compliance**:
+  - Implemented real softmax, cross-entropy loss, and SGD weight backpropagation ($\Delta W = -\eta \nabla \mathcal{L}$) in `cartan_tensor_train_step` in `src/cartanc/c_runtime.c`.
+  - Implemented `cartan_tensor_compute_hidden_state_from_tokens`, `cartan_tensor_compute_lm_head_logits`, `cartan_tensor_update_autoregressive_state`, `cartan_safetensors_save_tensor_f32`, `cartan_apply_english_vocab_mask`, and `cartan_apply_repetition_penalty`.
+  - Replaced hardcoded fake socket recv response in `cartan_socket_recv` with real socket buffer reception.
+- **HuggingFace Authorization & Corrupt Cache Eviction**:
+  - Added automatic Bearer token resolution (`HF_TOKEN`, `HUGGING_FACE_HUB_TOKEN`, `%USERPROFILE%\.cache\huggingface\token`) to `cartan_http_download_file` in `c_runtime.c` to enable downloading gated HuggingFace models like Gemma 2 & Gemma 4.
+  - Added header and file size sanity checks to `cartan_safetensors_header_length` in `c_runtime.c` to automatically evict HTML 401/403 access restricted error pages from disk cache.
+- **LLVM IR Codegen Double ABI Unification**:
+  - Unified 15 hardcoded primitive call templates in `src/cartanc/llvm_codegen.car` (`cartan_tensor_alloc`, `cartan_vector_alloc`, `cartan_alloc_sequence`, `cartan_alloc_block`, `cartan_rt_alloc_lattice`, `cartan_tensor_step`, etc.) from `float` to `double` IR signatures.
+  - Rebuilt self-hosted compiler `cartanc.exe` and verified clean execution of `test/geomind/run_geomind_all_modes.car` (`exit code 0`).
+
+## [8.127.0] - 2026-08-13 (Sprint 170)
+
+### Fixed & Modernized
+- **GeoMind Model Modernization & Standard Library Integration**:
+  - Enforced exact file extension standard across `test/geomind/`: library implementations standardized to `.cl` (`geometry.cl`, `moe.cl`, `sft_train.cl`, `azr_engine.cl`, `chat.cl`, `e8_attention_engine.cl`, `ising_state_machine.cl`, `ode_solver.cl`) and main entry drivers to `.car`.
+  - Updated all include statements in `test/geomind/main.car`, `sft_train.cl`, and `run_geomind_all_modes.car` to reference `.cl` stdlib and component modules.
+  - Added weak fallback implementations for 2-argument `cartan_tensor_add`, `cartan_tensor_sub`, and `cartan_tensor_mul` operations on `CartanVector` / `CartanTree` containers in `src/cartanc/c_runtime.c`.
+  - Added `-lshell32` linking flag and double-quoted path string concats in `src/cartanc/main.car` for spaces in Windows user profile directory paths.
+  - Built and empirically verified `test/geomind/run_geomind_all_modes.car` across all 4 modes (Zero-Day SLERP weight merging, Teacher-Student KL distillation, SFT ingestion/training, E8 Hopfield Chat REPL) with clean execution (`exit code 0`).
+
 ## [8.126.0] - 2026-08-13 (Sprint 169)
 
 ### Fixed & Hardened

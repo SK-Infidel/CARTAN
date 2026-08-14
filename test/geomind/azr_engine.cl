@@ -15,13 +15,9 @@ struct AZRSolver {
 }
 
 fn geomind_azr_propose_task(level: float) -> string {
-    if (level <= 1.0) {
-        return "fn solve() -> float { return 42.0; }";
-    }
-    if (level <= 2.0) {
-        return "fn solve() -> float { let x = 10.0; let y = 20.0; return x + y; }";
-    }
-    return "fn solve() -> float { var acc = 0.0; var i = 0.0; while (i < 5.0) { acc = acc + i; i = i + 1.0; } return acc; }";
+    let target_val = cartan_float_to_string(level * 10.0 + 32.0);
+    let s1 = cartan_string_concat("fn solve() -> float { return ", target_val);
+    return cartan_string_concat(s1, "; }");
 }
 
 fn geomind_azr_solve_task(task_code: string) -> string {

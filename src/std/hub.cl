@@ -44,8 +44,9 @@ extern fn cartan_file_exists(path: string) -> float;
 fn hub_fetch_weights(repo_id: string, filename: string) -> string {
     printf("[hub] Fetching model weights from Hub repository\n");
     cartan_flush();
+    let safe_repo = hub_sanitize_filename(repo_id);
     let safe_file = hub_sanitize_filename(filename);
-    let cached_path = string_concat("cache_", safe_file);
+    let cached_path = string_concat(string_concat("cache_", safe_repo), string_concat("_", safe_file));
     if (cartan_file_exists(cached_path) == 1.0) {
         printf("[hub] Found local cached model weight file\n");
         cartan_flush();
@@ -67,14 +68,8 @@ extern fn cartan_safetensors_load_tensor_f32(path: string, header_len: float, da
 fn hub_load_safetensors_tensor(filepath: string, tensor_name: string, num_elements: float) -> ptr {
     let h_len = cartan_safetensors_header_length(filepath);
     if (h_len <= 0.0) {
-        let fallback = cartan_tree_create();
-        var i = 0.0;
-        while (i < num_elements) {
-            cartan_tree_push_f32(fallback, sin(i * 0.1));
-            i = i + 1.0;
-        }
-        return fallback;
-
+        printf("[hub] Error: Invalid or missing safetensors weight checkpoint: %s\n", filepath);
+        return cartan_tree_create();
     }
     let data_offset = cartan_safetensors_find_offset(filepath, tensor_name);
     return cartan_safetensors_load_tensor_f32(filepath, h_len, data_offset, num_elements);

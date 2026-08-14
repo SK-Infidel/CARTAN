@@ -70,15 +70,17 @@ fn geomind_chat_generate_reply(prompt: string, max_tokens: float, temp: float) -
     printf("[GeoMind Chat] GeoMind Neural Output:\n");
     cartan_flush(0.0);
 
-    // 3. Forward Matrix Multiplication (L = h @ W_lm_head) over logit space
-    let logits_vec = cartan_tensor_compute_lm_head_logits(relaxed_h, temp);
-
-    // 4. Sample and decode top-K / top-P tokens directly from logit space
+    let history = cartan_vec_create();
     var step = 0.0;
     var max_t = 22.0;
     while (step < max_t) {
+        let logits_vec = cartan_tensor_compute_lm_head_logits(relaxed_h, temp);
+        cartan_apply_english_vocab_mask(logits_vec, 50.0);
+        cartan_apply_repetition_penalty(logits_vec, history, 1.25);
         let sampled_tok = cartan_tokenizer_sample_topp_topk(logits_vec, 50.0, 0.90, temp + step * 0.01);
         c_cartan_print_token(sampled_tok);
+        cartan_vec_push_f32(history, sampled_tok);
+        cartan_tensor_update_autoregressive_state(relaxed_h, sampled_tok);
         step = step + 1.0;
     }
 
