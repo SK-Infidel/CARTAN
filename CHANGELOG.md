@@ -1,3 +1,11 @@
+## [8.134.0] - 2026-08-14 (Sprint 177)
+
+### Fixed & Implemented
+- **Eradicated OOB Memory Access in Tokenizer Vocab Initializer**:
+  - Fixed an out-of-bounds loop condition (`for (int p = 0; p < 3; p++)` over a 2-element array) in `cartan_init_gemma_vocab_if_needed` in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c) that caused segment faults when running interactive chat sessions.
+- **Multi-Path Relative File Resolution**:
+  - Added relative parent-directory fallbacks (`../cache_google_gemma-4-E4B-it_model.safetensors` and `../tokenizer.json`) so `geomind.exe` resolves model checkpoints seamlessly whether launched from repository root or the `build/` folder.
+
 ## [8.133.0] - 2026-08-14 (Sprint 176)
 
 ### Fixed & Implemented
