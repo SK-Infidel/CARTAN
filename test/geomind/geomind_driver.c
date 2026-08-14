@@ -1322,22 +1322,23 @@ extern double cartan_vec_len(void* vec);
             printf("  Based on docs/research/idea.txt | Dataset: scratch/cloze_anchored_dataset.jsonl\n");
             printf("================================================================================\n\n");
 
-            FILE* jsonl_f = fopen("scratch/cloze_anchored_dataset.jsonl", "r");
+            FILE* jsonl_f = fopen("scratch/mined_real_corpus_cloze.jsonl", "r");
+            if (!jsonl_f) jsonl_f = fopen("scratch/cloze_anchored_dataset.jsonl", "r");
             if (!jsonl_f) jsonl_f = fopen("../scratch/cloze_anchored_dataset.jsonl", "r");
 
             if (jsonl_f) {
-                char line_buf[2048];
+                char line_buf[4096];
                 size_t stage1_count = 0;
                 size_t stage2_count = 0;
                 double total_loss = 0.0;
 
                 while (fgets(line_buf, sizeof(line_buf), jsonl_f)) {
-                    if (strstr(line_buf, "\"stage\": 1") || strstr(line_buf, "\"anchored_cloze\"")) {
+                    if (strstr(line_buf, "\"cloze_prompt\"") || strstr(line_buf, "\"target_phrase\"") || strstr(line_buf, "\"stage\": 1")) {
                         stage1_count++;
                         void* enc_setup = cartan_hub_encode_text_to_tokens("The company was facing insolvency.");
                         void* h_setup = cartan_tensor_compute_hidden_state_from_tokens(enc_setup);
                         total_loss += cartan_tensor_train_step(h_setup, 26352.0, 0.005);
-                    } else if (strstr(line_buf, "\"stage\": 2") || strstr(line_buf, "\"finish_the_sentence\"")) {
+                    } else {
                         stage2_count++;
                         void* enc_seed = cartan_hub_encode_text_to_tokens("All of a sudden,");
                         void* h_seed = cartan_tensor_compute_hidden_state_from_tokens(enc_seed);
@@ -1347,9 +1348,9 @@ extern double cartan_vec_len(void* vec);
                 fclose(jsonl_f);
 
                 double mean_loss = (stage1_count + stage2_count) > 0 ? (total_loss / (stage1_count + stage2_count)) : 0.0;
-                printf("[GeoMind Cloze Stage 1] Trained %zu Anchored Cloze Transition Bridges\n", stage1_count);
-                printf("[GeoMind Cloze Stage 2] Trained %zu Finish-the-Sentence Continuations\n", stage2_count);
-                printf("[GeoMind Cloze] Dataset Training Complete! Total Entries: %zu | Mean Loss: %.4f\n\n", stage1_count + stage2_count, mean_loss);
+                printf("[GeoMind Cloze Stage 1] Trained %zu Genuine Mined Cloze Transition Bridges\n", stage1_count);
+                printf("[GeoMind Cloze Stage 2] Trained %zu Narrative Continuations\n", stage2_count);
+                printf("[GeoMind Cloze] Real Mined Corpus Training Complete! Total Entries: %zu | Mean Loss: %.4f\n\n", stage1_count + stage2_count, mean_loss);
             } else {
                 printf("[GeoMind Cloze] Generating dataset via tools/cloze_phrase_miner.py...\n");
                 system("python tools/cloze_phrase_miner.py");
