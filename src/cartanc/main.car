@@ -395,8 +395,12 @@ fn main(argc: float, argv: ptr) -> float {
         let cmd = cartan_string_concat(zig_cmd, " ");
         cmd = cartan_string_concat(cmd, user_profile);
         cmd = cartan_string_concat(cmd, "\\.cartan\\c_runtime.c ");
-        cmd = cartan_string_concat(cmd, user_profile);
-        cmd = cartan_string_concat(cmd, "\\.cartan\\lib\\gpu_runtime.lib -lws2_32 -luser32 -lgdi32 -lwinmm -lopengl32 -ld3dcompiler -lole32 -loleaut32 -lbcrypt -luserenv -ladvapi32 -o ");
+        let gpu_lib_path = cartan_string_concat(user_profile, "\\.cartan\\lib\\gpu_runtime.lib");
+        if (cartan_file_exists(gpu_lib_path) != 0.0) {
+            cmd = cartan_string_concat(cmd, gpu_lib_path);
+            cmd = cartan_string_concat(cmd, " ");
+        } else {}
+        cmd = cartan_string_concat(cmd, "-lshell32 -lws2_32 -luser32 -lgdi32 -lwinmm -lopengl32 -ld3dcompiler -lole32 -loleaut32 -lbcrypt -luserenv -ladvapi32 -o ");
         cmd = cartan_string_concat(cmd, output_file);
         system(cmd);
 

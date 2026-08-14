@@ -1020,31 +1020,41 @@ CARTAN_WEAK void cartan_matmul(double* A, double* B, double* out, double M_in, d
     }
 }
 
-#ifndef CARTAN_GPU_RUNTIME_LINKED
-CARTAN_WEAK void* cartan_tensor_add(double* A, double* B, double size) {
-    size_t len = (size_t)size;
-    double* res = (double*)malloc(sizeof(double) * len);
-    if (!res) return NULL;
-    for (size_t i = 0; i < len; i++) res[i] = A[i] + B[i];
+CARTAN_WEAK void* cartan_tensor_add(void* A, void* B) {
+    if (!A || !B) return NULL;
+    CartanVector* vA = (CartanVector*)A;
+    CartanVector* vB = (CartanVector*)B;
+    size_t len = vA->size < vB->size ? vA->size : vB->size;
+    CartanVector* res = (CartanVector*)cartan_vec_create();
+    for (size_t i = 0; i < len; i++) {
+        cartan_vec_push_f32(res, vA->data[i] + vB->data[i]);
+    }
     return res;
 }
 
-CARTAN_WEAK void* cartan_tensor_sub(double* A, double* B, double size) {
-    size_t len = (size_t)size;
-    double* res = (double*)malloc(sizeof(double) * len);
-    if (!res) return NULL;
-    for (size_t i = 0; i < len; i++) res[i] = A[i] - B[i];
+CARTAN_WEAK void* cartan_tensor_sub(void* A, void* B) {
+    if (!A || !B) return NULL;
+    CartanVector* vA = (CartanVector*)A;
+    CartanVector* vB = (CartanVector*)B;
+    size_t len = vA->size < vB->size ? vA->size : vB->size;
+    CartanVector* res = (CartanVector*)cartan_vec_create();
+    for (size_t i = 0; i < len; i++) {
+        cartan_vec_push_f32(res, vA->data[i] - vB->data[i]);
+    }
     return res;
 }
 
-CARTAN_WEAK void* cartan_tensor_mul(double* A, double* B, double size) {
-    size_t len = (size_t)size;
-    double* res = (double*)malloc(sizeof(double) * len);
-    if (!res) return NULL;
-    for (size_t i = 0; i < len; i++) res[i] = A[i] * B[i];
+CARTAN_WEAK void* cartan_tensor_mul(void* A, void* B) {
+    if (!A || !B) return NULL;
+    CartanVector* vA = (CartanVector*)A;
+    CartanVector* vB = (CartanVector*)B;
+    size_t len = vA->size < vB->size ? vA->size : vB->size;
+    CartanVector* res = (CartanVector*)cartan_vec_create();
+    for (size_t i = 0; i < len; i++) {
+        cartan_vec_push_f32(res, vA->data[i] * vB->data[i]);
+    }
     return res;
 }
-#endif
 
 CARTAN_WEAK double cartan_tensor_sum(double* arr, double size) {
     if (!arr || size <= 0.0) return 0.0;
