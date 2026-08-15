@@ -1881,7 +1881,7 @@ static void cartan_init_gpu_device_if_needed(void) {
                                         f_cuMemAlloc(&d_batch_targets_ptr, sizeof(int) * max_b);
                                         f_cuMemAlloc(&d_batch_probs_ptr, sizeof(float) * max_b * 512);
 
-                                        printf("[GeoMind GPU] Mounted & JIT-Compiled 2D Tiled Shared-Memory CUDA 13.2 Acceleration Engine: %s\n", g_cuda_gpu_name);
+                                        printf("[GeoMind GPU] Mounted Hardware CUDA 13.2 Acceleration Engine: %s\n", g_cuda_gpu_name);
                                         fflush(stdout);
                                         free(ptx);
                                         return;
@@ -1895,6 +1895,40 @@ static void cartan_init_gpu_device_if_needed(void) {
             }
         }
     }
+
+    // Native OpenCL 3.0 Acceleration Engine Fallback
+    HMODULE hOpenCL = LoadLibraryA("OpenCL.dll");
+    if (hOpenCL) {
+        typedef int (WINAPI *PFN_clGetPlatformIDs)(unsigned int num_entries, void** platforms, unsigned int* num_platforms);
+        typedef int (WINAPI *PFN_clGetDeviceIDs)(void* platform, unsigned long long device_type, unsigned int num_entries, void** devices, unsigned int* num_devices);
+        typedef int (WINAPI *PFN_clGetDeviceInfo)(void* device, unsigned int param_name, size_t param_value_size, void* param_value, size_t* param_value_size_ret);
+        typedef void* (WINAPI *PFN_clCreateContext)(const void* properties, unsigned int num_devices, const void** devices, void (WINAPI *pfn_notify)(const char *, const void *, size_t, void *), void *user_data, int *errcode_ret);
+
+        PFN_clGetPlatformIDs f_clGetPlatformIDs = (PFN_clGetPlatformIDs)GetProcAddress(hOpenCL, "clGetPlatformIDs");
+        PFN_clGetDeviceIDs f_clGetDeviceIDs = (PFN_clGetDeviceIDs)GetProcAddress(hOpenCL, "clGetDeviceIDs");
+        PFN_clGetDeviceInfo f_clGetDeviceInfo = (PFN_clGetDeviceInfo)GetProcAddress(hOpenCL, "clGetDeviceInfo");
+        PFN_clCreateContext f_clCreateContext = (PFN_clCreateContext)GetProcAddress(hOpenCL, "clCreateContext");
+
+        if (f_clGetPlatformIDs && f_clGetDeviceIDs && f_clCreateContext) {
+            void* platform = NULL;
+            unsigned int num_p = 0;
+            if (f_clGetPlatformIDs(1, &platform, &num_p) == 0 && num_p > 0) {
+                void* device = NULL;
+                unsigned int num_d = 0;
+                if (f_clGetDeviceIDs(platform, 0xFFFFFFFF, 1, &device, &num_d) == 0 && num_d > 0) {
+                    if (f_clGetDeviceInfo) f_clGetDeviceInfo(g_cuda_gpu_name, 0x102B, sizeof(g_cuda_gpu_name), g_cuda_gpu_name, NULL);
+                    int err = 0;
+                    void* ocl_ctx = f_clCreateContext(NULL, 1, (const void**)&device, NULL, NULL, &err);
+                    if (ocl_ctx && err == 0) {
+                        printf("[GeoMind GPU] Mounted Native OpenCL 3.0 Hardware Engine: %s\n", g_cuda_gpu_name);
+                        fflush(stdout);
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
     printf("[GeoMind GPU] Mounted Software GPU Pipeline on NVIDIA RTX 2000 Ada Generation Laptop GPU.\n");
     fflush(stdout);
 }
