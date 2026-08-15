@@ -1923,8 +1923,9 @@ CARTAN_WEAK double cartan_tensor_update_autoregressive_state(void* hidden_ptr, d
     float* row = (float*)malloc(embed_dim * sizeof(float));
     if (row) {
         cartan_get_gemma_embed_row(id, row, embed_dim);
+        // Autoregressive state shift: blend 50% previous sequence context with 50% new token embedding
         for (size_t i = 0; i < embed_dim; i++) {
-            h->data[i] = 0.85 * h->data[i] + 0.15 * (double)row[i];
+            h->data[i] = 0.50 * h->data[i] + 0.50 * (double)row[i];
         }
         free(row);
     }

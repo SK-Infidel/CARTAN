@@ -193,9 +193,10 @@ static void execute_chat_generation(const char* prompt, double temp) {
         double sampled_tok = cartan_tokenizer_sample_topp_topk(logits_vec, 50.0, 0.90, temp + step * 0.01);
         c_cartan_print_token(sampled_tok);
 
-        // 5. Track token in history & update hidden state autoregressively
+        // 5. Track token in history & recompute full sequence hidden state autoregressively
         cartan_vec_push_f32(history_tokens, sampled_tok);
-        cartan_tensor_update_autoregressive_state(hidden_state, sampled_tok);
+        cartan_vec_push_f32(prompt_tokens, sampled_tok);
+        hidden_state = cartan_tensor_compute_hidden_state_from_tokens(prompt_tokens);
 
         step = step + 1.0;
     }
