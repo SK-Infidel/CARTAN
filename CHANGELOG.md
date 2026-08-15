@@ -1,3 +1,11 @@
+## [8.155.0] - 2026-08-14 (Sprint 198)
+
+### Fixed & Implemented
+- **Vocabulary Persistence & Logit Projection**:
+  - Implemented 512-class to Gemma vocabulary token mapping persistence in binary signed checkpoints (`g_class_to_token_id`).
+  - Fixed C ABI return type mismatch (`size_t` vs `double`) for `cartan_get_lm_head_weight_count()` and weight buffer element sizing (`sizeof(double)`).
+  - Verified real English word token generation during live REPL completions (`.\build\geomind.exe --chat`).
+
 ## [8.154.0] - 2026-08-14 (Sprint 197)
 
 ### Fixed & Implemented
