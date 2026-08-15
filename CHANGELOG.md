@@ -1,3 +1,10 @@
+## [8.165.0] - 2026-08-15 (Sprint 208)
+
+### Fixed & Implemented
+- **Strict Quality Pruning & Structural N-Gram Filtration**:
+  - Enhanced `filter_ngram()` in [`tools/harvest_domain_ngrams.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/harvest_domain_ngrams.py) to prune non-English foreign tokens, programming artifacts (`bpy`), and dangling prepositions/conjunctions (`symphony no`, `smiled and`).
+  - Retained overlapping multi-word structural trigram decompositions (`once upon`, `upon a`, `a time`) across all domain datasets.
+
 ## [8.164.0] - 2026-08-15 (Sprint 207)
 
 ### Fixed & Implemented

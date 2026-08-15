@@ -27,11 +27,21 @@ def filter_ngram(phrase, n_gram_size):
     if phrase in EXISTING_PHRASES:
         return False
     
+    # Reject non-English / foreign stop tokens
+    foreign_tokens = {"en", "la", "el", "de", "los", "las", "un", "una", "que", "del", "se", "por", "con"}
+    if any(w in foreign_tokens for w in words):
+        return False
+        
+    # Reject phrases ending in dangling conjunctions/prepositions
+    dangling_ends = {"and", "or", "no", "the", "a", "an", "of", "in", "to", "at", "by", "for", "with"}
+    if words[-1] in dangling_ends:
+        return False
+    if words[0] in {"no", "symphony"}:
+        return False
+
     stop_words = {"the", "of", "and", "a", "an", "in", "to", "is", "it", "that", "this", "for", "on", "with", "as", "at", "by", "from", "or", "be"}
-    # Reject if ALL words are stop words (e.g., "of the", "in a")
     if all(w in stop_words for w in words):
         return False
-    # Reject if phrase contains single-letter words other than 'a' or 'i'
     if any(len(w) == 1 and w not in {'a', 'i'} for w in words):
         return False
     return True
