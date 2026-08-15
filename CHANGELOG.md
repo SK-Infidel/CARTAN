@@ -1,3 +1,10 @@
+## [8.175.0] - 2026-08-15 (Sprint 218)
+
+### Fixed & Implemented
+- **Discrete Sentence Cloze Harvester & Chunking Engine**:
+  - Upgraded [`tools/harvest_domain_ngrams.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/harvest_domain_ngrams.py) to extract **discrete individual sentence cloze prompts** (`sentence_cloze`, `target_phrase`, `category`, `domain`, `full_sentence`) directly for maximum transformer attention learning.
+  - Exported **280,518 discrete sentence cloze prompts** across **6 chunked JSONL files** (`scratch/mined_expanded_corpus_cloze_part01.jsonl` through `part06.jsonl`, 50,000 lines per chunk) for clean, high-speed memory streaming during GPU training passes.
+
 ## [8.174.0] - 2026-08-15 (Sprint 217)
 
 ### Fixed & Implemented

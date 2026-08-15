@@ -1,6 +1,7 @@
 import re
 import json
 import os
+import html
 import collections
 from datasets import load_dataset
 
@@ -92,29 +93,23 @@ HYLAND_EXACT_TAXONOMY = {
     ]
 }
 
-import html
-
 def clean_ascii_and_artifacts(text):
     """Sanitizes text by unescaping HTML entities, removing subtoken @-@ markers, curly quotes, and control codes."""
     if not text:
         return ""
-    # Unescape HTML entities (&amp;, &#39;, &quot;)
     text = html.unescape(str(text))
-    # Remove subtoken artifacts like '@-@'
     text = text.replace("@-@", "-").replace("@,@", ",")
-    # Normalize curly quotes/dashes to standard ASCII
     text = text.replace("’", "'").replace("‘", "'").replace("“", '"').replace("”", '"').replace("—", "-").replace("–", "-")
-    # Strip non-printable ASCII control characters
     text = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', text)
-    # Collapse newlines/tabs and whitespace
     text = re.sub(r'[\r\n\t]+', ' ', text)
     text = re.sub(r'\s+', ' ', text).strip()
     return text
 
-def harvest_hyland_exact_list():
-    """Harvests Ken Hyland's exact 10-category metadiscourse inventory across streaming datasets."""
+def harvest_chunked_discrete_sentence_cloze():
+    """Streams corpora and outputs discrete individual sentence cloze prompts in 50,000-line chunks."""
     print("================================================================================")
-    print("  KEN HYLAND EXACT METADISCOURSE TAXONOMY HARVESTER ENGINE (ASCII CLEAN)")
+    print("  DISCRETE SENTENCE CLOZE HARVESTER & CHUNKING ENGINE")
+    print("  Ken Hyland Exact Metadiscourse Inventory (50,000 Discrete Lines Per Chunk)")
     print("================================================================================")
 
     domains = [
@@ -124,12 +119,7 @@ def harvest_hyland_exact_list():
         {"name": "roneneldan/TinyStories", "config": None, "field": "text", "type": "narrative"}
     ]
 
-    item_counter = collections.Counter()
-    category_counts = collections.Counter()
     item_category_map = {}
-    item_examples = collections.defaultdict(list)
-
-    # Flatten Hyland list into exact regex lookup
     hyland_flat = []
     for cat, items in HYLAND_EXACT_TAXONOMY.items():
         for item in items:
@@ -137,11 +127,20 @@ def harvest_hyland_exact_list():
             item_category_map[clean_item] = cat
             hyland_flat.append(clean_item)
 
-    # Sort items by length (longest first) to avoid partial sub-token overlap
     hyland_flat.sort(key=lambda x: len(x), reverse=True)
 
+    os.makedirs("scratch", exist_ok=True)
+    chunk_size = 50000
+    current_chunk_index = 1
+    total_written_lines = 0
+
+    chunk_filename = f"scratch/mined_expanded_corpus_cloze_part{current_chunk_index:02d}.jsonl"
+    current_file = open(chunk_filename, "w", encoding="utf-8")
+    lines_in_chunk = 0
+    category_counts = collections.Counter()
+
     for dom in domains:
-        print(f"\n[Harvester Stream] Streaming 25,000 sentences from '{dom['name']}' ({dom['type']})...")
+        print(f"\n[Harvester Stream] Streaming sentences from '{dom['name']}' ({dom['type']})...")
         try:
             kwargs = {"split": "train", "streaming": True}
             if token:
@@ -154,7 +153,7 @@ def harvest_hyland_exact_list():
             print(f"[Harvester Warning] Could not stream {dom['name']}: {e}")
             continue
 
-        dataset_count = 0
+        domain_lines = 0
         for i, example in enumerate(ds):
             if i >= 25000:
                 break
@@ -168,55 +167,73 @@ def harvest_hyland_exact_list():
                             text_val = " ".join(text_val)
                         break
 
-            text_str = clean_ascii_and_artifacts(text_val).lower()
-            if len(text_str) < 15:
+            raw_text = clean_ascii_and_artifacts(text_val)
+            if len(raw_text) < 15:
                 continue
 
-            for item in hyland_flat:
-                # Word boundary regex search for exact Hyland items
-                pat = r'\b' + re.escape(item) + r'\b'
-                matches = re.findall(pat, text_str)
-                if matches:
-                    cnt = len(matches)
-                    item_counter[item] += cnt
-                    cat_name = item_category_map[item]
-                    category_counts[cat_name] += cnt
-                    dataset_count += cnt
-                    if len(item_examples[item]) < 3:
-                        clean_ctx = clean_ascii_and_artifacts(text_str[:120])
-                        item_examples[item].append(clean_ctx)
+            # Split into individual sentences
+            sentences = re.split(r'[.!?]+', raw_text)
+            for sent in sentences:
+                sent_clean = clean_ascii_and_artifacts(sent)
+                if len(sent_clean) < 15:
+                    continue
+                
+                sent_lower = sent_clean.lower()
+                for item in hyland_flat:
+                    pat = r'\b' + re.escape(item) + r'\b'
+                    if re.search(pat, sent_lower):
+                        cat_name = item_category_map[item]
+                        # Replace the first occurrence of item with [BLANK]
+                        cloze_sentence = re.sub(pat, "[BLANK]", sent_clean, count=1, flags=re.IGNORECASE)
+                        
+                        entry = {
+                            "sentence_cloze": cloze_sentence,
+                            "target_phrase": item,
+                            "category": cat_name,
+                            "domain": dom["type"],
+                            "full_sentence": sent_clean
+                        }
 
-        print(f"[Harvester Stream] Matched {dataset_count} Hyland metadiscourse occurrences in {dom['name']}")
+                        current_file.write(json.dumps(entry) + "\n")
+                        lines_in_chunk += 1
+                        total_written_lines += 1
+                        domain_lines += 1
+                        category_counts[cat_name] += 1
 
-    harvested_items = []
-    for item, freq in item_counter.most_common():
-        cat_name = item_category_map[item]
-        harvested_items.append({
-            "phrase": item,
-            "category": cat_name,
-            "frequency": freq,
-            "word_count": len(item.split()),
-            "sample_contexts": item_examples.get(item, []),
-            "cloze_prompt": f"Hyland Metadiscourse [{cat_name}]: [BLANK] -> {item}",
-            "target_phrase": item
-        })
+                        # Rotate chunk file when limit reached
+                        if lines_in_chunk >= chunk_size:
+                            current_file.close()
+                            print(f"[Harvester Chunk] Saved {lines_in_chunk} discrete lines -> {chunk_filename}")
+                            current_chunk_index += 1
+                            chunk_filename = f"scratch/mined_expanded_corpus_cloze_part{current_chunk_index:02d}.jsonl"
+                            current_file = open(chunk_filename, "w", encoding="utf-8")
+                            lines_in_chunk = 0
 
-    os.makedirs("scratch", exist_ok=True)
-    out_file = "scratch/mined_expanded_corpus_cloze.jsonl"
-    with open(out_file, "w", encoding="utf-8") as f:
-        for entry in harvested_items:
-            f.write(json.dumps(entry) + "\n")
+                        # Match first dominant metadiscourse marker per sentence to keep training samples crisp
+                        break
+
+        print(f"[Harvester Stream] Extracted {domain_lines} discrete sentence cloze prompts from {dom['name']}")
+
+    if not current_file.closed:
+        current_file.close()
+        print(f"[Harvester Chunk] Saved {lines_in_chunk} discrete lines -> {chunk_filename}")
+
+    # Also create main index / alias file pointing to part 1
+    master_file = "scratch/mined_expanded_corpus_cloze.jsonl"
+    with open(master_file, "w", encoding="utf-8") as f_out, open("scratch/mined_expanded_corpus_cloze_part01.jsonl", "r", encoding="utf-8") as f_in:
+        for l in f_in:
+            f_out.write(l)
 
     print("\n================================================================================")
-    print("  KEN HYLAND EXACT METADISCOURSE HARVEST SUMMARY")
+    print("  DISCRETE SENTENCE CLOZE HARVEST SUMMARY")
     print("================================================================================")
-    print(f"  Total Unique Hyland Metadiscourse Items Mined : {len(harvested_items)}")
-    print(f"  Total Metadiscourse Tokens Matched            : {sum(item_counter.values())}")
-    print("  Breakdown by Hyland Taxonomy Category:")
+    print(f"  Total Discrete Sentence Cloze Lines Mined : {total_written_lines}")
+    print(f"  Total Chunk Files Created                 : {current_chunk_index}")
+    print("  Category Distribution:")
     for cat, cnt in category_counts.most_common():
-        print(f"    - Category '{cat}': {cnt} token occurrences")
-    print(f"  Output Checkpoint Dataset                     : {out_file}")
-    print("================================================================================\n")
+        print(f"    - Category '{cat}': {cnt} discrete sentence prompts")
+    print(f"  Primary Dataset Checkpoint                : {master_file}")
+    print("================================================================\n")
 
 if __name__ == "__main__":
-    harvest_hyland_exact_list()
+    harvest_chunked_discrete_sentence_cloze()
