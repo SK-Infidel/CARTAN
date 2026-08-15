@@ -92,10 +92,29 @@ HYLAND_EXACT_TAXONOMY = {
     ]
 }
 
+import html
+
+def clean_ascii_and_artifacts(text):
+    """Sanitizes text by unescaping HTML entities, removing subtoken @-@ markers, curly quotes, and control codes."""
+    if not text:
+        return ""
+    # Unescape HTML entities (&amp;, &#39;, &quot;)
+    text = html.unescape(str(text))
+    # Remove subtoken artifacts like '@-@'
+    text = text.replace("@-@", "-").replace("@,@", ",")
+    # Normalize curly quotes/dashes to standard ASCII
+    text = text.replace("’", "'").replace("‘", "'").replace("“", '"').replace("”", '"').replace("—", "-").replace("–", "-")
+    # Strip non-printable ASCII control characters
+    text = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', text)
+    # Collapse newlines/tabs and whitespace
+    text = re.sub(r'[\r\n\t]+', ' ', text)
+    text = re.sub(r'\s+', ' ', text).strip()
+    return text
+
 def harvest_hyland_exact_list():
     """Harvests Ken Hyland's exact 10-category metadiscourse inventory across streaming datasets."""
     print("================================================================================")
-    print("  KEN HYLAND EXACT METADISCOURSE TAXONOMY HARVESTER ENGINE")
+    print("  KEN HYLAND EXACT METADISCOURSE TAXONOMY HARVESTER ENGINE (ASCII CLEAN)")
     print("================================================================================")
 
     domains = [
@@ -114,7 +133,7 @@ def harvest_hyland_exact_list():
     hyland_flat = []
     for cat, items in HYLAND_EXACT_TAXONOMY.items():
         for item in items:
-            clean_item = item.lower().strip()
+            clean_item = clean_ascii_and_artifacts(item).lower()
             item_category_map[clean_item] = cat
             hyland_flat.append(clean_item)
 
@@ -149,8 +168,7 @@ def harvest_hyland_exact_list():
                             text_val = " ".join(text_val)
                         break
 
-            text_str = re.sub(r'[\r\n\t]+', ' ', str(text_val)).strip()
-            text_str = re.sub(r'\s+', ' ', text_str).lower()
+            text_str = clean_ascii_and_artifacts(text_val).lower()
             if len(text_str) < 15:
                 continue
 
@@ -165,7 +183,8 @@ def harvest_hyland_exact_list():
                     category_counts[cat_name] += cnt
                     dataset_count += cnt
                     if len(item_examples[item]) < 3:
-                        item_examples[item].append(text_str[:120])
+                        clean_ctx = clean_ascii_and_artifacts(text_str[:120])
+                        item_examples[item].append(clean_ctx)
 
         print(f"[Harvester Stream] Matched {dataset_count} Hyland metadiscourse occurrences in {dom['name']}")
 

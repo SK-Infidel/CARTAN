@@ -1,3 +1,10 @@
+## [8.174.0] - 2026-08-15 (Sprint 217)
+
+### Fixed & Implemented
+- **ASCII & Subtoken Artifact Sanitization Engine**:
+  - Implemented `clean_ascii_and_artifacts()` in [`tools/harvest_domain_ngrams.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/harvest_domain_ngrams.py) unescaping HTML entities (`&amp;`, `&#39;`), stripping subtoken markers (`@-@`), normalizing smart quotes (`’`, `“`, `”`) to standard ASCII, and removing non-printable ASCII control characters.
+  - Sanitized all sample contexts and target phrases across 423,146 matched Hyland metadiscourse occurrences in [`scratch/mined_expanded_corpus_cloze.jsonl`](file:///C:/Users/rich-/source/repos/CARTAN/scratch/mined_expanded_corpus_cloze.jsonl).
+
 ## [8.173.0] - 2026-08-15 (Sprint 216)
 
 ### Fixed & Implemented
