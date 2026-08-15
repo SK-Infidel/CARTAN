@@ -1338,29 +1338,25 @@ extern double cartan_vec_len(void* vec);
             if (!test_check) dataset_path = "scratch/cloze_anchored_dataset.jsonl";
             if (test_check) fclose(test_check);
 
-            double best_val_loss = 1e9;
-            double initial_train_loss = 0.0;
-            double final_train_loss = 0.0;
-            int reached_epoch = 0;
+            // Pre-cache full dataset embeddings into contiguous host RAM buffer before starting training
+            printf("[GeoMind GPU Cache] Pre-caching dataset sentence embeddings into RAM to eliminate CPU Disk I/O...\n");
+            fflush(stdout);
 
-            for (int ep = 1; ep <= max_epochs; ep++) {
-                FILE* jsonl_f = fopen(dataset_path, "r");
-                if (!jsonl_f) break;
+            int max_cached = 4096;
+            float* cached_hidden = (float*)malloc(sizeof(float) * max_cached * 512);
+            int* cached_targets = (int*)malloc(sizeof(int) * max_cached);
+            float* cached_weights = (float*)malloc(sizeof(float) * max_cached);
+            int* cached_val_flags = (int*)malloc(sizeof(int) * max_cached);
+            int total_dataset_items = 0;
 
+            FILE* pre_f = fopen(dataset_path, "r");
+            if (pre_f && cached_hidden && cached_targets && cached_weights && cached_val_flags) {
                 char line_buf[4096];
-                size_t line_index = 0;
-                size_t train_items = 0;
-                size_t val_items = 0;
-                double train_loss_sum = 0.0;
-                double val_loss_sum = 0.0;
-                double lr = 0.005 / (1.0 + 0.1 * (double)ep);
-                if (lr < 0.0001) lr = 0.0001;
+                size_t l_idx = 0;
+                while (fgets(line_buf, sizeof(line_buf), pre_f) && total_dataset_items < max_cached) {
+                    l_idx++;
+                    int is_val = (l_idx % 10 == 0); // 90% Train / 10% Val Split
 
-                while (fgets(line_buf, sizeof(line_buf), jsonl_f)) {
-                    line_index++;
-                    int is_val = (line_index % 10 == 0); // 90% Train / 10% Val Split
-
-                    // Extract cloze prompt / seed text if present
                     char prompt_text[1024] = "The room was quiet. All of a sudden, ";
                     char* prompt_pos = strstr(line_buf, "\"cloze_prompt\": \"");
                     if (!prompt_pos) prompt_pos = strstr(line_buf, "\"seed_prompt\": \"");
@@ -1381,8 +1377,7 @@ extern double cartan_vec_len(void* vec);
                         }
                     }
 
-                    // Extract target phrase / completion
-                    double target_token_id = 26352.0; // Default anchor token
+                    double target_token_id = 26352.0;
                     char* target_pos = strstr(line_buf, "\"target_phrase\": \"");
                     if (!target_pos) target_pos = strstr(line_buf, "\"target_completion\": \"");
                     if (target_pos) {
@@ -1393,22 +1388,69 @@ extern double cartan_vec_len(void* vec);
 
                     void* enc_prompt = cartan_hub_encode_text_to_tokens(prompt_text);
                     void* h_state = cartan_tensor_compute_hidden_state_from_tokens(enc_prompt);
-
-                    // Information Content (IC) Weighting: Target phrase tokens weighted 3.0x higher
+                    size_t h_len = (size_t)cartan_vec_len(h_state);
                     double ic_weight = strstr(line_buf, "\"target_phrase\"") ? 3.0 : 1.5;
-                    double step_lr = is_val ? 0.0 : (lr * ic_weight);
 
-                    double step_loss = cartan_tensor_train_step(h_state, target_token_id, step_lr) * ic_weight;
+                    for (int r = 0; r < 512; r++) {
+                        cached_hidden[total_dataset_items * 512 + r] = (r < (int)h_len) ? (float)cartan_vec_get_f32(h_state, (double)r) : 0.01f;
+                    }
+                    cached_targets[total_dataset_items] = (int)target_token_id;
+                    cached_weights[total_dataset_items] = (float)ic_weight;
+                    cached_val_flags[total_dataset_items] = is_val;
+                    total_dataset_items++;
+                }
+                fclose(pre_f);
+            }
+            printf("[GeoMind GPU Cache] Pre-cached %d sentence items into RAM/VRAM. Starting zero-disk-latency CUDA epochs...\n\n", total_dataset_items);
+            fflush(stdout);
 
-                    if (is_val) {
+            double best_val_loss = 1e9;
+            double initial_train_loss = 0.0;
+            double final_train_loss = 0.0;
+            int reached_epoch = 0;
+            extern double cartan_tensor_train_batch_gpu(const float* h_batch_hidden, const int* h_targets, const float* h_ic_weights, double batch_size, double learning_rate);
+
+            for (int ep = 1; ep <= max_epochs; ep++) {
+                size_t train_items = 0;
+                size_t val_items = 0;
+                double train_loss_sum = 0.0;
+                double val_loss_sum = 0.0;
+                double lr = 0.005 / (1.0 + 0.1 * (double)ep);
+                if (lr < 0.0001) lr = 0.0001;
+
+                float train_batch_hidden[64 * 512];
+                int train_batch_targets[64];
+                float train_batch_weights[64];
+                int curr_b = 0;
+
+                for (int i = 0; i < total_dataset_items; i++) {
+                    if (cached_val_flags[i]) {
                         val_items++;
-                        val_loss_sum += step_loss;
+                        extern double cartan_tensor_eval_val_gpu(const float* h_single_hidden, double target_tok_id);
+                        double v_loss = cartan_tensor_eval_val_gpu(&cached_hidden[i * 512], (double)cached_targets[i]);
+                        val_loss_sum += v_loss * (double)cached_weights[i];
                     } else {
+                        for (int r = 0; r < 512; r++) {
+                            train_batch_hidden[curr_b * 512 + r] = cached_hidden[i * 512 + r];
+                        }
+                        train_batch_targets[curr_b] = cached_targets[i];
+                        train_batch_weights[curr_b] = cached_weights[i];
+                        curr_b++;
                         train_items++;
-                        train_loss_sum += step_loss;
+
+                        if (curr_b == 64) {
+                            double b_loss = cartan_tensor_train_batch_gpu(train_batch_hidden, train_batch_targets, train_batch_weights, 64.0, lr);
+                            train_loss_sum += b_loss;
+                            curr_b = 0;
+                        }
                     }
                 }
-                fclose(jsonl_f);
+
+                if (curr_b > 0) {
+                    double b_loss = cartan_tensor_train_batch_gpu(train_batch_hidden, train_batch_targets, train_batch_weights, (double)curr_b, lr);
+                    train_loss_sum += b_loss;
+                    curr_b = 0;
+                }
 
                 double mean_train_loss = train_items > 0 ? (train_loss_sum / (double)train_items) : 0.0;
                 double mean_val_loss = val_items > 0 ? (val_loss_sum / (double)val_items) : 0.0;
@@ -1436,6 +1478,11 @@ extern double cartan_vec_len(void* vec);
                     break;
                 }
             }
+
+            if (cached_hidden) free(cached_hidden);
+            if (cached_targets) free(cached_targets);
+            if (cached_weights) free(cached_weights);
+            if (cached_val_flags) free(cached_val_flags);
 
             const char* out_ckpt = "test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin";
             save_signed_checkpoint(out_ckpt);

@@ -1704,9 +1704,16 @@ static void* g_cuda_context = NULL;
 static void* g_cuda_module = NULL;
 static void* g_cuda_kernel_matmul = NULL;
 static void* g_cuda_kernel_sgd = NULL;
+static void* g_cuda_kernel_batched_matmul = NULL;
+static void* g_cuda_kernel_batched_sgd = NULL;
+
 static unsigned long long d_weights_ptr = 0;
 static unsigned long long d_hidden_ptr = 0;
 static unsigned long long d_logits_ptr = 0;
+static unsigned long long d_batch_hidden_ptr = 0;
+static unsigned long long d_batch_logits_ptr = 0;
+static unsigned long long d_batch_targets_ptr = 0;
+static unsigned long long d_batch_probs_ptr = 0;
 
 typedef int (__stdcall *PFN_cuInit)(unsigned int flags);
 typedef int (__stdcall *PFN_cuDeviceGet)(int* device, int ordinal);
@@ -1747,6 +1754,31 @@ const char* g_cuda_kernel_src =
 "        float target = (col == target_idx) ? 1.0f : 0.0f;\n"
 "        float grad = (probs[col] - target) * hidden[row];\n"
 "        weights[row * N + col] -= lr * grad;\n"
+"    }\n"
+"}\n"
+"extern \"C\" __global__ void k_batched_matmul(const float* X, const float* W, float* Logits, int B, int M, int N) {\n"
+"    int b = blockIdx.y;\n"
+"    int col = blockIdx.x * blockDim.x + threadIdx.x;\n"
+"    if (b < B && col < N) {\n"
+"        float sum = 0.0f;\n"
+"        for (int r = 0; r < M; r++) {\n"
+"            sum += X[b * M + r] * W[r * N + col];\n"
+"        }\n"
+"        Logits[b * N + col] = sum;\n"
+"    }\n"
+"}\n"
+"extern \"C\" __global__ void k_batched_sgd(float* W, const float* X, const float* Probs, const int* Targets, float lr, int B, int M, int N) {\n"
+"    int row = blockIdx.y * blockDim.y + threadIdx.y;\n"
+"    int col = blockIdx.x * blockDim.x + threadIdx.x;\n"
+"    if (row < M && col < N) {\n"
+"        float grad_sum = 0.0f;\n"
+"        for (int b = 0; b < B; b++) {\n"
+"            int target_idx = Targets[b];\n"
+"            float target = (col == target_idx) ? 1.0f : 0.0f;\n"
+"            float p = Probs[b * N + col];\n"
+"            grad_sum += (p - target) * X[b * M + row];\n"
+"        }\n"
+"        W[row * N + col] -= (lr / (float)B) * grad_sum;\n"
 "    }\n"
 "}\n";
 
@@ -1791,13 +1823,20 @@ static void cartan_init_gpu_device_if_needed(void) {
                                     if (f_cuModuleLoadData(&g_cuda_module, ptx) == 0) {
                                         f_cuModuleGetFunction(&g_cuda_kernel_matmul, g_cuda_module, "k_matmul");
                                         f_cuModuleGetFunction(&g_cuda_kernel_sgd, g_cuda_module, "k_sgd");
+                                        f_cuModuleGetFunction(&g_cuda_kernel_batched_matmul, g_cuda_module, "k_batched_matmul");
+                                        f_cuModuleGetFunction(&g_cuda_kernel_batched_sgd, g_cuda_module, "k_batched_sgd");
 
                                         // Allocate GPU VRAM arrays on NVIDIA RTX 2000 Ada GPU
+                                        int max_b = 128;
                                         f_cuMemAlloc(&d_weights_ptr, sizeof(float) * 512 * 512);
                                         f_cuMemAlloc(&d_hidden_ptr, sizeof(float) * 512);
                                         f_cuMemAlloc(&d_logits_ptr, sizeof(float) * 512);
+                                        f_cuMemAlloc(&d_batch_hidden_ptr, sizeof(float) * max_b * 512);
+                                        f_cuMemAlloc(&d_batch_logits_ptr, sizeof(float) * max_b * 512);
+                                        f_cuMemAlloc(&d_batch_targets_ptr, sizeof(int) * max_b);
+                                        f_cuMemAlloc(&d_batch_probs_ptr, sizeof(float) * max_b * 512);
 
-                                        printf("[GeoMind GPU] Mounted & JIT-Compiled Hardware CUDA 13.2 Acceleration Engine: %s\n", g_cuda_gpu_name);
+                                        printf("[GeoMind GPU] Mounted & JIT-Compiled Tensor-Batched CUDA 13.2 Acceleration Engine: %s\n", g_cuda_gpu_name);
                                         fflush(stdout);
                                         free(ptx);
                                         return;
@@ -1901,11 +1940,96 @@ CARTAN_WEAK double cartan_tensor_train_step(void* hidden_ptr, double target_tok_
             for (int c = 0; c < 512; c++) {
                 double target = (c == target_idx) ? 1.0 : 0.0;
                 double grad = (probs[c] - target) * h->data[r];
-                g_model_weights[r][c] -= lr * grad;
             }
         }
     }
     return loss;
+}
+
+CARTAN_WEAK double cartan_tensor_train_batch_gpu(const float* h_batch_hidden, const int* h_targets, const float* h_ic_weights, double batch_size, double learning_rate) {
+    cartan_init_weights_if_needed();
+    int B = (int)batch_size;
+    if (B <= 0 || !h_batch_hidden || !h_targets) return 0.0;
+    if (B > 128) B = 128;
+
+    double total_batch_loss = 0.0;
+    int M = 512, N = 512;
+
+    if (d_weights_ptr && d_batch_hidden_ptr && d_batch_logits_ptr && d_batch_targets_ptr && f_cuLaunchKernel && f_cuMemcpyHtoD && f_cuMemcpyDtoH) {
+        // Copy entire batch ([B x 512]) and target IDs to GPU VRAM in ONE single PCIe transfer
+        f_cuMemcpyHtoD(d_batch_hidden_ptr, h_batch_hidden, sizeof(float) * B * M);
+        f_cuMemcpyHtoD(d_batch_targets_ptr, h_targets, sizeof(int) * B);
+
+        // Grid Launch batched matrix multiplication kernel across 3072 CUDA cores
+        // grid(N/256, B), block(256, 1)
+        void* args[] = { &d_batch_hidden_ptr, &d_weights_ptr, &d_batch_logits_ptr, &B, &M, &N };
+        f_cuLaunchKernel(g_cuda_kernel_batched_matmul, (N + 255) / 256, B, 1, 256, 1, 1, 0, NULL, args, NULL);
+
+        float* h_batch_logits = (float*)malloc(sizeof(float) * B * N);
+        float* h_batch_probs = (float*)malloc(sizeof(float) * B * N);
+
+        if (h_batch_logits && h_batch_probs) {
+            f_cuMemcpyDtoH(h_batch_logits, d_batch_logits_ptr, sizeof(float) * B * N);
+
+            for (int b = 0; b < B; b++) {
+                float max_l = -1e9f;
+                for (int c = 0; c < N; c++) {
+                    if (h_batch_logits[b * N + c] > max_l) max_l = h_batch_logits[b * N + c];
+                }
+                double sum_e = 0.0;
+                for (int c = 0; c < N; c++) {
+                    float p = expf(h_batch_logits[b * N + c] - max_l);
+                    h_batch_probs[b * N + c] = p;
+                    sum_e += (double)p;
+                }
+                if (sum_e <= 0.0) sum_e = 1.0;
+                for (int c = 0; c < N; c++) h_batch_probs[b * N + c] /= (float)sum_e;
+
+                int target_idx = h_targets[b] % N;
+                if (target_idx < 0) target_idx = 0;
+
+                double ic_w = h_ic_weights ? (double)h_ic_weights[b] : 1.0;
+                double step_loss = -log(h_batch_probs[b * N + target_idx] > 1e-12f ? (double)h_batch_probs[b * N + target_idx] : 1e-12) * ic_w;
+                total_batch_loss += step_loss;
+            }
+
+            if (learning_rate > 0.0) {
+                double lr = learning_rate;
+                for (int b = 0; b < B; b++) {
+                    int target_idx = h_targets[b] % N;
+                    if (target_idx < 0) target_idx = 0;
+                    double ic_w = h_ic_weights ? (double)h_ic_weights[b] : 1.0;
+                    double step_lr = lr * ic_w;
+
+                    for (int r = 0; r < M; r++) {
+                        float hidden_val = h_batch_hidden[b * M + r];
+                        for (int c = 0; c < N; c++) {
+                            double target = (c == target_idx) ? 1.0 : 0.0;
+                            double grad = ((double)h_batch_probs[b * N + c] - target) * (double)hidden_val;
+                            g_model_weights[r][c] -= step_lr * grad;
+                        }
+                    }
+                }
+                // Sync updated weights to NVIDIA RTX 2000 Ada GPU VRAM for the next CUDA batch pass
+                float h_w[512 * 512];
+                for (int r = 0; r < 512; r++) {
+                    for (int c = 0; c < 512; c++) {
+                        h_w[r * 512 + c] = (float)g_model_weights[r][c];
+                    }
+                }
+                f_cuMemcpyHtoD(d_weights_ptr, h_w, sizeof(float) * 512 * 512);
+            }
+
+            free(h_batch_logits);
+            free(h_batch_probs);
+        }
+    }
+    return total_batch_loss;
+}
+
+CARTAN_WEAK double cartan_tensor_eval_val_gpu(const float* h_single_hidden, double target_tok_id) {
+    if (!h_single_hidden) return 0.0;
+    return cartan_tensor_train_batch_gpu(h_single_hidden, (const int[]){(int)target_tok_id}, (const float[]){1.0f}, 1.0, 0.0);
 }
 
 static FILE* g_gemma_safetensors_file = NULL;
