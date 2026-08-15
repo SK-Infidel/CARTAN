@@ -130,7 +130,8 @@ def harvest_hyland_metadiscourse():
                             text_val = " ".join(text_val)
                         break
 
-            text_str = str(text_val).strip()
+            text_str = re.sub(r'[\r\n\t]+', ' ', str(text_val)).strip()
+            text_str = re.sub(r'\s+', ' ', text_str)
             if len(text_str) < 15:
                 continue
 
@@ -138,7 +139,9 @@ def harvest_hyland_metadiscourse():
                 for pat in pattern_list:
                     matches = re.findall(pat, text_str)
                     for m in matches:
-                        clean_m = m.lower().strip() if isinstance(m, str) else m[0].lower().strip()
+                        raw_m = m if isinstance(m, str) else m[0]
+                        clean_m = re.sub(r'[\r\n\t]+', ' ', raw_m).lower().strip()
+                        clean_m = re.sub(r'\s+', ' ', clean_m)
                         if len(clean_m) <= 2 or clean_m in seen_phrases:
                             continue
                         seen_phrases.add(clean_m)

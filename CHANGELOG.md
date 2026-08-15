@@ -1,3 +1,10 @@
+## [8.169.0] - 2026-08-15 (Sprint 212)
+
+### Fixed & Implemented
+- **Whitespace & Newline Sanitization Engine**:
+  - Enhanced [`tools/harvest_domain_ngrams.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/harvest_domain_ngrams.py) to strip all newline characters (`\n`, `\r`, `\t`) and collapse extra spaces from input text and extracted Metadiscourse Attractor strings.
+  - Sanitized all items in [`scratch/mined_expanded_corpus_cloze.jsonl`](file:///C:/Users/rich-/source/repos/CARTAN/scratch/mined_expanded_corpus_cloze.jsonl) into single-line clean phrase entries.
+
 ## [8.168.0] - 2026-08-15 (Sprint 211)
 
 ### Fixed & Implemented
