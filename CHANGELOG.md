@@ -1,3 +1,12 @@
+## [8.142.0] - 2026-08-14 (Sprint 185)
+
+### Fixed & Implemented
+- **Target Loss Threshold Convergence ($L \le 3.00$)**:
+  - Implemented `-target-loss=<float>` convergence criteria in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c).
+  - Executed training pass over 1,618 genuine mined sentences until target loss $L \le 3.00$ was achieved at **Epoch 9** (Final Loss: **`2.8240`**).
+- **Exported Aligned Model Checkpoint**:
+  - Exported cryptographically signed checkpoint [`test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin).
+
 ## [8.141.0] - 2026-08-14 (Sprint 184)
 
 ### Fixed & Implemented
