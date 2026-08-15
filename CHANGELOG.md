@@ -1,3 +1,13 @@
+## [8.138.0] - 2026-08-14 (Sprint 181)
+
+### Fixed & Implemented
+- **Public Domain Text Corpus Downloader**:
+  - Built [`tools/download_public_corpus.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/download_public_corpus.py) fetching 6+ MB of public domain classic literature and dialogue corpora (*Pride and Prejudice*, *Sherlock Holmes*, *Dracula*, *Frankenstein*, *Moby Dick*, *Great Expectations*, *Tom Sawyer*, *Huckleberry Finn*, *Alice in Wonderland*, *Anthem*) into `scratch/public_corpus/`.
+- **True Regex Phrase Mining Engine**:
+  - Built [`tools/mine_real_corpus.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/mine_real_corpus.py) executing regex phrase extraction (`re.split` + `re.search`) over raw corpus files, mining 1,606 authentic, un-templated human sentences into `scratch/mined_real_corpus_cloze.jsonl`.
+- **Real Corpus Training Pipeline**:
+  - Executed `--train-cloze` in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c) over all 1,606 real mined human prose and dialogue sentences.
+
 ## [8.137.0] - 2026-08-14 (Sprint 180)
 
 ### Fixed & Implemented
