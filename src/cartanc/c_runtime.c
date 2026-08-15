@@ -1826,17 +1826,38 @@ CARTAN_WEAK void* cartan_tensor_compute_hidden_state_from_tokens(void* tokens_pt
 
     float* acc = (float*)calloc(embed_dim, sizeof(float));
     float* row = (float*)malloc(embed_dim * sizeof(float));
+    double total_weight = 0.0;
 
     if (acc && row) {
         for (size_t t = 0; t < num_toks; t++) {
             size_t tok_id = (size_t)toks->data[t];
             cartan_get_gemma_embed_row(tok_id, row, embed_dim);
-            for (size_t i = 0; i < embed_dim; i++) {
-                acc[i] += row[i];
+            
+            // Causal exponential decay weight (recent tokens receive higher activation weight)
+            double pos_weight = exp(-0.15 * (double)(num_toks - 1 - t));
+            total_weight += pos_weight;
+
+            // Rotary Positional Encoding (RoPE) frequency rotation per token index t
+            for (size_t i = 0; i < embed_dim; i += 2) {
+                double freq = (double)t / pow(10000.0, (double)i / (double)embed_dim);
+                double cos_f = cos(freq);
+                double sin_f = sin(freq);
+
+                double v0 = (double)row[i];
+                double v1 = (i + 1 < embed_dim) ? (double)row[i + 1] : 0.0;
+
+                double r0 = v0 * cos_f - v1 * sin_f;
+                double r1 = v0 * sin_f + v1 * cos_f;
+
+                acc[i] += (float)(r0 * pos_weight);
+                if (i + 1 < embed_dim) {
+                    acc[i + 1] += (float)(r1 * pos_weight);
+                }
             }
         }
+        if (total_weight <= 0.0) total_weight = 1.0;
         for (size_t i = 0; i < embed_dim; i++) {
-            cartan_vec_push_f32(h, acc[i] / (float)num_toks);
+            cartan_vec_push_f32(h, (double)(acc[i] / (float)total_weight));
         }
         free(acc);
         free(row);
@@ -2082,7 +2103,16 @@ CARTAN_WEAK double c_cartan_print_token(double token_id) {
     cartan_init_gemma_vocab_if_needed();
     size_t id = (size_t)token_id;
     if (id < CARTAN_MAX_VOCAB_SIZE && g_vocab_table[id] != NULL) {
-        fputs(g_vocab_table[id], stdout);
+        const char* str = g_vocab_table[id];
+        if (str[0] == ' ') {
+            fputc(' ', stdout);
+            fputs(str + 1, stdout);
+        } else if ((unsigned char)str[0] == 0xe2 && (unsigned char)str[1] == 0x96 && (unsigned char)str[2] == 0x81) {
+            fputc(' ', stdout);
+            fputs(str + 3, stdout);
+        } else {
+            fputs(str, stdout);
+        }
     } else {
         fputs(" .", stdout);
     }
