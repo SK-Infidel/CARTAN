@@ -1,3 +1,12 @@
+## [8.148.0] - 2026-08-14 (Sprint 191)
+
+### Fixed & Implemented
+- **Information-Weighted Loss Training Run ($L_{\text{val}} = 11.7321$)**:
+  - Completed 50-epoch training run over the 3,258 movie script & literature dataset.
+  - Achieved steady validation loss reduction from $13.9914 \rightarrow 11.7321$ without overfitting.
+- **Signed Checkpoint Export**:
+  - Exported cryptographically signed checkpoint to [`test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin).
+
 ## [8.147.0] - 2026-08-14 (Sprint 190)
 
 ### Fixed & Implemented
