@@ -2085,6 +2085,19 @@ CARTAN_WEAK void cartan_sync_host_weights_to_gpu(void) {
     }
 }
 
+CARTAN_WEAK void cartan_reset_baseline_weights_for_coadaptation(void) {
+    cartan_init_gpu_device_if_needed();
+    g_weights_init = 1;
+    for (int r = 0; r < 512; r++) {
+        for (int c = 0; c < 512; c++) {
+            g_model_weights[r][c] = ((double)((r * 31 + c * 17) % 100)) / 1000.0 + 0.01;
+        }
+    }
+    cartan_sync_host_weights_to_gpu();
+    printf("[GeoMind Co-Adaptation] Reset baseline weights to balanced state for multi-layer co-adaptation.\n");
+    fflush(stdout);
+}
+
 static void cartan_init_weights_if_needed(void) {
     cartan_init_gpu_device_if_needed();
     if (g_weights_init) return;

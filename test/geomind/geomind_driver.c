@@ -1380,6 +1380,11 @@ extern double cartan_vec_len(void* vec);
                 }
             }
 
+            extern void cartan_reset_baseline_weights_for_coadaptation(void);
+            if (has_arg_flag(argc, argv, "--coadapt") || has_arg_flag(argc, argv, "-coadapt") || has_arg_flag(argc, argv, "--reset-base")) {
+                cartan_reset_baseline_weights_for_coadaptation();
+            }
+
             extern void cartan_lora_init(double rank, double alpha);
             extern void cartan_lora_merge_into_base(void);
             if (has_arg_flag(argc, argv, "--lora") || has_arg_flag(argc, argv, "-lora")) {

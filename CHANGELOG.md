@@ -1,3 +1,10 @@
+## [8.162.0] - 2026-08-15 (Sprint 205)
+
+### Fixed & Implemented
+- **End-to-End Layer Co-Adaptation Engine & Baseline Weight Reset**:
+  - Implemented `cartan_reset_baseline_weights_for_coadaptation()` in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c) to reset over-fitted LM Head parameters back to a balanced baseline state.
+  - Added `--coadapt` CLI flag in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c) to enable end-to-end co-adaptation of Multi-Head Self-Attention layers ($W_Q, W_K, W_V, W_O$) and the LM Head simultaneously from baseline weights on the **NVIDIA RTX 2000 Ada Generation Laptop GPU**.
+
 ## [8.161.0] - 2026-08-15 (Sprint 204)
 
 ### Fixed & Implemented
