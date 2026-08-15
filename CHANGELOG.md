@@ -1,3 +1,11 @@
+## [8.146.0] - 2026-08-14 (Sprint 189)
+
+### Fixed & Implemented
+- **Rotary Positional Encoding (RoPE) & Causal Exponential Decay**:
+  - Implemented Rotary Positional Encoding frequency rotation ($\cos/\sin$) and exponential causal decay ($\text{weight}(t) = \exp(-0.15 \cdot (N - 1 - t))$) in `cartan_tensor_compute_hidden_state_from_tokens` in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c).
+- **SentencePiece BPE Space Prefix Detokenization**:
+  - Enhanced `c_cartan_print_token` in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c) to parse and format leading SentencePiece BPE space markers (` ` / `\xe2\x96\x81`) as clean single ASCII spaces.
+
 ## [8.145.0] - 2026-08-14 (Sprint 188)
 
 ### Fixed & Implemented
