@@ -1,3 +1,10 @@
+## [8.140.0] - 2026-08-14 (Sprint 183)
+
+### Fixed & Implemented
+- **Regex Phrase Miner Whitespace Normalization**:
+  - Updated [`tools/mine_real_corpus.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/mine_real_corpus.py) to collapse all consecutive newlines, tabs, and double spaces (`\s+`) into a single space (`' '`) across mined text files.
+  - Eliminated whitespace gaps in [`scratch/mined_real_corpus_cloze.jsonl`](file:///C:/Users/rich-/source/repos/CARTAN/scratch/mined_real_corpus_cloze.jsonl) (1,673 cleaned entries).
+
 ## [8.139.0] - 2026-08-14 (Sprint 182)
 
 ### Fixed & Implemented
