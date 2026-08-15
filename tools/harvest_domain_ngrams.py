@@ -1,10 +1,10 @@
-import collections
 import re
 import json
 import os
+import collections
 from datasets import load_dataset
 
-# 1. Explicit HF Token Initialization
+# 1. HF Token Setup
 token = None
 env_file = os.path.expanduser("~/.env")
 if os.path.exists(env_file):
@@ -31,175 +31,144 @@ if not token:
 if token:
     os.environ["HF_TOKEN"] = token
     os.environ["HUGGING_FACE_HUB_TOKEN"] = token
-    print("[Harvester Auth] HF_TOKEN active for explicit dataset authentication.")
 
-# 2. Linguistic Metadiscourse Taxonomy (Hyland & Kennett Framework)
-METADISCOURSE_PATTERNS = {
-    "single_word_transitions": [
-        "furthermore", "consequently", "critically", "conversely", "nevertheless",
-        "accordingly", "undoubtedly", "meanwhile", "admittedly", "ultimately",
-        "finally", "moreover", "nonetheless", "hence", "thus", "instead",
-        "likewise", "similarly", "indeed", "additionally", "subsequently", "inevitably"
+# 2. Research-Grade Hyland Metadiscourse Pattern Engine (from metadiscourse_analysis)
+HYLAND_PATTERNS = {
+    'self_mentions': [
+        r'\b(?:in\s+)?my\s+(?:opinion|view|perspective|belief|judgment|analysis|assessment|conclusion|argument|position|stance|understanding|experience)\b',
+        r'\b(?:I\s+)?(?:believe|argue|contend|maintain|assert|claim|suggest|propose|conclude|find|observe|note|demonstrate|show|establish|prove)\s+that\b',
+        r'\b(?:I\s+)?(?:will|shall)\s+(?:demonstrate|show|argue|analyze|examine|investigate|explore|discuss|present|propose|suggest|conclude)\b',
+        r'\bwe\s+(?:can|must|should|need\s+to|have\s+to)\s+(?:understand|recognize|acknowledge|accept|consider|examine|analyze|investigate|conclude|observe|note|realize|see|assume|presume|infer|deduce|argue|claim|suggest|propose|demonstrate|show|establish|prove|find|determine)\b',
+        r'\bwe\s+(?:find|see|observe|note|notice|discover|establish|demonstrate|show|prove|conclude|determine|realize|recognize|understand|know|believe|argue|contend|maintain|assert|claim)\s+that\b',
+        r'\bas\s+we\s+(?:have\s+)?(?:seen|observed|noted|discussed|examined|analyzed|established|demonstrated|shown|proved|found|discovered|learned|understood|argued|concluded)\b',
+        r'\b(?:our|my)\s+(?:research|study|investigation|analysis|findings|results|conclusions|observations|data|evidence)\b'
     ],
-    "multi_word_transitions": [
-        "as well as", "in addition to", "on the other hand", "as a result",
-        "in contrast to", "it follows that", "as a matter of fact", "on the contrary",
-        "in the first place", "in the mean time", "to begin with", "first of all",
-        "all in all", "in conclusion", "to summarize", "in light of", "owing to",
-        "with respect to", "in terms of", "for this reason"
+    'hedges': [
+        r'(?i)\b(?:the\s+)?(?:results?|data|evidence|findings?|research|study)\s+(?:seem|seems?|appear|appears?)\s+to\s+(?:indicate|suggest|show|demonstrate|support|imply)\b',
+        r'(?i)\b(?:this|that|it|they|these)\s+(?:might|may|could|would)\s+(?:suggest|indicate|imply|show|demonstrate|mean|signify)\b',
+        r'(?i)\bit\s+(?:appears|seems)\s+that\b',
+        r'(?i)\bperhaps\s+(?:this|that|these|the)\s+(?:finding|result|evidence|data|research|study|analysis|approach|method)\b',
+        r'(?i)\b(?:the\s+)?(?:data|evidence|results?|findings?)\s+(?:may|might|could)\s+(?:imply|suggest|indicate|mean|show)\b',
+        r'(?i)\bto\s+some\s+extent\b',
+        r'(?i)\b(?:possibly|probably|likely|presumably|apparently|seemingly)\b',
+        r'(?i)\bit\s+is\s+(?:possible|probable|likely)\s+that\b'
     ],
-    "hedges_and_boosters": [
-        "it seems likely that", "evidence suggests that", "appears to be",
-        "may indicate that", "without a doubt", "most importantly",
-        "there is no question that", "it is clear that", "undeniably",
-        "it is evident that", "it stands to reason that", "in all probability",
-        "highly probable that", "strongly suggests that", "it is vital to"
+    'boosters': [
+        r'(?i)\bit\s+is\s+clear\s+that\b',
+        r'(?i)\b(?:this|that|it|they|these|research|evidence|data|results|findings)\s+(?:certainly|definitely|clearly|obviously|undoubtedly|evidently)\s+(?:proves?|demonstrates?|shows?|indicates?|suggests?|supports?|confirms?|establishes?)\b',
+        r'(?i)^obviously\s*,\s*\b',
+        r'(?i)\b(?:the\s+)?(?:evidence|data|results|findings|research|study)\s+(?:clearly|obviously|certainly|definitely|undoubtedly|evidently)\s+(?:indicates?|shows?|demonstrates?|suggests?|supports?|proves?)\b',
+        r'(?i)\bthere\s+is\s+no\s+doubt\s+that\b',
+        r'(?i)\b(?:without\s+doubt|beyond\s+doubt|no\s+question)\b',
+        r'(?i)\b(?:absolutely|completely|entirely|totally)\s+(?:necessary|essential|crucial|certain|clear|correct|valid)\b',
+        r'(?i)\b(?:strong|compelling|convincing|solid|robust)\s+(?:evidence|support|indication|correlation|case|argument)\b'
     ],
-    "code_glosses": [
-        "that is to say", "in simple terms", "to put it another way",
-        "namely", "specifically", "in other words", "for instance",
-        "for example", "such as", "specifically speaking", "to illustrate",
-        "put simply", "defined as", "means that"
+    'frame_markers': [
+        r'^\s*(?:first|firstly|second|secondly|third|thirdly|fourth|fourthly|fifth|fifthly|finally|lastly|in\s+conclusion|to\s+conclude|to\s+summarize|in\s+summary|overall|all\s+in\s+all|in\s+short|briefly)\b',
+        r'\bthe\s+(?:first|second|third|fourth|fifth|final|last|next|previous|above|following)\s+(?:section|chapter|part|point|issue|aspect|factor|element|component|argument|example|case|study|analysis)\b',
+        r'\bin\s+(?:this|the\s+following|the\s+next|the\s+final|the\s+last|the\s+above|the\s+previous)\s+(?:section|chapter|part|paper|study|analysis|discussion|essay|article|work|research)\b',
+        r'\bas\s+(?:mentioned|noted|discussed|shown|demonstrated|illustrated|indicated|stated)\s+(?:above|below|earlier|previously|before)\b',
+        r'\b(?:moving|turning|shifting)\s+(?:to|on\s+to)\s+(?:the|our|my)\s+(?:next|final|last)\b',
+        r'\b(?:in\s+sum|to\s+sum\s+up|summing\s+up|in\s+summary|to\s+summarize|in\s+conclusion|to\s+conclude|overall|all\s+things\s+considered|on\s+the\s+whole)\b',
+        r'\b(?:the\s+purpose\s+of|the\s+aim\s+of|the\s+goal\s+of)\s+(?:this|the)\s+(?:paper|study|research|analysis|discussion|essay|work)\b'
     ],
-    "discourse_frames": [
-        "by the way", "mind you", "you see", "frankly speaking",
-        "to be honest", "at the end of the day", "look at it this way",
-        "believe it or not", "truth be told", "speaking of which",
-        "as far as", "it goes without saying"
+    'code_glosses': [
+        r'\b(?:that\s+is\s+to\s+say|namely|specifically|in\s+other\s+words|in\s+particular)\b',
+        r'(?i)\b(?:for\s+example|for\s+instance)\b',
+        r'\b(?:such\s+as)\b',
+        r'\bincluding\b',
+        r'\bthat\s+is\b'
+    ],
+    'transitions': [
+        r'\b(?:furthermore|consequently|critically|conversely|nevertheless|accordingly|undoubtedly|meanwhile|admittedly|ultimately|finally|moreover|nonetheless|hence|thus|instead|likewise|similarly|indeed|additionally|subsequently|inevitably)\b',
+        r'\b(?:as\s+well\s+as|in\s+addition\s+to|on\s+the\s+other\s+hand|as\s+a\s+result|in\s+contrast\s+to|it\s+follows\s+that|as\s+a\s+matter\s+of\s+fact|on\s+the\s+contrary|in\s+the\s+first\s+place|in\s+the\s+mean\s+time|to\s+begin\s+with|first\s+of\s+all|all\s+in\s+all|in\s+conclusion|to\s+summarize|in\s+light\s+of|owing\s+to|with\s+respect\s+to|in\s+terms\s+of|for\s+this\s+reason)\b'
     ]
 }
 
-# Flatten all reference patterns for instant lookup
-ALL_METADISCOURSE_PHRASES = set()
-for cat, phrases in METADISCOURSE_PATTERNS.items():
-    for p in phrases:
-        ALL_METADISCOURSE_PHRASES.add(p.lower())
+def harvest_hyland_metadiscourse():
+    """Extracts research-grade Hyland metadiscourse attractors across public corpora."""
+    print("================================================================================")
+    print("  RESEARCH-GRADE HYLAND METADISCOURSE HARVESTER ENGINE")
+    print("================================================================================")
 
-def clean_and_split_sentences(text):
-    """Splits text into clean lowercase sentences."""
-    if not text:
-        return []
-    # Clean formatting
-    text = text.lower().replace("\n", " ").strip()
-    sentences = re.split(r'[.!?]+', text)
-    return [s.strip() for s in sentences if len(s.strip()) > 5]
-
-def extract_metadiscourse_from_corpus(dataset_name, config=None, text_field="text", sample_size=4000):
-    """Streams a dataset and harvests genuine Metadiscourse Attractors and Transitions."""
-    print(f"[Harvester] Streaming {dataset_name} ({config or 'default'}) for Metadiscourse Attractors...")
-    
-    try:
-        kwargs = {"split": "train", "streaming": True}
-        if token:
-            kwargs["token"] = token
-        if config:
-            dataset = load_dataset(dataset_name, config, **kwargs)
-        else:
-            dataset = load_dataset(dataset_name, **kwargs)
-    except Exception as e:
-        print(f"[Harvester Warning] Could not stream {dataset_name}: {e}")
-        return collections.Counter()
-
-    found_counter = collections.Counter()
-    
-    for i, example in enumerate(dataset):
-        if i >= sample_size:
-            break
-            
-        text_content = example.get(text_field, "")
-        if not text_content and isinstance(example, dict):
-            for k in ["abstract", "text", "dialog", "dialogue", "content"]:
-                if k in example and example[k]:
-                    text_content = example[k]
-                    if isinstance(text_content, list):
-                        text_content = " ".join(text_content)
-                    break
-        
-        sentences = clean_and_split_sentences(str(text_content))
-        for sent in sentences:
-            # 1. Match pre-defined metadiscourse patterns
-            for target_p in ALL_METADISCOURSE_PHRASES:
-                if target_p in sent:
-                    found_counter[target_p] += 1
-            
-            # 2. Extract syntactic sentence-initial transition adverbs ([Adverb] ,)
-            words = sent.split()
-            if len(words) > 3 and words[0].isalpha() and len(words[0]) > 4:
-                first_word = words[0]
-                if first_word.endswith("ly") or first_word.endswith("wise") or first_word.endswith("more"):
-                    found_counter[first_word] += 1
-
-    return found_counter
-
-def build_metadiscourse_dataset():
-    """Harvests thousands of genuine Metadiscourse & Discourse Attractors across datasets."""
     domains = [
-        # Conversational
         {"name": "OpenAssistant/oasst1", "config": None, "field": "text", "type": "conversational"},
-        # Narrative & Prose
         {"name": "roneneldan/TinyStories", "config": None, "field": "text", "type": "narrative"},
-        # Structural & Logic
         {"name": "Salesforce/wikitext", "config": "wikitext-103-raw-v1", "field": "text", "type": "structural"},
-        # Science & Math
         {"name": "gfissore/arxiv-abstracts-2021", "config": None, "field": "abstract", "type": "scientific"}
     ]
-    
-    all_harvested_phrases = []
+
+    harvested_items = []
     seen_phrases = set()
-    
-    # First seed all taxonomy phrases into the dataset so they are 100% present
-    for category_name, phrase_list in METADISCOURSE_PATTERNS.items():
-        for phrase in phrase_list:
-            if phrase not in seen_phrases:
-                seen_phrases.add(phrase)
-                all_harvested_phrases.append({
-                    "phrase": phrase,
-                    "category": category_name,
-                    "domain": "taxonomy_core",
-                    "word_count": len(phrase.split()),
-                    "cloze_prompt": f"Discourse frame: [BLANK] -> {phrase}",
-                    "target_phrase": phrase
-                })
+    category_counts = collections.Counter()
 
-    print(f"[Harvester] Seeded {len(all_harvested_phrases)} core Metadiscourse taxonomy attractors.")
-
-    # Second stream real datasets to discover thousands of active occurrences
     for dom in domains:
-        counter = extract_metadiscourse_from_corpus(
-            dataset_name=dom["name"],
-            config=dom["config"],
-            text_field=dom["field"],
-            sample_size=4000
-        )
-        
-        top_items = counter.most_common(1500)
-        added_count = 0
-        
-        for phrase, freq in top_items:
-            if phrase not in seen_phrases:
-                seen_phrases.add(phrase)
-                all_harvested_phrases.append({
-                    "phrase": phrase,
-                    "frequency": freq,
-                    "domain": dom["type"],
-                    "word_count": len(phrase.split()),
-                    "cloze_prompt": f"Discourse frame: [BLANK] -> {phrase}",
-                    "target_phrase": phrase
-                })
-                added_count += 1
-        print(f"[Harvester] Added {added_count} discovered discourse attractors from dataset '{dom['name']}' ({dom['type']})")
-            
+        print(f"\n[Harvester Stream] Extracting Hyland Metadiscourse from '{dom['name']}' ({dom['type']})...")
+        try:
+            kwargs = {"split": "train", "streaming": True}
+            if token:
+                kwargs["token"] = token
+            if dom["config"]:
+                ds = load_dataset(dom["name"], dom["config"], **kwargs)
+            else:
+                ds = load_dataset(dom["name"], **kwargs)
+        except Exception as e:
+            print(f"[Harvester Warning] Could not stream {dom['name']}: {e}")
+            continue
+
+        dataset_count = 0
+        for i, example in enumerate(ds):
+            if i >= 4000:
+                break
+                
+            text_val = example.get(dom["field"], "")
+            if not text_val and isinstance(example, dict):
+                for k in ["abstract", "text", "dialog", "dialogue", "content"]:
+                    if k in example and example[k]:
+                        text_val = example[k]
+                        if isinstance(text_val, list):
+                            text_val = " ".join(text_val)
+                        break
+
+            text_str = str(text_val).strip()
+            if len(text_str) < 15:
+                continue
+
+            for cat_name, pattern_list in HYLAND_PATTERNS.items():
+                for pat in pattern_list:
+                    matches = re.findall(pat, text_str)
+                    for m in matches:
+                        clean_m = m.lower().strip() if isinstance(m, str) else m[0].lower().strip()
+                        if len(clean_m) <= 2 or clean_m in seen_phrases:
+                            continue
+                        seen_phrases.add(clean_m)
+                        category_counts[cat_name] += 1
+                        dataset_count += 1
+                        harvested_items.append({
+                            "phrase": clean_m,
+                            "category": cat_name,
+                            "domain": dom["type"],
+                            "word_count": len(clean_m.split()),
+                            "cloze_prompt": f"Metadiscourse [{cat_name}]: [BLANK] -> {clean_m}",
+                            "target_phrase": clean_m
+                        })
+
+        print(f"[Harvester Stream] Harvested {dataset_count} unique metadiscourse attractors from {dom['name']}")
+
     os.makedirs("scratch", exist_ok=True)
     out_file = "scratch/mined_expanded_corpus_cloze.jsonl"
     with open(out_file, "w", encoding="utf-8") as f:
-        for item in all_harvested_phrases:
+        for item in harvested_items:
             f.write(json.dumps(item) + "\n")
-            
-    print(f"\n================================================================================")
-    print(f"  METADISCOURSE ATTRACTOR HARVEST COMPLETE")
-    print(f"  Total Unique Discourse Attractors Mined: {len(all_harvested_phrases)}")
-    print(f"  Output File: {out_file}")
-    print(f"================================================================================\n")
+
+    print("\n================================================================================")
+    print("  HYLAND METADISCOURSE HARVEST SUMMARY")
+    print("================================================================================")
+    print(f"  Total Metadiscourse Attractors Mined : {len(harvested_items)}")
+    for cat, cnt in category_counts.most_common():
+        print(f"    - Category '{cat}': {cnt} unique attractors")
+    print(f"  Output File                          : {out_file}")
+    print("================================================================================\n")
 
 if __name__ == "__main__":
-    build_metadiscourse_dataset()
+    harvest_hyland_metadiscourse()

@@ -1,3 +1,10 @@
+## [8.168.0] - 2026-08-15 (Sprint 211)
+
+### Fixed & Implemented
+- **Standalone Research-Grade Hyland Metadiscourse Regex Engine**:
+  - Integrated full research-grade Hyland regex pattern suite from [`scratch/metadiscourse_analysis`](file:///C:/Users/rich-/source/repos/CARTAN/scratch/metadiscourse_analysis) into [`tools/harvest_domain_ngrams.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/harvest_domain_ngrams.py) without external dependencies.
+  - Successfully harvested **260 unique high-salience Metadiscourse Attractors** across `self_mentions` (106), `transitions` (52), `frame_markers` (47), `hedges` (25), `code_glosses` (15), and `boosters` (15) into [`scratch/mined_expanded_corpus_cloze.jsonl`](file:///C:/Users/rich-/source/repos/CARTAN/scratch/mined_expanded_corpus_cloze.jsonl).
+
 ## [8.167.0] - 2026-08-15 (Sprint 210)
 
 ### Fixed & Implemented
