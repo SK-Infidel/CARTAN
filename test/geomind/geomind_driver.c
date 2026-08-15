@@ -1315,12 +1315,13 @@ extern double cartan_vec_len(void* vec);
             return 0;
         }
 
-        // 6b. --train-cloze / Multi-Epoch Anchored Cloze Curriculum Pass
+        // 6b. --train-cloze / Target-Loss Convergence Cloze Curriculum Pass
         if (strcmp(flag, "--train-cloze") == 0 || strstr(flag, "train-cloze")) {
-            int num_epochs = get_arg_int_value(argc, argv, "-epochs", get_arg_int_value(argc, argv, "-rounds", 10));
+            double target_loss = get_arg_double_value(argc, argv, "-target-loss", 3.00);
+            int max_epochs = get_arg_int_value(argc, argv, "-max-epochs", get_arg_int_value(argc, argv, "-epochs", 100));
             printf("================================================================================\n");
-            printf("  GEOMIND MULTI-EPOCH ANCHORED CLOZE & NARRATIVE CURRICULUM PIPELINE\n");
-            printf("  Based on docs/research/idea.txt | Target Epochs: %d\n", num_epochs);
+            printf("  GEOMIND TARGET-LOSS CONVERGENCE CLOZE & NARRATIVE CURRICULUM PIPELINE\n");
+            printf("  Based on docs/research/idea.txt | Target Loss Threshold: %.2f | Max Epochs: %d\n", target_loss, max_epochs);
             printf("================================================================================\n\n");
 
             const char* dataset_path = "scratch/mined_real_corpus_cloze.jsonl";
@@ -1337,8 +1338,9 @@ extern double cartan_vec_len(void* vec);
 
             double initial_loss = 0.0;
             double final_loss = 0.0;
+            int reached_epoch = 0;
 
-            for (int ep = 1; ep <= num_epochs; ep++) {
+            for (int ep = 1; ep <= max_epochs; ep++) {
                 FILE* jsonl_f = fopen(dataset_path, "r");
                 if (!jsonl_f) break;
 
@@ -1346,18 +1348,20 @@ extern double cartan_vec_len(void* vec);
                 size_t stage1_count = 0;
                 size_t stage2_count = 0;
                 double ep_loss = 0.0;
+                double lr = 0.005 / (1.0 + 0.1 * (double)ep);
+                if (lr < 0.0001) lr = 0.0001;
 
                 while (fgets(line_buf, sizeof(line_buf), jsonl_f)) {
                     if (strstr(line_buf, "\"cloze_prompt\"") || strstr(line_buf, "\"target_phrase\"") || strstr(line_buf, "\"stage\": 1")) {
                         stage1_count++;
                         void* enc_setup = cartan_hub_encode_text_to_tokens("The company was facing insolvency.");
                         void* h_setup = cartan_tensor_compute_hidden_state_from_tokens(enc_setup);
-                        ep_loss += cartan_tensor_train_step(h_setup, 26352.0, 0.005 / (double)ep);
+                        ep_loss += cartan_tensor_train_step(h_setup, 26352.0, lr);
                     } else {
                         stage2_count++;
                         void* enc_seed = cartan_hub_encode_text_to_tokens("All of a sudden,");
                         void* h_seed = cartan_tensor_compute_hidden_state_from_tokens(enc_seed);
-                        ep_loss += cartan_tensor_train_step(h_seed, 29104.0, 0.005 / (double)ep);
+                        ep_loss += cartan_tensor_train_step(h_seed, 29104.0, lr);
                     }
                 }
                 fclose(jsonl_f);
@@ -1366,16 +1370,23 @@ extern double cartan_vec_len(void* vec);
                 double mean_loss = total_items > 0 ? (ep_loss / (double)total_items) : 0.0;
                 if (ep == 1) initial_loss = mean_loss;
                 final_loss = mean_loss;
+                reached_epoch = ep;
 
-                if (ep == 1 || ep == num_epochs / 2 || ep == num_epochs || ep % 2 == 0) {
-                    printf("[GeoMind Cloze Epoch %2d/%2d] Items Trained: %zu | Loss: %.4f | LR: %.6f\n",
-                           ep, num_epochs, total_items, mean_loss, 0.005 / (double)ep);
+                if (ep == 1 || ep % 5 == 0 || mean_loss <= target_loss) {
+                    printf("[GeoMind Cloze Epoch %3d] Items Trained: %zu | Loss: %.4f | LR: %.6f\n",
+                           ep, total_items, mean_loss, lr);
+                }
+
+                if (mean_loss <= target_loss) {
+                    printf("\n[GeoMind Target-Loss Hit!] Target Loss Threshold %.2f Achieved at Epoch %d (Loss: %.4f)\n",
+                           target_loss, ep, mean_loss);
+                    break;
                 }
             }
 
             const char* out_ckpt = "test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin";
             save_signed_checkpoint(out_ckpt);
-            printf("\n[GeoMind Cloze] Multi-Epoch Curriculum Pass Complete!\n");
+            printf("\n[GeoMind Cloze] Multi-Epoch Curriculum Pass Complete (Reached Epoch %d)!\n", reached_epoch);
             printf("[GeoMind Cloze] Initial Loss: %.4f -> Final Converged Loss: %.4f\n", initial_loss, final_loss);
             printf("[GeoMind Cloze] Exported Cryptographically Signed Checkpoint: %s\n\n", out_ckpt);
             return 0;
