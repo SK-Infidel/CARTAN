@@ -32,67 +32,50 @@ if token:
     os.environ["HF_TOKEN"] = token
     os.environ["HUGGING_FACE_HUB_TOKEN"] = token
 
-# 2. Expanded Syntactic Hyland Metadiscourse Pattern Engine (Research-Grade + POS Harvester)
-HYLAND_PATTERNS = {
-    'self_mentions': [
-        r'\b(?:in\s+)?my\s+(?:opinion|view|perspective|belief|judgment|analysis|assessment|conclusion|argument|position|stance|understanding|experience)\b',
-        r'\b(?:I\s+)?(?:believe|argue|contend|maintain|assert|claim|suggest|propose|conclude|find|observe|note|demonstrate|show|establish|prove)\s+that\b',
-        r'\b(?:I\s+)?(?:will|shall)\s+(?:demonstrate|show|argue|analyze|examine|investigate|explore|discuss|present|propose|suggest|conclude)\b',
-        r'\bwe\s+(?:can|must|should|need\s+to|have\s+to)\s+(?:understand|recognize|acknowledge|accept|consider|examine|analyze|investigate|conclude|observe|note|realize|see|assume|presume|infer|deduce|argue|claim|suggest|propose|demonstrate|show|establish|prove|find|determine)\b',
-        r'\bwe\s+(?:find|see|observe|note|notice|discover|establish|demonstrate|show|prove|conclude|determine|realize|recognize|understand|know|believe|argue|contend|maintain|assert|claim)\s+that\b',
-        r'\bas\s+we\s+(?:have\s+)?(?:seen|observed|noted|discussed|examined|analyzed|established|demonstrated|shown|proved|found|discovered|learned|understood|argued|concluded)\b',
-        r'\b(?:our|my)\s+(?:research|study|investigation|analysis|findings|results|conclusions|observations|data|evidence)\b'
-    ],
-    'hedges': [
-        r'(?i)\b(?:the\s+)?(?:results?|data|evidence|findings?|research|study)\s+(?:seem|seems?|appear|appears?)\s+to\s+(?:indicate|suggest|show|demonstrate|support|imply)\b',
-        r'(?i)\b(?:this|that|it|they|these)\s+(?:might|may|could|would)\s+(?:suggest|indicate|imply|show|demonstrate|mean|signify)\b',
-        r'(?i)\bit\s+(?:appears|seems)\s+that\b',
-        r'(?i)\bperhaps\s+(?:this|that|these|the)\s+(?:finding|result|evidence|data|research|study|analysis|approach|method)\b',
-        r'(?i)\b(?:the\s+)?(?:data|evidence|results?|findings?)\s+(?:may|might|could)\s+(?:imply|suggest|indicate|mean|show)\b',
-        r'(?i)\bto\s+some\s+extent\b',
-        r'(?i)\b(?:possibly|probably|likely|presumably|apparently|seemingly)\b',
-        r'(?i)\bit\s+is\s+(?:possible|probable|likely)\s+that\b'
-    ],
-    'boosters': [
-        r'(?i)\bit\s+is\s+clear\s+that\b',
-        r'(?i)\b(?:this|that|it|they|these|research|evidence|data|results|findings)\s+(?:certainly|definitely|clearly|obviously|undoubtedly|evidently)\s+(?:proves?|demonstrates?|shows?|indicates?|suggests?|supports?|confirms?|establishes?)\b',
-        r'(?i)^obviously\s*,\s*\b',
-        r'(?i)\b(?:the\s+)?(?:evidence|data|results|findings|research|study)\s+(?:clearly|obviously|certainly|definitely|undoubtedly|evidently)\s+(?:indicates?|shows?|demonstrates?|suggests?|supports?|proves?)\b',
-        r'(?i)\bthere\s+is\s+no\s+doubt\s+that\b',
-        r'(?i)\b(?:without\s+doubt|beyond\s+doubt|no\s+question)\b',
-        r'(?i)\b(?:absolutely|completely|entirely|totally)\s+(?:necessary|essential|crucial|certain|clear|correct|valid)\b',
-        r'(?i)\b(?:strong|compelling|convincing|solid|robust)\s+(?:evidence|support|indication|correlation|case|argument)\b'
-    ],
-    'frame_markers': [
-        r'^\s*(?:first|firstly|second|secondly|third|thirdly|fourth|fourthly|fifth|fifthly|finally|lastly|in\s+conclusion|to\s+conclude|to\s+summarize|in\s+summary|overall|all\s+in\s+all|in\s+short|briefly)\b',
-        r'\bthe\s+(?:first|second|third|fourth|fifth|final|last|next|previous|above|following)\s+(?:section|chapter|part|point|issue|aspect|factor|element|component|argument|example|case|study|analysis)\b',
-        r'\bin\s+(?:this|the\s+following|the\s+next|the\s+final|the\s+last|the\s+above|the\s+previous)\s+(?:section|chapter|part|paper|study|analysis|discussion|essay|article|work|research)\b',
-        r'\bas\s+(?:mentioned|noted|discussed|shown|demonstrated|illustrated|indicated|stated)\s+(?:above|below|earlier|previously|before)\b',
-        r'\b(?:moving|turning|shifting)\s+(?:to|on\s+to)\s+(?:the|our|my)\s+(?:next|final|last)\b',
-        r'\b(?:in\s+sum|to\s+sum\s+up|summing\s+up|in\s+summary|to\s+summarize|in\s+conclusion|to\s+conclude|overall|all\s+things\s+considered|on\s+the\s+whole)\b',
-        r'\b(?:the\s+purpose\s+of|the\s+aim\s+of|the\s+goal\s+of)\s+(?:this|the)\s+(?:paper|study|research|analysis|discussion|essay|work)\b'
-    ],
-    'code_glosses': [
-        r'\b(?:that\s+is\s+to\s+say|namely|specifically|in\s+other\s+words|in\s+particular)\b',
-        r'(?i)\b(?:for\s+example|for\s+instance)\b',
-        r'\b(?:such\s+as)\b',
-        r'\bincluding\b',
-        r'\bthat\s+is\b'
-    ],
-    'transitions': [
-        r'\b(?:furthermore|consequently|critically|conversely|nevertheless|accordingly|undoubtedly|meanwhile|admittedly|ultimately|finally|moreover|nonetheless|hence|thus|instead|likewise|similarly|indeed|additionally|subsequently|inevitably)\b',
-        r'\b(?:as\s+well\s+as|in\s+addition\s+to|on\s+the\s+other\s+hand|as\s+a\s+result|in\s+contrast\s+to|it\s+follows\s+that|as\s+a\s+matter\s+of\s+fact|on\s+the\s+contrary|in\s+the\s+first\s+place|in\s+the\s+mean\s+time|to\s+begin\s+with|first\s+of\s+all|all\s+in\s+all|in\s+conclusion|to\s+summarize|in\s+light\s+of|owing\s+to|with\s+respect\s+to|in\s+terms\s+of|for\s+this\s+reason)\b'
-    ]
-}
+# 2. Named Entity & Slot Abstraction Dictionaries
+MONTHS = {"january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"}
+DAYS = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"}
+TERRAINS = {"farmland", "forest", "desert", "mountain", "valley", "river", "ocean", "jungle", "field", "meadow", "woods", "plain", "hills"}
+LOCATIONS = {"scotland", "england", "france", "germany", "america", "japan", "china", "london", "paris", "tokyo", "europe", "asia", "africa"}
 
-# POS Syntactic Patterns for Sentence-Initial Discourse Frames & Prepositional Connectives
-PREPOSITIONAL_FRAME_REGEX = r'\b(?:in|on|at|by|with|under|upon|after|before|through|during)\s+[a-z\-]+\s+(?:of|to|that|for|in|with)\b'
-INITIAL_ADVERB_TRANSITION_REGEX = r'^\s*([A-Za-z\-]+ly|[A-Za-z\-]+wise|[A-Za-z\-]+more)\s*,\s*'
+def abstract_parametric_slot(phrase):
+    """Abstracts specific proper nouns, dates, months, and terrains into parametric slot tags."""
+    words = phrase.split()
+    abstracted_words = []
+    
+    for w in words:
+        clean_w = w.lower().strip()
+        if clean_w in MONTHS:
+            abstracted_words.append("<MONTH>")
+        elif clean_w in DAYS:
+            abstracted_words.append("<DAY>")
+        elif clean_w in TERRAINS:
+            abstracted_words.append("<TERRAIN>")
+        elif clean_w in LOCATIONS:
+            abstracted_words.append("<LOCATION>")
+        elif clean_w.isdigit() and len(clean_w) == 4:
+            abstracted_words.append("<YEAR>")
+        elif clean_w.isdigit():
+            abstracted_words.append("<NUMBER>")
+        else:
+            abstracted_words.append(clean_w)
+            
+    res = " ".join(abstracted_words)
+    # Only keep patterns that contain at least one abstract slot tag
+    if any(tag in res for tag in ["<MONTH>", "<DAY>", "<TERRAIN>", "<LOCATION>", "<YEAR>", "<NUMBER>"]):
+        return res
+    return None
 
-def harvest_hyland_metadiscourse():
-    """Extracts thousands of Hyland metadiscourse attractors across high-scale corpus streams."""
+# 3. Parametric Prepositional Frame Regex Patterns
+PREPOSITIONAL_FRAME_PATTERNS = [
+    r'\b(?:in|on|at|by|with|through|under|upon|after|before|during|between|across|along|around|near|into)\s+[a-z\-0-9]+\s+(?:of|for|in|to|with|at|by|on|from)\b',
+    r'\b(?:in|on|at|by|with|through|under|upon|after|before|during|between|across|along|around|near|into)\s+[a-z\-0-9]+\s+[a-z\-0-9]+\s+(?:of|for|in|to|with|at|by|on|from)\b'
+]
+
+def harvest_parametric_discourse_schemas():
+    """Harvests thousands of Abstract Parametric Discourse Schemas & Attention Triggers."""
     print("================================================================================")
-    print("  HIGH-SCALE HYLAND METADISCOURSE HARVESTER ENGINE")
+    print("  PARAMETRIC DISCOURSE SCHEMA & ATTENTION TRIGGER HARVESTER ENGINE")
     print("================================================================================")
 
     domains = [
@@ -102,9 +85,8 @@ def harvest_hyland_metadiscourse():
         {"name": "roneneldan/TinyStories", "config": None, "field": "text", "type": "narrative"}
     ]
 
-    harvested_items = []
-    seen_phrases = set()
-    category_counts = collections.Counter()
+    schema_counter = collections.Counter()
+    schema_examples = collections.defaultdict(list)
 
     for dom in domains:
         print(f"\n[Harvester Stream] Streaming 25,000 sentences from '{dom['name']}' ({dom['type']})...")
@@ -134,72 +116,35 @@ def harvest_hyland_metadiscourse():
                             text_val = " ".join(text_val)
                         break
 
-            # Clean raw text
             text_str = re.sub(r'[\r\n\t]+', ' ', str(text_val)).strip()
             text_str = re.sub(r'\s+', ' ', text_str)
             if len(text_str) < 15:
                 continue
 
-            # 1. Hyland Category Pattern Extraction
-            for cat_name, pattern_list in HYLAND_PATTERNS.items():
-                for pat in pattern_list:
-                    matches = re.findall(pat, text_str)
-                    for m in matches:
-                        raw_m = m if isinstance(m, str) else m[0]
-                        clean_m = re.sub(r'[\r\n\t]+', ' ', raw_m).lower().strip()
-                        clean_m = re.sub(r'\s+', ' ', clean_m)
-                        if len(clean_m) <= 2 or clean_m in seen_phrases:
-                            continue
-                        seen_phrases.add(clean_m)
-                        category_counts[cat_name] += 1
+            for pat in PREPOSITIONAL_FRAME_PATTERNS:
+                matches = re.findall(pat, text_str.lower())
+                for m in matches:
+                    raw_phrase = m.strip()
+                    abstract_schema = abstract_parametric_slot(raw_phrase)
+                    if abstract_schema:
+                        schema_counter[abstract_schema] += 1
                         dataset_count += 1
-                        harvested_items.append({
-                            "phrase": clean_m,
-                            "category": cat_name,
-                            "domain": dom["type"],
-                            "word_count": len(clean_m.split()),
-                            "cloze_prompt": f"Metadiscourse [{cat_name}]: [BLANK] -> {clean_m}",
-                            "target_phrase": clean_m
-                        })
+                        if len(schema_examples[abstract_schema]) < 3:
+                            schema_examples[abstract_schema].append(raw_phrase)
 
-            # 2. Syntactic Sentence-Initial Transition Adverbs ([Adverb] ,)
-            sentences = re.split(r'[.!?]+', text_str)
-            for sent in sentences:
-                sent_clean = sent.strip()
-                adv_match = re.search(INITIAL_ADVERB_TRANSITION_REGEX, sent_clean)
-                if adv_match:
-                    adv_word = adv_match.group(1).lower()
-                    if len(adv_word) > 4 and adv_word not in seen_phrases:
-                        seen_phrases.add(adv_word)
-                        category_counts["transitions"] += 1
-                        dataset_count += 1
-                        harvested_items.append({
-                            "phrase": adv_word,
-                            "category": "transitions",
-                            "domain": dom["type"],
-                            "word_count": 1,
-                            "cloze_prompt": f"Metadiscourse [transitions]: [BLANK] -> {adv_word}",
-                            "target_phrase": adv_word
-                        })
+        print(f"[Harvester Stream] Extracted {dataset_count} parametric frame instances from {dom['name']}")
 
-                # 3. Prepositional Discourse Frames (e.g. "in view of", "with respect to")
-                prep_matches = re.findall(PREPOSITIONAL_FRAME_REGEX, sent_clean.lower())
-                for prep_phrase in prep_matches:
-                    clean_prep = prep_phrase.strip()
-                    if len(clean_prep) > 5 and clean_prep not in seen_phrases:
-                        seen_phrases.add(clean_prep)
-                        category_counts["frame_markers"] += 1
-                        dataset_count += 1
-                        harvested_items.append({
-                            "phrase": clean_prep,
-                            "category": "frame_markers",
-                            "domain": dom["type"],
-                            "word_count": len(clean_prep.split()),
-                            "cloze_prompt": f"Metadiscourse [frame_markers]: [BLANK] -> {clean_prep}",
-                            "target_phrase": clean_prep
-                        })
-
-        print(f"[Harvester Stream] Harvested {dataset_count} unique metadiscourse attractors from {dom['name']}")
+    harvested_items = []
+    for schema, freq in schema_counter.most_common(5000):
+        harvested_items.append({
+            "parametric_schema": schema,
+            "frequency": freq,
+            "boundary_anchors": [schema.split()[0], schema.split()[-1]],
+            "sample_instantiations": schema_examples.get(schema, []),
+            "word_count": len(schema.split()),
+            "cloze_prompt": f"Parametric Trigger [{schema}]: [BLANK] -> {schema}",
+            "target_phrase": schema
+        })
 
     os.makedirs("scratch", exist_ok=True)
     out_file = "scratch/mined_expanded_corpus_cloze.jsonl"
@@ -208,13 +153,14 @@ def harvest_hyland_metadiscourse():
             f.write(json.dumps(item) + "\n")
 
     print("\n================================================================================")
-    print("  HIGH-SCALE HYLAND METADISCOURSE HARVEST SUMMARY")
+    print("  PARAMETRIC DISCOURSE SCHEMA HARVEST SUMMARY")
     print("================================================================================")
-    print(f"  Total Metadiscourse Attractors Mined : {len(harvested_items)}")
-    for cat, cnt in category_counts.most_common():
-        print(f"    - Category '{cat}': {cnt} unique attractors")
-    print(f"  Output File                          : {out_file}")
+    print(f"  Total Abstract Parametric Schemas Mined : {len(harvested_items)}")
+    print(f"  Top 5 Parametric Attention Triggers    :")
+    for item in harvested_items[:5]:
+        print(f"    - Schema '{item['parametric_schema']}' (Found {item['frequency']}x) | Samples: {item['sample_instantiations']}")
+    print(f"  Output File                             : {out_file}")
     print("================================================================================\n")
 
 if __name__ == "__main__":
-    harvest_hyland_metadiscourse()
+    harvest_parametric_discourse_schemas()

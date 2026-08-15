@@ -1,3 +1,10 @@
+## [8.171.0] - 2026-08-15 (Sprint 214)
+
+### Fixed & Implemented
+- **Parametric Discourse Schema & Slot Abstraction Engine**:
+  - Upgraded [`tools/harvest_domain_ngrams.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/harvest_domain_ngrams.py) to abstract specific entities into generalized slot tags (`<LOCATION>`, `<MONTH>`, `<TERRAIN>`, `<YEAR>`, `<NUMBER>`, `<DAY>`).
+  - Mined **541 Abstract Parametric Attention Schemas** (e.g. `"in <MONTH> of"`, `"in the <TERRAIN> of"`, `"in <LOCATION> for"`, `"in <YEAR> by"`) into [`scratch/mined_expanded_corpus_cloze.jsonl`](file:///C:/Users/rich-/source/repos/CARTAN/scratch/mined_expanded_corpus_cloze.jsonl).
+
 ## [8.170.0] - 2026-08-15 (Sprint 213)
 
 ### Fixed & Implemented
