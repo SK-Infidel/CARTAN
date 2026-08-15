@@ -1,3 +1,11 @@
+## [8.167.0] - 2026-08-15 (Sprint 210)
+
+### Fixed & Implemented
+- **Syntactic Metadiscourse & Discourse Attractor Harvester**:
+  - Implemented Hyland & Kennett Metadiscourse Taxonomy in [`tools/harvest_domain_ngrams.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/harvest_domain_ngrams.py) targeting **Transitions** (*furthermore*, *consequently*, *critically*), **Hedges & Boosters** (*it seems likely that*, *without a doubt*), **Code Glosses** (*that is to say*, *in other words*), and **Discourse Frames** (*at the end of the day*, *by the way*).
+  - Explicitly passed `token` in `load_dataset(..., token=...)` to authenticate HF Hub requests cleanly.
+  - Exported structured Metadiscourse Attractor cloze dataset into [`scratch/mined_expanded_corpus_cloze.jsonl`](file:///C:/Users/rich-/source/repos/CARTAN/scratch/mined_expanded_corpus_cloze.jsonl).
+
 ## [8.166.0] - 2026-08-15 (Sprint 209)
 
 ### Fixed & Implemented
