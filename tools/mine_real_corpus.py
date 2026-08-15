@@ -49,7 +49,7 @@ def mine_from_corpus(corpus_files, phrases):
 
         sentences = re.split(r'(?<=[.!?])\s+', content)
         for sent in sentences:
-            sent_clean = sent.strip().replace("\n", " ").replace("\r", "")
+            sent_clean = re.sub(r'\s+', ' ', sent.strip())
             if len(sent_clean) < 15 or len(sent_clean) > 300:
                 continue
 
