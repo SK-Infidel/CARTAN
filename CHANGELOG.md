@@ -1,3 +1,11 @@
+## [8.143.0] - 2026-08-14 (Sprint 186)
+
+### Fixed & Implemented
+- **Automatic Aligned Checkpoint Selection**:
+  - Updated `--chat` in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c) to prioritize loading [`test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin) upon startup.
+- **English Subword Vocab Masking**:
+  - Enhanced `cartan_apply_english_vocab_mask` in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c) to mask out non-English vocabulary slots in Gemma 4's 256k subword table.
+
 ## [8.142.0] - 2026-08-14 (Sprint 185)
 
 ### Fixed & Implemented
