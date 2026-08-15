@@ -1,3 +1,11 @@
+## [8.153.0] - 2026-08-14 (Sprint 196)
+
+### Fixed & Implemented
+- **Native OpenCL 3.0 Hardware Engine Fallback**:
+  - Dynamically bound `OpenCL.dll` in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c).
+  - Verified OpenCL 3.0 context creation and GEMM JIT kernel compilation on the **NVIDIA RTX 2000 Ada Generation Laptop GPU**.
+  - All background training tasks stopped and cleaned up per user mandate.
+
 ## [8.152.0] - 2026-08-14 (Sprint 195)
 
 ### Fixed & Implemented
