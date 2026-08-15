@@ -1720,9 +1720,14 @@ static void* g_opencl_context = NULL;
 static void* g_opencl_cmd_queue = NULL;
 static void* g_opencl_program = NULL;
 static void* g_opencl_kernel_batched_matmul = NULL;
+static void* g_opencl_kernel_forward_softmax = NULL;
+static void* g_opencl_kernel_backward_sgd = NULL;
 static void* g_opencl_buf_weights = NULL;
 static void* g_opencl_buf_hidden = NULL;
 static void* g_opencl_buf_logits = NULL;
+static void* g_opencl_buf_targets = NULL;
+static void* g_opencl_buf_ic_weights = NULL;
+static void* g_opencl_buf_loss = NULL;
 
 typedef int (__cdecl *PFN_clGetPlatformIDs)(unsigned int num_entries, void** platforms, unsigned int* num_platforms);
 typedef int (__cdecl *PFN_clGetDeviceIDs)(void* platform, unsigned long long device_type, unsigned int num_entries, void** devices, unsigned int* num_devices);
@@ -1887,16 +1892,66 @@ static void cartan_init_gpu_device_if_needed(void) {
                         "        }\n"
                         "        Logits[b * N + col] = sum;\n"
                         "    }\n"
+                        "}\n"
+                        "__kernel void k_opencl_forward_softmax(__global const float* X, __global const float* W, __global float* Probs, __global const int* Targets, __global const float* IcWeights, __global float* Loss_Out, int B, int M, int N) {\n"
+                        "    int b = get_global_id(0);\n"
+                        "    if (b >= B) return;\n"
+                        "    float max_l = -1e9f;\n"
+                        "    float logits[512];\n"
+                        "    for (int c = 0; c < N; c++) {\n"
+                        "        float sum = 0.0f;\n"
+                        "        for (int r = 0; r < M; r++) {\n"
+                        "            sum += X[b * M + r] * W[r * N + c];\n"
+                        "        }\n"
+                        "        logits[c] = sum;\n"
+                        "        if (sum > max_l) max_l = sum;\n"
+                        "    }\n"
+                        "    float sum_e = 0.0f;\n"
+                        "    for (int c = 0; c < N; c++) {\n"
+                        "        float p = native_exp(logits[c] - max_l);\n"
+                        "        logits[c] = p;\n"
+                        "        sum_e += p;\n"
+                        "    }\n"
+                        "    if (sum_e <= 0.0f) sum_e = 1.0f;\n"
+                        "    for (int c = 0; c < N; c++) {\n"
+                        "        Probs[b * N + c] = logits[c] / sum_e;\n"
+                        "    }\n"
+                        "    int target_idx = Targets[b] % N;\n"
+                        "    if (target_idx < 0) target_idx = 0;\n"
+                        "    float target_p = Probs[b * N + target_idx];\n"
+                        "    if (target_p < 1e-12f) target_p = 1e-12f;\n"
+                        "    float ic_w = IcWeights ? IcWeights[b] : 1.0f;\n"
+                        "    Loss_Out[b] = -native_log(target_p) * ic_w;\n"
+                        "}\n"
+                        "__kernel void k_opencl_backward_sgd(__global const float* X, __global const float* Probs, __global const int* Targets, __global const float* IcWeights, __global float* W, int B, int M, int N, float lr) {\n"
+                        "    int col = get_global_id(0);\n"
+                        "    int row = get_global_id(1);\n"
+                        "    if (row >= M || col >= N) return;\n"
+                        "    float grad_sum = 0.0f;\n"
+                        "    for (int b = 0; b < B; b++) {\n"
+                        "        int target_idx = Targets[b] % N;\n"
+                        "        if (target_idx < 0) target_idx = 0;\n"
+                        "        float target_c = (col == target_idx) ? 1.0f : 0.0f;\n"
+                        "        float prob_c = Probs[b * N + col];\n"
+                        "        float ic_w = IcWeights ? IcWeights[b] : 1.0f;\n"
+                        "        grad_sum += (prob_c - target_c) * X[b * M + row] * ic_w;\n"
+                        "    }\n"
+                        "    W[row * N + col] -= lr * grad_sum;\n"
                         "}\n";
 
                         g_opencl_program = f_clCreateProgramWithSource(g_opencl_context, 1, &opencl_src, NULL, &err);
                         f_clBuildProgram(g_opencl_program, 1, (const void**)&device, NULL, NULL, NULL);
                         g_opencl_kernel_batched_matmul = f_clCreateKernel(g_opencl_program, "k_opencl_batched_matmul", &err);
+                        g_opencl_kernel_forward_softmax = f_clCreateKernel(g_opencl_program, "k_opencl_forward_softmax", &err);
+                        g_opencl_kernel_backward_sgd = f_clCreateKernel(g_opencl_program, "k_opencl_backward_sgd", &err);
 
-                        int max_b = 1024;
+                        int max_b = 4000;
                         g_opencl_buf_weights = f_clCreateBuffer(g_opencl_context, 1, sizeof(float) * 512 * 512, NULL, &err);
                         g_opencl_buf_hidden = f_clCreateBuffer(g_opencl_context, 1, sizeof(float) * max_b * 512, NULL, &err);
                         g_opencl_buf_logits = f_clCreateBuffer(g_opencl_context, 1, sizeof(float) * max_b * 512, NULL, &err);
+                        g_opencl_buf_targets = f_clCreateBuffer(g_opencl_context, 1, sizeof(int) * max_b, NULL, &err);
+                        g_opencl_buf_ic_weights = f_clCreateBuffer(g_opencl_context, 1, sizeof(float) * max_b, NULL, &err);
+                        g_opencl_buf_loss = f_clCreateBuffer(g_opencl_context, 1, sizeof(float) * max_b, NULL, &err);
 
                         float* h_init_w = (float*)malloc(sizeof(float) * 512 * 512);
                         if (h_init_w) {
@@ -2109,84 +2164,78 @@ CARTAN_WEAK double cartan_tensor_train_batch_gpu(const float* h_batch_hidden, co
     double total_batch_loss = 0.0;
     int M = 512, N = 512;
 
-    if (g_opencl_gpu_mounted && g_opencl_context && g_opencl_cmd_queue && g_opencl_kernel_batched_matmul) {
-        if (f_clEnqueueWriteBuffer) f_clEnqueueWriteBuffer(g_opencl_cmd_queue, g_opencl_buf_hidden, 1, 0, sizeof(float) * B * M, h_batch_hidden, 0, NULL, NULL);
+    if (g_opencl_gpu_mounted && g_opencl_context && g_opencl_cmd_queue && g_opencl_kernel_forward_softmax && g_opencl_kernel_backward_sgd) {
+        float f_lr = (float)learning_rate;
+        if (f_clEnqueueWriteBuffer) {
+            f_clEnqueueWriteBuffer(g_opencl_cmd_queue, g_opencl_buf_hidden, 1, 0, sizeof(float) * B * M, h_batch_hidden, 0, NULL, NULL);
+            f_clEnqueueWriteBuffer(g_opencl_cmd_queue, g_opencl_buf_targets, 1, 0, sizeof(int) * B, h_targets, 0, NULL, NULL);
+            if (h_ic_weights) {
+                f_clEnqueueWriteBuffer(g_opencl_cmd_queue, g_opencl_buf_ic_weights, 1, 0, sizeof(float) * B, h_ic_weights, 0, NULL, NULL);
+            }
+        }
 
+        // Stage 1: GPU Forward GEMM + Softmax + Cross-Entropy Loss
         if (f_clSetKernelArg) {
-            f_clSetKernelArg(g_opencl_kernel_batched_matmul, 0, sizeof(void*), &g_opencl_buf_hidden);
-            f_clSetKernelArg(g_opencl_kernel_batched_matmul, 1, sizeof(void*), &g_opencl_buf_weights);
-            f_clSetKernelArg(g_opencl_kernel_batched_matmul, 2, sizeof(void*), &g_opencl_buf_logits);
-            f_clSetKernelArg(g_opencl_kernel_batched_matmul, 3, sizeof(int), &B);
-            f_clSetKernelArg(g_opencl_kernel_batched_matmul, 4, sizeof(int), &M);
-            f_clSetKernelArg(g_opencl_kernel_batched_matmul, 5, sizeof(int), &N);
+            f_clSetKernelArg(g_opencl_kernel_forward_softmax, 0, sizeof(void*), &g_opencl_buf_hidden);
+            f_clSetKernelArg(g_opencl_kernel_forward_softmax, 1, sizeof(void*), &g_opencl_buf_weights);
+            f_clSetKernelArg(g_opencl_kernel_forward_softmax, 2, sizeof(void*), &g_opencl_buf_logits); // Probs
+            f_clSetKernelArg(g_opencl_kernel_forward_softmax, 3, sizeof(void*), &g_opencl_buf_targets);
+            f_clSetKernelArg(g_opencl_kernel_forward_softmax, 4, sizeof(void*), &g_opencl_buf_ic_weights);
+            f_clSetKernelArg(g_opencl_kernel_forward_softmax, 5, sizeof(void*), &g_opencl_buf_loss);
+            f_clSetKernelArg(g_opencl_kernel_forward_softmax, 6, sizeof(int), &B);
+            f_clSetKernelArg(g_opencl_kernel_forward_softmax, 7, sizeof(int), &M);
+            f_clSetKernelArg(g_opencl_kernel_forward_softmax, 8, sizeof(int), &N);
         }
 
-        size_t global_work[2] = { (size_t)N, (size_t)(((B + 15) / 16) * 16) };
-        size_t local_work[2] = { 16, 16 };
-        if (f_clEnqueueNDRangeKernel) f_clEnqueueNDRangeKernel(g_opencl_cmd_queue, g_opencl_kernel_batched_matmul, 2, NULL, global_work, local_work, 0, NULL, NULL);
-
-        float* h_batch_logits = (float*)malloc(sizeof(float) * B * N);
-        float* h_batch_probs = (float*)malloc(sizeof(float) * B * N);
-
-        if (h_batch_logits && h_batch_probs) {
-            if (f_clEnqueueReadBuffer) f_clEnqueueReadBuffer(g_opencl_cmd_queue, g_opencl_buf_logits, 1, 0, sizeof(float) * B * N, h_batch_logits, 0, NULL, NULL);
-
-            for (int b = 0; b < B; b++) {
-                float max_l = -1e9f;
-                for (int c = 0; c < N; c++) {
-                    if (h_batch_logits[b * N + c] > max_l) max_l = h_batch_logits[b * N + c];
-                }
-                double sum_e = 0.0;
-                for (int c = 0; c < N; c++) {
-                    float p = expf(h_batch_logits[b * N + c] - max_l);
-                    h_batch_probs[b * N + c] = p;
-                    sum_e += (double)p;
-                }
-                if (sum_e <= 0.0) sum_e = 1.0;
-                for (int c = 0; c < N; c++) h_batch_probs[b * N + c] /= (float)sum_e;
-
-                int target_idx = h_targets[b] % N;
-                if (target_idx < 0) target_idx = 0;
-
-                double ic_w = h_ic_weights ? (double)h_ic_weights[b] : 1.0;
-                double step_loss = -log(h_batch_probs[b * N + target_idx] > 1e-12f ? (double)h_batch_probs[b * N + target_idx] : 1e-12) * ic_w;
-                total_batch_loss += step_loss;
-            }
-
-            if (learning_rate > 0.0) {
-                double lr = learning_rate;
-                for (int b = 0; b < B; b++) {
-                    int target_idx = h_targets[b] % N;
-                    if (target_idx < 0) target_idx = 0;
-                    double ic_w = h_ic_weights ? (double)h_ic_weights[b] : 1.0;
-                    double step_lr = lr * ic_w;
-
-                    for (int r = 0; r < M; r++) {
-                        float hidden_val = h_batch_hidden[b * M + r];
-                        for (int c = 0; c < N; c++) {
-                            double target = (c == target_idx) ? 1.0 : 0.0;
-                            double grad = ((double)h_batch_probs[b * N + c] - target) * (double)hidden_val;
-                            g_model_weights[r][c] -= step_lr * grad;
-                        }
-                    }
-                }
-                // Sync weights back to OpenCL GPU Buffer without stack overflow
-                float* h_w = (float*)malloc(sizeof(float) * 512 * 512);
-                if (h_w) {
-                    for (int r = 0; r < 512; r++) {
-                        for (int c = 0; c < 512; c++) {
-                            h_w[r * 512 + c] = (float)g_model_weights[r][c];
-                        }
-                    }
-                    f_clEnqueueWriteBuffer(g_opencl_cmd_queue, g_opencl_buf_weights, 1, 0, sizeof(float) * 512 * 512, h_w, 0, NULL, NULL);
-                    free(h_w);
-                }
-            }
-
-            free(h_batch_logits);
-            free(h_batch_probs);
-            return total_batch_loss;
+        size_t global_fwd[1] = { (size_t)B };
+        if (f_clEnqueueNDRangeKernel) {
+            f_clEnqueueNDRangeKernel(g_opencl_cmd_queue, g_opencl_kernel_forward_softmax, 1, NULL, global_fwd, NULL, 0, NULL, NULL);
         }
+
+        // Stage 2: GPU Backward SGD Weight Updates directly in VRAM (if training)
+        if (learning_rate > 0.0) {
+            if (f_clSetKernelArg) {
+                f_clSetKernelArg(g_opencl_kernel_backward_sgd, 0, sizeof(void*), &g_opencl_buf_hidden);
+                f_clSetKernelArg(g_opencl_kernel_backward_sgd, 1, sizeof(void*), &g_opencl_buf_logits); // Probs
+                f_clSetKernelArg(g_opencl_kernel_backward_sgd, 2, sizeof(void*), &g_opencl_buf_targets);
+                f_clSetKernelArg(g_opencl_kernel_backward_sgd, 3, sizeof(void*), &g_opencl_buf_ic_weights);
+                f_clSetKernelArg(g_opencl_kernel_backward_sgd, 4, sizeof(void*), &g_opencl_buf_weights);
+                f_clSetKernelArg(g_opencl_kernel_backward_sgd, 5, sizeof(int), &B);
+                f_clSetKernelArg(g_opencl_kernel_backward_sgd, 6, sizeof(int), &M);
+                f_clSetKernelArg(g_opencl_kernel_backward_sgd, 7, sizeof(int), &N);
+                f_clSetKernelArg(g_opencl_kernel_backward_sgd, 8, sizeof(float), &f_lr);
+            }
+
+            size_t global_bwd[2] = { (size_t)N, (size_t)M };
+            size_t local_bwd[2] = { 16, 16 };
+            if (f_clEnqueueNDRangeKernel) {
+                f_clEnqueueNDRangeKernel(g_opencl_cmd_queue, g_opencl_kernel_backward_sgd, 2, NULL, global_bwd, local_bwd, 0, NULL, NULL);
+            }
+        }
+
+        float* h_loss = (float*)malloc(sizeof(float) * B);
+        if (h_loss) {
+            if (f_clEnqueueReadBuffer) {
+                f_clEnqueueReadBuffer(g_opencl_cmd_queue, g_opencl_buf_loss, 1, 0, sizeof(float) * B, h_loss, 0, NULL, NULL);
+            }
+            for (int b = 0; b < B; b++) total_batch_loss += (double)h_loss[b];
+            free(h_loss);
+        }
+
+        // Sync updated VRAM weights back to CPU host g_model_weights array for checkpointing
+        float* h_w = (float*)malloc(sizeof(float) * 512 * 512);
+        if (h_w) {
+            if (f_clEnqueueReadBuffer) {
+                f_clEnqueueReadBuffer(g_opencl_cmd_queue, g_opencl_buf_weights, 1, 0, sizeof(float) * 512 * 512, h_w, 0, NULL, NULL);
+            }
+            for (int r = 0; r < 512; r++) {
+                for (int c = 0; c < 512; c++) {
+                    g_model_weights[r][c] = (double)h_w[r * 512 + c];
+                }
+            }
+            free(h_w);
+        }
+        return total_batch_loss;
     }
 
     if (d_weights_ptr && d_batch_hidden_ptr && d_batch_logits_ptr && d_batch_targets_ptr && f_cuLaunchKernel && f_cuMemcpyHtoD && f_cuMemcpyDtoH) {

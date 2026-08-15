@@ -1,3 +1,11 @@
+## [8.156.0] - 2026-08-14 (Sprint 199)
+
+### Fixed & Implemented
+- **Two-Stage Fused 100% OpenCL 3.0 GPU Hardware Engine**:
+  - Deployed two-stage race-condition-free OpenCL C kernels (`k_opencl_forward_softmax` and `k_opencl_backward_sgd`) in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c).
+  - Offloaded Forward GEMM, Softmax Activation, Cross-Entropy Loss, and SGD Backpropagation weight updates 100% into VRAM on the **NVIDIA RTX 2000 Ada Generation Laptop GPU**.
+  - Eliminated CPU host nested training loops and PCIe round-trip bottlenecks, enabling smooth, steady training loss reduction.
+
 ## [8.155.0] - 2026-08-14 (Sprint 198)
 
 ### Fixed & Implemented
