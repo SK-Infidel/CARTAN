@@ -1,3 +1,10 @@
+## [8.145.0] - 2026-08-14 (Sprint 188)
+
+### Fixed & Implemented
+- **Dynamic Autoregressive Sequence Context Progression**:
+  - Updated `execute_chat_generation` in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c) to push newly sampled tokens back into `prompt_tokens` and recompute `cartan_tensor_compute_hidden_state_from_tokens(prompt_tokens)` at each decoding step.
+  - Updated `cartan_tensor_update_autoregressive_state` in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c) to blend sequence context during hidden state updates.
+
 ## [8.144.0] - 2026-08-14 (Sprint 187)
 
 ### Fixed & Implemented
