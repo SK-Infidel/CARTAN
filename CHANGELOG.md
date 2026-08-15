@@ -1,3 +1,13 @@
+## [8.144.0] - 2026-08-14 (Sprint 187)
+
+### Fixed & Implemented
+- **Stage 2 Finish-the-Sentence RLAIF Alignment Pass**:
+  - Upgraded [`tools/mine_real_corpus.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/mine_real_corpus.py) to extract 3,191 dataset entries (1,673 Stage 1 Anchored Cloze + 1,518 Stage 2 Finish-the-Sentence RLAIF pairs) from Project Gutenberg literature.
+- **Stage 2 Loss Convergence ($L = 1.8206$)**:
+  - Executed training pass over all 3,191 Stage 1 & Stage 2 pairs until mean loss dropped below `2.00`, hitting **`1.8206`** ($\text{PPL} \approx 6.17$) at **Epoch 12**.
+- **Signed Checkpoint Export**:
+  - Exported updated cryptographically signed model weights to [`test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin).
+
 ## [8.143.0] - 2026-08-14 (Sprint 186)
 
 ### Fixed & Implemented
