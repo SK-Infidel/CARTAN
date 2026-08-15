@@ -506,6 +506,8 @@ static void load_signed_checkpoint(const char* filepath) {
             double* w_ptr = (double*)cartan_get_lm_head_weights_ptr();
             if (w_ptr) {
                 fread(w_ptr, sizeof(double), w_cnt, f);
+                extern void cartan_mark_weights_initialized(void);
+                cartan_mark_weights_initialized();
             }
             int* map_ptr = cartan_get_class_token_mapping_ptr();
             if (map_ptr) {

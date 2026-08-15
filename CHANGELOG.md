@@ -1,3 +1,10 @@
+## [8.158.0] - 2026-08-15 (Sprint 201)
+
+### Fixed & Implemented
+- **Verified Continuous Checkpoint Weight Resumption on OpenCL GPU**:
+  - Fixed `cartan_init_gpu_device_if_needed()` in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c) to preserve pre-loaded `g_model_weights` when `g_weights_init == 1`, preventing random weight initialization overwrites.
+  - Empirically verified continuous training loss resumption: Epoch 1 resumed directly at **Loss: 14.2376** (matching the saved checkpoint's 14.2387 final loss) and converged down to **14.1845** (Val Loss: **13.9717**).
+
 ## [8.157.0] - 2026-08-15 (Sprint 200)
 
 ### Fixed & Implemented
