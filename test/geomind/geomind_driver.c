@@ -1452,8 +1452,17 @@ extern double cartan_vec_len(void* vec);
                     size_t h_len = (size_t)cartan_vec_len(h_state);
                     double ic_weight = strstr(line_buf, "\"target_phrase\"") ? 3.0 : 1.5;
 
+                    double norm_sq = 0.0;
                     for (int r = 0; r < 512; r++) {
-                        cached_hidden[total_dataset_items * 512 + r] = (r < (int)h_len) ? (float)cartan_vec_get_f32(h_state, (double)r) : 0.01f;
+                        double v = (r < (int)h_len) ? (double)cartan_vec_get_f32(h_state, (double)r) : 0.01;
+                        norm_sq += v * v;
+                    }
+                    double norm = sqrt(norm_sq);
+                    if (norm <= 0.0) norm = 1.0;
+
+                    for (int r = 0; r < 512; r++) {
+                        double v = (r < (int)h_len) ? (double)cartan_vec_get_f32(h_state, (double)r) : 0.01;
+                        cached_hidden[total_dataset_items * 512 + r] = (float)(v / norm);
                     }
                     cached_targets[total_dataset_items] = (int)target_token_id;
                     cached_weights[total_dataset_items] = (float)ic_weight;
@@ -1498,8 +1507,8 @@ extern double cartan_vec_len(void* vec);
             extern double cartan_tensor_train_batch_gpu(const float* h_batch_hidden, const int* h_targets, const float* h_ic_weights, double batch_size, double learning_rate);
 
             for (int ep = 1; ep <= max_epochs; ep++) {
-                double lr = 0.005 / (1.0 + 0.1 * (double)ep);
-                if (lr < 0.0001) lr = 0.0001;
+                double lr = 0.02 / (1.0 + 0.01 * (double)ep);
+                if (lr < 0.001) lr = 0.001;
 
                 double train_loss_sum = 0.0;
                 int curr_b = 0;

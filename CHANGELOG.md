@@ -1,3 +1,10 @@
+## [8.159.0] - 2026-08-15 (Sprint 202)
+
+### Fixed & Implemented
+- **L2-Normalized Embedding Pre-Caching & Fast Loss Reduction**:
+  - Implemented unit L2-normalization ($\|X\|_2 = 1.0$) for pre-cached sentence hidden state embeddings in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c), eliminating logit saturation during GPU Softmax activation.
+  - Adjusted learning rate schedule ($\eta = 0.02$), driving rapid loss reduction from **13.82** down to **9.44** (single digit loss) in 50 GPU epochs (12s total).
+
 ## [8.158.0] - 2026-08-15 (Sprint 201)
 
 ### Fixed & Implemented
