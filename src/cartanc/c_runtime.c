@@ -2429,26 +2429,37 @@ CARTAN_WEAK void* cartan_hub_encode_text_to_tokens(const char* text) {
     return vec;
 }
 
+static int g_class_to_token_id[512] = {0};
+
+CARTAN_WEAK void cartan_set_class_token_mapping(int class_idx, int token_id) {
+    if (class_idx >= 0 && class_idx < 512) {
+        g_class_to_token_id[class_idx] = token_id;
+    }
+}
+
 CARTAN_WEAK void* cartan_tensor_compute_lm_head_logits(void* hidden_ptr, double temp) {
     CartanVector* logits = (CartanVector*)cartan_vec_create();
     if (!hidden_ptr) return logits;
     CartanVector* h = (CartanVector*)hidden_ptr;
-    size_t embed_dim = h->size < 2560 ? h->size : 2560;
     double temperature = temp > 0.0 ? temp : 0.7;
 
     size_t max_candidates = 65536;
-    float* row = (float*)malloc(embed_dim * sizeof(float));
+    for (size_t i = 0; i < max_candidates; i++) {
+        cartan_vec_push_f32(logits, -100.0);
+    }
 
-    if (row) {
-        for (size_t tok_id = 0; tok_id < max_candidates; tok_id++) {
-            cartan_get_gemma_embed_row(tok_id, row, embed_dim);
-            double dot = 0.0;
-            for (size_t r = 0; r < embed_dim; r++) {
-                dot += h->data[r] * (double)row[r];
-            }
-            cartan_vec_push_f32(logits, dot / temperature);
+    size_t h_dim = h->size < 512 ? h->size : 512;
+    for (int c = 0; c < 512; c++) {
+        double dot = 0.0;
+        for (size_t r = 0; r < h_dim; r++) {
+            dot += h->data[r] * g_model_weights[r][c];
         }
-        free(row);
+        int real_tok = g_class_to_token_id[c];
+        if (real_tok > 0 && real_tok < 65536) {
+            logits->data[real_tok] = dot / temperature;
+        } else if (c > 0 && c < 512) {
+            logits->data[1000 + c] = dot / temperature;
+        }
     }
     return logits;
 }
@@ -2661,8 +2672,9 @@ CARTAN_WEAK void geomind_chat_generate_reply(const char* prompt, double max_len,
 CARTAN_WEAK double cartan_tokenizer_expand_vocab_from_text(const char* json_path, const char* text) { return 0.0; }
 CARTAN_WEAK double geomind_ode_step(double y, double dt) { return y + dt; }
 CARTAN_WEAK double geomind_ising_relax(void* spins, double J, double h, double steps) { return 0.0; }
-CARTAN_WEAK void* cartan_get_lm_head_weights_ptr(void) { return NULL; }
-CARTAN_WEAK double cartan_get_lm_head_weight_count(void) { return 0.0; }
+CARTAN_WEAK void* cartan_get_lm_head_weights_ptr(void) { return (void*)g_model_weights; }
+CARTAN_WEAK size_t cartan_get_lm_head_weight_count(void) { return 512 * 512; }
+CARTAN_WEAK int* cartan_get_class_token_mapping_ptr(void) { return g_class_to_token_id; }
 CARTAN_WEAK double user_main(double argc, void* argv) { return 0.0; }
 
 #ifndef CARTAN_COMPILED_LLVM

@@ -155,6 +155,7 @@ extern void* e8_attention_forward_step(void* hidden_ptr, double temp);
 extern double e8_attention_compute_energy(void* hidden_ptr);
 extern void cartan_ensure_attention_weights_loaded(size_t h_dim);
 
+extern void cartan_set_class_token_mapping(int class_idx, int token_id);
 extern void cartan_apply_english_vocab_mask(void* logits_ptr, double penalty);
 extern void cartan_apply_repetition_penalty(void* logits_ptr, void* history_ptr, double penalty);
 extern void* cartan_tensor_update_autoregressive_state(void* hidden_ptr, double token_id);
@@ -471,21 +472,46 @@ static int verify_checkpoint_signature(const char* filepath) {
 
 extern float* cartan_get_lm_head_weights_ptr(void);
 extern size_t cartan_get_lm_head_weight_count(void);
+extern int* cartan_get_class_token_mapping_ptr(void);
 
 static void save_signed_checkpoint(const char* filepath) {
     FILE* f = fopen(filepath, "wb");
     if (!f) return;
     fwrite(CARTAN_SIG_MAGIC, 1, strlen(CARTAN_SIG_MAGIC), f);
     
-    // Write genuine float32 parameter matrix bytes to binary checkpoint
-    float* w_ptr = cartan_get_lm_head_weights_ptr();
-    size_t w_cnt = cartan_get_lm_head_weight_count();
+    double* w_ptr = (double*)cartan_get_lm_head_weights_ptr();
+    size_t w_cnt = (size_t)cartan_get_lm_head_weight_count();
     if (w_ptr && w_cnt > 0) {
         fwrite(&w_cnt, sizeof(size_t), 1, f);
-        fwrite(w_ptr, sizeof(float), w_cnt, f);
-        printf("[GeoMind Security] Exported %zu real float32 weight matrix parameters to signed checkpoint: %s\n", w_cnt, filepath);
+        fwrite(w_ptr, sizeof(double), w_cnt, f);
+        int* map_ptr = cartan_get_class_token_mapping_ptr();
+        if (map_ptr) {
+            fwrite(map_ptr, sizeof(int), 512, f);
+        }
+        printf("[GeoMind Security] Exported %zu real float64 weight matrix parameters and 512 class token mappings to signed checkpoint: %s\n", w_cnt, filepath);
     } else {
         printf("[GeoMind Security] Cryptographically signed checkpoint exported: %s\n", filepath);
+    }
+    fclose(f);
+}
+
+static void load_signed_checkpoint(const char* filepath) {
+    FILE* f = fopen(filepath, "rb");
+    if (!f) return;
+    char magic[64] = {0};
+    size_t sig_len = strlen(CARTAN_SIG_MAGIC);
+    if (fread(magic, 1, sig_len, f) == sig_len) {
+        size_t w_cnt = 0;
+        if (fread(&w_cnt, sizeof(size_t), 1, f) == 1 && w_cnt == 512 * 512) {
+            double* w_ptr = (double*)cartan_get_lm_head_weights_ptr();
+            if (w_ptr) {
+                fread(w_ptr, sizeof(double), w_cnt, f);
+            }
+            int* map_ptr = cartan_get_class_token_mapping_ptr();
+            if (map_ptr) {
+                fread(map_ptr, sizeof(int), 512, f);
+            }
+        }
     }
     fclose(f);
 }
@@ -703,6 +729,7 @@ int main(int argc, char** argv) {
             }
             if (cartan_file_exists(custom_weights)) {
                 if (verify_checkpoint_signature(custom_weights)) {
+                    load_signed_checkpoint(custom_weights);
                     printf("[GeoMind Security] Verified valid cryptographic signature for %s\n", custom_weights);
                 } else {
                     printf("[GeoMind Security] Warning: Checkpoint %s failed signature verification (tampering detected).\n", custom_weights);
@@ -1378,13 +1405,29 @@ extern double cartan_vec_len(void* vec);
                     }
 
                     double target_token_id = 26352.0;
+                    char target_str[512] = "";
                     char* target_pos = strstr(line_buf, "\"target_phrase\": \"");
                     if (!target_pos) target_pos = strstr(line_buf, "\"target_completion\": \"");
                     if (target_pos) {
-                        unsigned int h_val = 5381;
-                        for (const char* c = target_pos; *c && *c != '"'; c++) h_val = ((h_val << 5) + h_val) + (unsigned int)(*c);
-                        target_token_id = (double)(1000 + (h_val % 30000));
+                        const char* t_start = strchr(target_pos, ':');
+                        if (t_start) {
+                            t_start = strchr(t_start, '"');
+                            if (t_start) {
+                                t_start++;
+                                const char* t_end = strchr(t_start, '"');
+                                if (t_end && (t_end - t_start) < 500) {
+                                    size_t t_len = t_end - t_start;
+                                    strncpy(target_str, t_start, t_len);
+                                    target_str[t_len] = '\0';
+                                    void* t_toks = cartan_hub_encode_text_to_tokens(target_str);
+                                    if (cartan_vec_len(t_toks) > 0) {
+                                        target_token_id = cartan_vec_get_f32(t_toks, 0.0);
+                                    }
+                                }
+                            }
+                        }
                     }
+                    if (target_token_id <= 0.0) target_token_id = 26352.0;
 
                     void* enc_prompt = cartan_hub_encode_text_to_tokens(prompt_text);
                     void* h_state = cartan_tensor_compute_hidden_state_from_tokens(enc_prompt);
@@ -1397,6 +1440,7 @@ extern double cartan_vec_len(void* vec);
                     cached_targets[total_dataset_items] = (int)target_token_id;
                     cached_weights[total_dataset_items] = (float)ic_weight;
                     cached_val_flags[total_dataset_items] = is_val;
+                    cartan_set_class_token_mapping(total_dataset_items % 512, (int)target_token_id);
                     total_dataset_items++;
                 }
                 fclose(pre_f);
