@@ -81,12 +81,12 @@ def main():
 
     with open(out_file, "w", encoding="utf-8") as f:
         for m in mined:
-            f.write(json.dumps(m) + "\n")
+            f.write(json.dumps(m, ensure_ascii=False) + "\n")
 
     # Also mirror to scratch/cloze_anchored_dataset.jsonl for training driver
     with open(sym_file, "w", encoding="utf-8") as f:
         for m in mined:
-            f.write(json.dumps(m) + "\n")
+            f.write(json.dumps(m, ensure_ascii=False) + "\n")
 
     print(f"================================================================================")
     print(f"  REAL CORPUS PHRASE MINER & CLOZE EXTRACTOR")
