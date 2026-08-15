@@ -1,3 +1,11 @@
+## [8.151.0] - 2026-08-14 (Sprint 194)
+
+### Fixed & Implemented
+- **Pre-Cached RAM/VRAM Zero-Disk-Latency CUDA Acceleration Engine**:
+  - Implemented pre-caching of sentence hidden state embeddings directly in RAM/VRAM prior to epoch execution in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c).
+  - Eliminated CPU disk I/O bottlenecks (`_fseeki64`/`fread`) during training, enabling zero-disk-latency CUDA batched GEMM matrix multiplication (`Batch Size = 64`) on the **NVIDIA RTX 2000 Ada Generation Laptop GPU**.
+  - Verified active GPU compute power state (`P3`, 12W) during neural training pass.
+
 ## [8.150.0] - 2026-08-14 (Sprint 193)
 
 ### Fixed & Implemented
