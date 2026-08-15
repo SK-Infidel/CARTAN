@@ -1,3 +1,10 @@
+## [8.173.0] - 2026-08-15 (Sprint 216)
+
+### Fixed & Implemented
+- **Ken Hyland Exact 10-Category Metadiscourse Inventory Engine**:
+  - Configured [`tools/harvest_domain_ngrams.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/harvest_domain_ngrams.py) to harvest Ken Hyland's exact, canonical 10-category metadiscourse item inventory (Hyland, 2005).
+  - Extracted **438,912 total token occurrences** across **188 unique Hyland metadiscourse items** (Self Mentions: 132.9k, Engagement: 113.9k, Hedges: 64.6k, Frame Markers: 41.5k, Evidentials: 31.8k, Glosses: 18.4k, Transitions: 15.8k, Boosters: 14.1k, Endophoric: 2.8k, Attitude: 2.5k) into [`scratch/mined_expanded_corpus_cloze.jsonl`](file:///C:/Users/rich-/source/repos/CARTAN/scratch/mined_expanded_corpus_cloze.jsonl).
+
 ## [8.172.0] - 2026-08-15 (Sprint 215)
 
 ### Fixed & Implemented

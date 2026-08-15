@@ -32,60 +32,70 @@ if token:
     os.environ["HF_TOKEN"] = token
     os.environ["HUGGING_FACE_HUB_TOKEN"] = token
 
-# 2. Universal Syntactic Grammatical Categories
-PREP_HEADS = {"in", "on", "at", "by", "with", "through", "under", "upon", "after", "before", "during", "between", "across", "along", "around", "near", "into", "over", "above", "behind", "beneath", "beside", "beyond", "towards", "onto"}
-PREP_TAILS = {"to", "for", "with", "of", "in", "at", "by", "on", "from", "as", "about", "into", "through"}
-DETERMINERS = {"the", "a", "an", "this", "that", "these", "those", "their", "our", "my", "his", "her", "its"}
+# 2. Ken Hyland's Exact 10-Category Metadiscourse Inventory (Hyland, 2005)
+HYLAND_EXACT_TAXONOMY = {
+    "Transitions": [
+        "however", "therefore", "moreover", "furthermore", "consequently", "in contrast",
+        "on the other hand", "in addition", "as a result", "in fact", "conversely",
+        "nevertheless", "accordingly", "hence", "thus", "instead", "likewise", "similarly",
+        "indeed", "additionally", "subsequently", "inevitably", "besides", "further",
+        "alternatively", "on the contrary", "in comparison", "by contrast", "in spite of",
+        "on the one hand", "at the same time", "in the first place", "nonetheless"
+    ],
+    "Frame Markers": [
+        "first", "firstly", "second", "secondly", "third", "thirdly", "finally", "lastly",
+        "in conclusion", "to conclude", "to summarize", "in summary", "overall", "in short",
+        "briefly", "to sum up", "now", "then", "next", "at this point", "so far",
+        "to begin with", "my purpose is", "our aim is", "the goal of this paper is",
+        "this section discusses", "let us turn to", "moving to", "with regard to"
+    ],
+    "Code Glosses": [
+        "namely", "specifically", "in other words", "that is", "that is to say", "such as",
+        "for example", "for instance", "including", "defined as", "meaning", "which means",
+        "i.e.", "e.g.", "in particular", "put another way", "called", "known as"
+    ],
+    "Evidentials": [
+        "according to", "demonstrate", "show", "indicate", "suggest", "report", "find",
+        "argues", "states", "notes", "observed", "found by", "cited in", "as noted by",
+        "as shown by", "as reported by", "claims", "observed by"
+    ],
+    "Endophoric Markers": [
+        "see figure", "see table", "refer to", "shown in figure", "discussed in section",
+        "in chapter", "below", "above", "as noted above", "as shown below", "see section"
+    ],
+    "Self Mentions": [
+        "i", "we", "my", "our", "me", "us", "the author", "this study", "i argue",
+        "we propose", "our research", "my view", "we believe", "i conclude", "this paper",
+        "our findings", "our results", "my analysis"
+    ],
+    "Hedges": [
+        "might", "could", "perhaps", "possibly", "probably", "likely", "seem", "appear",
+        "suggest", "indicate", "assume", "presume", "somewhat", "partly", "relatively",
+        "about", "around", "almost", "tentatively", "may", "would", "in general",
+        "appears to", "seems to", "tends to"
+    ],
+    "Boosters": [
+        "clearly", "obviously", "definitely", "certainly", "undoubtedly", "strongly",
+        "in fact", "indeed", "always", "never", "proves", "demonstrates", "shows beyond doubt",
+        "it is clear that", "there is no doubt", "it is evident that", "conclusively"
+    ],
+    "Attitude Markers": [
+        "unfortunately", "surprisingly", "hopefully", "remarkably", "interestingly",
+        "importantly", "crucially", "significantly", "strikingly", "regrettably",
+        "understandably", "admittedly", "prefer", "agree", "disagree", "essential",
+        "even more important", "surprisingly enough"
+    ],
+    "Engagement Markers": [
+        "note that", "consider", "observe", "see", "you", "your", "one", "we should",
+        "must", "need to", "imagine", "let us", "suppose", "recall", "look at",
+        "think about", "notice that"
+    ]
+}
 
-MONTHS = {"january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"}
-DAYS = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"}
-TERRAINS = {"farmland", "forest", "desert", "mountain", "valley", "river", "ocean", "jungle", "field", "meadow", "woods", "plain", "hills", "island", "sea", "lake"}
-LOCATIONS = {"scotland", "england", "france", "germany", "america", "japan", "china", "london", "paris", "tokyo", "europe", "asia", "africa", "italy", "spain"}
-
-def reduce_to_meta_schema(phrase):
-    """Reduces specific prepositional phrases into Universal Meta-Parametric Schemas."""
-    words = phrase.split()
-    if len(words) < 3:
-        return None
-        
-    w_head = words[0].lower().strip()
-    w_tail = words[-1].lower().strip()
-    
-    if w_head not in PREP_HEADS or w_tail not in PREP_TAILS:
-        return None
-        
-    middle_words = words[1:-1]
-    meta_middle = []
-    
-    for mw in middle_words:
-        clean_mw = mw.lower().strip()
-        if clean_mw in DETERMINERS:
-            meta_middle.append("<DET>")
-        elif clean_mw in TERRAINS:
-            meta_middle.append("<TERRAIN>")
-        elif clean_mw in LOCATIONS:
-            meta_middle.append("<LOCATION>")
-        elif clean_mw in MONTHS:
-            meta_middle.append("<MONTH>")
-        elif clean_mw in DAYS:
-            meta_middle.append("<DAY>")
-        elif clean_mw.isdigit() and len(clean_mw) == 4:
-            meta_middle.append("<YEAR>")
-        elif clean_mw.isdigit():
-            meta_middle.append("<NUMBER>")
-        else:
-            meta_middle.append("<NOUN_SLOT>")
-
-    schema_str = f"<PREP_HEAD> {' '.join(meta_middle)} <PREP_TAIL>"
-    return schema_str
-
-# Prepositional Frame Regex Capture
-FRAME_REGEX = r'\b(?:in|on|at|by|with|through|under|upon|after|before|during|between|across|along|around|near|into|over|above|behind|beneath|beside|beyond|towards|onto)\s+[a-z\-0-9]+(?:\s+[a-z\-0-9]+)?\s+(?:to|for|with|of|in|at|by|on|from|as|about|into|through)\b'
-
-def harvest_meta_parametric_schemas():
-    """Harvests Universal Meta-Parametric Prepositional Schemas across datasets."""
+def harvest_hyland_exact_list():
+    """Harvests Ken Hyland's exact 10-category metadiscourse inventory across streaming datasets."""
     print("================================================================================")
-    print("  UNIVERSAL META-PARAMETRIC SCHEMA REDUCTION HARVESTER")
+    print("  KEN HYLAND EXACT METADISCOURSE TAXONOMY HARVESTER ENGINE")
     print("================================================================================")
 
     domains = [
@@ -95,8 +105,21 @@ def harvest_meta_parametric_schemas():
         {"name": "roneneldan/TinyStories", "config": None, "field": "text", "type": "narrative"}
     ]
 
-    meta_schema_counter = collections.Counter()
-    meta_schema_instantiations = collections.defaultdict(list)
+    item_counter = collections.Counter()
+    category_counts = collections.Counter()
+    item_category_map = {}
+    item_examples = collections.defaultdict(list)
+
+    # Flatten Hyland list into exact regex lookup
+    hyland_flat = []
+    for cat, items in HYLAND_EXACT_TAXONOMY.items():
+        for item in items:
+            clean_item = item.lower().strip()
+            item_category_map[clean_item] = cat
+            hyland_flat.append(clean_item)
+
+    # Sort items by length (longest first) to avoid partial sub-token overlap
+    hyland_flat.sort(key=lambda x: len(x), reverse=True)
 
     for dom in domains:
         print(f"\n[Harvester Stream] Streaming 25,000 sentences from '{dom['name']}' ({dom['type']})...")
@@ -127,51 +150,54 @@ def harvest_meta_parametric_schemas():
                         break
 
             text_str = re.sub(r'[\r\n\t]+', ' ', str(text_val)).strip()
-            text_str = re.sub(r'\s+', ' ', text_str)
+            text_str = re.sub(r'\s+', ' ', text_str).lower()
             if len(text_str) < 15:
                 continue
 
-            matches = re.findall(FRAME_REGEX, text_str.lower())
-            for raw_m in matches:
-                clean_m = raw_m.strip()
-                meta_schema = reduce_to_meta_schema(clean_m)
-                if meta_schema:
-                    meta_schema_counter[meta_schema] += 1
-                    dataset_count += 1
-                    if len(meta_schema_instantiations[meta_schema]) < 5:
-                        if clean_m not in meta_schema_instantiations[meta_schema]:
-                            meta_schema_instantiations[meta_schema].append(clean_m)
+            for item in hyland_flat:
+                # Word boundary regex search for exact Hyland items
+                pat = r'\b' + re.escape(item) + r'\b'
+                matches = re.findall(pat, text_str)
+                if matches:
+                    cnt = len(matches)
+                    item_counter[item] += cnt
+                    cat_name = item_category_map[item]
+                    category_counts[cat_name] += cnt
+                    dataset_count += cnt
+                    if len(item_examples[item]) < 3:
+                        item_examples[item].append(text_str[:120])
 
-        print(f"[Harvester Stream] Harvested {dataset_count} meta-parametric instances from {dom['name']}")
+        print(f"[Harvester Stream] Matched {dataset_count} Hyland metadiscourse occurrences in {dom['name']}")
 
     harvested_items = []
-    for schema, freq in meta_schema_counter.most_common(1000):
+    for item, freq in item_counter.most_common():
+        cat_name = item_category_map[item]
         harvested_items.append({
-            "meta_schema": schema,
-            "total_frequency": freq,
-            "syntactic_structure": "<PREP_HEAD> [INNER_SLOT] <PREP_TAIL>",
-            "sample_concrete_instances": meta_schema_instantiations.get(schema, []),
-            "word_count": len(schema.split()),
-            "cloze_prompt": f"Universal Meta-Schema [{schema}]: [BLANK] -> {schema}",
-            "target_phrase": schema
+            "phrase": item,
+            "category": cat_name,
+            "frequency": freq,
+            "word_count": len(item.split()),
+            "sample_contexts": item_examples.get(item, []),
+            "cloze_prompt": f"Hyland Metadiscourse [{cat_name}]: [BLANK] -> {item}",
+            "target_phrase": item
         })
 
     os.makedirs("scratch", exist_ok=True)
     out_file = "scratch/mined_expanded_corpus_cloze.jsonl"
     with open(out_file, "w", encoding="utf-8") as f:
-        for item in harvested_items:
-            f.write(json.dumps(item) + "\n")
+        for entry in harvested_items:
+            f.write(json.dumps(entry) + "\n")
 
     print("\n================================================================================")
-    print("  UNIVERSAL META-PARAMETRIC SCHEMA SUMMARY")
+    print("  KEN HYLAND EXACT METADISCOURSE HARVEST SUMMARY")
     print("================================================================================")
-    print(f"  Total Universal Meta-Schemas Mined   : {len(harvested_items)}")
-    print(f"  Top Universal Meta-Parametric Schemas:")
-    for item in harvested_items[:8]:
-        print(f"    - Meta-Schema '{item['meta_schema']}' (Found {item['total_frequency']}x)")
-        print(f"      Instantiations: {item['sample_concrete_instances'][:3]}")
-    print(f"  Output Checkpoint Dataset            : {out_file}")
+    print(f"  Total Unique Hyland Metadiscourse Items Mined : {len(harvested_items)}")
+    print(f"  Total Metadiscourse Tokens Matched            : {sum(item_counter.values())}")
+    print("  Breakdown by Hyland Taxonomy Category:")
+    for cat, cnt in category_counts.most_common():
+        print(f"    - Category '{cat}': {cnt} token occurrences")
+    print(f"  Output Checkpoint Dataset                     : {out_file}")
     print("================================================================================\n")
 
 if __name__ == "__main__":
-    harvest_meta_parametric_schemas()
+    harvest_hyland_exact_list()
