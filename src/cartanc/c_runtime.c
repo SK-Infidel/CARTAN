@@ -1706,6 +1706,7 @@ static void* g_cuda_kernel_matmul = NULL;
 static void* g_cuda_kernel_sgd = NULL;
 static void* g_cuda_kernel_batched_matmul = NULL;
 static void* g_cuda_kernel_batched_sgd = NULL;
+static void* g_cuda_kernel_batched_matmul_tiled = NULL;
 
 static unsigned long long d_weights_ptr = 0;
 static unsigned long long d_hidden_ptr = 0;
@@ -1730,6 +1731,8 @@ typedef int (__stdcall *PFN_nvrtcCreateProgram)(void** prog, const char* src, co
 typedef int (__stdcall *PFN_nvrtcCompileProgram)(void* prog, int numOptions, const char** options);
 typedef int (__stdcall *PFN_nvrtcGetPTXSize)(void* prog, size_t* ptxSizeRet);
 typedef int (__stdcall *PFN_nvrtcGetPTX)(void* prog, char* ptx);
+typedef int (__stdcall *PFN_nvrtcGetProgramLogSize)(void* prog, size_t* logSizeRet);
+typedef int (__stdcall *PFN_nvrtcGetProgramLog)(void* prog, char* log);
 
 static PFN_cuMemAlloc f_cuMemAlloc = NULL;
 static PFN_cuMemcpyHtoD f_cuMemcpyHtoD = NULL;
@@ -1780,6 +1783,33 @@ const char* g_cuda_kernel_src =
 "        }\n"
 "        W[row * N + col] -= (lr / (float)B) * grad_sum;\n"
 "    }\n"
+"}\n"
+"extern \"C\" __global__ void k_batched_matmul_tiled(const float* X, const float* W, float* Logits, int B, int M, int N) {\n"
+"    __shared__ float tile_X[16][16];\n"
+"    __shared__ float tile_W[16][16];\n"
+"    int bx = blockIdx.x, by = blockIdx.y;\n"
+"    int tx = threadIdx.x, ty = threadIdx.y;\n"
+"    int row = by * 16 + ty;\n"
+"    int col = bx * 16 + tx;\n"
+"    float pval = 0.0f;\n"
+"    for (int m = 0; m < (M + 15) / 16; ++m) {\n"
+"        if (row < B && (m * 16 + tx) < M)\n"
+"            tile_X[ty][tx] = X[row * M + m * 16 + tx];\n"
+"        else\n"
+"            tile_X[ty][tx] = 0.0f;\n"
+"        if ((m * 16 + ty) < M && col < N)\n"
+"            tile_W[ty][tx] = W[(m * 16 + ty) * N + col];\n"
+"        else\n"
+"            tile_W[ty][tx] = 0.0f;\n"
+"        __syncthreads();\n"
+"        for (int k = 0; k < 16; ++k) {\n"
+"            pval += tile_X[ty][k] * tile_W[k][tx];\n"
+"        }\n"
+"        __syncthreads();\n"
+"    }\n"
+"    if (row < B && col < N) {\n"
+"        Logits[row * N + col] = pval;\n"
+"    }\n"
 "}\n";
 
 static void cartan_init_gpu_device_if_needed(void) {
@@ -1815,7 +1845,21 @@ static void cartan_init_gpu_device_if_needed(void) {
                         void* prog = NULL;
                         if (f_nvrtcCreateProgram(&prog, g_cuda_kernel_src, "geomind_kernels.cu", 0, NULL, NULL) == 0) {
                             const char* opts[] = { "--gpu-architecture=compute_89" };
-                            if (f_nvrtcCompileProgram(prog, 1, opts) == 0) {
+                            int compile_res = f_nvrtcCompileProgram(prog, 1, opts);
+                            if (compile_res != 0) {
+                                PFN_nvrtcGetProgramLogSize f_logSize = (PFN_nvrtcGetProgramLogSize)GetProcAddress(hNvrtc, "nvrtcGetProgramLogSize");
+                                PFN_nvrtcGetProgramLog f_log = (PFN_nvrtcGetProgramLog)GetProcAddress(hNvrtc, "nvrtcGetProgramLog");
+                                if (f_logSize && f_log) {
+                                    size_t log_sz = 0;
+                                    f_logSize(prog, &log_sz);
+                                    char* lbuf = (char*)malloc(log_sz + 1);
+                                    if (lbuf) {
+                                        f_log(prog, lbuf);
+                                        printf("[GeoMind GPU Error] NVRTC CUDA JIT Compile Failed:\n%s\n", lbuf);
+                                        free(lbuf);
+                                    }
+                                }
+                            } else {
                                 size_t ptx_size = 0;
                                 f_nvrtcGetPTXSize(prog, &ptx_size);
                                 char* ptx = (char*)malloc(ptx_size);
@@ -1825,9 +1869,10 @@ static void cartan_init_gpu_device_if_needed(void) {
                                         f_cuModuleGetFunction(&g_cuda_kernel_sgd, g_cuda_module, "k_sgd");
                                         f_cuModuleGetFunction(&g_cuda_kernel_batched_matmul, g_cuda_module, "k_batched_matmul");
                                         f_cuModuleGetFunction(&g_cuda_kernel_batched_sgd, g_cuda_module, "k_batched_sgd");
+                                        f_cuModuleGetFunction(&g_cuda_kernel_batched_matmul_tiled, g_cuda_module, "k_batched_matmul_tiled");
 
-                                        // Allocate GPU VRAM arrays on NVIDIA RTX 2000 Ada GPU
-                                        int max_b = 128;
+                                        // Allocate GPU VRAM arrays on NVIDIA RTX 2000 Ada GPU (Max Batch 1024)
+                                        int max_b = 1024;
                                         f_cuMemAlloc(&d_weights_ptr, sizeof(float) * 512 * 512);
                                         f_cuMemAlloc(&d_hidden_ptr, sizeof(float) * 512);
                                         f_cuMemAlloc(&d_logits_ptr, sizeof(float) * 512);
@@ -1836,7 +1881,7 @@ static void cartan_init_gpu_device_if_needed(void) {
                                         f_cuMemAlloc(&d_batch_targets_ptr, sizeof(int) * max_b);
                                         f_cuMemAlloc(&d_batch_probs_ptr, sizeof(float) * max_b * 512);
 
-                                        printf("[GeoMind GPU] Mounted & JIT-Compiled Tensor-Batched CUDA 13.2 Acceleration Engine: %s\n", g_cuda_gpu_name);
+                                        printf("[GeoMind GPU] Mounted & JIT-Compiled 2D Tiled Shared-Memory CUDA 13.2 Acceleration Engine: %s\n", g_cuda_gpu_name);
                                         fflush(stdout);
                                         free(ptx);
                                         return;
@@ -1950,7 +1995,7 @@ CARTAN_WEAK double cartan_tensor_train_batch_gpu(const float* h_batch_hidden, co
     cartan_init_weights_if_needed();
     int B = (int)batch_size;
     if (B <= 0 || !h_batch_hidden || !h_targets) return 0.0;
-    if (B > 128) B = 128;
+    if (B > 1024) B = 1024;
 
     double total_batch_loss = 0.0;
     int M = 512, N = 512;
@@ -1960,10 +2005,10 @@ CARTAN_WEAK double cartan_tensor_train_batch_gpu(const float* h_batch_hidden, co
         f_cuMemcpyHtoD(d_batch_hidden_ptr, h_batch_hidden, sizeof(float) * B * M);
         f_cuMemcpyHtoD(d_batch_targets_ptr, h_targets, sizeof(int) * B);
 
-        // Grid Launch batched matrix multiplication kernel across 3072 CUDA cores
-        // grid(N/256, B), block(256, 1)
+        // Launch 2D Tiled Shared-Memory GEMM kernel across all 3072 CUDA cores (grid 2D, block 16x16)
         void* args[] = { &d_batch_hidden_ptr, &d_weights_ptr, &d_batch_logits_ptr, &B, &M, &N };
-        f_cuLaunchKernel(g_cuda_kernel_batched_matmul, (N + 255) / 256, B, 1, 256, 1, 1, 0, NULL, args, NULL);
+        void* k_fn = g_cuda_kernel_batched_matmul_tiled ? g_cuda_kernel_batched_matmul_tiled : g_cuda_kernel_batched_matmul;
+        f_cuLaunchKernel(k_fn, (N + 15) / 16, (B + 15) / 16, 1, 16, 16, 1, 0, NULL, args, NULL);
 
         float* h_batch_logits = (float*)malloc(sizeof(float) * B * N);
         float* h_batch_probs = (float*)malloc(sizeof(float) * B * N);

@@ -1418,9 +1418,9 @@ extern double cartan_vec_len(void* vec);
                 double lr = 0.005 / (1.0 + 0.1 * (double)ep);
                 if (lr < 0.0001) lr = 0.0001;
 
-                float train_batch_hidden[64 * 512];
-                int train_batch_targets[64];
-                float train_batch_weights[64];
+                float train_batch_hidden[512 * 512];
+                int train_batch_targets[512];
+                float train_batch_weights[512];
                 int curr_b = 0;
 
                 for (int i = 0; i < total_dataset_items; i++) {
@@ -1438,8 +1438,8 @@ extern double cartan_vec_len(void* vec);
                         curr_b++;
                         train_items++;
 
-                        if (curr_b == 64) {
-                            double b_loss = cartan_tensor_train_batch_gpu(train_batch_hidden, train_batch_targets, train_batch_weights, 64.0, lr);
+                        if (curr_b == 512) {
+                            double b_loss = cartan_tensor_train_batch_gpu(train_batch_hidden, train_batch_targets, train_batch_weights, 512.0, lr);
                             train_loss_sum += b_loss;
                             curr_b = 0;
                         }
