@@ -1,3 +1,12 @@
+## [8.141.0] - 2026-08-14 (Sprint 184)
+
+### Fixed & Implemented
+- **Multi-Epoch Anchored Cloze Training Pass**:
+  - Implemented multi-epoch training loop (`-epochs=10`) with learning rate decay in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c).
+  - Executed 10 training epochs over 1,618 genuine mined sentences, reducing mean loss from `5.9409` to `4.5377`.
+- **Signed Checkpoint Export**:
+  - Exported cryptographically signed model weights to [`test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin).
+
 ## [8.140.0] - 2026-08-14 (Sprint 183)
 
 ### Fixed & Implemented
