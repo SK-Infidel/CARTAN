@@ -1,3 +1,10 @@
+## [8.164.0] - 2026-08-15 (Sprint 207)
+
+### Fixed & Implemented
+- **4-Domain Automated N-Gram Attractor Harvester**:
+  - Implemented [`tools/harvest_domain_ngrams.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/harvest_domain_ngrams.py) using HuggingFace streaming across **Conversational** (`OpenAssistant/oasst1`), **Narrative** (`roneneldan/TinyStories`), **Structural** (`Salesforce/wikitext`), and **Scientific/Math** (`gfissore/arxiv-abstracts-2021`).
+  - Harvested **800 unique domain bigrams and trigrams** into [`scratch/mined_expanded_corpus_cloze.jsonl`](file:///C:/Users/rich-/source/repos/CARTAN/scratch/mined_expanded_corpus_cloze.jsonl), excluding all previous phrases and generic stop-word combinations.
+
 ## [8.163.0] - 2026-08-15 (Sprint 206)
 
 ### Fixed & Implemented
