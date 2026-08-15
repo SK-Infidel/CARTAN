@@ -1,3 +1,10 @@
+## [8.139.0] - 2026-08-14 (Sprint 182)
+
+### Fixed & Implemented
+- **Raw UTF-8 Punctuation Preservation**:
+  - Updated [`tools/mine_real_corpus.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/mine_real_corpus.py) with `ensure_ascii=False` when saving mined sentences into `scratch/mined_real_corpus_cloze.jsonl` and `scratch/cloze_anchored_dataset.jsonl`.
+  - Replaced JSON ASCII escape codes (`\u201d`, `\u201c`, `\u2019`, `\u2014`) with raw UTF-8 quotation marks (`”`, `“`), apostrophes (`’`), and em-dashes (`—`) so SentencePiece BPE reads authentic human punctuation during model training.
+
 ## [8.138.0] - 2026-08-14 (Sprint 181)
 
 ### Fixed & Implemented
