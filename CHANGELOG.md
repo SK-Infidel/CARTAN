@@ -1,3 +1,11 @@
+## [8.150.0] - 2026-08-14 (Sprint 193)
+
+### Fixed & Implemented
+- **Hardware CUDA 13.2 JIT Kernel Compilation & Compute Process Dispatch**:
+  - Dynamically bound `nvrtc64_130_0.dll` (NVRTC Runtime Compilation) and CUDA Driver API (`nvcuda.dll`) in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c).
+  - JIT-compiled matrix multiplication (`k_matmul`) and SGD backprop (`k_sgd`) CUDA kernels targeting `sm_89`.
+  - Confirmed active GPU Compute process (`geomind.exe`, PID 30608) executing on the **NVIDIA RTX 2000 Ada Generation Laptop GPU** with active VRAM allocation verified via `nvidia-smi`.
+
 ## [8.149.0] - 2026-08-14 (Sprint 192)
 
 ### Fixed & Implemented
