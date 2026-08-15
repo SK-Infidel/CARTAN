@@ -1365,6 +1365,22 @@ extern double cartan_vec_len(void* vec);
             if (!test_check) dataset_path = "scratch/cloze_anchored_dataset.jsonl";
             if (test_check) fclose(test_check);
 
+            extern void cartan_sync_host_weights_to_gpu(void);
+            const char* custom_ckpt = get_arg_value(argc, argv, "-ckpt");
+            if (!custom_ckpt) custom_ckpt = get_arg_value(argc, argv, "-weights");
+            if (!custom_ckpt && cartan_file_exists("test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin")) {
+                custom_ckpt = "test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin";
+            }
+            if (custom_ckpt && cartan_file_exists(custom_ckpt)) {
+                if (verify_checkpoint_signature(custom_ckpt)) {
+                    load_signed_checkpoint(custom_ckpt);
+                    cartan_sync_host_weights_to_gpu();
+                    printf("[GeoMind Security] Resuming training from signed checkpoint: %s\n", custom_ckpt);
+                } else {
+                    printf("[GeoMind Security] Warning: Checkpoint %s failed signature verification.\n", custom_ckpt);
+                }
+            }
+
             // Pre-cache full dataset embeddings into contiguous host RAM buffer before starting training
             printf("[GeoMind GPU Cache] Pre-caching dataset sentence embeddings into RAM to eliminate CPU Disk I/O...\n");
             fflush(stdout);

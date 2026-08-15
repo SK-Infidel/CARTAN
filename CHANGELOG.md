@@ -1,3 +1,11 @@
+## [8.157.0] - 2026-08-15 (Sprint 200)
+
+### Fixed & Implemented
+- **Automated Checkpoint Resumption for Cloze Training**:
+  - Fixed `--train-cloze` in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c) to load existing signed checkpoints (`load_signed_checkpoint`) on startup instead of initializing random weights.
+  - Implemented `cartan_sync_host_weights_to_gpu()` in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c) to sync host matrix weights directly into OpenCL GPU VRAM buffers.
+  - Verified empirical checkpoint weight resumption and continuous loss accumulation across training sessions.
+
 ## [8.156.0] - 2026-08-14 (Sprint 199)
 
 ### Fixed & Implemented

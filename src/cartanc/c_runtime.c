@@ -2060,6 +2060,24 @@ static void cartan_init_gpu_device_if_needed(void) {
     fflush(stdout);
 }
 
+CARTAN_WEAK void cartan_sync_host_weights_to_gpu(void) {
+    cartan_init_gpu_device_if_needed();
+    if (g_opencl_gpu_mounted && g_opencl_cmd_queue && g_opencl_buf_weights) {
+        float* h_w = (float*)malloc(sizeof(float) * 512 * 512);
+        if (h_w) {
+            for (int r = 0; r < 512; r++) {
+                for (int c = 0; c < 512; c++) {
+                    h_w[r * 512 + c] = (float)g_model_weights[r][c];
+                }
+            }
+            if (f_clEnqueueWriteBuffer) {
+                f_clEnqueueWriteBuffer(g_opencl_cmd_queue, g_opencl_buf_weights, 1, 0, sizeof(float) * 512 * 512, h_w, 0, NULL, NULL);
+            }
+            free(h_w);
+        }
+    }
+}
+
 static void cartan_init_weights_if_needed(void) {
     cartan_init_gpu_device_if_needed();
     if (g_weights_init) return;
