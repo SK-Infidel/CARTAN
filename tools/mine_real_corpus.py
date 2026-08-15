@@ -89,8 +89,8 @@ def main():
     phrases = load_target_phrases()
     print(f"[Real Phrase Miner] Loaded {len(phrases)} target phrases from docs/research/idea.txt.")
 
-    corpus_files = glob.glob("scratch/public_corpus/*.txt") + glob.glob("docs/**/*.md", recursive=True) + glob.glob("docs/**/*.txt", recursive=True) + glob.glob("*.md")
-    print(f"[Real Phrase Miner] Scanning {len(corpus_files)} raw text files across scratch/public_corpus/ and docs/...")
+    corpus_files = glob.glob("scratch/movie_scripts/*.txt") + glob.glob("scratch/public_corpus/*.txt") + glob.glob("docs/**/*.md", recursive=True) + glob.glob("docs/**/*.txt", recursive=True) + glob.glob("*.md")
+    print(f"[Real Phrase Miner] Scanning {len(corpus_files)} raw text files across scratch/movie_scripts/, scratch/public_corpus/, and docs/...")
     
     mined = mine_from_corpus(corpus_files, phrases)
 

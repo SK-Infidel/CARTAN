@@ -1324,29 +1324,23 @@ extern double cartan_vec_len(void* vec);
             return 0;
         }
 
-        // 6b. --train-cloze / Target-Loss Convergence Cloze Curriculum Pass
+        // 6b. --train-cloze / Information-Weighted Train vs Val Cloze Curriculum Pass
         if (strcmp(flag, "--train-cloze") == 0 || strstr(flag, "train-cloze")) {
-            double target_loss = get_arg_double_value(argc, argv, "-target-loss", 3.00);
-            int max_epochs = get_arg_int_value(argc, argv, "-max-epochs", get_arg_int_value(argc, argv, "-epochs", 100));
+            double target_loss = get_arg_double_value(argc, argv, "-target-loss", 2.00);
+            int max_epochs = get_arg_int_value(argc, argv, "-max-epochs", get_arg_int_value(argc, argv, "-epochs", 50));
             printf("================================================================================\n");
-            printf("  GEOMIND TARGET-LOSS CONVERGENCE CLOZE & NARRATIVE CURRICULUM PIPELINE\n");
-            printf("  Based on docs/research/idea.txt | Target Loss Threshold: %.2f | Max Epochs: %d\n", target_loss, max_epochs);
+            printf("  GEOMIND INFORMATION-WEIGHTED TRAIN VS VAL CLOZE & NARRATIVE PIPELINE\n");
+            printf("  Dataset: scratch/mined_real_corpus_cloze.jsonl | Target Loss: %.2f | Max Epochs: %d\n", target_loss, max_epochs);
             printf("================================================================================\n\n");
 
             const char* dataset_path = "scratch/mined_real_corpus_cloze.jsonl";
             FILE* test_check = fopen(dataset_path, "r");
-            if (!test_check) {
-                dataset_path = "scratch/cloze_anchored_dataset.jsonl";
-                test_check = fopen(dataset_path, "r");
-            }
-            if (!test_check) {
-                dataset_path = "../scratch/cloze_anchored_dataset.jsonl";
-                test_check = fopen(dataset_path, "r");
-            }
+            if (!test_check) dataset_path = "scratch/cloze_anchored_dataset.jsonl";
             if (test_check) fclose(test_check);
 
-            double initial_loss = 0.0;
-            double final_loss = 0.0;
+            double best_val_loss = 1e9;
+            double initial_train_loss = 0.0;
+            double final_train_loss = 0.0;
             int reached_epoch = 0;
 
             for (int ep = 1; ep <= max_epochs; ep++) {
@@ -1354,49 +1348,99 @@ extern double cartan_vec_len(void* vec);
                 if (!jsonl_f) break;
 
                 char line_buf[4096];
-                size_t stage1_count = 0;
-                size_t stage2_count = 0;
-                double ep_loss = 0.0;
+                size_t line_index = 0;
+                size_t train_items = 0;
+                size_t val_items = 0;
+                double train_loss_sum = 0.0;
+                double val_loss_sum = 0.0;
                 double lr = 0.005 / (1.0 + 0.1 * (double)ep);
                 if (lr < 0.0001) lr = 0.0001;
 
                 while (fgets(line_buf, sizeof(line_buf), jsonl_f)) {
-                    if (strstr(line_buf, "\"cloze_prompt\"") || strstr(line_buf, "\"target_phrase\"") || strstr(line_buf, "\"stage\": 1")) {
-                        stage1_count++;
-                        void* enc_setup = cartan_hub_encode_text_to_tokens("The company was facing insolvency.");
-                        void* h_setup = cartan_tensor_compute_hidden_state_from_tokens(enc_setup);
-                        ep_loss += cartan_tensor_train_step(h_setup, 26352.0, lr);
+                    line_index++;
+                    int is_val = (line_index % 10 == 0); // 90% Train / 10% Val Split
+
+                    // Extract cloze prompt / seed text if present
+                    char prompt_text[1024] = "The room was quiet. All of a sudden, ";
+                    char* prompt_pos = strstr(line_buf, "\"cloze_prompt\": \"");
+                    if (!prompt_pos) prompt_pos = strstr(line_buf, "\"seed_prompt\": \"");
+
+                    if (prompt_pos) {
+                        const char* val_start = strchr(prompt_pos, ':');
+                        if (val_start) {
+                            val_start = strchr(val_start, '"');
+                            if (val_start) {
+                                val_start++;
+                                const char* val_end = strchr(val_start, '"');
+                                if (val_end && (val_end - val_start) < 1000) {
+                                    size_t p_len = val_end - val_start;
+                                    strncpy(prompt_text, val_start, p_len);
+                                    prompt_text[p_len] = '\0';
+                                }
+                            }
+                        }
+                    }
+
+                    // Extract target phrase / completion
+                    double target_token_id = 26352.0; // Default anchor token
+                    char* target_pos = strstr(line_buf, "\"target_phrase\": \"");
+                    if (!target_pos) target_pos = strstr(line_buf, "\"target_completion\": \"");
+                    if (target_pos) {
+                        unsigned int h_val = 5381;
+                        for (const char* c = target_pos; *c && *c != '"'; c++) h_val = ((h_val << 5) + h_val) + (unsigned int)(*c);
+                        target_token_id = (double)(1000 + (h_val % 30000));
+                    }
+
+                    void* enc_prompt = cartan_hub_encode_text_to_tokens(prompt_text);
+                    void* h_state = cartan_tensor_compute_hidden_state_from_tokens(enc_prompt);
+
+                    // Information Content (IC) Weighting: Target phrase tokens weighted 3.0x higher
+                    double ic_weight = strstr(line_buf, "\"target_phrase\"") ? 3.0 : 1.5;
+                    double step_lr = is_val ? 0.0 : (lr * ic_weight);
+
+                    double step_loss = cartan_tensor_train_step(h_state, target_token_id, step_lr) * ic_weight;
+
+                    if (is_val) {
+                        val_items++;
+                        val_loss_sum += step_loss;
                     } else {
-                        stage2_count++;
-                        void* enc_seed = cartan_hub_encode_text_to_tokens("All of a sudden,");
-                        void* h_seed = cartan_tensor_compute_hidden_state_from_tokens(enc_seed);
-                        ep_loss += cartan_tensor_train_step(h_seed, 29104.0, lr);
+                        train_items++;
+                        train_loss_sum += step_loss;
                     }
                 }
                 fclose(jsonl_f);
 
-                size_t total_items = stage1_count + stage2_count;
-                double mean_loss = total_items > 0 ? (ep_loss / (double)total_items) : 0.0;
-                if (ep == 1) initial_loss = mean_loss;
-                final_loss = mean_loss;
+                double mean_train_loss = train_items > 0 ? (train_loss_sum / (double)train_items) : 0.0;
+                double mean_val_loss = val_items > 0 ? (val_loss_sum / (double)val_items) : 0.0;
+
+                if (ep == 1) initial_train_loss = mean_train_loss;
+                final_train_loss = mean_train_loss;
                 reached_epoch = ep;
 
-                if (ep == 1 || ep % 5 == 0 || mean_loss <= target_loss) {
-                    printf("[GeoMind Cloze Epoch %3d] Items Trained: %zu | Loss: %.4f | LR: %.6f\n",
-                           ep, total_items, mean_loss, lr);
+                if (ep == 1 || ep % 5 == 0 || mean_val_loss <= target_loss) {
+                    printf("[GeoMind Cloze Epoch %3d] Train Items: %zu (Loss: %.4f) | Val Items: %zu (Val Loss: %.4f) | LR: %.6f\n",
+                           ep, train_items, mean_train_loss, val_items, mean_val_loss, lr);
                 }
 
-                if (mean_loss <= target_loss) {
-                    printf("\n[GeoMind Target-Loss Hit!] Target Loss Threshold %.2f Achieved at Epoch %d (Loss: %.4f)\n",
-                           target_loss, ep, mean_loss);
+                if (mean_val_loss < best_val_loss) {
+                    best_val_loss = mean_val_loss;
+                } else if (ep > 5 && mean_val_loss > best_val_loss * 1.05) {
+                    printf("\n[GeoMind Overfitting Protection] Val Loss increased (%.4f > %.4f). Early stopping triggered at Epoch %d!\n",
+                           mean_val_loss, best_val_loss, ep);
+                    break;
+                }
+
+                if (mean_val_loss <= target_loss) {
+                    printf("\n[GeoMind Target-Loss Hit!] Validation Loss Threshold %.2f Achieved at Epoch %d (Val Loss: %.4f)\n",
+                           target_loss, ep, mean_val_loss);
                     break;
                 }
             }
 
             const char* out_ckpt = "test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin";
             save_signed_checkpoint(out_ckpt);
-            printf("\n[GeoMind Cloze] Multi-Epoch Curriculum Pass Complete (Reached Epoch %d)!\n", reached_epoch);
-            printf("[GeoMind Cloze] Initial Loss: %.4f -> Final Converged Loss: %.4f\n", initial_loss, final_loss);
+            printf("\n[GeoMind Cloze] Information-Weighted Curriculum Pass Complete (Reached Epoch %d)!\n", reached_epoch);
+            printf("[GeoMind Cloze] Initial Train Loss: %.4f -> Final Train Loss: %.4f | Best Val Loss: %.4f\n", initial_train_loss, final_train_loss, best_val_loss);
             printf("[GeoMind Cloze] Exported Cryptographically Signed Checkpoint: %s\n\n", out_ckpt);
             return 0;
         }
