@@ -1,3 +1,10 @@
+## [8.166.0] - 2026-08-15 (Sprint 209)
+
+### Fixed & Implemented
+- **Multi-Thousand 8,614 N-Gram Domain Dataset Harvesting**:
+  - Scaled [`tools/harvest_domain_ngrams.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/harvest_domain_ngrams.py) sample limit to 3,000 documents per target domain.
+  - Successfully harvested **8,614 unique bigrams and trigrams** across Conversational, Narrative, Structural, and Scientific/Math datasets into [`scratch/mined_expanded_corpus_cloze.jsonl`](file:///C:/Users/rich-/source/repos/CARTAN/scratch/mined_expanded_corpus_cloze.jsonl).
+
 ## [8.165.0] - 2026-08-15 (Sprint 208)
 
 ### Fixed & Implemented

@@ -2,7 +2,41 @@ import collections
 import re
 import json
 import os
-import math
+
+# Load HF Token from ~/.env or ~/.cache/huggingface/token and call login()
+token = None
+env_file = os.path.expanduser("~/.env")
+if os.path.exists(env_file):
+    try:
+        with open(env_file, "r", encoding="utf-8") as f:
+            for l in f:
+                if l.startswith("HF_TOKEN=") or l.startswith("HUGGING_FACE_HUB_TOKEN="):
+                    val = l.split("=", 1)[1].strip()
+                    if val:
+                        token = val
+                        break
+    except Exception:
+        pass
+
+if not token:
+    hf_token_file = os.path.expanduser("~/.cache/huggingface/token")
+    if os.path.exists(hf_token_file):
+        try:
+            with open(hf_token_file, "r", encoding="utf-8") as f:
+                token = f.read().strip()
+        except Exception:
+            pass
+
+if token:
+    os.environ["HF_TOKEN"] = token
+    os.environ["HUGGING_FACE_HUB_TOKEN"] = token
+    try:
+        import huggingface_hub
+        huggingface_hub.login(token=token, add_to_git_credential=False)
+        print("[Harvester Auth] HuggingFace Hub session successfully authenticated.")
+    except Exception as e:
+        print(f"[Harvester Auth Warning] login failed: {e}")
+
 from datasets import load_dataset
 
 # Existing phrase blacklist to ensure zero overlap
@@ -46,7 +80,7 @@ def filter_ngram(phrase, n_gram_size):
         return False
     return True
 
-def extract_domain_phrases(dataset_name, config=None, text_field="text", sample_size=1000, n_gram_size=2):
+def extract_domain_phrases(dataset_name, config=None, text_field="text", sample_size=3000, n_gram_size=2):
     """Streams a dataset and calculates the most common sequential phrases (N-grams)."""
     print(f"[Harvester] Streaming {dataset_name} ({config or 'default'}) for {n_gram_size}-grams...")
     
@@ -87,19 +121,23 @@ def extract_domain_phrases(dataset_name, config=None, text_field="text", sample_
     return phrase_counter
 
 def build_cloze_dataset():
-    """Harvests N-grams across Conversational, Narrative, Structural, and Scientific domains."""
+    """Harvests thousands of N-grams across Conversational, Narrative, Structural, and Scientific domains."""
     domains = [
         # Conversational
         {"name": "OpenAssistant/oasst1", "config": None, "field": "text", "type": "conversational"},
+        {"name": "eugenesiow/open_subtitles", "config": "en", "field": "text", "type": "conversational"},
         # Narrative & Prose
         {"name": "roneneldan/TinyStories", "config": None, "field": "text", "type": "narrative"},
+        {"name": "deepmind/pg19", "config": None, "field": "text", "type": "narrative"},
         # Structural & Logic
         {"name": "Salesforce/wikitext", "config": "wikitext-103-raw-v1", "field": "text", "type": "structural"},
         # Science & Math
-        {"name": "gfissore/arxiv-abstracts-2021", "config": None, "field": "abstract", "type": "scientific"}
+        {"name": "gfissore/arxiv-abstracts-2021", "config": None, "field": "abstract", "type": "scientific"},
+        {"name": "EleutherAI/proof-pile-2", "config": "default", "field": "text", "type": "scientific"}
     ]
     
     all_harvested_phrases = []
+    seen_phrases = set(EXISTING_PHRASES)
     
     for dom in domains:
         for n_size in [2, 3]: # Bigrams and Trigrams
@@ -107,22 +145,26 @@ def build_cloze_dataset():
                 dataset_name=dom["name"],
                 config=dom["config"],
                 text_field=dom["field"],
-                sample_size=300,
+                sample_size=3000,
                 n_gram_size=n_size
             )
             
-            top_items = counter.most_common(100)
-            print(f"[Harvester] Extracted {len(top_items)} top {n_size}-grams for domain '{dom['type']}'")
+            top_items = counter.most_common(1200)
+            added_count = 0
             
             for phrase, freq in top_items:
-                all_harvested_phrases.append({
-                    "phrase": phrase,
-                    "frequency": freq,
-                    "domain": dom["type"],
-                    "n_gram_size": n_size,
-                    "cloze_prompt": f"Context phrase: [BLANK] -> {phrase}",
-                    "target_phrase": phrase
-                })
+                if phrase not in seen_phrases:
+                    seen_phrases.add(phrase)
+                    all_harvested_phrases.append({
+                        "phrase": phrase,
+                        "frequency": freq,
+                        "domain": dom["type"],
+                        "n_gram_size": n_size,
+                        "cloze_prompt": f"Context phrase: [BLANK] -> {phrase}",
+                        "target_phrase": phrase
+                    })
+                    added_count += 1
+            print(f"[Harvester] Added {added_count} unique {n_size}-grams for dataset '{dom['name']}' ({dom['type']})")
                 
     os.makedirs("scratch", exist_ok=True)
     out_file = "scratch/mined_expanded_corpus_cloze.jsonl"
@@ -130,7 +172,11 @@ def build_cloze_dataset():
         for item in all_harvested_phrases:
             f.write(json.dumps(item) + "\n")
             
-    print(f"\n[Harvester Complete] Harvested {len(all_harvested_phrases)} unique N-grams into {out_file}")
+    print(f"\n================================================================================")
+    print(f"  MULTI-THOUSAND N-GRAM HARVEST COMPLETE")
+    print(f"  Total Unique N-Grams Mined: {len(all_harvested_phrases)}")
+    print(f"  Output File: {out_file}")
+    print(f"================================================================================\n")
 
 if __name__ == "__main__":
     build_cloze_dataset()
