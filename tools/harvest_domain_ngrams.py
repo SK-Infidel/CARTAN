@@ -105,11 +105,47 @@ def clean_ascii_and_artifacts(text):
     text = re.sub(r'\s+', ' ', text).strip()
     return text
 
+def make_bounded_cloze_window(sentence, item, window_words=15):
+    """Creates a bounded context window of max 15 words before and 15 words after [BLANK]."""
+    words = sentence.split()
+    item_words = item.split()
+    item_len = len(item_words)
+    
+    match_idx = -1
+    for idx in range(len(words) - item_len + 1):
+        sub = " ".join(words[idx:idx + item_len]).lower()
+        sub_clean = re.sub(r'^[^\w]+|[^\w]+$', '', sub)
+        if sub_clean == item.lower():
+            match_idx = idx
+            break
+            
+    if match_idx == -1:
+        pat = r'\b' + re.escape(item) + r'\b'
+        cloze_str = re.sub(pat, "[BLANK]", sentence, count=1, flags=re.IGNORECASE)
+        cloze_words = cloze_str.split()
+        try:
+            b_idx = cloze_words.index("[BLANK]")
+            left_w = cloze_words[max(0, b_idx - window_words):b_idx]
+            right_w = cloze_words[b_idx + 1:min(len(cloze_words), b_idx + 1 + window_words)]
+            prefix = "... " if b_idx > window_words else ""
+            suffix = " ..." if (b_idx + 1 + window_words) < len(cloze_words) else ""
+            return f"{prefix}{' '.join(left_w)} [BLANK] {' '.join(right_w)}{suffix}".strip()
+        except ValueError:
+            return cloze_str
+            
+    left_words = words[max(0, match_idx - window_words):match_idx]
+    right_words = words[match_idx + item_len:min(len(words), match_idx + item_len + window_words)]
+    
+    prefix = "... " if match_idx > window_words else ""
+    suffix = " ..." if (match_idx + item_len + window_words) < len(words) else ""
+    
+    return f"{prefix}{' '.join(left_words)} [BLANK] {' '.join(right_words)}{suffix}".strip()
+
 def harvest_chunked_discrete_sentence_cloze():
-    """Streams corpora and outputs discrete individual sentence cloze prompts in 50,000-line chunks."""
+    """Streams corpora and outputs discrete individual sentence cloze prompts in 50,000-line chunks with Bounded 15-word Context Windows."""
     print("================================================================================")
-    print("  DISCRETE SENTENCE CLOZE HARVESTER & CHUNKING ENGINE")
-    print("  Ken Hyland Exact Metadiscourse Inventory (50,000 Discrete Lines Per Chunk)")
+    print("  BOUNDED DISCRETE SENTENCE CLOZE HARVESTER & CHUNKING ENGINE")
+    print("  Ken Hyland Exact Metadiscourse Inventory (Max 15 Words Left / 15 Words Right)")
     print("================================================================================")
 
     domains = [
@@ -183,8 +219,7 @@ def harvest_chunked_discrete_sentence_cloze():
                     pat = r'\b' + re.escape(item) + r'\b'
                     if re.search(pat, sent_lower):
                         cat_name = item_category_map[item]
-                        # Replace the first occurrence of item with [BLANK]
-                        cloze_sentence = re.sub(pat, "[BLANK]", sent_clean, count=1, flags=re.IGNORECASE)
+                        cloze_sentence = make_bounded_cloze_window(sent_clean, item, window_words=15)
                         
                         entry = {
                             "sentence_cloze": cloze_sentence,
@@ -200,7 +235,6 @@ def harvest_chunked_discrete_sentence_cloze():
                         domain_lines += 1
                         category_counts[cat_name] += 1
 
-                        # Rotate chunk file when limit reached
                         if lines_in_chunk >= chunk_size:
                             current_file.close()
                             print(f"[Harvester Chunk] Saved {lines_in_chunk} discrete lines -> {chunk_filename}")
@@ -209,7 +243,6 @@ def harvest_chunked_discrete_sentence_cloze():
                             current_file = open(chunk_filename, "w", encoding="utf-8")
                             lines_in_chunk = 0
 
-                        # Match first dominant metadiscourse marker per sentence to keep training samples crisp
                         break
 
         print(f"[Harvester Stream] Extracted {domain_lines} discrete sentence cloze prompts from {dom['name']}")

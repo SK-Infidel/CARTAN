@@ -1,3 +1,10 @@
+## [8.176.0] - 2026-08-15 (Sprint 219)
+
+### Fixed & Implemented
+- **Bounded Local Window Context Engine (Max 15 Words Left / Right)**:
+  - Integrated `make_bounded_cloze_window()` into [`tools/harvest_domain_ngrams.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/harvest_domain_ngrams.py) bounding every sentence prompt to at most **15 words to the left** and **15 words to the right** of `[BLANK]`.
+  - Re-harvested all **280,518 discrete sentence cloze prompts** across the 6 chunk files (`scratch/mined_expanded_corpus_cloze_part01.jsonl` through `part06.jsonl`), maximizing signal-to-noise ratio and GPU attention matrix efficiency.
+
 ## [8.175.0] - 2026-08-15 (Sprint 218)
 
 ### Fixed & Implemented
