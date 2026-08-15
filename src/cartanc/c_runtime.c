@@ -1700,33 +1700,112 @@ static int g_weights_init = 0;
 
 static int g_cuda_gpu_mounted = 0;
 static char g_cuda_gpu_name[256] = "NVIDIA RTX 2000 Ada Generation Laptop GPU";
+static void* g_cuda_context = NULL;
+static void* g_cuda_module = NULL;
+static void* g_cuda_kernel_matmul = NULL;
+static void* g_cuda_kernel_sgd = NULL;
+static unsigned long long d_weights_ptr = 0;
+static unsigned long long d_hidden_ptr = 0;
+static unsigned long long d_logits_ptr = 0;
 
 typedef int (__stdcall *PFN_cuInit)(unsigned int flags);
 typedef int (__stdcall *PFN_cuDeviceGet)(int* device, int ordinal);
 typedef int (__stdcall *PFN_cuDeviceGetName)(char* name, int len, int dev);
 typedef int (__stdcall *PFN_cuCtxCreate)(void** pctx, unsigned int flags, int dev);
+typedef int (__stdcall *PFN_cuMemAlloc)(unsigned long long* dptr, size_t bytesize);
+typedef int (__stdcall *PFN_cuMemcpyHtoD)(unsigned long long dptr, const void* src, size_t bytesize);
+typedef int (__stdcall *PFN_cuMemcpyDtoH)(void* dst, unsigned long long src, size_t bytesize);
+typedef int (__stdcall *PFN_cuModuleLoadData)(void** module, const void* image);
+typedef int (__stdcall *PFN_cuModuleGetFunction)(void** hfunc, void* hmod, const char* name);
+typedef int (__stdcall *PFN_cuLaunchKernel)(void* f, unsigned int gx, unsigned int gy, unsigned int gz, unsigned int bx, unsigned int by, unsigned int bz, unsigned int smem, void* hstream, void** params, void** extra);
+
+typedef int (__stdcall *PFN_nvrtcCreateProgram)(void** prog, const char* src, const char* name, int numHeaders, const char** headers, const char** includeNames);
+typedef int (__stdcall *PFN_nvrtcCompileProgram)(void* prog, int numOptions, const char** options);
+typedef int (__stdcall *PFN_nvrtcGetPTXSize)(void* prog, size_t* ptxSizeRet);
+typedef int (__stdcall *PFN_nvrtcGetPTX)(void* prog, char* ptx);
+
+static PFN_cuMemAlloc f_cuMemAlloc = NULL;
+static PFN_cuMemcpyHtoD f_cuMemcpyHtoD = NULL;
+static PFN_cuMemcpyDtoH f_cuMemcpyDtoH = NULL;
+static PFN_cuLaunchKernel f_cuLaunchKernel = NULL;
+
+const char* g_cuda_kernel_src =
+"extern \"C\" __global__ void k_matmul(const float* hidden, const float* weights, float* logits, int M, int N) {\n"
+"    int col = blockIdx.x * blockDim.x + threadIdx.x;\n"
+"    if (col < N) {\n"
+"        float sum = 0.0f;\n"
+"        for (int r = 0; r < M; r++) {\n"
+"            sum += hidden[r] * weights[r * N + col];\n"
+"        }\n"
+"        logits[col] = sum;\n"
+"    }\n"
+"}\n"
+"extern \"C\" __global__ void k_sgd(float* weights, const float* hidden, const float* probs, int target_idx, float lr, int M, int N) {\n"
+"    int row = blockIdx.y * blockDim.y + threadIdx.y;\n"
+"    int col = blockIdx.x * blockDim.x + threadIdx.x;\n"
+"    if (row < M && col < N) {\n"
+"        float target = (col == target_idx) ? 1.0f : 0.0f;\n"
+"        float grad = (probs[col] - target) * hidden[row];\n"
+"        weights[row * N + col] -= lr * grad;\n"
+"    }\n"
+"}\n";
 
 static void cartan_init_gpu_device_if_needed(void) {
     if (g_cuda_gpu_mounted) return;
     g_cuda_gpu_mounted = 1;
 
     HMODULE hCuda = LoadLibraryA("nvcuda.dll");
-    if (hCuda) {
+    HMODULE hNvrtc = LoadLibraryA("C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v13.2\\bin\\x64\\nvrtc64_130_0.dll");
+
+    if (hCuda && hNvrtc) {
         PFN_cuInit f_cuInit = (PFN_cuInit)GetProcAddress(hCuda, "cuInit");
         PFN_cuDeviceGet f_cuDeviceGet = (PFN_cuDeviceGet)GetProcAddress(hCuda, "cuDeviceGet");
         PFN_cuDeviceGetName f_cuDeviceGetName = (PFN_cuDeviceGetName)GetProcAddress(hCuda, "cuDeviceGetName");
         PFN_cuCtxCreate f_cuCtxCreate = (PFN_cuCtxCreate)GetProcAddress(hCuda, "cuCtxCreate_v2");
+        f_cuMemAlloc = (PFN_cuMemAlloc)GetProcAddress(hCuda, "cuMemAlloc_v2");
+        f_cuMemcpyHtoD = (PFN_cuMemcpyHtoD)GetProcAddress(hCuda, "cuMemcpyHtoD_v2");
+        f_cuMemcpyDtoH = (PFN_cuMemcpyDtoH)GetProcAddress(hCuda, "cuMemcpyDtoH_v2");
+        PFN_cuModuleLoadData f_cuModuleLoadData = (PFN_cuModuleLoadData)GetProcAddress(hCuda, "cuModuleLoadData");
+        PFN_cuModuleGetFunction f_cuModuleGetFunction = (PFN_cuModuleGetFunction)GetProcAddress(hCuda, "cuModuleGetFunction");
+        f_cuLaunchKernel = (PFN_cuLaunchKernel)GetProcAddress(hCuda, "cuLaunchKernel");
 
-        if (f_cuInit && f_cuDeviceGet && f_cuCtxCreate) {
+        PFN_nvrtcCreateProgram f_nvrtcCreateProgram = (PFN_nvrtcCreateProgram)GetProcAddress(hNvrtc, "nvrtcCreateProgram");
+        PFN_nvrtcCompileProgram f_nvrtcCompileProgram = (PFN_nvrtcCompileProgram)GetProcAddress(hNvrtc, "nvrtcCompileProgram");
+        PFN_nvrtcGetPTXSize f_nvrtcGetPTXSize = (PFN_nvrtcGetPTXSize)GetProcAddress(hNvrtc, "nvrtcGetPTXSize");
+        PFN_nvrtcGetPTX f_nvrtcGetPTX = (PFN_nvrtcGetPTX)GetProcAddress(hNvrtc, "nvrtcGetPTX");
+
+        if (f_cuInit && f_cuDeviceGet && f_cuCtxCreate && f_cuMemAlloc && f_nvrtcCompileProgram) {
             if (f_cuInit(0) == 0) {
                 int dev = 0;
                 if (f_cuDeviceGet(&dev, 0) == 0) {
                     if (f_cuDeviceGetName) f_cuDeviceGetName(g_cuda_gpu_name, sizeof(g_cuda_gpu_name), dev);
-                    void* ctx = NULL;
-                    if (f_cuCtxCreate(&ctx, 0, dev) == 0) {
-                        printf("[GeoMind GPU] Mounted CUDA 13.2 GPU Accelerator: %s\n", g_cuda_gpu_name);
-                        fflush(stdout);
-                        return;
+                    if (f_cuCtxCreate(&g_cuda_context, 0, dev) == 0) {
+                        void* prog = NULL;
+                        if (f_nvrtcCreateProgram(&prog, g_cuda_kernel_src, "geomind_kernels.cu", 0, NULL, NULL) == 0) {
+                            const char* opts[] = { "--gpu-architecture=compute_89" };
+                            if (f_nvrtcCompileProgram(prog, 1, opts) == 0) {
+                                size_t ptx_size = 0;
+                                f_nvrtcGetPTXSize(prog, &ptx_size);
+                                char* ptx = (char*)malloc(ptx_size);
+                                if (ptx && f_nvrtcGetPTX(prog, ptx) == 0) {
+                                    if (f_cuModuleLoadData(&g_cuda_module, ptx) == 0) {
+                                        f_cuModuleGetFunction(&g_cuda_kernel_matmul, g_cuda_module, "k_matmul");
+                                        f_cuModuleGetFunction(&g_cuda_kernel_sgd, g_cuda_module, "k_sgd");
+
+                                        // Allocate GPU VRAM arrays on NVIDIA RTX 2000 Ada GPU
+                                        f_cuMemAlloc(&d_weights_ptr, sizeof(float) * 512 * 512);
+                                        f_cuMemAlloc(&d_hidden_ptr, sizeof(float) * 512);
+                                        f_cuMemAlloc(&d_logits_ptr, sizeof(float) * 512);
+
+                                        printf("[GeoMind GPU] Mounted & JIT-Compiled Hardware CUDA 13.2 Acceleration Engine: %s\n", g_cuda_gpu_name);
+                                        fflush(stdout);
+                                        free(ptx);
+                                        return;
+                                    }
+                                    free(ptx);
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -1739,10 +1818,16 @@ static void cartan_init_gpu_device_if_needed(void) {
 static void cartan_init_weights_if_needed(void) {
     cartan_init_gpu_device_if_needed();
     if (g_weights_init) return;
+    float h_w[512 * 512];
     for (int r = 0; r < 512; r++) {
         for (int c = 0; c < 512; c++) {
-            g_model_weights[r][c] = ((double)((r * 31 + c * 17) % 100)) / 1000.0 + 0.01;
+            double v = ((double)((r * 31 + c * 17) % 100)) / 1000.0 + 0.01;
+            g_model_weights[r][c] = v;
+            h_w[r * 512 + c] = (float)v;
         }
+    }
+    if (d_weights_ptr && f_cuMemcpyHtoD) {
+        f_cuMemcpyHtoD(d_weights_ptr, h_w, sizeof(float) * 512 * 512);
     }
     g_weights_init = 1;
 }
@@ -1755,15 +1840,35 @@ CARTAN_WEAK double cartan_tensor_train_step(void* hidden_ptr, double target_tok_
     int target_idx = ((int)target_tok_id) % 512;
     if (target_idx < 0) target_idx = 0;
 
+    float h_hidden[512] = {0};
+    for (size_t r = 0; r < dim; r++) h_hidden[r] = (float)h->data[r];
+
     double logits[512] = {0};
     double max_logit = -1e9;
-    for (int c = 0; c < 512; c++) {
-        double dot = 0.0;
-        for (size_t r = 0; r < dim; r++) {
-            dot += h->data[r] * g_model_weights[r][c];
+
+    if (d_weights_ptr && d_hidden_ptr && d_logits_ptr && f_cuLaunchKernel && f_cuMemcpyHtoD && f_cuMemcpyDtoH) {
+        // Execute CUDA GPU Kernel Matmul on NVIDIA RTX 2000 Ada GPU
+        f_cuMemcpyHtoD(d_hidden_ptr, h_hidden, sizeof(float) * 512);
+
+        int M = 512, N = 512;
+        void* args[] = { &d_hidden_ptr, &d_weights_ptr, &d_logits_ptr, &M, &N };
+        f_cuLaunchKernel(g_cuda_kernel_matmul, 2, 1, 1, 256, 1, 1, 0, NULL, args, NULL);
+
+        float h_logits[512] = {0};
+        f_cuMemcpyDtoH(h_logits, d_logits_ptr, sizeof(float) * 512);
+        for (int c = 0; c < 512; c++) {
+            logits[c] = (double)h_logits[c];
+            if (logits[c] > max_logit) max_logit = logits[c];
         }
-        logits[c] = dot;
-        if (dot > max_logit) max_logit = dot;
+    } else {
+        for (int c = 0; c < 512; c++) {
+            double dot = 0.0;
+            for (size_t r = 0; r < dim; r++) {
+                dot += h->data[r] * g_model_weights[r][c];
+            }
+            logits[c] = dot;
+            if (dot > max_logit) max_logit = dot;
+        }
     }
 
     double sum_exp = 0.0;
@@ -1778,11 +1883,26 @@ CARTAN_WEAK double cartan_tensor_train_step(void* hidden_ptr, double target_tok_
     double loss = -log(probs[target_idx] > 1e-12 ? probs[target_idx] : 1e-12);
 
     double lr = (learning_rate != 0.0) ? learning_rate : 0.005;
-    for (size_t r = 0; r < dim; r++) {
-        for (int c = 0; c < 512; c++) {
-            double target = (c == target_idx) ? 1.0 : 0.0;
-            double grad = (probs[c] - target) * h->data[r];
-            g_model_weights[r][c] -= lr * grad;
+
+    if (d_weights_ptr && d_hidden_ptr && f_cuLaunchKernel && f_cuMemcpyHtoD) {
+        // Execute CUDA GPU Kernel SGD Backprop on NVIDIA RTX 2000 Ada GPU
+        float h_probs[512];
+        for (int c = 0; c < 512; c++) h_probs[c] = (float)probs[c];
+        unsigned long long d_probs_ptr = 0;
+        f_cuMemAlloc(&d_probs_ptr, sizeof(float) * 512);
+        f_cuMemcpyHtoD(d_probs_ptr, h_probs, sizeof(float) * 512);
+
+        int M = 512, N = 512;
+        float f_lr = (float)lr;
+        void* sgd_args[] = { &d_weights_ptr, &d_hidden_ptr, &d_probs_ptr, &target_idx, &f_lr, &M, &N };
+        f_cuLaunchKernel(g_cuda_kernel_sgd, 32, 32, 1, 16, 16, 1, 0, NULL, sgd_args, NULL);
+    } else {
+        for (size_t r = 0; r < dim; r++) {
+            for (int c = 0; c < 512; c++) {
+                double target = (c == target_idx) ? 1.0 : 0.0;
+                double grad = (probs[c] - target) * h->data[r];
+                g_model_weights[r][c] -= lr * grad;
+            }
         }
     }
     return loss;
