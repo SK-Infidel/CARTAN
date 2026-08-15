@@ -1,3 +1,10 @@
+## [8.172.0] - 2026-08-15 (Sprint 215)
+
+### Fixed & Implemented
+- **Universal Meta-Parametric Prepositional Schema Reduction Engine**:
+  - Implemented full structural reduction in [`tools/harvest_domain_ngrams.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/harvest_domain_ngrams.py) mapping `<PREP_HEAD> [SLOT] <PREP_TAIL>`.
+  - Reduced **64,433 concrete corpus instances** into **30 Universal Meta-Schemas** (e.g., `<PREP_HEAD> <DET> <TERRAIN> <PREP_TAIL>`, `<PREP_HEAD> <LOCATION> <PREP_TAIL>`, `<PREP_HEAD> <MONTH> <PREP_TAIL>`) and saved to [`scratch/mined_expanded_corpus_cloze.jsonl`](file:///C:/Users/rich-/source/repos/CARTAN/scratch/mined_expanded_corpus_cloze.jsonl).
+
 ## [8.171.0] - 2026-08-15 (Sprint 214)
 
 ### Fixed & Implemented

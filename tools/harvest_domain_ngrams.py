@@ -32,50 +32,60 @@ if token:
     os.environ["HF_TOKEN"] = token
     os.environ["HUGGING_FACE_HUB_TOKEN"] = token
 
-# 2. Named Entity & Slot Abstraction Dictionaries
+# 2. Universal Syntactic Grammatical Categories
+PREP_HEADS = {"in", "on", "at", "by", "with", "through", "under", "upon", "after", "before", "during", "between", "across", "along", "around", "near", "into", "over", "above", "behind", "beneath", "beside", "beyond", "towards", "onto"}
+PREP_TAILS = {"to", "for", "with", "of", "in", "at", "by", "on", "from", "as", "about", "into", "through"}
+DETERMINERS = {"the", "a", "an", "this", "that", "these", "those", "their", "our", "my", "his", "her", "its"}
+
 MONTHS = {"january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"}
 DAYS = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"}
-TERRAINS = {"farmland", "forest", "desert", "mountain", "valley", "river", "ocean", "jungle", "field", "meadow", "woods", "plain", "hills"}
-LOCATIONS = {"scotland", "england", "france", "germany", "america", "japan", "china", "london", "paris", "tokyo", "europe", "asia", "africa"}
+TERRAINS = {"farmland", "forest", "desert", "mountain", "valley", "river", "ocean", "jungle", "field", "meadow", "woods", "plain", "hills", "island", "sea", "lake"}
+LOCATIONS = {"scotland", "england", "france", "germany", "america", "japan", "china", "london", "paris", "tokyo", "europe", "asia", "africa", "italy", "spain"}
 
-def abstract_parametric_slot(phrase):
-    """Abstracts specific proper nouns, dates, months, and terrains into parametric slot tags."""
+def reduce_to_meta_schema(phrase):
+    """Reduces specific prepositional phrases into Universal Meta-Parametric Schemas."""
     words = phrase.split()
-    abstracted_words = []
+    if len(words) < 3:
+        return None
+        
+    w_head = words[0].lower().strip()
+    w_tail = words[-1].lower().strip()
     
-    for w in words:
-        clean_w = w.lower().strip()
-        if clean_w in MONTHS:
-            abstracted_words.append("<MONTH>")
-        elif clean_w in DAYS:
-            abstracted_words.append("<DAY>")
-        elif clean_w in TERRAINS:
-            abstracted_words.append("<TERRAIN>")
-        elif clean_w in LOCATIONS:
-            abstracted_words.append("<LOCATION>")
-        elif clean_w.isdigit() and len(clean_w) == 4:
-            abstracted_words.append("<YEAR>")
-        elif clean_w.isdigit():
-            abstracted_words.append("<NUMBER>")
+    if w_head not in PREP_HEADS or w_tail not in PREP_TAILS:
+        return None
+        
+    middle_words = words[1:-1]
+    meta_middle = []
+    
+    for mw in middle_words:
+        clean_mw = mw.lower().strip()
+        if clean_mw in DETERMINERS:
+            meta_middle.append("<DET>")
+        elif clean_mw in TERRAINS:
+            meta_middle.append("<TERRAIN>")
+        elif clean_mw in LOCATIONS:
+            meta_middle.append("<LOCATION>")
+        elif clean_mw in MONTHS:
+            meta_middle.append("<MONTH>")
+        elif clean_mw in DAYS:
+            meta_middle.append("<DAY>")
+        elif clean_mw.isdigit() and len(clean_mw) == 4:
+            meta_middle.append("<YEAR>")
+        elif clean_mw.isdigit():
+            meta_middle.append("<NUMBER>")
         else:
-            abstracted_words.append(clean_w)
-            
-    res = " ".join(abstracted_words)
-    # Only keep patterns that contain at least one abstract slot tag
-    if any(tag in res for tag in ["<MONTH>", "<DAY>", "<TERRAIN>", "<LOCATION>", "<YEAR>", "<NUMBER>"]):
-        return res
-    return None
+            meta_middle.append("<NOUN_SLOT>")
 
-# 3. Parametric Prepositional Frame Regex Patterns
-PREPOSITIONAL_FRAME_PATTERNS = [
-    r'\b(?:in|on|at|by|with|through|under|upon|after|before|during|between|across|along|around|near|into)\s+[a-z\-0-9]+\s+(?:of|for|in|to|with|at|by|on|from)\b',
-    r'\b(?:in|on|at|by|with|through|under|upon|after|before|during|between|across|along|around|near|into)\s+[a-z\-0-9]+\s+[a-z\-0-9]+\s+(?:of|for|in|to|with|at|by|on|from)\b'
-]
+    schema_str = f"<PREP_HEAD> {' '.join(meta_middle)} <PREP_TAIL>"
+    return schema_str
 
-def harvest_parametric_discourse_schemas():
-    """Harvests thousands of Abstract Parametric Discourse Schemas & Attention Triggers."""
+# Prepositional Frame Regex Capture
+FRAME_REGEX = r'\b(?:in|on|at|by|with|through|under|upon|after|before|during|between|across|along|around|near|into|over|above|behind|beneath|beside|beyond|towards|onto)\s+[a-z\-0-9]+(?:\s+[a-z\-0-9]+)?\s+(?:to|for|with|of|in|at|by|on|from|as|about|into|through)\b'
+
+def harvest_meta_parametric_schemas():
+    """Harvests Universal Meta-Parametric Prepositional Schemas across datasets."""
     print("================================================================================")
-    print("  PARAMETRIC DISCOURSE SCHEMA & ATTENTION TRIGGER HARVESTER ENGINE")
+    print("  UNIVERSAL META-PARAMETRIC SCHEMA REDUCTION HARVESTER")
     print("================================================================================")
 
     domains = [
@@ -85,8 +95,8 @@ def harvest_parametric_discourse_schemas():
         {"name": "roneneldan/TinyStories", "config": None, "field": "text", "type": "narrative"}
     ]
 
-    schema_counter = collections.Counter()
-    schema_examples = collections.defaultdict(list)
+    meta_schema_counter = collections.Counter()
+    meta_schema_instantiations = collections.defaultdict(list)
 
     for dom in domains:
         print(f"\n[Harvester Stream] Streaming 25,000 sentences from '{dom['name']}' ({dom['type']})...")
@@ -121,28 +131,28 @@ def harvest_parametric_discourse_schemas():
             if len(text_str) < 15:
                 continue
 
-            for pat in PREPOSITIONAL_FRAME_PATTERNS:
-                matches = re.findall(pat, text_str.lower())
-                for m in matches:
-                    raw_phrase = m.strip()
-                    abstract_schema = abstract_parametric_slot(raw_phrase)
-                    if abstract_schema:
-                        schema_counter[abstract_schema] += 1
-                        dataset_count += 1
-                        if len(schema_examples[abstract_schema]) < 3:
-                            schema_examples[abstract_schema].append(raw_phrase)
+            matches = re.findall(FRAME_REGEX, text_str.lower())
+            for raw_m in matches:
+                clean_m = raw_m.strip()
+                meta_schema = reduce_to_meta_schema(clean_m)
+                if meta_schema:
+                    meta_schema_counter[meta_schema] += 1
+                    dataset_count += 1
+                    if len(meta_schema_instantiations[meta_schema]) < 5:
+                        if clean_m not in meta_schema_instantiations[meta_schema]:
+                            meta_schema_instantiations[meta_schema].append(clean_m)
 
-        print(f"[Harvester Stream] Extracted {dataset_count} parametric frame instances from {dom['name']}")
+        print(f"[Harvester Stream] Harvested {dataset_count} meta-parametric instances from {dom['name']}")
 
     harvested_items = []
-    for schema, freq in schema_counter.most_common(5000):
+    for schema, freq in meta_schema_counter.most_common(1000):
         harvested_items.append({
-            "parametric_schema": schema,
-            "frequency": freq,
-            "boundary_anchors": [schema.split()[0], schema.split()[-1]],
-            "sample_instantiations": schema_examples.get(schema, []),
+            "meta_schema": schema,
+            "total_frequency": freq,
+            "syntactic_structure": "<PREP_HEAD> [INNER_SLOT] <PREP_TAIL>",
+            "sample_concrete_instances": meta_schema_instantiations.get(schema, []),
             "word_count": len(schema.split()),
-            "cloze_prompt": f"Parametric Trigger [{schema}]: [BLANK] -> {schema}",
+            "cloze_prompt": f"Universal Meta-Schema [{schema}]: [BLANK] -> {schema}",
             "target_phrase": schema
         })
 
@@ -153,14 +163,15 @@ def harvest_parametric_discourse_schemas():
             f.write(json.dumps(item) + "\n")
 
     print("\n================================================================================")
-    print("  PARAMETRIC DISCOURSE SCHEMA HARVEST SUMMARY")
+    print("  UNIVERSAL META-PARAMETRIC SCHEMA SUMMARY")
     print("================================================================================")
-    print(f"  Total Abstract Parametric Schemas Mined : {len(harvested_items)}")
-    print(f"  Top 5 Parametric Attention Triggers    :")
-    for item in harvested_items[:5]:
-        print(f"    - Schema '{item['parametric_schema']}' (Found {item['frequency']}x) | Samples: {item['sample_instantiations']}")
-    print(f"  Output File                             : {out_file}")
+    print(f"  Total Universal Meta-Schemas Mined   : {len(harvested_items)}")
+    print(f"  Top Universal Meta-Parametric Schemas:")
+    for item in harvested_items[:8]:
+        print(f"    - Meta-Schema '{item['meta_schema']}' (Found {item['total_frequency']}x)")
+        print(f"      Instantiations: {item['sample_concrete_instances'][:3]}")
+    print(f"  Output Checkpoint Dataset            : {out_file}")
     print("================================================================================\n")
 
 if __name__ == "__main__":
-    harvest_parametric_discourse_schemas()
+    harvest_meta_parametric_schemas()
