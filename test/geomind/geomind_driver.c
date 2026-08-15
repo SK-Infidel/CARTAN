@@ -691,7 +691,15 @@ int main(int argc, char** argv) {
 
             // Verify weights signature on startup (Level 4 tamper protection)
             const char* custom_weights = get_arg_value(argc, argv, "-save");
-            if (!custom_weights) custom_weights = "test/geomind/geomind_rlhf_weights.bin";
+            if (!custom_weights) {
+                if (cartan_file_exists("test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin")) {
+                    custom_weights = "test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin";
+                } else if (cartan_file_exists("test/geomind/trainingdata/checkpoints/geomind_slerp_fused_weights.bin")) {
+                    custom_weights = "test/geomind/trainingdata/checkpoints/geomind_slerp_fused_weights.bin";
+                } else {
+                    custom_weights = "test/geomind/geomind_rlhf_weights.bin";
+                }
+            }
             if (cartan_file_exists(custom_weights)) {
                 if (verify_checkpoint_signature(custom_weights)) {
                     printf("[GeoMind Security] Verified valid cryptographic signature for %s\n", custom_weights);

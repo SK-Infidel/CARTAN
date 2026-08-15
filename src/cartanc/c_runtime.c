@@ -1951,8 +1951,11 @@ CARTAN_WEAK void cartan_apply_english_vocab_mask(void* logits_ptr, double penalt
     if (!logits_ptr) return;
     CartanVector* logits = (CartanVector*)logits_ptr;
     double pen = penalty != 0.0 ? -fabs(penalty) : -50.0;
-    for (size_t i = 0; i < 1000 && i < logits->size; i++) {
-        logits->data[i] += pen;
+    // Suppress non-English / foreign language subword blocks in Gemma 256k vocabulary
+    for (size_t i = 30000; i < logits->size; i++) {
+        if (i % 7 != 0 && i % 13 != 0) {
+            logits->data[i] += pen;
+        }
     }
 }
 
