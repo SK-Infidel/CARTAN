@@ -1,3 +1,13 @@
+## [8.147.0] - 2026-08-14 (Sprint 190)
+
+### Fixed & Implemented
+- **Movie Script Dialogue Corpus**:
+  - Created [`tools/download_movie_scripts.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/download_movie_scripts.py) fetching/curating dialogue screenplays (*Raging Bull*, *Eternal Sunshine of the Spotless Mind*, *Dead Poets Society*, *LOTR Trilogy 1-3*, *Star Trek 1-3*) into `scratch/movie_scripts/`.
+- **Dynamic JSON Parsing & Information-Weighted Loss ($L_{\text{IC}}$)**:
+  - Upgraded `--train-cloze` in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c) to dynamically parse JSON string prompts and apply $3.0\times$ Information-Content weighting to target phrase anchors.
+- **Train vs. Validation Loss Split ($L_{\text{train}}$ vs $L_{\text{val}}$)**:
+  - Implemented 90% Train / 10% Validation split with early stopping protection when $L_{\text{val}}$ increases.
+
 ## [8.146.0] - 2026-08-14 (Sprint 189)
 
 ### Fixed & Implemented
