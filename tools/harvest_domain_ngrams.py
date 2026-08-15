@@ -32,7 +32,7 @@ if token:
     os.environ["HF_TOKEN"] = token
     os.environ["HUGGING_FACE_HUB_TOKEN"] = token
 
-# 2. Research-Grade Hyland Metadiscourse Pattern Engine (from metadiscourse_analysis)
+# 2. Expanded Syntactic Hyland Metadiscourse Pattern Engine (Research-Grade + POS Harvester)
 HYLAND_PATTERNS = {
     'self_mentions': [
         r'\b(?:in\s+)?my\s+(?:opinion|view|perspective|belief|judgment|analysis|assessment|conclusion|argument|position|stance|understanding|experience)\b',
@@ -85,17 +85,21 @@ HYLAND_PATTERNS = {
     ]
 }
 
+# POS Syntactic Patterns for Sentence-Initial Discourse Frames & Prepositional Connectives
+PREPOSITIONAL_FRAME_REGEX = r'\b(?:in|on|at|by|with|under|upon|after|before|through|during)\s+[a-z\-]+\s+(?:of|to|that|for|in|with)\b'
+INITIAL_ADVERB_TRANSITION_REGEX = r'^\s*([A-Za-z\-]+ly|[A-Za-z\-]+wise|[A-Za-z\-]+more)\s*,\s*'
+
 def harvest_hyland_metadiscourse():
-    """Extracts research-grade Hyland metadiscourse attractors across public corpora."""
+    """Extracts thousands of Hyland metadiscourse attractors across high-scale corpus streams."""
     print("================================================================================")
-    print("  RESEARCH-GRADE HYLAND METADISCOURSE HARVESTER ENGINE")
+    print("  HIGH-SCALE HYLAND METADISCOURSE HARVESTER ENGINE")
     print("================================================================================")
 
     domains = [
-        {"name": "OpenAssistant/oasst1", "config": None, "field": "text", "type": "conversational"},
-        {"name": "roneneldan/TinyStories", "config": None, "field": "text", "type": "narrative"},
         {"name": "Salesforce/wikitext", "config": "wikitext-103-raw-v1", "field": "text", "type": "structural"},
-        {"name": "gfissore/arxiv-abstracts-2021", "config": None, "field": "abstract", "type": "scientific"}
+        {"name": "OpenAssistant/oasst1", "config": None, "field": "text", "type": "conversational"},
+        {"name": "gfissore/arxiv-abstracts-2021", "config": None, "field": "abstract", "type": "scientific"},
+        {"name": "roneneldan/TinyStories", "config": None, "field": "text", "type": "narrative"}
     ]
 
     harvested_items = []
@@ -103,7 +107,7 @@ def harvest_hyland_metadiscourse():
     category_counts = collections.Counter()
 
     for dom in domains:
-        print(f"\n[Harvester Stream] Extracting Hyland Metadiscourse from '{dom['name']}' ({dom['type']})...")
+        print(f"\n[Harvester Stream] Streaming 25,000 sentences from '{dom['name']}' ({dom['type']})...")
         try:
             kwargs = {"split": "train", "streaming": True}
             if token:
@@ -118,7 +122,7 @@ def harvest_hyland_metadiscourse():
 
         dataset_count = 0
         for i, example in enumerate(ds):
-            if i >= 4000:
+            if i >= 25000:
                 break
                 
             text_val = example.get(dom["field"], "")
@@ -130,11 +134,13 @@ def harvest_hyland_metadiscourse():
                             text_val = " ".join(text_val)
                         break
 
+            # Clean raw text
             text_str = re.sub(r'[\r\n\t]+', ' ', str(text_val)).strip()
             text_str = re.sub(r'\s+', ' ', text_str)
             if len(text_str) < 15:
                 continue
 
+            # 1. Hyland Category Pattern Extraction
             for cat_name, pattern_list in HYLAND_PATTERNS.items():
                 for pat in pattern_list:
                     matches = re.findall(pat, text_str)
@@ -156,6 +162,43 @@ def harvest_hyland_metadiscourse():
                             "target_phrase": clean_m
                         })
 
+            # 2. Syntactic Sentence-Initial Transition Adverbs ([Adverb] ,)
+            sentences = re.split(r'[.!?]+', text_str)
+            for sent in sentences:
+                sent_clean = sent.strip()
+                adv_match = re.search(INITIAL_ADVERB_TRANSITION_REGEX, sent_clean)
+                if adv_match:
+                    adv_word = adv_match.group(1).lower()
+                    if len(adv_word) > 4 and adv_word not in seen_phrases:
+                        seen_phrases.add(adv_word)
+                        category_counts["transitions"] += 1
+                        dataset_count += 1
+                        harvested_items.append({
+                            "phrase": adv_word,
+                            "category": "transitions",
+                            "domain": dom["type"],
+                            "word_count": 1,
+                            "cloze_prompt": f"Metadiscourse [transitions]: [BLANK] -> {adv_word}",
+                            "target_phrase": adv_word
+                        })
+
+                # 3. Prepositional Discourse Frames (e.g. "in view of", "with respect to")
+                prep_matches = re.findall(PREPOSITIONAL_FRAME_REGEX, sent_clean.lower())
+                for prep_phrase in prep_matches:
+                    clean_prep = prep_phrase.strip()
+                    if len(clean_prep) > 5 and clean_prep not in seen_phrases:
+                        seen_phrases.add(clean_prep)
+                        category_counts["frame_markers"] += 1
+                        dataset_count += 1
+                        harvested_items.append({
+                            "phrase": clean_prep,
+                            "category": "frame_markers",
+                            "domain": dom["type"],
+                            "word_count": len(clean_prep.split()),
+                            "cloze_prompt": f"Metadiscourse [frame_markers]: [BLANK] -> {clean_prep}",
+                            "target_phrase": clean_prep
+                        })
+
         print(f"[Harvester Stream] Harvested {dataset_count} unique metadiscourse attractors from {dom['name']}")
 
     os.makedirs("scratch", exist_ok=True)
@@ -165,7 +208,7 @@ def harvest_hyland_metadiscourse():
             f.write(json.dumps(item) + "\n")
 
     print("\n================================================================================")
-    print("  HYLAND METADISCOURSE HARVEST SUMMARY")
+    print("  HIGH-SCALE HYLAND METADISCOURSE HARVEST SUMMARY")
     print("================================================================================")
     print(f"  Total Metadiscourse Attractors Mined : {len(harvested_items)}")
     for cat, cnt in category_counts.most_common():

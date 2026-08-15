@@ -1,3 +1,10 @@
+## [8.170.0] - 2026-08-15 (Sprint 213)
+
+### Fixed & Implemented
+- **High-Scale 5,783 Metadiscourse Attractor Dataset Harvesting**:
+  - Scaled [`tools/harvest_domain_ngrams.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/harvest_domain_ngrams.py) to stream 25,000 sentences per domain and integrated POS syntactic patterns for prepositional frames and sentence-initial adverbs.
+  - Successfully harvested **5,783 unique Metadiscourse Attractors** across `frame_markers` (5,339), `transitions` (214), `self_mentions` (127), `hedges` (60), `boosters` (33), and `code_glosses` (10) into [`scratch/mined_expanded_corpus_cloze.jsonl`](file:///C:/Users/rich-/source/repos/CARTAN/scratch/mined_expanded_corpus_cloze.jsonl).
+
 ## [8.169.0] - 2026-08-15 (Sprint 212)
 
 ### Fixed & Implemented
