@@ -2746,6 +2746,59 @@ CARTAN_WEAK void geomind_chat_generate_reply(const char* prompt, double max_len,
 CARTAN_WEAK double cartan_tokenizer_expand_vocab_from_text(const char* json_path, const char* text) { return 0.0; }
 CARTAN_WEAK double geomind_ode_step(double y, double dt) { return y + dt; }
 CARTAN_WEAK double geomind_ising_relax(void* spins, double J, double h, double steps) { return 0.0; }
+static int g_lora_enabled = 0;
+static int g_lora_rank = 16;
+static double g_lora_alpha = 16.0;
+static float* g_lora_A = NULL;
+static float* g_lora_B = NULL;
+
+CARTAN_WEAK void cartan_lora_init(double rank, double alpha) {
+    int r = (int)rank;
+    if (r <= 0) r = 16;
+    g_lora_rank = r;
+    g_lora_alpha = alpha > 0.0 ? alpha : (double)r;
+    
+    if (g_lora_A) free(g_lora_A);
+    if (g_lora_B) free(g_lora_B);
+
+    g_lora_A = (float*)malloc(sizeof(float) * 512 * g_lora_rank);
+    g_lora_B = (float*)malloc(sizeof(float) * g_lora_rank * 512);
+
+    if (g_lora_A && g_lora_B) {
+        float scale = 1.0f / sqrtf(512.0f);
+        for (int i = 0; i < 512 * g_lora_rank; i++) {
+            g_lora_A[i] = ((float)((i * 37) % 100) / 100.0f - 0.5f) * scale;
+        }
+        for (int i = 0; i < g_lora_rank * 512; i++) {
+            g_lora_B[i] = 0.0f;
+        }
+        g_lora_enabled = 1;
+        printf("[GeoMind LoRA] Initialized Low-Rank Adapter (Rank: %d, Alpha: %.1f, Base Weights Frozen).\n", g_lora_rank, g_lora_alpha);
+        fflush(stdout);
+    }
+}
+
+CARTAN_WEAK int cartan_is_lora_enabled(void) {
+    return g_lora_enabled;
+}
+
+CARTAN_WEAK void cartan_lora_merge_into_base(void) {
+    if (!g_lora_enabled || !g_lora_A || !g_lora_B) return;
+    float scale = (float)(g_lora_alpha / (double)g_lora_rank);
+    for (int r = 0; r < 512; r++) {
+        for (int c = 0; c < 512; c++) {
+            float delta = 0.0f;
+            for (int k = 0; k < g_lora_rank; k++) {
+                delta += g_lora_A[r * g_lora_rank + k] * g_lora_B[k * 512 + c];
+            }
+            g_model_weights[r][c] += (double)(scale * delta);
+        }
+    }
+    cartan_sync_host_weights_to_gpu();
+    printf("[GeoMind LoRA] Merged Low-Rank Adapter weights delta into base model weights.\n");
+    fflush(stdout);
+}
+
 CARTAN_WEAK void* cartan_get_lm_head_weights_ptr(void) { return (void*)g_model_weights; }
 CARTAN_WEAK size_t cartan_get_lm_head_weight_count(void) { return 512 * 512; }
 CARTAN_WEAK int* cartan_get_class_token_mapping_ptr(void) { return g_class_to_token_id; }

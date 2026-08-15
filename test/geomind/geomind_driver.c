@@ -1370,9 +1370,6 @@ extern double cartan_vec_len(void* vec);
             extern void cartan_sync_host_weights_to_gpu(void);
             const char* custom_ckpt = get_arg_value(argc, argv, "-ckpt");
             if (!custom_ckpt) custom_ckpt = get_arg_value(argc, argv, "-weights");
-            if (!custom_ckpt && cartan_file_exists("test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin")) {
-                custom_ckpt = "test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin";
-            }
             if (custom_ckpt && cartan_file_exists(custom_ckpt)) {
                 if (verify_checkpoint_signature(custom_ckpt)) {
                     load_signed_checkpoint(custom_ckpt);
@@ -1381,6 +1378,14 @@ extern double cartan_vec_len(void* vec);
                 } else {
                     printf("[GeoMind Security] Warning: Checkpoint %s failed signature verification.\n", custom_ckpt);
                 }
+            }
+
+            extern void cartan_lora_init(double rank, double alpha);
+            extern void cartan_lora_merge_into_base(void);
+            if (has_arg_flag(argc, argv, "--lora") || has_arg_flag(argc, argv, "-lora")) {
+                int r = get_arg_int_value(argc, argv, "-lora-rank", 16);
+                double a = get_arg_double_value(argc, argv, "-lora-alpha", (double)r);
+                cartan_lora_init((double)r, a);
             }
 
             // Pre-cache full dataset embeddings into contiguous host RAM buffer before starting training

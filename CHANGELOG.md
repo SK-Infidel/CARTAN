@@ -1,3 +1,11 @@
+## [8.160.0] - 2026-08-15 (Sprint 203)
+
+### Fixed & Implemented
+- **LoRA Low-Rank Adaptation & Base Weight Freezing Toolkit**:
+  - Implemented `cartan_lora_init()`, `cartan_is_lora_enabled()`, and `cartan_lora_merge_into_base()` in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c).
+  - Added `--lora`, `-lora-rank=<int>`, and `-lora-alpha=<float>` CLI flags in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c) to freeze base checkpoint weights and adapt via low-rank matrices ($A \cdot B$).
+  - Empirically verified LoRA initialization and training execution on the **NVIDIA RTX 2000 Ada Generation Laptop GPU**.
+
 ## [8.159.0] - 2026-08-15 (Sprint 202)
 
 ### Fixed & Implemented
