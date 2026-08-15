@@ -1404,6 +1404,31 @@ extern double cartan_vec_len(void* vec);
             printf("[GeoMind GPU Cache] Pre-cached %d sentence items into RAM/VRAM. Starting zero-disk-latency CUDA epochs...\n\n", total_dataset_items);
             fflush(stdout);
 
+            // Pre-split train and val dataset arrays into contiguous host buffers for zero-copy GPU batching
+            float* val_hidden_buf = (float*)malloc(sizeof(float) * 512 * 512);
+            int* val_targets_buf = (int*)malloc(sizeof(int) * 512);
+            float* val_weights_buf = (float*)malloc(sizeof(float) * 512);
+            int val_count = 0;
+
+            float* train_hidden_buf = (float*)malloc(sizeof(float) * max_cached * 512);
+            int* train_targets_buf = (int*)malloc(sizeof(int) * max_cached);
+            float* train_weights_buf = (float*)malloc(sizeof(float) * max_cached);
+            int train_count = 0;
+
+            for (int i = 0; i < total_dataset_items; i++) {
+                if (cached_val_flags[i]) {
+                    for (int r = 0; r < 512; r++) val_hidden_buf[val_count * 512 + r] = cached_hidden[i * 512 + r];
+                    val_targets_buf[val_count] = cached_targets[i];
+                    val_weights_buf[val_count] = cached_weights[i];
+                    val_count++;
+                } else {
+                    for (int r = 0; r < 512; r++) train_hidden_buf[train_count * 512 + r] = cached_hidden[i * 512 + r];
+                    train_targets_buf[train_count] = cached_targets[i];
+                    train_weights_buf[train_count] = cached_weights[i];
+                    train_count++;
+                }
+            }
+
             double best_val_loss = 1e9;
             double initial_train_loss = 0.0;
             double final_train_loss = 0.0;
@@ -1411,57 +1436,32 @@ extern double cartan_vec_len(void* vec);
             extern double cartan_tensor_train_batch_gpu(const float* h_batch_hidden, const int* h_targets, const float* h_ic_weights, double batch_size, double learning_rate);
 
             for (int ep = 1; ep <= max_epochs; ep++) {
-                size_t train_items = 0;
-                size_t val_items = 0;
-                double train_loss_sum = 0.0;
-                double val_loss_sum = 0.0;
                 double lr = 0.005 / (1.0 + 0.1 * (double)ep);
                 if (lr < 0.0001) lr = 0.0001;
 
-                float train_batch_hidden[512 * 512];
-                int train_batch_targets[512];
-                float train_batch_weights[512];
+                double train_loss_sum = 0.0;
                 int curr_b = 0;
 
-                for (int i = 0; i < total_dataset_items; i++) {
-                    if (cached_val_flags[i]) {
-                        val_items++;
-                        extern double cartan_tensor_eval_val_gpu(const float* h_single_hidden, double target_tok_id);
-                        double v_loss = cartan_tensor_eval_val_gpu(&cached_hidden[i * 512], (double)cached_targets[i]);
-                        val_loss_sum += v_loss * (double)cached_weights[i];
-                    } else {
-                        for (int r = 0; r < 512; r++) {
-                            train_batch_hidden[curr_b * 512 + r] = cached_hidden[i * 512 + r];
-                        }
-                        train_batch_targets[curr_b] = cached_targets[i];
-                        train_batch_weights[curr_b] = cached_weights[i];
-                        curr_b++;
-                        train_items++;
-
-                        if (curr_b == 512) {
-                            double b_loss = cartan_tensor_train_batch_gpu(train_batch_hidden, train_batch_targets, train_batch_weights, 512.0, lr);
-                            train_loss_sum += b_loss;
-                            curr_b = 0;
-                        }
-                    }
-                }
-
-                if (curr_b > 0) {
-                    double b_loss = cartan_tensor_train_batch_gpu(train_batch_hidden, train_batch_targets, train_batch_weights, (double)curr_b, lr);
+                for (int i = 0; i < train_count; i += 512) {
+                    int b_sz = (i + 512 <= train_count) ? 512 : (train_count - i);
+                    double b_loss = cartan_tensor_train_batch_gpu(&train_hidden_buf[i * 512], &train_targets_buf[i], &train_weights_buf[i], (double)b_sz, lr);
                     train_loss_sum += b_loss;
-                    curr_b = 0;
                 }
 
-                double mean_train_loss = train_items > 0 ? (train_loss_sum / (double)train_items) : 0.0;
-                double mean_val_loss = val_items > 0 ? (val_loss_sum / (double)val_items) : 0.0;
+                // Single Batched GPU Validation evaluation across all validation items at once!
+                double val_loss_sum = cartan_tensor_train_batch_gpu(val_hidden_buf, val_targets_buf, val_weights_buf, (double)val_count, 0.0);
+
+                double mean_train_loss = train_count > 0 ? (train_loss_sum / (double)train_count) : 0.0;
+                double mean_val_loss = val_count > 0 ? (val_loss_sum / (double)val_count) : 0.0;
 
                 if (ep == 1) initial_train_loss = mean_train_loss;
                 final_train_loss = mean_train_loss;
                 reached_epoch = ep;
 
                 if (ep == 1 || ep % 5 == 0 || mean_val_loss <= target_loss) {
-                    printf("[GeoMind Cloze Epoch %3d] Train Items: %zu (Loss: %.4f) | Val Items: %zu (Val Loss: %.4f) | LR: %.6f\n",
-                           ep, train_items, mean_train_loss, val_items, mean_val_loss, lr);
+                    printf("[GeoMind Cloze Epoch %3d] Train Items: %d (Loss: %.4f) | Val Items: %d (Val Loss: %.4f) | LR: %.6f\n",
+                           ep, train_count, mean_train_loss, val_count, mean_val_loss, lr);
+                    fflush(stdout);
                 }
 
                 if (mean_val_loss < best_val_loss) {

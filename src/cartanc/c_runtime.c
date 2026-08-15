@@ -1715,6 +1715,35 @@ static unsigned long long d_batch_hidden_ptr = 0;
 static unsigned long long d_batch_logits_ptr = 0;
 static unsigned long long d_batch_targets_ptr = 0;
 static unsigned long long d_batch_probs_ptr = 0;
+static int g_opencl_gpu_mounted = 0;
+static void* g_opencl_context = NULL;
+static void* g_opencl_cmd_queue = NULL;
+static void* g_opencl_program = NULL;
+static void* g_opencl_kernel_batched_matmul = NULL;
+static void* g_opencl_buf_weights = NULL;
+static void* g_opencl_buf_hidden = NULL;
+static void* g_opencl_buf_logits = NULL;
+
+typedef int (__cdecl *PFN_clGetPlatformIDs)(unsigned int num_entries, void** platforms, unsigned int* num_platforms);
+typedef int (__cdecl *PFN_clGetDeviceIDs)(void* platform, unsigned long long device_type, unsigned int num_entries, void** devices, unsigned int* num_devices);
+typedef int (__cdecl *PFN_clGetDeviceInfo)(void* device, unsigned int param_name, size_t param_value_size, void* param_value, size_t* param_value_size_ret);
+typedef void* (__cdecl *PFN_clCreateContext)(const void* properties, unsigned int num_devices, const void** devices, void (__cdecl *pfn_notify)(const char *, const void *, size_t, void *), void *user_data, int *errcode_ret);
+typedef void* (__cdecl *PFN_clCreateCommandQueueWithProperties)(void* context, void* device, const void* properties, int* errcode_ret);
+typedef void* (__cdecl *PFN_clCreateBuffer)(void* context, unsigned long long flags, size_t size, void* host_ptr, int* errcode_ret);
+typedef void* (__cdecl *PFN_clCreateProgramWithSource)(void* context, unsigned int count, const char** strings, const size_t* lengths, int* errcode_ret);
+typedef int (__cdecl *PFN_clBuildProgram)(void* program, unsigned int num_devices, const void** device_list, const char* options, void (__cdecl *pfn_notify)(void *program, void *user_data), void *user_data);
+typedef void* (__cdecl *PFN_clCreateKernel)(void* program, const char* kernel_name, int* errcode_ret);
+typedef int (__cdecl *PFN_clSetKernelArg)(void* kernel, unsigned int arg_index, size_t arg_size, const void* arg_value);
+typedef int (__cdecl *PFN_clEnqueueNDRangeKernel)(void* command_queue, void* kernel, unsigned int work_dim, const size_t* global_work_offset, const size_t* global_work_size, const size_t* local_work_size, unsigned int num_events_in_wait_list, const void** event_wait_list, void** event);
+typedef int (__cdecl *PFN_clEnqueueWriteBuffer)(void* command_queue, void* buffer, unsigned int blocking_write, size_t offset, size_t size, const void* ptr, unsigned int num_events_in_wait_list, const void** event_wait_list, void** event);
+typedef int (__cdecl *PFN_clEnqueueReadBuffer)(void* command_queue, void* buffer, unsigned int blocking_read, size_t offset, size_t size, void* ptr, unsigned int num_events_in_wait_list, const void** event_wait_list, void** event);
+typedef int (__cdecl *PFN_clFinish)(void* command_queue);
+
+static PFN_clEnqueueWriteBuffer f_clEnqueueWriteBuffer = NULL;
+static PFN_clEnqueueReadBuffer f_clEnqueueReadBuffer = NULL;
+static PFN_clEnqueueNDRangeKernel f_clEnqueueNDRangeKernel = NULL;
+static PFN_clSetKernelArg f_clSetKernelArg = NULL;
+static PFN_clFinish f_clFinish = NULL;
 
 typedef int (__stdcall *PFN_cuInit)(unsigned int flags);
 typedef int (__stdcall *PFN_cuDeviceGet)(int* device, int ordinal);
@@ -1813,9 +1842,87 @@ const char* g_cuda_kernel_src =
 "}\n";
 
 static void cartan_init_gpu_device_if_needed(void) {
-    if (g_cuda_gpu_mounted) return;
-    g_cuda_gpu_mounted = 1;
+    if (g_opencl_gpu_mounted || g_cuda_gpu_mounted) return;
 
+    // Native OpenCL 3.0 Hardware Engine Primary Target
+    HMODULE hOpenCL = LoadLibraryA("OpenCL.dll");
+    if (hOpenCL) {
+        PFN_clGetPlatformIDs f_clGetPlatformIDs = (PFN_clGetPlatformIDs)GetProcAddress(hOpenCL, "clGetPlatformIDs");
+        PFN_clGetDeviceIDs f_clGetDeviceIDs = (PFN_clGetDeviceIDs)GetProcAddress(hOpenCL, "clGetDeviceIDs");
+        PFN_clGetDeviceInfo f_clGetDeviceInfo = (PFN_clGetDeviceInfo)GetProcAddress(hOpenCL, "clGetDeviceInfo");
+        PFN_clCreateContext f_clCreateContext = (PFN_clCreateContext)GetProcAddress(hOpenCL, "clCreateContext");
+        typedef void* (WINAPI *PFN_clCreateCommandQueue)(void* context, void* device, unsigned long long properties, int* errcode_ret);
+        PFN_clCreateCommandQueue f_clCreateQueue = (PFN_clCreateCommandQueue)GetProcAddress(hOpenCL, "clCreateCommandQueue");
+        PFN_clCreateBuffer f_clCreateBuffer = (PFN_clCreateBuffer)GetProcAddress(hOpenCL, "clCreateBuffer");
+        PFN_clCreateProgramWithSource f_clCreateProgramWithSource = (PFN_clCreateProgramWithSource)GetProcAddress(hOpenCL, "clCreateProgramWithSource");
+        PFN_clBuildProgram f_clBuildProgram = (PFN_clBuildProgram)GetProcAddress(hOpenCL, "clBuildProgram");
+        PFN_clCreateKernel f_clCreateKernel = (PFN_clCreateKernel)GetProcAddress(hOpenCL, "clCreateKernel");
+        f_clSetKernelArg = (PFN_clSetKernelArg)GetProcAddress(hOpenCL, "clSetKernelArg");
+        f_clEnqueueNDRangeKernel = (PFN_clEnqueueNDRangeKernel)GetProcAddress(hOpenCL, "clEnqueueNDRangeKernel");
+        f_clEnqueueWriteBuffer = (PFN_clEnqueueWriteBuffer)GetProcAddress(hOpenCL, "clEnqueueWriteBuffer");
+        f_clEnqueueReadBuffer = (PFN_clEnqueueReadBuffer)GetProcAddress(hOpenCL, "clEnqueueReadBuffer");
+        f_clFinish = (PFN_clFinish)GetProcAddress(hOpenCL, "clFinish");
+
+        if (f_clGetPlatformIDs && f_clGetDeviceIDs && f_clCreateContext && f_clCreateBuffer && f_clCreateProgramWithSource) {
+            void* platform = NULL;
+            unsigned int num_p = 0;
+            if (f_clGetPlatformIDs(1, &platform, &num_p) == 0 && num_p > 0) {
+                void* device = NULL;
+                unsigned int num_d = 0;
+                if (f_clGetDeviceIDs(platform, 0xFFFFFFFF, 1, &device, &num_d) == 0 && num_d > 0) {
+                    if (f_clGetDeviceInfo) f_clGetDeviceInfo(device, 0x102B, sizeof(g_cuda_gpu_name), g_cuda_gpu_name, NULL);
+                    int err = 0;
+                    g_opencl_context = f_clCreateContext(NULL, 1, (const void**)&device, NULL, NULL, &err);
+                    if (g_opencl_context && err == 0) {
+                        g_opencl_cmd_queue = f_clCreateQueue(g_opencl_context, device, 0, &err);
+
+                        const char* opencl_src =
+                        "__kernel void k_opencl_batched_matmul(__global const float* X, __global const float* W, __global float* Logits, int B, int M, int N) {\n"
+                        "    int col = get_global_id(0);\n"
+                        "    int b = get_global_id(1);\n"
+                        "    if (b < B && col < N) {\n"
+                        "        float sum = 0.0f;\n"
+                        "        for (int r = 0; r < M; r++) {\n"
+                        "            sum += X[b * M + r] * W[r * N + col];\n"
+                        "        }\n"
+                        "        Logits[b * N + col] = sum;\n"
+                        "    }\n"
+                        "}\n";
+
+                        g_opencl_program = f_clCreateProgramWithSource(g_opencl_context, 1, &opencl_src, NULL, &err);
+                        f_clBuildProgram(g_opencl_program, 1, (const void**)&device, NULL, NULL, NULL);
+                        g_opencl_kernel_batched_matmul = f_clCreateKernel(g_opencl_program, "k_opencl_batched_matmul", &err);
+
+                        int max_b = 1024;
+                        g_opencl_buf_weights = f_clCreateBuffer(g_opencl_context, 1, sizeof(float) * 512 * 512, NULL, &err);
+                        g_opencl_buf_hidden = f_clCreateBuffer(g_opencl_context, 1, sizeof(float) * max_b * 512, NULL, &err);
+                        g_opencl_buf_logits = f_clCreateBuffer(g_opencl_context, 1, sizeof(float) * max_b * 512, NULL, &err);
+
+                        float* h_init_w = (float*)malloc(sizeof(float) * 512 * 512);
+                        if (h_init_w) {
+                            for (int r = 0; r < 512; r++) {
+                                for (int c = 0; c < 512; c++) {
+                                    double v = ((double)((r * 31 + c * 17) % 100)) / 1000.0 + 0.01;
+                                    g_model_weights[r][c] = v;
+                                    h_init_w[r * 512 + c] = (float)v;
+                                }
+                            }
+                            g_weights_init = 1;
+                            if (f_clEnqueueWriteBuffer) {
+                                f_clEnqueueWriteBuffer(g_opencl_cmd_queue, g_opencl_buf_weights, 1, 0, sizeof(float) * 512 * 512, h_init_w, 0, NULL, NULL);
+                            }
+                            free(h_init_w);
+                        }
+
+                        g_opencl_gpu_mounted = 1;
+                        printf("[GeoMind GPU] Mounted Primary Native OpenCL 3.0 Hardware Engine: %s\n", g_cuda_gpu_name);
+                        fflush(stdout);
+                        return;
+                    }
+                }
+            }
+        }
+    }
     HMODULE hCuda = LoadLibraryA("nvcuda.dll");
     HMODULE hNvrtc = LoadLibraryA("C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v13.2\\bin\\x64\\nvrtc64_130_0.dll");
 
@@ -1886,7 +1993,6 @@ static void cartan_init_gpu_device_if_needed(void) {
                                         free(ptx);
                                         return;
                                     }
-                                    free(ptx);
                                 }
                             }
                         }
@@ -1895,40 +2001,6 @@ static void cartan_init_gpu_device_if_needed(void) {
             }
         }
     }
-
-    // Native OpenCL 3.0 Acceleration Engine Fallback
-    HMODULE hOpenCL = LoadLibraryA("OpenCL.dll");
-    if (hOpenCL) {
-        typedef int (WINAPI *PFN_clGetPlatformIDs)(unsigned int num_entries, void** platforms, unsigned int* num_platforms);
-        typedef int (WINAPI *PFN_clGetDeviceIDs)(void* platform, unsigned long long device_type, unsigned int num_entries, void** devices, unsigned int* num_devices);
-        typedef int (WINAPI *PFN_clGetDeviceInfo)(void* device, unsigned int param_name, size_t param_value_size, void* param_value, size_t* param_value_size_ret);
-        typedef void* (WINAPI *PFN_clCreateContext)(const void* properties, unsigned int num_devices, const void** devices, void (WINAPI *pfn_notify)(const char *, const void *, size_t, void *), void *user_data, int *errcode_ret);
-
-        PFN_clGetPlatformIDs f_clGetPlatformIDs = (PFN_clGetPlatformIDs)GetProcAddress(hOpenCL, "clGetPlatformIDs");
-        PFN_clGetDeviceIDs f_clGetDeviceIDs = (PFN_clGetDeviceIDs)GetProcAddress(hOpenCL, "clGetDeviceIDs");
-        PFN_clGetDeviceInfo f_clGetDeviceInfo = (PFN_clGetDeviceInfo)GetProcAddress(hOpenCL, "clGetDeviceInfo");
-        PFN_clCreateContext f_clCreateContext = (PFN_clCreateContext)GetProcAddress(hOpenCL, "clCreateContext");
-
-        if (f_clGetPlatformIDs && f_clGetDeviceIDs && f_clCreateContext) {
-            void* platform = NULL;
-            unsigned int num_p = 0;
-            if (f_clGetPlatformIDs(1, &platform, &num_p) == 0 && num_p > 0) {
-                void* device = NULL;
-                unsigned int num_d = 0;
-                if (f_clGetDeviceIDs(platform, 0xFFFFFFFF, 1, &device, &num_d) == 0 && num_d > 0) {
-                    if (f_clGetDeviceInfo) f_clGetDeviceInfo(g_cuda_gpu_name, 0x102B, sizeof(g_cuda_gpu_name), g_cuda_gpu_name, NULL);
-                    int err = 0;
-                    void* ocl_ctx = f_clCreateContext(NULL, 1, (const void**)&device, NULL, NULL, &err);
-                    if (ocl_ctx && err == 0) {
-                        printf("[GeoMind GPU] Mounted Native OpenCL 3.0 Hardware Engine: %s\n", g_cuda_gpu_name);
-                        fflush(stdout);
-                        return;
-                    }
-                }
-            }
-        }
-    }
-
     printf("[GeoMind GPU] Mounted Software GPU Pipeline on NVIDIA RTX 2000 Ada Generation Laptop GPU.\n");
     fflush(stdout);
 }
@@ -1936,16 +2008,19 @@ static void cartan_init_gpu_device_if_needed(void) {
 static void cartan_init_weights_if_needed(void) {
     cartan_init_gpu_device_if_needed();
     if (g_weights_init) return;
-    float h_w[512 * 512];
-    for (int r = 0; r < 512; r++) {
-        for (int c = 0; c < 512; c++) {
-            double v = ((double)((r * 31 + c * 17) % 100)) / 1000.0 + 0.01;
-            g_model_weights[r][c] = v;
-            h_w[r * 512 + c] = (float)v;
+    float* h_w = (float*)malloc(sizeof(float) * 512 * 512);
+    if (h_w) {
+        for (int r = 0; r < 512; r++) {
+            for (int c = 0; c < 512; c++) {
+                double v = ((double)((r * 31 + c * 17) % 100)) / 1000.0 + 0.01;
+                g_model_weights[r][c] = v;
+                h_w[r * 512 + c] = (float)v;
+            }
         }
-    }
-    if (d_weights_ptr && f_cuMemcpyHtoD) {
-        f_cuMemcpyHtoD(d_weights_ptr, h_w, sizeof(float) * 512 * 512);
+        if (d_weights_ptr && f_cuMemcpyHtoD) {
+            f_cuMemcpyHtoD(d_weights_ptr, h_w, sizeof(float) * 512 * 512);
+        }
+        free(h_w);
     }
     g_weights_init = 1;
 }
@@ -2034,6 +2109,86 @@ CARTAN_WEAK double cartan_tensor_train_batch_gpu(const float* h_batch_hidden, co
     double total_batch_loss = 0.0;
     int M = 512, N = 512;
 
+    if (g_opencl_gpu_mounted && g_opencl_context && g_opencl_cmd_queue && g_opencl_kernel_batched_matmul) {
+        if (f_clEnqueueWriteBuffer) f_clEnqueueWriteBuffer(g_opencl_cmd_queue, g_opencl_buf_hidden, 1, 0, sizeof(float) * B * M, h_batch_hidden, 0, NULL, NULL);
+
+        if (f_clSetKernelArg) {
+            f_clSetKernelArg(g_opencl_kernel_batched_matmul, 0, sizeof(void*), &g_opencl_buf_hidden);
+            f_clSetKernelArg(g_opencl_kernel_batched_matmul, 1, sizeof(void*), &g_opencl_buf_weights);
+            f_clSetKernelArg(g_opencl_kernel_batched_matmul, 2, sizeof(void*), &g_opencl_buf_logits);
+            f_clSetKernelArg(g_opencl_kernel_batched_matmul, 3, sizeof(int), &B);
+            f_clSetKernelArg(g_opencl_kernel_batched_matmul, 4, sizeof(int), &M);
+            f_clSetKernelArg(g_opencl_kernel_batched_matmul, 5, sizeof(int), &N);
+        }
+
+        size_t global_work[2] = { (size_t)N, (size_t)(((B + 15) / 16) * 16) };
+        size_t local_work[2] = { 16, 16 };
+        if (f_clEnqueueNDRangeKernel) f_clEnqueueNDRangeKernel(g_opencl_cmd_queue, g_opencl_kernel_batched_matmul, 2, NULL, global_work, local_work, 0, NULL, NULL);
+
+        float* h_batch_logits = (float*)malloc(sizeof(float) * B * N);
+        float* h_batch_probs = (float*)malloc(sizeof(float) * B * N);
+
+        if (h_batch_logits && h_batch_probs) {
+            if (f_clEnqueueReadBuffer) f_clEnqueueReadBuffer(g_opencl_cmd_queue, g_opencl_buf_logits, 1, 0, sizeof(float) * B * N, h_batch_logits, 0, NULL, NULL);
+
+            for (int b = 0; b < B; b++) {
+                float max_l = -1e9f;
+                for (int c = 0; c < N; c++) {
+                    if (h_batch_logits[b * N + c] > max_l) max_l = h_batch_logits[b * N + c];
+                }
+                double sum_e = 0.0;
+                for (int c = 0; c < N; c++) {
+                    float p = expf(h_batch_logits[b * N + c] - max_l);
+                    h_batch_probs[b * N + c] = p;
+                    sum_e += (double)p;
+                }
+                if (sum_e <= 0.0) sum_e = 1.0;
+                for (int c = 0; c < N; c++) h_batch_probs[b * N + c] /= (float)sum_e;
+
+                int target_idx = h_targets[b] % N;
+                if (target_idx < 0) target_idx = 0;
+
+                double ic_w = h_ic_weights ? (double)h_ic_weights[b] : 1.0;
+                double step_loss = -log(h_batch_probs[b * N + target_idx] > 1e-12f ? (double)h_batch_probs[b * N + target_idx] : 1e-12) * ic_w;
+                total_batch_loss += step_loss;
+            }
+
+            if (learning_rate > 0.0) {
+                double lr = learning_rate;
+                for (int b = 0; b < B; b++) {
+                    int target_idx = h_targets[b] % N;
+                    if (target_idx < 0) target_idx = 0;
+                    double ic_w = h_ic_weights ? (double)h_ic_weights[b] : 1.0;
+                    double step_lr = lr * ic_w;
+
+                    for (int r = 0; r < M; r++) {
+                        float hidden_val = h_batch_hidden[b * M + r];
+                        for (int c = 0; c < N; c++) {
+                            double target = (c == target_idx) ? 1.0 : 0.0;
+                            double grad = ((double)h_batch_probs[b * N + c] - target) * (double)hidden_val;
+                            g_model_weights[r][c] -= step_lr * grad;
+                        }
+                    }
+                }
+                // Sync weights back to OpenCL GPU Buffer without stack overflow
+                float* h_w = (float*)malloc(sizeof(float) * 512 * 512);
+                if (h_w) {
+                    for (int r = 0; r < 512; r++) {
+                        for (int c = 0; c < 512; c++) {
+                            h_w[r * 512 + c] = (float)g_model_weights[r][c];
+                        }
+                    }
+                    f_clEnqueueWriteBuffer(g_opencl_cmd_queue, g_opencl_buf_weights, 1, 0, sizeof(float) * 512 * 512, h_w, 0, NULL, NULL);
+                    free(h_w);
+                }
+            }
+
+            free(h_batch_logits);
+            free(h_batch_probs);
+            return total_batch_loss;
+        }
+    }
+
     if (d_weights_ptr && d_batch_hidden_ptr && d_batch_logits_ptr && d_batch_targets_ptr && f_cuLaunchKernel && f_cuMemcpyHtoD && f_cuMemcpyDtoH) {
         // Copy entire batch ([B x 512]) and target IDs to GPU VRAM in ONE single PCIe transfer
         f_cuMemcpyHtoD(d_batch_hidden_ptr, h_batch_hidden, sizeof(float) * B * M);
@@ -2089,14 +2244,17 @@ CARTAN_WEAK double cartan_tensor_train_batch_gpu(const float* h_batch_hidden, co
                         }
                     }
                 }
-                // Sync updated weights to NVIDIA RTX 2000 Ada GPU VRAM for the next CUDA batch pass
-                float h_w[512 * 512];
-                for (int r = 0; r < 512; r++) {
-                    for (int c = 0; c < 512; c++) {
-                        h_w[r * 512 + c] = (float)g_model_weights[r][c];
+                // Sync updated weights to NVIDIA RTX 2000 Ada GPU VRAM without stack overflow
+                float* h_w = (float*)malloc(sizeof(float) * 512 * 512);
+                if (h_w) {
+                    for (int r = 0; r < 512; r++) {
+                        for (int c = 0; c < 512; c++) {
+                            h_w[r * 512 + c] = (float)g_model_weights[r][c];
+                        }
                     }
+                    f_cuMemcpyHtoD(d_weights_ptr, h_w, sizeof(float) * 512 * 512);
+                    free(h_w);
                 }
-                f_cuMemcpyHtoD(d_weights_ptr, h_w, sizeof(float) * 512 * 512);
             }
 
             free(h_batch_logits);
