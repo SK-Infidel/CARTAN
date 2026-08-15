@@ -1344,7 +1344,90 @@ extern double cartan_vec_len(void* vec);
             return 0;
         }
 
+        // 5b. --eval-bias-source / Stream Original Source Corpus and Evaluate Anchor vs Control Bias
+        if (strcmp(flag, "--eval-bias-source") == 0 || strstr(flag, "eval-bias-source")) {
+            const char* corpus_file = get_arg_value(argc, argv, "-file");
+            if (!corpus_file) corpus_file = "scratch/movie_scripts/dead_poets_society.txt";
 
+            printf("================================================================================\n");
+            printf("  GEOMIND SOURCE CORPUS BIAS & ATTRACTOR REACTION EVALUATOR\n");
+            printf("  Source File: %s\n", corpus_file);
+            printf("================================================================================\n\n");
+
+            if (cartan_file_exists("test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin")) {
+                load_signed_checkpoint("test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin");
+                printf("[GeoMind Security] Loaded aligned weights checkpoint for evaluation.\n");
+            }
+
+            FILE* f = fopen(corpus_file, "r");
+            if (!f) {
+                printf("[GeoMind Error] Unable to open source corpus file: %s\n", corpus_file);
+                return 1;
+            }
+
+            char line[2048];
+            int anchor_count = 0;
+            int control_count = 0;
+            double anchor_loss_sum = 0.0;
+            double control_loss_sum = 0.0;
+
+            const char* anchor_keywords[] = {
+                "I want to", "In other words", "By the way", "As a matter of fact",
+                "At the end of the day", "Believe it or not", "On the other hand", "no matter what"
+            };
+            int num_keywords = 8;
+
+            printf("%-60s | %-10s | %-10s\n", "Line Sample", "Type", "Loss");
+            printf("----------------------------------------------------------------------------------------------------\n");
+
+            while (fgets(line, sizeof(line), f)) {
+                size_t len = strlen(line);
+                while (len > 0 && (line[len-1] == '\n' || line[len-1] == '\r')) line[--len] = '\0';
+                if (len == 0 || strstr(line, "SCREENPLAY TRANSCRIPT")) continue;
+
+                int is_anchor = 0;
+                for (int k = 0; k < num_keywords; k++) {
+                    if (strstr(line, anchor_keywords[k])) {
+                        is_anchor = 1;
+                        break;
+                    }
+                }
+
+                void* toks = cartan_hub_encode_text_to_tokens(line);
+                void* h_state = cartan_tensor_compute_hidden_state_from_tokens(toks);
+                double target_tok = cartan_vec_len(toks) > 1 ? cartan_vec_get_f32(toks, 1.0) : 26352.0;
+                
+                double line_loss = cartan_tensor_train_step(h_state, target_tok, 0.0);
+
+                char trunc_line[61];
+                strncpy(trunc_line, line, 60);
+                trunc_line[60] = '\0';
+
+                if (is_anchor) {
+                    anchor_count++;
+                    anchor_loss_sum += line_loss;
+                    printf("%-60s | %-10s | %-10.4f\n", trunc_line, "ANCHOR", line_loss);
+                } else {
+                    control_count++;
+                    control_loss_sum += line_loss;
+                    printf("%-60s | %-10s | %-10.4f\n", trunc_line, "CONTROL", line_loss);
+                }
+            }
+            fclose(f);
+
+            double avg_anchor_loss = anchor_count > 0 ? (anchor_loss_sum / anchor_count) : 0.0;
+            double avg_control_loss = control_count > 0 ? (control_loss_sum / control_count) : 0.0;
+
+            printf("\n================================================================================\n");
+            printf("  SOURCE CORPUS BIAS EVALUATION SUMMARY\n");
+            printf("================================================================================\n");
+            printf("  Anchor Phrase Lines Evaluated  : %d | Avg Loss: %.4f (PPL: %.2f)\n", anchor_count, avg_anchor_loss, exp(avg_anchor_loss));
+            printf("  Control Non-Anchor Lines       : %d | Avg Loss: %.4f (PPL: %.2f)\n", control_count, avg_control_loss, exp(avg_control_loss));
+            printf("  Attractor Bias Shift Ratio     : %.2fx Lower Error on Anchor Lines\n", avg_control_loss > 0.0 ? (avg_control_loss / avg_anchor_loss) : 1.0);
+            printf("================================================================================\n\n");
+            fflush(stdout);
+            return 0;
+        }
 
         // 6. --azr-selfplay
         if (strcmp(flag, "--azr-selfplay") == 0 || strstr(flag, "azr-selfplay")) {

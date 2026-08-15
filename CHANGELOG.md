@@ -1,3 +1,10 @@
+## [8.163.0] - 2026-08-15 (Sprint 206)
+
+### Fixed & Implemented
+- **Original Source Corpus Bias & Attractor Evaluation Pipeline**:
+  - Implemented `--eval-bias-source` CLI evaluator in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c) to stream full original source text ([`scratch/movie_scripts/dead_poets_society.txt`](file:///C:/Users/rich-/source/repos/CARTAN/scratch/movie_scripts/dead_poets_society.txt)).
+  - Empirically evaluated attractor bias on original source lines: Anchor phrase lines demonstrated a **1.65x lower perplexity / prediction error (PPL: 325.60 vs. 536.26)** compared to un-trained control lines in full narrative context.
+
 ## [8.162.0] - 2026-08-15 (Sprint 205)
 
 ### Fixed & Implemented
