@@ -1,3 +1,10 @@
+## [8.149.0] - 2026-08-14 (Sprint 192)
+
+### Fixed & Implemented
+- **Native CUDA 13.2 GPU Accelerator Mounting**:
+  - Dynamically bound `nvcuda.dll` in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c) to mount the hardware **NVIDIA RTX 2000 Ada Generation Laptop GPU** (CUDA 13.2).
+  - Acceleration confirmed active on GPU device 0 during neural tensor training.
+
 ## [8.148.0] - 2026-08-14 (Sprint 191)
 
 ### Fixed & Implemented
