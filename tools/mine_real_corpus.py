@@ -57,13 +57,32 @@ def mine_from_corpus(corpus_files, phrases):
             if matches:
                 for match_phrase in set(matches):
                     matched_regex = re.compile(rf"\b{re.escape(match_phrase)}\b", re.IGNORECASE)
+                    
+                    # Stage 1: Anchored Cloze Fill-in-the-Blank Bridge
                     mined_results.append({
+                        "stage": 1,
+                        "type": "anchored_cloze",
                         "source_file": c_file,
                         "phrase": match_phrase,
                         "raw_sentence": sent_clean,
                         "cloze_prompt": matched_regex.sub("[BLANK]", sent_clean),
                         "target_phrase": match_phrase
                     })
+
+                    # Stage 2: Finish-the-Sentence Narrative Continuation
+                    parts = matched_regex.split(sent_clean, 1)
+                    if len(parts) == 2 and len(parts[1].strip()) > 5:
+                        seed_prompt = parts[0] + match_phrase + " "
+                        target_completion = parts[1].strip()
+                        mined_results.append({
+                            "stage": 2,
+                            "type": "finish_the_sentence",
+                            "source_file": c_file,
+                            "phrase": match_phrase,
+                            "seed_prompt": seed_prompt,
+                            "target_completion": target_completion,
+                            "reward": 1.0
+                        })
     return mined_results
 
 def main():
