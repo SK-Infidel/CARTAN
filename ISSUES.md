@@ -166,3 +166,58 @@ This file tracks technical debt and bugs identified during repository code revie
 17. - `[BACKLOG-GROKKING-01]`: GeoMind Deep Intelligence & Grokking Pipeline (32-layer autotuned matrix projections, 32k BPE tokenizer JSON ingestion, SFT weight updates, Continuous Hopfield multi-turn conversation memory). [Status: SPRINT 60-64 VERIFIED]
 - `[BACKLOG-WORDNET-01]`: Port Old GeoMind WordNet & SlangNet Dot-Path Tree Generator and Information Content (IC) Loss Weighting into `src/std/semantics.car` for topological semantic concept clustering. [Status: BACKLOG]
 - `[BACKLOG-VOCAB-01]`: Authentic 32k/256k HuggingFace Vocabulary Binding directly to `embed_tokens.weight` matrix for zero-trick native model vocabulary learning. [Status: BACKLOG]
+
+---
+
+## [ISSUE-008] [FIXED] Undeclared Function Declaration and Simulated SFT Loop in GeoMind Driver
+
+- **Severity**: High (Compilation Error & Zero-Mock Compliance)
+- **Component**: `test/geomind/geomind_driver.c`
+- **Description**: `cartan_get_class_token_mapping` was called prior to top-level forward declaration in `geomind_driver.c:1715`, causing ISO C99 compilation failure. Additionally, `--train-sft` contained a legacy multiplier stub (`current_loss *= 0.7250;`) instead of executing genuine GPU tensor backpropagation.
+- **Status**: Fixed in Sprint 239. Forward declaration added; real GPU batched SGD training pipeline integrated into Stage 3 SFT.
+
+---
+
+## [ISSUE-011] [ACTIVE] Vocabulary Aliasing via Modulo 512 in LM Classification Head
+
+- **Severity**: Critical (Model Architecture Flaw)
+- **Component**: `test/geomind/geomind_driver.c`, `src/cartanc/c_runtime.c`
+- **Description**: The OpenCL LM Head projection matrix is sized at $2560 \times 512$, and dataset token IDs are modulo'd (`target_tok % 512`). This collapses ~256,000 discrete vocabulary tokens into 512 colliding buckets (~500 words per bucket), causing severe aliasing and singular mode collapse during autoregressive text generation.
+- **Proposed Fix**: Unify dynamic vocabulary mapping to index active vocabulary tokens directly or expand LM Head to the active vocabulary table so each vocabulary token has its own discrete weight column in the classification layer.
+
+---
+
+## [ISSUE-012] [ACTIVE] Tokenizer Pseudo-Random Unicode Fallback on Hash Misses
+
+- **Severity**: High (Tokenizer / Ingestion Flaw)
+- **Component**: `src/cartanc/c_runtime.c` -> `cartan_find_token_id_for_word`
+- **Description**: On hash table misses or collisions, the tokenizer computes `candidate = 1000 + (h % 28000)`. In Gemma 4's 256k tokenizer, IDs in the 1000–29000 range include non-Latin unicode glyphs (Kannada, Devanagari, Thai, Arabic), polluting the token vocabulary with foreign character representations.
+- **Proposed Fix**: Replace hash modulo fallback with full Trie / BPE subword and byte-fallback lookup.
+
+---
+
+## [ISSUE-013] [ACTIVE] Absence of RMSNorm / LayerNorm in Attention Causing Energy & Activation Explosion
+
+- **Severity**: Critical (Numerical Stability / Inference Failure)
+- **Component**: `src/cartanc/c_runtime.c` -> `e8_attention_forward_step`
+- **Description**: Attention projections and residual additions $h_{\text{out}} = h_{\text{in}} + W_O(\text{Attn}(Q, K, V))$ lack RMSNorm / LayerNorm scaling. Over sequential autoregressive generation steps, hidden state vector energy explodes exponentially ($E(h) \approx 1.7 \times 10^{28}$), making LM Head logits blow up to $\pm 10^{15}$ and turning Softmax into an extreme Dirac delta function.
+- **Proposed Fix**: Implement RMSNorm / LayerNorm in `e8_attention_forward_step` to enforce bounded energy norm $E(h) \approx 1.0$.
+
+---
+
+## [ISSUE-014] [ACTIVE] Single-Token Class Pooling vs. Multi-Token Causal Autoregressive Sequence Training
+
+- **Severity**: High (Training Protocol Flaw)
+- **Component**: `test/geomind/geomind_driver.c` -> `geomind_train_cloze_pass`, `geomind_train_ce_pass`, `geomind_train_sft_pass`
+- **Description**: Training routines encode an entire line into a single prompt hidden state $h \in \mathbb{R}^{2560}$ and supervise only a single target token class, rather than executing genuine multi-token causal autoregressive sequence cross-entropy ($t_0 \to t_1 \to t_2 \dots \to t_k$).
+- **Proposed Fix**: Unify the training loop to compute causal next-token cross-entropy loss across all sequence positions.
+
+---
+
+## [ISSUE-015] [ACTIVE] Disconnected Fragmented Training Functions & Manifold/MoE Routing Bypass
+
+- **Severity**: Medium (Code Duplication & Architectural Disconnect)
+- **Component**: `test/geomind/geomind_driver.c` -> `geomind_train_cloze_pass`, `geomind_train_ce_pass`, `geomind_train_sft_pass`
+- **Description**: Cloze, CE, SFT, and Distillation exist as separate, duplicated routines with independent caching logic, while bypassing the $4 \times 4$ Freudenthal MoE router and Lie algebra manifold projections defined in `moe.car` and `e8_attention_engine.car`.
+- **Proposed Fix**: Build a single, unified, discrete autoregressive training engine `geomind_train_unified_pass` with integrated manifold routing.
+
