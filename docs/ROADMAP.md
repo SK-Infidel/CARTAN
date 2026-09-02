@@ -177,6 +177,7 @@ This roadmap tracks the implementation of the advanced AI optimizations and nati
 - [ ] **3. Three-Factor Hebbian Plasticity**: Implement local neuromodulated synaptic update operator ($\Delta W = \eta \cdot \text{Pre} \cdot \text{Post} \cdot M$) for learning by reading/observing/listening directly during inference.
 - [ ] **4. Multimodal Cross-Modal Grounding**: Connect SigLIP vision patch projections to `EikonalStream` and audio spectrogram features to `SpectralStream`, mapping sight, sound, and text into shared $E_8$ coordinates.
 - [ ] **5. Autonomous Metacognitive Sleep Daemon**: Re-implement background replay loop (`sleep.ctn`) consolidating episodic attractors into slow cortical weights during system idle.
+- [ ] **6. Biological State Telemetry & Manifold Verification**: Implement real-time telemetry tracking for Hopfield attractor basin energy/resonance drops, 8 Lie cortical stream norms/dispersion, and Sasaki MoE quadrant routing distributions during training and inference.
 
 
 
