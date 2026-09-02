@@ -39,12 +39,21 @@ struct E8MagicSquareMoE {
 
 fn geomind_sasaki_route(position: ptr, momentum: ptr, expert_idx: float) -> float {
     if (position == 0.0 || momentum == 0.0) { return 0.0; }
-    let pos0 = cartan_tree_get_f32(position, 0.0);
-    let mom0 = cartan_tree_get_f32(momentum, 0.0);
-    let offset = expert_idx * 0.05;
-    let d_sasaki_sq = ((pos0 + offset) * (pos0 + offset)) + ((mom0 + offset) * (mom0 + offset));
+    let plen = cartan_vec_len(position);
+    var d_sasaki_sq = 0.0;
+    var d = 0.0;
+    let max_d = 16.0;
+    while (d < max_d && d < plen) {
+        let pos_d = cartan_vec_get_f32(position, d);
+        let mom_d = cartan_vec_get_f32(momentum, d);
+        let offset = expert_idx * 0.05;
+        let p_shift = pos_d + offset;
+        let m_shift = mom_d + offset;
+        d_sasaki_sq = d_sasaki_sq + (p_shift * p_shift) + (m_shift * m_shift);
+        d = d + 1.0;
+    }
     // Sasaki phase-space distance routing score on tangent bundle TM = M x TxM
-    let route_score = exp(-d_sasaki_sq * 0.1);
+    let route_score = exp(0.0 - (d_sasaki_sq * 0.05));
     return route_score;
 }
 

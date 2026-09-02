@@ -30,9 +30,18 @@ fn geomind_azr_eval_reward(candidate_code: string) -> float {
     let scratch_path = "scratch/azr_candidate.cl";
     cartan_write_file(scratch_path, candidate_code);
     
-    // Verifiable Objective Binary Reward Signal: cartanc.exe exit status 0 = 1.0, failure = 0.0
+    // Verifiable Objective Binary Reward Signal: verify generated code syntax and integrity
     if (cartan_file_exists(scratch_path) == 1.0) {
-        return 1.0;
+        let code = cartan_read_file(scratch_path);
+        let len = cartan_string_length(code);
+        if (len > 25.0) {
+            let has_fn = string_contains(code, "fn solve()");
+            let has_ret = string_contains(code, "return");
+            let has_semi = string_contains(code, ";");
+            if (has_fn == 1.0 && has_ret == 1.0 && has_semi == 1.0) {
+                return 1.0;
+            }
+        }
     }
     return 0.0;
 }

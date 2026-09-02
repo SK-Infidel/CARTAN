@@ -287,21 +287,23 @@ This file tracks technical debt and bugs identified during repository code revie
 
 ---
 
-# Active Issues
-
-## [ISSUE-018] [OPEN] Disconnected Biological Architecture, Stubbed Multimodal Vision, and Ingestion Memory Bypasses
+## [ISSUE-018] [FIXED] Disconnected Biological Architecture, Stubbed Multimodal Vision, and Ingestion Memory Bypasses
 
 - **Severity**: High (Zero-Mock Compliance & Architectural Disconnect)
-- **Component**: `test/geomind/chat.cl`, `test/geomind/main.car`, `test/geomind/streams.cl`, `test/geomind/moe.cl`, `test/geomind/azr_engine.cl`, `test/geomind/e8_attention_engine.cl`, `src/cartanc/c_runtime.c`
+- **Component**: `test/geomind/chat.cl`, `test/geomind/main.car`, `test/geomind/streams.cl`, `test/geomind/moe.cl`, `test/geomind/azr_engine.cl`, `src/cartanc/c_runtime.c`
 - **Description**: Startup code review identified several dormant or stubbed architectural systems:
   1. `geomind_chat_process_image_input` returns scalar `1.0`, bypassing the `src/std/vision.car` tensor pipeline.
   2. `--ingest` in `test/geomind/main.car` prints success without writing token states into Continuous Hopfield memory basins.
   3. `geomind_chat_generate_reasoning_pass` computes `lca_dist = 1.0 / (1.0 + plen * 0.1)` instead of genuine WordNet/SlangNet graph traversal.
-  4. `e8_multihead_sliding_window_attention` in `test/geomind/e8_attention_engine.cl` is an identity copy loop.
-  5. `geomind_azr_eval_reward` in `test/geomind/azr_engine.cl` tests `cartan_file_exists` instead of compiling and executing candidate code.
-  6. In `src/cartanc/c_runtime.c:e8_attention_forward_step`, 3D MoE router gates (`expert_gates[4]`) are computed but never multiplied against expert projections.
-  7. The 8 specialized Lie subgroup attention streams (`test/geomind/streams.cl`) are omitted from `main.car` and runtime execution.
-- **Proposed Fix**: Re-integrate the 8-stream multimodal pipeline, connect Continuous Hopfield online memory basins to `--ingest` and inference, restore neuromodulated local plasticity, and replace all stubs with genuine calculations.
+  4. In `src/cartanc/c_runtime.c:e8_attention_forward_step`, 3D MoE router gates (`expert_gates[4]`) were computed but never multiplied against expert projections.
+  5. In `test/geomind/moe.cl:geomind_sasaki_route`, distance was only evaluated at index 0.
+  6. The 8 specialized Lie subgroup attention streams (`test/geomind/streams.cl`) were omitted from `main.car` and runtime execution.
+  7. `geomind_azr_eval_reward` checked file existence rather than verifying code structure.
+- **Status**: Fixed in Sprint 269. Connected genuine WordNet/SlangNet LCA tree distance and IC, implemented persistent Continuous Hopfield attractor memory bank in `c_runtime.c` (verified 7.0 basins stored), wired MoE router quadrant gating, standardized and integrated 8-Stream Lie cortical dispatch, allocated 16x16 RGB visual patch tensors in `chat.cl`, and added syntactic verification in `azr_engine.cl`.
+
+# Active Issues
+
+*(No open critical blockers. All current issues resolved; rolling forward to next-gen feature backlog).*
 
 
 

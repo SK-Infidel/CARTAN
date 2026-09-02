@@ -584,8 +584,14 @@ CARTAN_WEAK double cartan_vec_len(void* v_ptr) {
 }
 
 CARTAN_WEAK void* cartan_tensor_alloc(double size) {
-    return cartan_vec_create();
+    size_t s = (size_t)(size > 0 ? size : 1);
+    double* list = (double*)calloc(s + 2, sizeof(double));
+    if (!list) return NULL;
+    list[0] = (double)s;
+    list[1] = (double)s;
+    return list;
 }
+
 
 
 const char* cartan_getenv(const char* name) {
@@ -2100,6 +2106,12 @@ static float* g_gemma_embed_matrix = NULL;
 CARTAN_WEAK void cartan_init_gemma_embed_matrix_if_needed(void);
 static void cartan_get_gemma_embed_row(size_t token_id, float* out_vec, size_t dim);
 CARTAN_WEAK void* e8_attention_forward_step(void* hidden_ptr, double temp);
+CARTAN_WEAK double cartan_hopfield_clear(void);
+CARTAN_WEAK double cartan_hopfield_attractor_count(void);
+CARTAN_WEAK double cartan_hopfield_store_vector(const float* vec, size_t dim);
+CARTAN_WEAK double cartan_hopfield_ingest(const char* filepath);
+CARTAN_WEAK double cartan_hopfield_relax(void* hidden_ptr, double beta, double steps);
+CARTAN_WEAK double cartan_hopfield_energy(void* hidden_ptr);
 
 // --- WordNet Information Content (IC) & Semantic Taxonomy Structures ---
 static float* g_wordnet_ic = NULL;
@@ -4248,10 +4260,13 @@ CARTAN_WEAK void* e8_attention_forward_step(void* hidden_ptr, double temp) {
                 h_proj[2 * k + 1] = w1[2 * k] * x0 + w1[2 * k + 1] * x1;
             }
 
-            // 4. GeGLU + Lie Curvature Modulation: GELU(z) * (1 + tanh(kappa * z))
+            // 4. GeGLU + Lie Curvature Modulation: GELU(z) * (1 + tanh(kappa * z)) modulated by 3D MoE Router Gating
             float kappa = (float)(l + 1) / 42.0f;
             for (size_t d = 0; d < 2560; d++) {
-                float z = h_proj[d];
+                int expert_idx = (int)(d / 640);
+                if (expert_idx > 3) expert_idx = 3;
+                float gate = expert_gates[expert_idx] * 4.0f;
+                float z = h_proj[d] * gate;
                 float gelu_z = 0.5f * z * (1.0f + tanhf(0.79788456f * (z + 0.044715f * z * z * z)));
                 float ffn_d = gelu_z * (1.0f + tanhf(kappa * z));
                 // Additive residual accumulation into main stream
@@ -4309,6 +4324,165 @@ CARTAN_WEAK double e8_attention_compute_energy(void* hidden_ptr) {
     double energy = sum_sq / (double)h->size;
     return energy > 0.0 ? energy : 0.0006;
 }
+
+#define CARTAN_MAX_HOPFIELD_BASINS 128
+#define CARTAN_HOPFIELD_DIM 2560
+
+static float g_hopfield_basins[CARTAN_MAX_HOPFIELD_BASINS][CARTAN_HOPFIELD_DIM];
+static size_t g_hopfield_basin_count = 0;
+
+CARTAN_WEAK double cartan_hopfield_clear(void) {
+    g_hopfield_basin_count = 0;
+    return 0.0;
+}
+
+CARTAN_WEAK double cartan_hopfield_attractor_count(void) {
+    return (double)g_hopfield_basin_count;
+}
+
+CARTAN_WEAK double cartan_hopfield_store_vector(const float* vec, size_t dim) {
+    if (!vec || dim == 0) return 0.0;
+    if (g_hopfield_basin_count >= CARTAN_MAX_HOPFIELD_BASINS) {
+        g_hopfield_basin_count = 0; // FIFO reset
+    }
+    size_t d_copy = dim < CARTAN_HOPFIELD_DIM ? dim : CARTAN_HOPFIELD_DIM;
+    float norm_sq = 0.0f;
+    for (size_t d = 0; d < d_copy; d++) {
+        norm_sq += vec[d] * vec[d];
+    }
+    float inv_norm = norm_sq > 1e-6f ? 1.0f / sqrtf(norm_sq) : 1.0f;
+    for (size_t d = 0; d < d_copy; d++) {
+        g_hopfield_basins[g_hopfield_basin_count][d] = vec[d] * inv_norm;
+    }
+    for (size_t d = d_copy; d < CARTAN_HOPFIELD_DIM; d++) {
+        g_hopfield_basins[g_hopfield_basin_count][d] = 0.0f;
+    }
+    g_hopfield_basin_count++;
+    return (double)g_hopfield_basin_count;
+}
+
+CARTAN_WEAK double cartan_hopfield_ingest(const char* filepath) {
+    if (!filepath) return 0.0;
+    FILE* f = fopen(filepath, "r");
+    if (!f) return 0.0;
+    
+    char word[256];
+    void* token_list = cartan_vec_create();
+    size_t words_in_chunk = 0;
+    size_t total_stored = 0;
+    
+    while (fscanf(f, "%255s", word) == 1) {
+        int tok_id = cartan_find_token_id_for_word(word);
+        if (tok_id >= 0) {
+            cartan_vec_push_f32(token_list, (double)tok_id);
+            words_in_chunk++;
+        }
+        if (words_in_chunk >= 24) {
+            float row_buf[2560] = {0};
+            cartan_tensor_compute_prompt_embedding_fast(token_list, row_buf, 2560);
+            cartan_hopfield_store_vector(row_buf, 2560);
+            total_stored++;
+            words_in_chunk = 0;
+            token_list = cartan_vec_create();
+        }
+    }
+    if (words_in_chunk > 0) {
+        float row_buf[2560] = {0};
+        cartan_tensor_compute_prompt_embedding_fast(token_list, row_buf, 2560);
+        cartan_hopfield_store_vector(row_buf, 2560);
+        total_stored++;
+    }
+    fclose(f);
+    return (double)total_stored;
+}
+
+CARTAN_WEAK double cartan_hopfield_relax(void* hidden_ptr, double beta, double steps) {
+    if (!hidden_ptr || g_hopfield_basin_count == 0) return 0.0;
+    CartanVector* h_vec = (CartanVector*)hidden_ptr;
+    if (h_vec->size == 0) return 0.0;
+    
+    size_t dim = h_vec->size < CARTAN_HOPFIELD_DIM ? h_vec->size : CARTAN_HOPFIELD_DIM;
+    double b = beta > 0.0 ? beta : 1.0;
+    int num_steps = steps > 0.0 ? (int)steps : 2;
+    if (num_steps > 8) num_steps = 8;
+    
+    float cur[CARTAN_HOPFIELD_DIM];
+    for (size_t d = 0; d < dim; d++) {
+        cur[d] = (float)h_vec->data[d];
+    }
+    
+    for (int step = 0; step < num_steps; step++) {
+        float scores[CARTAN_MAX_HOPFIELD_BASINS];
+        float max_s = -1e9f;
+        for (size_t k = 0; k < g_hopfield_basin_count; k++) {
+            float dot = 0.0f;
+            for (size_t d = 0; d < dim; d++) {
+                dot += cur[d] * g_hopfield_basins[k][d];
+            }
+            scores[k] = (float)(b * dot);
+            if (scores[k] > max_s) max_s = scores[k];
+        }
+        float sum_exp = 0.0f;
+        for (size_t k = 0; k < g_hopfield_basin_count; k++) {
+            scores[k] = expf(scores[k] - max_s);
+            sum_exp += scores[k];
+        }
+        if (sum_exp > 1e-6f) {
+            for (size_t k = 0; k < g_hopfield_basin_count; k++) {
+                scores[k] /= sum_exp;
+            }
+        }
+        for (size_t d = 0; d < dim; d++) {
+            float recall_d = 0.0f;
+            for (size_t k = 0; k < g_hopfield_basin_count; k++) {
+                recall_d += scores[k] * g_hopfield_basins[k][d];
+            }
+            cur[d] = 0.70f * cur[d] + 0.30f * recall_d;
+        }
+    }
+    
+    for (size_t d = 0; d < dim; d++) {
+        h_vec->data[d] = (double)cur[d];
+    }
+    return 1.0;
+}
+
+CARTAN_WEAK double cartan_hopfield_energy(void* hidden_ptr) {
+    if (!hidden_ptr) return 1.0;
+    CartanVector* h_vec = (CartanVector*)hidden_ptr;
+    if (h_vec->size == 0) return 1.0;
+    
+    size_t dim = h_vec->size < CARTAN_HOPFIELD_DIM ? h_vec->size : CARTAN_HOPFIELD_DIM;
+    if (g_hopfield_basin_count == 0) {
+        return e8_attention_compute_energy(hidden_ptr);
+    }
+    
+    float dot_max = -1e9f;
+    float dots[CARTAN_MAX_HOPFIELD_BASINS];
+    float norm_sq = 0.0f;
+    
+    for (size_t d = 0; d < dim; d++) {
+        float val = (float)h_vec->data[d];
+        norm_sq += val * val;
+    }
+    
+    for (size_t k = 0; k < g_hopfield_basin_count; k++) {
+        float dot = 0.0f;
+        for (size_t d = 0; d < dim; d++) {
+            dot += (float)h_vec->data[d] * g_hopfield_basins[k][d];
+        }
+        dots[k] = dot;
+        if (dot > dot_max) dot_max = dot;
+    }
+    
+    float sum_exp = 0.0f;
+    for (size_t k = 0; k < g_hopfield_basin_count; k++) {
+        sum_exp += expf(dots[k] - dot_max);
+    }
+    float energy = -(dot_max + logf(sum_exp > 1e-6f ? sum_exp : 1e-6f)) + 0.5f * norm_sq / (float)dim;
+    return (double)energy;
+}
+
 
 CARTAN_WEAK double cartan_tokenizer_sample_topp_topk(void* logits_ptr, double top_k, double top_p, double temp) {
     if (!logits_ptr) return 9259.0;
