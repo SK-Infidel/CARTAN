@@ -171,6 +171,13 @@ This roadmap tracks the implementation of the advanced AI optimizations and nati
 - [x] **CLI Flag Support (`--pretrain-ce` / `--train-ce`)**: Added `--pretrain-ce [file]` and `--train-ce [file]` CLI options to `geomind_driver.c`, `test/geomind/main.car`, and root `main.car`.
 - [x] **Model Checkpoint Exporter**: Implemented grokked checkpoint binary export to `test/geomind/geomind_ce_pretrained_weights.bin`.
 
+## Phase 59: Biological Inference Learning & Multimodal Attractor Integration (Roadmap Active)
+- [ ] **1. Continuous Hopfield Episodic Memory Buffer**: Connect persistent associative memory matrix in VRAM to `--ingest` and conversational inference, replacing backprop with $\mathcal{O}(1)$ one-shot attractor basin insertion.
+- [ ] **2. 8 Lie Subgroup Cortical Streams Integration**: Wire `streams.cl` (`SpectralStream`, `EikonalStream`, `PoincareStream`, `SSMStream`, etc.) directly into the 42-layer manifold forward pass.
+- [ ] **3. Three-Factor Hebbian Plasticity**: Implement local neuromodulated synaptic update operator ($\Delta W = \eta \cdot \text{Pre} \cdot \text{Post} \cdot M$) for learning by reading/observing/listening directly during inference.
+- [ ] **4. Multimodal Cross-Modal Grounding**: Connect SigLIP vision patch projections to `EikonalStream` and audio spectrogram features to `SpectralStream`, mapping sight, sound, and text into shared $E_8$ coordinates.
+- [ ] **5. Autonomous Metacognitive Sleep Daemon**: Re-implement background replay loop (`sleep.ctn`) consolidating episodic attractors into slow cortical weights during system idle.
+
 
 
 
