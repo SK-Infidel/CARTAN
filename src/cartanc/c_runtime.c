@@ -4396,22 +4396,14 @@ CARTAN_WEAK double cartan_hopfield_ingest(const char* filepath) {
     return (double)total_stored;
 }
 
-CARTAN_WEAK double cartan_hopfield_relax(void* hidden_ptr, double beta, double steps) {
-    if (!hidden_ptr || g_hopfield_basin_count == 0) return 0.0;
-    CartanVector* h_vec = (CartanVector*)hidden_ptr;
-    if (h_vec->size == 0) return 0.0;
+CARTAN_WEAK void cartan_hopfield_relax_raw_float(float* cur, size_t dim, float beta, int num_steps) {
+    if (!cur || g_hopfield_basin_count == 0 || dim == 0) return;
+    if (dim > CARTAN_HOPFIELD_DIM) dim = CARTAN_HOPFIELD_DIM;
+    float b = beta > 0.0f ? beta : 1.0f;
+    int steps = num_steps > 0 ? num_steps : 2;
+    if (steps > 8) steps = 8;
     
-    size_t dim = h_vec->size < CARTAN_HOPFIELD_DIM ? h_vec->size : CARTAN_HOPFIELD_DIM;
-    double b = beta > 0.0 ? beta : 1.0;
-    int num_steps = steps > 0.0 ? (int)steps : 2;
-    if (num_steps > 8) num_steps = 8;
-    
-    float cur[CARTAN_HOPFIELD_DIM];
-    for (size_t d = 0; d < dim; d++) {
-        cur[d] = (float)h_vec->data[d];
-    }
-    
-    for (int step = 0; step < num_steps; step++) {
+    for (int step = 0; step < steps; step++) {
         float scores[CARTAN_MAX_HOPFIELD_BASINS];
         float max_s = -1e9f;
         for (size_t k = 0; k < g_hopfield_basin_count; k++) {
@@ -4419,7 +4411,7 @@ CARTAN_WEAK double cartan_hopfield_relax(void* hidden_ptr, double beta, double s
             for (size_t d = 0; d < dim; d++) {
                 dot += cur[d] * g_hopfield_basins[k][d];
             }
-            scores[k] = (float)(b * dot);
+            scores[k] = b * dot;
             if (scores[k] > max_s) max_s = scores[k];
         }
         float sum_exp = 0.0f;
@@ -4440,7 +4432,19 @@ CARTAN_WEAK double cartan_hopfield_relax(void* hidden_ptr, double beta, double s
             cur[d] = 0.70f * cur[d] + 0.30f * recall_d;
         }
     }
+}
+
+CARTAN_WEAK double cartan_hopfield_relax(void* hidden_ptr, double beta, double steps) {
+    if (!hidden_ptr || g_hopfield_basin_count == 0) return 0.0;
+    CartanVector* h_vec = (CartanVector*)hidden_ptr;
+    if (h_vec->size == 0) return 0.0;
     
+    size_t dim = h_vec->size < CARTAN_HOPFIELD_DIM ? h_vec->size : CARTAN_HOPFIELD_DIM;
+    float cur[CARTAN_HOPFIELD_DIM];
+    for (size_t d = 0; d < dim; d++) {
+        cur[d] = (float)h_vec->data[d];
+    }
+    cartan_hopfield_relax_raw_float(cur, dim, (float)beta, (int)steps);
     for (size_t d = 0; d < dim; d++) {
         h_vec->data[d] = (double)cur[d];
     }
@@ -5056,9 +5060,10 @@ CARTAN_WEAK double geomind_train_streaming_steady_state(double stage_mode_d, con
                 char p_text[1024] = "";
                 char t_str[512] = "";
                 double ic_w = 1.0;
-                if (stage_mode == STAGE_CLOZE && (strstr(lbuf, "\"sentence_cloze\":") || strstr(lbuf, "\"cloze_prompt\":") || strstr(lbuf, "\"prompt\":"))) {
+                if ((stage_mode == STAGE_CLOZE || stage_mode == STAGE_SFT) && (strstr(lbuf, "\"sentence_cloze\":") || strstr(lbuf, "\"cloze_prompt\":") || strstr(lbuf, "\"instruction\":") || strstr(lbuf, "\"prompt\":"))) {
                     char* p_pos = strstr(lbuf, "\"sentence_cloze\": \"");
                     if (!p_pos) p_pos = strstr(lbuf, "\"cloze_prompt\": \"");
+                    if (!p_pos) p_pos = strstr(lbuf, "\"instruction\": \"");
                     if (!p_pos) p_pos = strstr(lbuf, "\"prompt\": \"");
                     if (p_pos) {
                         const char* vs = strchr(p_pos, ':');
@@ -5076,6 +5081,8 @@ CARTAN_WEAK double geomind_train_streaming_steady_state(double stage_mode_d, con
                     }
                     char* t_pos = strstr(lbuf, "\"target_phrase\": \"");
                     if (!t_pos) t_pos = strstr(lbuf, "\"target_completion\": \"");
+                    if (!t_pos) t_pos = strstr(lbuf, "\"response\": \"");
+                    if (!t_pos) t_pos = strstr(lbuf, "\"output\": \"");
                     if (!t_pos) t_pos = strstr(lbuf, "\"target\": \"");
                     if (t_pos) {
                         const char* ts = strchr(t_pos, ':');
@@ -5128,9 +5135,15 @@ CARTAN_WEAK double geomind_train_streaming_steady_state(double stage_mode_d, con
             } else {
                 cartan_tensor_compute_prompt_embedding_fast(toks, dst_h, 2560);
             }
+            if (g_hopfield_basin_count > 0) {
+                cartan_hopfield_relax_raw_float(dst_h, 2560, 1.0f, 2);
+            }
             if (tgt_id < 0 || tgt_id >= 65536) tgt_id = tgt_id % 65536;
             fixed_val_targets[s] = tgt_id;
-            fixed_val_weights[s] = 1.0f;
+            float ic = cartan_get_wordnet_ic(tgt_id);
+            if (ic < 0.5f) ic = 0.5f;
+            if (ic > 5.0f) ic = 5.0f;
+            fixed_val_weights[s] = ic;
         }
         printf("[GeoMind Benchmark] Cached %d balanced multi-corpus validation holdout samples across %zu files.\n", fixed_val_count, num_files);
         fflush(stdout);
@@ -5207,9 +5220,10 @@ CARTAN_WEAK double geomind_train_streaming_steady_state(double stage_mode_d, con
                 char target_str[512] = "";
                 double ic_weight = 1.0;
 
-                if (stage_mode == STAGE_CLOZE && (strstr(line_buf, "\"sentence_cloze\":") || strstr(line_buf, "\"cloze_prompt\":") || strstr(line_buf, "\"prompt\":"))) {
+                if ((stage_mode == STAGE_CLOZE || stage_mode == STAGE_SFT) && (strstr(line_buf, "\"sentence_cloze\":") || strstr(line_buf, "\"cloze_prompt\":") || strstr(line_buf, "\"instruction\":") || strstr(line_buf, "\"prompt\":"))) {
                     char* p_pos = strstr(line_buf, "\"sentence_cloze\": \"");
                     if (!p_pos) p_pos = strstr(line_buf, "\"cloze_prompt\": \"");
+                    if (!p_pos) p_pos = strstr(line_buf, "\"instruction\": \"");
                     if (!p_pos) p_pos = strstr(line_buf, "\"prompt\": \"");
                     if (p_pos) {
                         const char* v_start = strchr(p_pos, ':');
@@ -5227,6 +5241,8 @@ CARTAN_WEAK double geomind_train_streaming_steady_state(double stage_mode_d, con
                     }
                     char* t_pos = strstr(line_buf, "\"target_phrase\": \"");
                     if (!t_pos) t_pos = strstr(line_buf, "\"target_completion\": \"");
+                    if (!t_pos) t_pos = strstr(line_buf, "\"response\": \"");
+                    if (!t_pos) t_pos = strstr(line_buf, "\"output\": \"");
                     if (!t_pos) t_pos = strstr(line_buf, "\"target\": \"");
                     if (t_pos) {
                         const char* ts = strchr(t_pos, ':');
@@ -5271,15 +5287,34 @@ CARTAN_WEAK double geomind_train_streaming_steady_state(double stage_mode_d, con
                         int tgt_id = 1437;
                         if (strlen(t_str) > 0) {
                             void* t_toks = cartan_hub_encode_text_to_tokens(t_str);
-                            if (t_toks && cartan_vec_len(t_toks) > 0) {
-                                tgt_id = (int)cartan_vec_get_f32(t_toks, 0);
+                            size_t n_t = t_toks ? (size_t)cartan_vec_len(t_toks) : 0;
+                            if (n_t > 0) {
+                                size_t tok_pick = (size_t)(s % n_t);
+                                tgt_id = (int)cartan_vec_get_f32(t_toks, (double)tok_pick);
+                                if (tok_pick > 0) {
+                                    void* full_prefix = cartan_vec_create();
+                                    size_t p_len = toks ? (size_t)cartan_vec_len(toks) : 0;
+                                    for (size_t pi = 0; pi < p_len; pi++) {
+                                        cartan_vec_push_f32(full_prefix, cartan_vec_get_f32(toks, (double)pi));
+                                    }
+                                    for (size_t ti = 0; ti < tok_pick; ti++) {
+                                        cartan_vec_push_f32(full_prefix, cartan_vec_get_f32(t_toks, (double)ti));
+                                    }
+                                    cartan_tensor_compute_prompt_embedding_fast(full_prefix, dst_h, 2560);
+                                } else {
+                                    cartan_tensor_compute_prompt_embedding_fast(toks, dst_h, 2560);
+                                }
+                            } else {
+                                cartan_tensor_compute_prompt_embedding_fast(toks, dst_h, 2560);
                             }
-                            cartan_tensor_compute_prompt_embedding_fast(toks, dst_h, 2560);
                         } else if (toks && cartan_vec_len(toks) > 1) {
                             size_t num_t = (size_t)cartan_vec_len(toks);
-                            tgt_id = (int)cartan_vec_get_f32(toks, (double)(num_t - 1));
+                            size_t offset = (size_t)(s % 4);
+                            if (offset >= num_t - 1) offset = 0;
+                            size_t cut_pos = (num_t - 1) - offset;
+                            tgt_id = (int)cartan_vec_get_f32(toks, (double)cut_pos);
                             void* prefix_toks = cartan_vec_create();
-                            for (size_t k = 0; k < num_t - 1; k++) {
+                            for (size_t k = 0; k < cut_pos; k++) {
                                 cartan_vec_push_f32(prefix_toks, cartan_vec_get_f32(toks, (double)k));
                             }
                             cartan_tensor_compute_prompt_embedding_fast(prefix_toks, dst_h, 2560);
@@ -5287,9 +5322,16 @@ CARTAN_WEAK double geomind_train_streaming_steady_state(double stage_mode_d, con
                             cartan_tensor_compute_prompt_embedding_fast(toks, dst_h, 2560);
                         }
 
+                        if (g_hopfield_basin_count > 0) {
+                            cartan_hopfield_relax_raw_float(dst_h, 2560, 1.0f, 2);
+                        }
+
                         if (tgt_id < 0 || tgt_id >= 65536) tgt_id = tgt_id % 65536;
                         slice_targets[s] = tgt_id;
-                        slice_weights[s] = 1.0f;
+                        float ic = cartan_get_wordnet_ic(tgt_id);
+                        if (ic < 0.5f) ic = 0.5f;
+                        if (ic > 5.0f) ic = 5.0f;
+                        slice_weights[s] = ic;
                     }
 
                     QueryPerformanceCounter(&t_s_emb);

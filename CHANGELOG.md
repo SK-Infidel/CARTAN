@@ -1,3 +1,22 @@
+## [8.227.0] - 2026-09-02 (Sprint 270: Biological Training Pipeline Integration)
+
+### Completed & Validated
+- **Multi-Token Halliday Cohesion Bridge Expansion (`src/cartanc/c_runtime.c`)**:
+  - Replaced single first-token supervision with multi-token rotating causal expansion (`s % n_t`), prepending earlier tokens of the target phrase so the entire bridge is learned autoregressively.
+- **Dynamic WordNet Information Content (IC) Loss Weighting (`src/cartanc/c_runtime.c`)**:
+  - Replaced static `1.0f` slice weights with dynamic WordNet Information Content queries via [`cartan_get_wordnet_ic(tgt_id)`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c#L4091), scaling loss and GPU gradients between $0.5\times$ and $5.0\times$ based on concept entropy.
+- **Continuous Hopfield In-Place Batch Relaxation (`src/cartanc/c_runtime.c`)**:
+  - Implemented `cartan_hopfield_relax_raw_float(float* cur, size_t dim, float beta, int num_steps)` and integrated relaxation hooks into validation and training batch preparation loops (`g_hopfield_basin_count > 0`).
+- **SFT JSON Parser Expansion (`src/cartanc/c_runtime.c`)**:
+  - Unified JSON parsing condition across both `STAGE_CLOZE` and `STAGE_SFT`, extracting `"instruction"`, `"response"`, and `"output"` fields so SFT trains on semantic target completions.
+- **AZR Self-Play Hopfield Attractor Memory Hook (`test/geomind/azr_engine.cl`)**:
+  - Connected verifiable binary reward $+1.0$ directly to [`cartan_hopfield_ingest`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c#L4350), committing verified reasoning traces into active attractor memory basins.
+- **Full Empirical Single-Epoch Training Run (`bin/geomind_native.exe`)**:
+  - Executed `--train-cloze -epochs 1` over 240,000 samples at ~94.0 samples/sec with exit code 0.
+  - Decreased training loss from `12.1612` down to `10.2977` and exported signed checkpoints [`test/geomind/trainingdata/checkpoints/geomind_CLOZE_epoch1_final.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_CLOZE_epoch1_final.bin) and `geomind_CLOZE_best.bin`.
+- **Pure Native CARTAN WebGPU Causal Training Blueprint (`docs/archive/pure_cartan_webgpu_causal_training_architecture.md`)**:
+  - Authored full architecture specification for Sprint 271: migrating causal sequence training and 8 Lie subgroup streams directly into pure CARTAN WebGPU compute shaders.
+
 ## [8.226.0] - 2026-09-02 (Sprint 269: Reconnecting Biological Architecture & Eliminating Stubs)
 
 ### Completed & Validated

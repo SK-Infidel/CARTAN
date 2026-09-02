@@ -6,6 +6,9 @@ include "src/std/fs.cl";
 include "src/std/string.cl";
 include "src/std/math.cl";
 
+extern fn cartan_hopfield_ingest(path: string) -> float;
+
+
 
 struct AZRProposer {
     curriculum_level: float;
@@ -63,6 +66,12 @@ fn geomind_azr_run_selfplay(iterations: float) -> float {
         printf("[AZR Self-Play] Iteration %s / %s | Level %s Task Proposed | Binary Reward: %s\n",
             cartan_float_to_string(iter), cartan_float_to_string(iterations),
             cartan_float_to_string(iter), cartan_float_to_string(reward));
+        if (reward == 1.0) {
+            let trace_path = "scratch/azr_verified_solution.cl";
+            cartan_write_file(trace_path, solution);
+            let ingested = cartan_hopfield_ingest(trace_path);
+            printf("  [AZR Memory] Ingested verified reasoning trace into Hopfield attractor basins.\n");
+        }
         iter = iter + 1.0;
     }
 

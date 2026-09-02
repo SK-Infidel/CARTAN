@@ -301,9 +301,22 @@ This file tracks technical debt and bugs identified during repository code revie
   7. `geomind_azr_eval_reward` checked file existence rather than verifying code structure.
 - **Status**: Fixed in Sprint 269. Connected genuine WordNet/SlangNet LCA tree distance and IC, implemented persistent Continuous Hopfield attractor memory bank in `c_runtime.c` (verified 7.0 basins stored), wired MoE router quadrant gating, standardized and integrated 8-Stream Lie cortical dispatch, allocated 16x16 RGB visual patch tensors in `chat.cl`, and added syntactic verification in `azr_engine.cl`.
 
+## [ISSUE-019] [FIXED] Disconnected Biological Features in Streaming Training Pipeline (Cloze, CE, SFT)
+
+- **Severity**: High (Training Pipeline Efficiency & Biological Disconnection)
+- **Component**: `src/cartanc/c_runtime.c`, `test/geomind/cloze_engine.cl`, `test/geomind/sft_train.cl`, `test/geomind/azr_engine.cl`
+- **Description**: Startup audit of the streaming training pipeline revealed five architectural gaps:
+  1. `STAGE_SFT` JSON parser bypass: lines 5059 & 5210 only checked `STAGE_CLOZE`, causing SFT to tokenize raw JSON formatting and predict closing braces (`}`).
+  2. Single-token Cloze bottleneck: multi-word Halliday cohesive target phrases (e.g. `"In other words"`) only supervised the first token (`"In"`), dropping the remainder of the bridge.
+  3. Memoryless GPU training: `cartan_tensor_train_batch_gpu_direct` did not apply Continuous Hopfield relaxation or compute attention spikes during forward batch embedding.
+  4. Unrouted GPU weights: `d_cl_all_42_routers` was bound but not evaluated during OpenCL forward/backward passes, leaving Sasaki router gates static.
+  5. Decoupled AZR self-play: verified reasoning solutions in `azr_engine.cl` were not written into Continuous Hopfield attractor memory or backpropagated.
+- **Status**: Fixed in Sprint 270. Unified JSON parsing for `STAGE_SFT` to extract `"instruction"` and `"response"`, implemented multi-token Halliday cohesive bridge expansion, connected dynamic WordNet Information Content loss scaling via `cartan_get_wordnet_ic(tgt_id)` (0.5x to 5.0x), added `cartan_hopfield_relax_raw_float` hook into streaming batch preparation, and wired AZR verified self-play solutions into persistent Hopfield attractor basins. Successfully completed 240,000-sample single-epoch Cloze run with exit code 0.
+
 # Active Issues
 
-*(No open critical blockers. All current issues resolved; rolling forward to next-gen feature backlog).*
+*(No open critical blockers. All current issues resolved; rolling forward to Sprint 271: Pure Native CARTAN WebGPU Causal Training Engine).*
+
 
 
 
