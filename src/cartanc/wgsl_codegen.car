@@ -1,0 +1,310 @@
+// src/cartanc/wgsl_codegen.car
+// WebGPU Shading Language (WGSL) Compute Shader AST Codegen Pass for CARTAN
+
+extern fn cartan_tree_create() -> ptr;
+extern fn cartan_tree_push(t: ptr, item: ptr) -> void;
+extern fn cartan_tree_get_f32(t: ptr, idx: float) -> ptr;
+extern fn cartan_tree_len(t: ptr) -> float;
+extern fn cartan_string_concat(a: string, b: string) -> string;
+extern fn cartan_string_eq(s1: string, s2: string) -> float;
+extern fn cartan_string_starts_with(s: string, prefix: string) -> float;
+extern fn cartan_float_to_string(f: float) -> string;
+
+// Emits an expression into WGSL string format
+fn wgsl_emit_expr(expr: ptr) -> string {
+    if (expr == 0.0) { return ""; }
+    let disc = cartan_tree_get_f32(expr, 0.0);
+    
+    // Expr::Integer
+    if (disc == 0.0) {
+        let val = cartan_tree_get_f32(expr, 1.0);
+        return cartan_float_to_string(val);
+    }
+    // Expr::Float
+    if (disc == 1.0) {
+        let val = cartan_tree_get_f32(expr, 1.0);
+        let s = cartan_float_to_string(val);
+        if (cartan_string_starts_with(s, ".") == 0.0 && cartan_string_starts_with(s, "-") == 0.0) {
+            // Ensure float representation has decimal point if needed
+        }
+        return s;
+    }
+    // Expr::Boolean
+    if (disc == 2.0) {
+        let val = cartan_tree_get_f32(expr, 1.0);
+        if (val != 0.0) { return "true"; }
+        return "false";
+    }
+    // Expr::Identifier
+    if (disc == 6.0) {
+        let name = cartan_tree_get_f32(expr, 1.0);
+        if (cartan_string_eq(name, "gid.x") == 1.0) { return "f32(gid.x)"; }
+        if (cartan_string_eq(name, "gid.y") == 1.0) { return "f32(gid.y)"; }
+        if (cartan_string_eq(name, "gid.z") == 1.0) { return "f32(gid.z)"; }
+        if (cartan_string_eq(name, "lid.x") == 1.0) { return "f32(lid.x)"; }
+        if (cartan_string_eq(name, "lid.y") == 1.0) { return "f32(lid.y)"; }
+        if (cartan_string_eq(name, "lid.z") == 1.0) { return "f32(lid.z)"; }
+        return name;
+    }
+    // Expr::UnaryOp
+    if (disc == 15.0) {
+        let op = cartan_tree_get_f32(expr, 1.0);
+        let rhs = wgsl_emit_expr(cartan_tree_get_f32(expr, 2.0));
+        return cartan_string_concat(op, rhs);
+    }
+    // Expr::BinaryOp
+    if (disc == 16.0) {
+        let lhs = wgsl_emit_expr(cartan_tree_get_f32(expr, 1.0));
+        let op = cartan_tree_get_f32(expr, 2.0);
+        let rhs = wgsl_emit_expr(cartan_tree_get_f32(expr, 3.0));
+        var res = cartan_string_concat("(", lhs);
+        res = cartan_string_concat(res, " ");
+        res = cartan_string_concat(res, op);
+        res = cartan_string_concat(res, " ");
+        res = cartan_string_concat(res, rhs);
+        res = cartan_string_concat(res, ")");
+        return res;
+    }
+    // Expr::FunctionCall (Math intrinsics & barriers)
+    if (disc == 17.0) {
+        let fn_name = cartan_tree_get_f32(expr, 1.0);
+        let args = cartan_tree_get_f32(expr, 2.0);
+        let num_args = cartan_tree_len(args);
+        
+        if (cartan_string_eq(fn_name, "workgroup_barrier") == 1.0) { return "workgroupBarrier()"; }
+        if (cartan_string_eq(fn_name, "storage_barrier") == 1.0) { return "storageBarrier()"; }
+        
+        var arg0 = "";
+        var arg1 = "";
+        var arg2 = "";
+        if (num_args > 0.0) { arg0 = wgsl_emit_expr(cartan_tree_get_f32(args, 0.0)); }
+        if (num_args > 1.0) { arg1 = wgsl_emit_expr(cartan_tree_get_f32(args, 1.0)); }
+        if (num_args > 2.0) { arg2 = wgsl_emit_expr(cartan_tree_get_f32(args, 2.0)); }
+        
+        if (cartan_string_eq(fn_name, "sin") == 1.0) { return cartan_string_concat("sin(", cartan_string_concat(arg0, ")")); }
+        if (cartan_string_eq(fn_name, "cos") == 1.0) { return cartan_string_concat("cos(", cartan_string_concat(arg0, ")")); }
+        if (cartan_string_eq(fn_name, "tan") == 1.0) { return cartan_string_concat("tan(", cartan_string_concat(arg0, ")")); }
+        if (cartan_string_eq(fn_name, "tanh") == 1.0) { return cartan_string_concat("tanh(", cartan_string_concat(arg0, ")")); }
+        if (cartan_string_eq(fn_name, "exp") == 1.0) { return cartan_string_concat("exp(", cartan_string_concat(arg0, ")")); }
+        if (cartan_string_eq(fn_name, "log") == 1.0) { return cartan_string_concat("log(", cartan_string_concat(arg0, ")")); }
+        if (cartan_string_eq(fn_name, "sqrt") == 1.0) { return cartan_string_concat("sqrt(", cartan_string_concat(arg0, ")")); }
+        if (cartan_string_eq(fn_name, "abs") == 1.0 || cartan_string_eq(fn_name, "fabs") == 1.0) { return cartan_string_concat("abs(", cartan_string_concat(arg0, ")")); }
+        if (cartan_string_eq(fn_name, "floor") == 1.0) { return cartan_string_concat("floor(", cartan_string_concat(arg0, ")")); }
+        if (cartan_string_eq(fn_name, "ceil") == 1.0) { return cartan_string_concat("ceil(", cartan_string_concat(arg0, ")")); }
+        if (cartan_string_eq(fn_name, "min") == 1.0) {
+            var m_call = cartan_string_concat("min(", arg0);
+            m_call = cartan_string_concat(m_call, ", ");
+            m_call = cartan_string_concat(m_call, arg1);
+            return cartan_string_concat(m_call, ")");
+        }
+        if (cartan_string_eq(fn_name, "max") == 1.0) {
+            var m_call = cartan_string_concat("max(", arg0);
+            m_call = cartan_string_concat(m_call, ", ");
+            m_call = cartan_string_concat(m_call, arg1);
+            return cartan_string_concat(m_call, ")");
+        }
+        if (cartan_string_eq(fn_name, "fma") == 1.0) {
+            var f_call = cartan_string_concat("fma(", arg0);
+            f_call = cartan_string_concat(f_call, ", ");
+            f_call = cartan_string_concat(f_call, arg1);
+            f_call = cartan_string_concat(f_call, ", ");
+            f_call = cartan_string_concat(f_call, arg2);
+            return cartan_string_concat(f_call, ")");
+        }
+        
+        // Generic call fallback
+        var call_str = cartan_string_concat(fn_name, "(");
+        var ci = 0.0;
+        while (ci < num_args) {
+            if (ci > 0.0) { call_str = cartan_string_concat(call_str, ", "); }
+            call_str = cartan_string_concat(call_str, wgsl_emit_expr(cartan_tree_get_f32(args, ci)));
+            ci = ci + 1.0;
+        }
+        return cartan_string_concat(call_str, ")");
+    }
+    // Expr::PropertyAccess (e.g. gid.x, lid.x)
+    if (disc == 20.0) {
+        let obj = wgsl_emit_expr(cartan_tree_get_f32(expr, 1.0));
+        let prop = cartan_tree_get_f32(expr, 2.0);
+        if (cartan_string_eq(obj, "gid") == 1.0 || cartan_string_eq(obj, "lid") == 1.0) {
+            return cartan_string_concat("f32(", cartan_string_concat(obj, cartan_string_concat(".", cartan_string_concat(prop, ")"))));
+        }
+        return cartan_string_concat(obj, cartan_string_concat(".", prop));
+    }
+    // Expr::IndexAccess (e.g. buf[idx])
+    if (disc == 21.0) {
+        let arr = wgsl_emit_expr(cartan_tree_get_f32(expr, 1.0));
+        let idx = wgsl_emit_expr(cartan_tree_get_f32(expr, 2.0));
+        var i_str = cartan_string_concat(arr, "[u32(");
+        i_str = cartan_string_concat(i_str, idx);
+        i_str = cartan_string_concat(i_str, ")]");
+        return i_str;
+    }
+    // Expr::Assignment (e.g. buf[i] = val, x = val)
+    if (disc == 22.0) {
+        let target = wgsl_emit_expr(cartan_tree_get_f32(expr, 1.0));
+        let val = wgsl_emit_expr(cartan_tree_get_f32(expr, 2.0));
+        var a_str = cartan_string_concat(target, " = ");
+        a_str = cartan_string_concat(a_str, val);
+        return a_str;
+    }
+    return "";
+}
+
+// Emits a statement into WGSL string format
+fn wgsl_emit_stmt(stmt: ptr, indent: string) -> string {
+    if (stmt == 0.0) { return ""; }
+    let disc = cartan_tree_get_f32(stmt, 0.0);
+    
+    // Stmt::ExprStmt
+    if (disc == 1.0) {
+        let expr = cartan_tree_get_f32(stmt, 1.0);
+        let s = wgsl_emit_expr(expr);
+        return cartan_string_concat(indent, cartan_string_concat(s, ";\n"));
+    }
+    // Stmt::VarDecl
+    if (disc == 3.0) {
+        let name = cartan_tree_get_f32(stmt, 1.0);
+        let is_const = cartan_tree_get_f32(stmt, 2.0);
+        let init_expr = cartan_tree_get_f32(stmt, 3.0);
+        let init_str = wgsl_emit_expr(init_expr);
+        
+        var v_str = indent;
+        if (is_const != 0.0) {
+            v_str = cartan_string_concat(v_str, "let ");
+        } else {
+            v_str = cartan_string_concat(v_str, "var ");
+        }
+        v_str = cartan_string_concat(v_str, name);
+        if (init_expr != 0.0) {
+            v_str = cartan_string_concat(v_str, " = ");
+            v_str = cartan_string_concat(v_str, init_str);
+        }
+        v_str = cartan_string_concat(v_str, ";\n");
+        return v_str;
+    }
+    // Stmt::IfStmt
+    if (disc == 17.0) {
+        let cond = wgsl_emit_expr(cartan_tree_get_f32(stmt, 1.0));
+        let then_branch = cartan_tree_get_f32(stmt, 2.0);
+        let else_branch = cartan_tree_get_f32(stmt, 3.0);
+        
+        var if_str = cartan_string_concat(indent, "if (");
+        if_str = cartan_string_concat(if_str, cond);
+        if_str = cartan_string_concat(if_str, ") {\n");
+        
+        let sub_indent = cartan_string_concat(indent, "    ");
+        if_str = cartan_string_concat(if_str, wgsl_emit_stmt(then_branch, sub_indent));
+        if_str = cartan_string_concat(if_str, indent);
+        if_str = cartan_string_concat(if_str, "}");
+        
+        if (else_branch != 0.0) {
+            if_str = cartan_string_concat(if_str, " else {\n");
+            if_str = cartan_string_concat(if_str, wgsl_emit_stmt(else_branch, sub_indent));
+            if_str = cartan_string_concat(if_str, indent);
+            if_str = cartan_string_concat(if_str, "}\n");
+        } else {
+            if_str = cartan_string_concat(if_str, "\n");
+        }
+        return if_str;
+    }
+    // Stmt::WhileStmt
+    if (disc == 18.0) {
+        let cond = wgsl_emit_expr(cartan_tree_get_f32(stmt, 1.0));
+        let body = cartan_tree_get_f32(stmt, 2.0);
+        var w_str = cartan_string_concat(indent, "while (");
+        w_str = cartan_string_concat(w_str, cond);
+        w_str = cartan_string_concat(w_str, ") {\n");
+        let sub_indent = cartan_string_concat(indent, "    ");
+        w_str = cartan_string_concat(w_str, wgsl_emit_stmt(body, sub_indent));
+        w_str = cartan_string_concat(w_str, indent);
+        w_str = cartan_string_concat(w_str, "}\n");
+        return w_str;
+    }
+    // Stmt::ReturnStmt
+    if (disc == 24.0) {
+        return cartan_string_concat(indent, "return;\n");
+    }
+    // Stmt::BreakStmt
+    if (disc == 25.0) {
+        return cartan_string_concat(indent, "break;\n");
+    }
+    // Stmt::ContinueStmt
+    if (disc == 26.0) {
+        return cartan_string_concat(indent, "continue;\n");
+    }
+    // Stmt::Block
+    if (disc == 40.0) {
+        let stmts = cartan_tree_get_f32(stmt, 1.0);
+        let num_stmts = cartan_tree_len(stmts);
+        var b_str = "";
+        var si = 0.0;
+        while (si < num_stmts) {
+            let s = cartan_tree_get_f32(stmts, si);
+            b_str = cartan_string_concat(b_str, wgsl_emit_stmt(s, indent));
+            si = si + 1.0;
+        }
+        return b_str;
+    }
+    return "";
+}
+
+// Compiles a complete CARTAN @gpu function into a standard WGSL compute shader string
+fn wgsl_compile_function(func_name: string, params: ptr, body_stmt: ptr, wg_x: float, wg_y: float, wg_z: float) -> string {
+    var out_src = "// CARTAN Generated WebGPU Compute Shader\n";
+    out_src = cartan_string_concat(out_src, "// Kernel: ");
+    out_src = cartan_string_concat(out_src, func_name);
+    out_src = cartan_string_concat(out_src, "\n\n");
+    
+    let num_params = cartan_tree_len(params);
+    var binding_idx = 0.0;
+    var pi = 0.0;
+    
+    // Emit buffer bindings for storage parameters
+    while (pi < num_params) {
+        let param = cartan_tree_get_f32(params, pi);
+        let p_name = cartan_tree_get_f32(param, 0.0);
+        let p_type = cartan_tree_get_f32(param, 1.0);
+        
+        // Exclude built-in identifiers (gid, lid) and scalar floats from raw storage buffers
+        if (cartan_string_eq(p_name, "gid") == 0.0 && cartan_string_eq(p_name, "lid") == 0.0) {
+            if (cartan_string_eq(p_type, "ptr") == 1.0 || cartan_string_eq(p_type, "buffer") == 1.0 || cartan_string_starts_with(p_type, "tensor") == 1.0 || cartan_string_starts_with(p_type, "vector") == 1.0) {
+                out_src = cartan_string_concat(out_src, "@group(0) @binding(");
+                out_src = cartan_string_concat(out_src, cartan_float_to_string(binding_idx));
+                out_src = cartan_string_concat(out_src, ") var<storage, read_write> ");
+                out_src = cartan_string_concat(out_src, p_name);
+                out_src = cartan_string_concat(out_src, ": array<f32>;\n");
+                binding_idx = binding_idx + 1.0;
+            }
+        }
+        pi = pi + 1.0;
+    }
+    
+    out_src = cartan_string_concat(out_src, "\n@compute @workgroup_size(");
+    var sx = wg_x;
+    if (sx <= 0.0) { sx = 64.0; }
+    var sy = wg_y;
+    if (sy <= 0.0) { sy = 1.0; }
+    var sz = wg_z;
+    if (sz <= 0.0) { sz = 1.0; }
+    
+    out_src = cartan_string_concat(out_src, cartan_float_to_string(sx));
+    out_src = cartan_string_concat(out_src, ", ");
+    out_src = cartan_string_concat(out_src, cartan_float_to_string(sy));
+    out_src = cartan_string_concat(out_src, ", ");
+    out_src = cartan_string_concat(out_src, cartan_float_to_string(sz));
+    out_src = cartan_string_concat(out_src, ")\n");
+    
+    out_src = cartan_string_concat(out_src, "fn ");
+    out_src = cartan_string_concat(out_src, func_name);
+    out_src = cartan_string_concat(out_src, "(\n");
+    out_src = cartan_string_concat(out_src, "    @builtin(global_invocation_id) gid: vec3<u32>,\n");
+    out_src = cartan_string_concat(out_src, "    @builtin(local_invocation_id) lid: vec3<u32>\n");
+    out_src = cartan_string_concat(out_src, ") {\n");
+    
+    // Emit function body
+    out_src = cartan_string_concat(out_src, wgsl_emit_stmt(body_stmt, "    "));
+    out_src = cartan_string_concat(out_src, "}\n");
+    
+    return out_src;
+}

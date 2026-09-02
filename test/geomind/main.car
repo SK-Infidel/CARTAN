@@ -1,24 +1,28 @@
 // test/geomind/main.cl
 // GeoMind Unified Multi-Phase Model Driver
 
-include "geometry.cl";
-include "ode_solver.cl";
-include "ising_state_machine.cl";
-include "moe.cl";
-include "e8_attention_engine.cl";
-include "chat.car";
-include "sft_train.cl";
-include "azr_engine.cl";
+include "test/geomind/geometry.cl";
+include "test/geomind/ode_solver.cl";
+include "test/geomind/ising_state_machine.cl";
+include "test/geomind/moe.cl";
+include "test/geomind/e8_attention_engine.cl";
+include "test/geomind/chat.cl";
+include "test/geomind/sft_train.cl";
+include "test/geomind/azr_engine.cl";
 
+include "src/std/string.cl";
+include "src/std/distill.cl";
+include "src/std/fusion.cl";
+include "src/std/hub.cl";
 
-extern fn strcmp(s1: string, s2: string) -> i32;
 extern fn sys_get_arg_count() -> float;
 extern fn sys_get_arg(idx: float) -> string;
 extern fn cartan_flush(v: float) -> float;
-extern fn cartan_string_contains(s: string, sub: string) -> float;
+extern fn geomind_train_cloze_pass(dataset: string, target_loss: float, epochs: float) -> float;
+extern fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: string, target_loss: float, base_lr: float, max_epochs: float, log_path: string) -> float;
+extern fn cartan_read_line() -> string;
 
-
-fn print_help_dialogue() {
+fn print_help_dialogue() -> float {
     printf("================================================================================\n");
     printf("  GEOMIND PRODUCTION AI ENGINE (geomind.exe)\n");
     printf("  Lie Group E8 Manifold Architecture | Continuous Hopfield Resonator\n");
@@ -39,33 +43,43 @@ fn print_help_dialogue() {
     printf("Targeting Flags:\n");
     printf("  -target <file>  Explicit dataset file path on disk\n");
     printf("  -repo <repo_id> HuggingFace dataset repository ID\n\n");
-
-
-
-
-
     printf("================================================================================\n");
     cartan_flush(0.0);
+    return 0.0;
 }
 
-extern fn cartan_read_line() -> string;
-
-extern fn geomind_crt_streq(s1: string, s2: string) -> float;
+fn get_cli_target_path(arg_count: float) -> string {
+    var i = 2.0;
+    while (i < arg_count) {
+        let arg = sys_get_arg(i);
+        if (cartan_string_eq(arg, "-target") == 1.0 && (i + 1.0) < arg_count) {
+            return sys_get_arg(i + 1.0);
+        }
+        i = i + 1.0;
+    }
+    return "";
+}
 
 fn main() -> float {
     let arg_count = sys_get_arg_count();
-    printf("[GeoMind Debug] Raw Arg Count: %s\n", cartan_float_to_string(arg_count));
-    cartan_flush(0.0);
-
     if (arg_count > 1.0) {
         let flag = sys_get_arg(1.0);
         printf("[GeoMind Main] Command Flag Received: '%s'\n", flag);
         cartan_flush(0.0);
 
-        cartan_flush(0.0);
+        if (cartan_string_eq(flag, "--help") == 1.0 || cartan_string_eq(flag, "-h") == 1.0) {
+            print_help_dialogue();
+            return 0.0;
+        }
 
-        if (geomind_crt_streq(flag, "--hf-download") == 1.0 || cartan_string_contains(flag, "hf") == 1.0) {
+        if (cartan_string_eq(flag, "--train-cloze") == 1.0) {
+            let target = get_cli_target_path(arg_count);
+            let res = geomind_train_streaming_steady_state(1.0, target, 2.50, 0.0005, 50.0, "logs/stage1_cloze_training.log");
+            cartan_flush(0.0);
+            return 0.0;
+        }
 
+        if (cartan_string_eq(flag, "--hf-download") == 1.0) {
             printf("================================================================================\n");
             printf("  GEOMIND HUGGINGFACE DATASET EXPLORER & DIRECT DOWNLOADER (--hf-download)\n");
             printf("================================================================================\n\n");
@@ -77,7 +91,6 @@ fn main() -> float {
                 let safe_out_path = cartan_string_replace(out_filename, "/", "_");
                 let final_path = cartan_string_concat(safe_out_path, ".txt");
 
-
                 printf("[HF Downloader] Downloading dataset material to %s...\n", final_path);
                 let download_res = hub_download_file(repo_id, "train.txt", final_path);
                 
@@ -130,80 +143,7 @@ fn main() -> float {
             return 0.0;
         }
 
-        if (cartan_string_eq(flag, "--help") == 1.0 || cartan_string_eq(flag, "-h") == 1.0) {
-            print_help_dialogue();
-            return 0.0;
-        }
-
-
-
-
-
-            printf("================================================================================\n");
-            printf("  GEOMIND HUGGINGFACE DATASET EXPLORER & DIRECT DOWNLOADER (--hf-download)\n");
-            printf("================================================================================\n\n");
-
-            if (arg_count > 2.0) {
-                let repo_id = sys_get_arg(2.0);
-                printf("[HF Downloader] Target Dataset Repo: %s\n", repo_id);
-                let out_filename = cartan_concat("test/geomind/trainingdata/hf_", repo_id);
-                let safe_out_path = cartan_string_replace(out_filename, "/", "_");
-                let final_path = cartan_concat(safe_out_path, ".txt");
-
-                printf("[HF Downloader] Downloading dataset material to %s...\n", final_path);
-                let download_res = hub_download_file(repo_id, "train.txt", final_path);
-                
-                if (cartan_file_exists(final_path) == 1.0) {
-                    let content = cartan_read_file(final_path);
-                    let bytes = cartan_string_length(content);
-                    printf("[HF Downloader] Download Complete! Saved %s bytes to %s\n", cartan_float_to_string(bytes), final_path);
-                    printf("[HF Downloader] Ingesting downloaded dataset into E8 Hopfield Attractor Memory...\n");
-                    printf("[HF Downloader] Ingestion complete. Model training base updated successfully.\n");
-                } else {
-                    printf("[HF Downloader] Dataset downloaded and registered into training pipeline: %s\n", final_path);
-                }
-            } else {
-                printf("[HF Explorer] Available Training Domains:\n");
-                printf("  1. Conversational & Dialogue (Alpaca, OpenAssistant, UltraFeedback, ShareGPT)\n");
-                printf("  2. Children's Stories & Literature (TinyStories, Gutenberg Classics, Fairytales)\n");
-                printf("  3. Mathematics & Logic Reasoning (GSM8K, MATH, MBPP, SVAMP)\n");
-                printf("  4. Code Generation & Software Engineering (The Stack, HumanEval, CodeAlpaca)\n");
-                printf("  5. Science & Textbooks (TinyTextbooks, ScienceQA, BioQA, OpenBookQA)\n");
-                printf("  6. General Knowledge & Instruction Fine-Tuning (Dolly-15k, FLAN, SlimPajama)\n\n");
-
-                printf("[HF Explorer] Top 20 Curated Datasets for GeoMind Language Training:\n");
-                printf("  [1]  roneneldan/TinyStories               (Children's Stories & Simple Reasoning)\n");
-                printf("  [2]  tatsu-lab/alpaca                     (52k Instruction-Following Pairs)\n");
-                printf("  [3]  OpenAssistant/oasst1                 (Crowdsourced Multilingual Dialogue)\n");
-                printf("  [4]  openai/gsm8k                         (8.5k Grade School Math Word Problems)\n");
-                printf("  [5]  sail/code_alpaca                     (20k Code Instruction Dataset)\n");
-                printf("  [6]  nomic-ai/gpt4all_prompt_generations  (Prompt & Response Fine-Tuning)\n");
-                printf("  [7]  Open-Orca/OpenOrca                   (Reasoning & Step-by-Step Logic)\n");
-                printf("  [8]  databricks/databricks-dolly-15k      (High Quality Open Instruction Set)\n");
-                printf("  [9]  bigcode/the-stack                    (6TB Permissively-Licensed Code)\n");
-                printf("  [10] m-a-p/CodeFeedback                   (Multi-Turn Dialogue Coding Dataset)\n");
-                printf("  [11] Google/FLAN                         (Massive Multi-Task Instruction Collection)\n");
-                printf("  [12] Meta/SlimPajama-627B                (Multi-Domain Clean Pre-Training Text)\n");
-                printf("  [13] AllenAI/ai2_arc                     (Grade School Science Questions)\n");
-                printf("  [14] HuggingFaceH4/ultrafeedback_binarized (DPO/RLHF Preference Dataset)\n");
-                printf("  [15] MBPP/mbpp                           (Mostly Basic Python Problems)\n");
-                printf("  [16] LightEval/MATH                      (Challenging Competition Math Problems)\n");
-                printf("  [17] Project-Gutenberg/classics-text     (Classical Literature & Philosophy)\n");
-                printf("  [18] MedQA/usmle-qa                      (Medical Question Answering Benchmark)\n");
-                printf("  [19] PyTorch/examples                    (Idiomatic Python/PyTorch Repositories)\n");
-                printf("  [20] Stanford/natural_questions          (Open-Domain Factoid Question Answering)\n\n");
-
-                printf("Usage:\n");
-                printf("  .\\test\\geomind\\geomind.exe --hf-download <dataset_repo_id>\n");
-                printf("  Example: .\\test\\geomind\\geomind.exe --hf-download roneneldan/TinyStories\n");
-                printf("  Example: .\\test\\geomind\\geomind.exe --hf-download openai/gsm8k\n");
-            }
-            cartan_flush(0.0);
-            return 0.0;
-        }
-
-
-        if (strcmp(flag, "--chat") == 0) {
+        if (cartan_string_eq(flag, "--chat") == 1.0) {
             geomind_chat_start();
             cartan_flush(0.0);
             let img_tensor = geomind_chat_process_image_input(224.0, 224.0);
@@ -224,7 +164,7 @@ fn main() -> float {
                 cartan_flush(0.0);
                 let line = cartan_read_line();
                 let len = cartan_string_length(line);
-                if (strcmp(line, "exit") == 0 || strcmp(line, "quit") == 0) {
+                if (cartan_string_eq(line, "exit") == 1.0 || cartan_string_eq(line, "quit") == 1.0) {
                     running = 0.0;
                 } else {
                     if (len > 0.0) {
@@ -232,12 +172,11 @@ fn main() -> float {
                         geomind_chat_generate_reply(line, 50.0, 0.7);
                         cartan_flush(0.0);
                     }
-
                 }
             }
             return 0.0;
         }
-        if (strcmp(flag, "--rlaif") == 0) {
+        if (cartan_string_eq(flag, "--rlaif") == 1.0) {
             var prompt = "What is the relationship between physical gravity and living organisms?";
             if (arg_count >= 3.0) {
                 prompt = sys_get_arg(2.0);
@@ -255,11 +194,13 @@ fn main() -> float {
             return 0.0;
         }
 
-        if (strcmp(flag, "--ingest") == 0) {
-
+        if (cartan_string_eq(flag, "--ingest") == 1.0) {
             var target_path = "test/geomind/trainingdata/gutenberg_classics.txt";
             if (arg_count >= 3.0) {
                 target_path = sys_get_arg(2.0);
+                if (cartan_string_eq(target_path, "-target") == 1.0 && arg_count >= 4.0) {
+                    target_path = sys_get_arg(3.0);
+                }
             }
             printf("[GeoMind Hopfield Ingestion] Reading file for Real-Time Hopfield Context Memory: %s\n", target_path);
             if (cartan_file_exists(target_path) == 1.0) {
@@ -274,20 +215,28 @@ fn main() -> float {
             return 0.0;
         }
 
-        if (strcmp(flag, "--train-sft") == 0) {
-            geomind_sft_train_run("tatsu-lab/alpaca", 1000.0);
+        if (cartan_string_eq(flag, "--train-ce") == 1.0) {
+            let target = get_cli_target_path(arg_count);
+            let res = geomind_train_streaming_steady_state(2.0, target, 2.50, 0.0005, 50.0, "logs/stage2_ce_training.log");
             cartan_flush(0.0);
             return 0.0;
         }
 
-        if (strcmp(flag, "--train-distill") == 0) {
+        if (cartan_string_eq(flag, "--train-sft") == 1.0) {
+            let target = get_cli_target_path(arg_count);
+            let res = geomind_train_streaming_steady_state(3.0, target, 2.50, 0.0001, 50.0, "logs/stage3_sft_training.log");
+            cartan_flush(0.0);
+            return 0.0;
+        }
+
+        if (cartan_string_eq(flag, "--train-distill") == 1.0) {
             printf("[GeoMind Distill] Initializing Teacher vs GeoMind Student Logit Buffers...\n");
-            let teacher_logits = cartan_tree_create();
-            let student_logits = cartan_tree_create();
+            let teacher_logits = cartan_vec_create();
+            let student_logits = cartan_vec_create();
             var i = 0.0;
             while (i < 100.0) {
-                cartan_tree_push_f32(teacher_logits, 2.5);
-                cartan_tree_push_f32(student_logits, 0.5);
+                cartan_vec_push_f32(teacher_logits, 2.5);
+                cartan_vec_push_f32(student_logits, 0.5);
                 i = i + 1.0;
             }
             let initial_loss = distill_kl_divergence_loss(teacher_logits, student_logits, 2.0);
@@ -298,7 +247,7 @@ fn main() -> float {
                 current_student_val = current_student_val + 0.04;
                 i = 0.0;
                 while (i < 100.0) {
-                    cartan_tree_set_f32(student_logits, i, current_student_val);
+                    cartan_vec_set_f32(student_logits, i, current_student_val);
                     i = i + 1.0;
                 }
                 step = step + 1.0;
@@ -308,32 +257,25 @@ fn main() -> float {
             cartan_flush(0.0);
             return 0.0;
         }
-        if (geomind_crt_streq(flag, "--merge-slerp") == 1.0 || cartan_string_contains(flag, "merge") == 1.0) {
+        if (cartan_string_eq(flag, "--merge-slerp") == 1.0) {
             let weight_path = hub_fetch_weights("google/gemma-4-E4B-it", "model.safetensors");
             printf("[GeoMind Fusion] Loading Base & Target Layer Tensors from Checkpoint: %s\n", weight_path);
             cartan_flush(0.0);
             let t1 = hub_load_safetensors_tensor(weight_path, "model.language_model.embed_tokens.weight", 2621440.0);
             let t2 = hub_load_safetensors_tensor(weight_path, "model.language_model.embed_tokens.weight", 2621440.0);
             let fused = fusion_tangent_space_slerp(t1, t2, 0.5);
-            let mid_val = cartan_tree_get_f32(fused, 0.0);
+            let mid_val = cartan_vec_get_f32(fused, 0.0);
             printf("[GeoMind Fusion] Tangent Space Geodesic SLERP Merging Complete!\n");
-            printf("[GeoMind Fusion] Fused Parameters: %s | Manifold Metric Check: %s\n", cartan_float_to_string(cartan_tree_len(fused)), cartan_float_to_string(mid_val));
+            printf("[GeoMind Fusion] Fused Parameters: %s | Manifold Metric Check: %s\n", cartan_float_to_string(cartan_vec_len(fused)), cartan_float_to_string(mid_val));
             printf("[GeoMind Fusion] Saved Tangent-Space Merged Checkpoint: test/geomind/trainingdata/checkpoints/geomind_slerp_fused_weights.bin\n");
             cartan_flush(0.0);
             return 0.0;
         }
-        if (strcmp(flag, "--azr-selfplay") == 0 || cartan_string_contains(flag, "azr-selfplay") == 1.0) {
+        if (cartan_string_eq(flag, "--azr-selfplay") == 1.0) {
             geomind_azr_run_selfplay(3.0);
             cartan_flush(0.0);
             return 0.0;
         }
-
-
-
-
-
-
-
     }
 
     print_help_dialogue();
@@ -345,9 +287,9 @@ fn main() -> float {
     printf("\n");
     cartan_flush(0.0);
 
-    let spins = cartan_tree_create();
-    cartan_tree_push(spins, 1.0);
-    cartan_tree_push(spins, -1.0);
+    let spins = cartan_vec_create();
+    cartan_vec_push_f32(spins, 1.0);
+    cartan_vec_push_f32(spins, -1.0);
     let relaxed_spins = geomind_ising_relax(spins, 2.0, 0.5, 10.0);
     printf("[GeoMind Main] Hopfield Spin Relaxation Step Complete.\n");
     cartan_flush(0.0);

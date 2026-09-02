@@ -77,3 +77,40 @@ fn resonator_sample_diverse_logits(logits: ptr, active_history: ptr, rep_scale: 
     return best_idx;
 }
 
+fn resonator_apply_repulsion_penalty(logits: ptr, vocab_size: float, history: ptr, history_len: float, penalty_scale: float) {
+    if (logits == 0.0 || history == 0.0 || vocab_size <= 0.0 || history_len <= 0.0) { return; }
+    var h = 0.0;
+    while (h < history_len) {
+        let tok = history[h];
+        if (tok >= 0.0 && tok < vocab_size) {
+            logits[tok] = logits[tok] - penalty_scale;
+        }
+        h = h + 1.0;
+    }
+}
+
+fn resonator_multidimensional_hopfield_relax(state_vec: ptr, weights_mat: ptr, dim: float, beta: float, max_iters: float) {
+    if (state_vec == 0.0 || weights_mat == 0.0 || dim <= 0.0) { return; }
+    var iter = 0.0;
+    while (iter < max_iters) {
+        var max_diff = 0.0;
+        var r = 0.0;
+        while (r < dim) {
+            var sum = 0.0;
+            var c = 0.0;
+            while (c < dim) {
+                sum = sum + weights_mat[r * dim + c] * state_vec[c];
+                c = c + 1.0;
+            }
+            let next_val = tanh(sum * beta);
+            let diff = math_abs_val(next_val - state_vec[r]);
+            if (diff > max_diff) { max_diff = diff; }
+            state_vec[r] = next_val;
+            r = r + 1.0;
+        }
+        if (max_diff < 0.0001) { break; }
+        iter = iter + 1.0;
+    }
+}
+
+

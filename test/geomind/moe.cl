@@ -3,6 +3,9 @@
 
 include "../../src/std/autotune.cl";
 
+include "../../src/std/collections.cl";
+
+
 struct MoEConfig {
     num_experts: float;
     top_k: float;
@@ -55,9 +58,10 @@ fn geomind_moe_forward_grid(hidden_dim: float, position: ptr, momentum: ptr) -> 
     let route_23 = geomind_sasaki_route(position, momentum, 11.0);
     let route_33 = geomind_sasaki_route(position, momentum, 15.0);
     
-    let total_gate = route_00 + route_03 + route_13 + route_23 + route_33;
+    let total_gate = (route_00 + route_03 + route_13 + route_23 + route_33) / 5.0;
     let out = autotune_matmul_tiled(position, position, hidden_dim, hidden_dim, hidden_dim, tile.block_m);
-    return out;
+    let scaled_out = cartan_vec_scale(out, total_gate);
+    return scaled_out;
 }
 
 fn geomind_moe_forward(hidden_dim: float, x: ptr) -> ptr {

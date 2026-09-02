@@ -1,0 +1,47 @@
+================================================================================
+  GEOMIND GENERATION BENCHMARK TEST REPORT
+  Model: GeoMind 4.46B E8-MoE Architecture | Prompts: 7 | Temp: 0.70
+================================================================================
+
+PROMPT 1: "The reason why I want to"
+[GeoMind Chat] Query: "The reason why I want to"
+[GeoMind Chat] GeoMind Neural Output: youangularsee bofirstthennow our werdenshow promisewenextlookfindmymecalledmedaboutnotethat [Hopfield Energy Minimum: 1.0000]
+
+--------------------------------------------------------------------------------
+
+PROMPT 2: "In other words, the primary goal is"
+[GeoMind Chat] Query: "In other words, the primary goal is"
+[GeoMind Chat] GeoMind Neural Output: you boangularnowlookthenfirstmedmy ourausfind promisewemeseenextshowthatcalledNG werden [Hopfield Energy Minimum: 1.0000]
+
+--------------------------------------------------------------------------------
+
+PROMPT 3: "At the end of the day, we must"
+[GeoMind Chat] Query: "At the end of the day, we must"
+[GeoMind Chat] GeoMind Neural Output:  onenextangularseeTPfindthenshowmeipnowlookfirst bomedausabout promise ouryouwesecond [Hopfield Energy Minimum: 1.0000]
+
+--------------------------------------------------------------------------------
+
+PROMPT 4: "By the way, it is important to note that"
+[GeoMind Chat] Query: "By the way, it is important to note that"
+[GeoMind Chat] GeoMind Neural Output: wefindseefirstnow promisenextshow bolookangular werden ourthenausaboutipcalledmeyoumedmy [Hopfield Energy Minimum: 1.0000]
+
+--------------------------------------------------------------------------------
+
+PROMPT 5: "As a matter of fact, the research shows"
+[GeoMind Chat] Query: "As a matter of fact, the research shows"
+[GeoMind Chat] GeoMind Neural Output: youmynowwenextfindseeangular bolookshowmethenthatfirstipausabout promisecalledTP werden [Hopfield Energy Minimum: 1.0000]
+
+--------------------------------------------------------------------------------
+
+PROMPT 6: "Believe it or not, the results demonstrate"
+[GeoMind Chat] Query: "Believe it or not, the results demonstrate"
+[GeoMind Chat] GeoMind Neural Output: younextfind boangularwemednowthenmy promisefirstlookseeabout ourausshowme werdenPythat [Hopfield Energy Minimum: 1.0000]
+
+--------------------------------------------------------------------------------
+
+PROMPT 7: "On the other hand, the alternative approach"
+[GeoMind Chat] Query: "On the other hand, the alternative approach"
+[GeoMind Chat] GeoMind Neural Output: angularnow onenextTP werdenyouseefindthenmedlookmemyaboutfirstcalledwethatshowaus promise [Hopfield Energy Minimum: 1.0000]
+
+--------------------------------------------------------------------------------
+

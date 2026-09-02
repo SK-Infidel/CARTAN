@@ -33,43 +33,48 @@ struct AutoModel {
     hidden_dim: float;
 }
 
+include "src/std/fs.cl";
+
 fn hub_sanitize_filename(name: string) -> string {
     let clean = string_replace(string_replace(string_replace(name, "../", ""), "..\\", ""), "/", "_");
-    return string_replace(clean, "\\", "_");
+    let res = string_replace(clean, "\\", "_");
+    return res;
 }
 
 extern fn cartan_http_download_file(url: string, path: string) -> float;
-extern fn cartan_file_exists(path: string) -> float;
 
 fn hub_fetch_weights(repo_id: string, filename: string) -> string {
     printf("[hub] Fetching model weights from Hub repository\n");
-    cartan_flush();
+    cartan_flush(0.0);
     let safe_repo = hub_sanitize_filename(repo_id);
     let safe_file = hub_sanitize_filename(filename);
     let cached_path = string_concat(string_concat("cache_", safe_repo), string_concat("_", safe_file));
     if (cartan_file_exists(cached_path) == 1.0) {
         printf("[hub] Found local cached model weight file\n");
-        cartan_flush();
+        cartan_flush(0.0);
         return cached_path;
     }
     let url = string_concat("https://huggingface.co/", repo_id);
     url = string_concat(url, "/resolve/main/");
     url = string_concat(url, filename);
     cartan_http_download_file(url, cached_path);
-    cartan_flush();
+    cartan_flush(0.0);
     return cached_path;
 }
 
+extern fn strstr(haystack: string, needle: string) -> ptr;
+extern fn strtoull(nptr: ptr, endptr: ptr, base: float) -> float;
 extern fn cartan_safetensors_header_length(path: string) -> float;
 extern fn cartan_safetensors_read_header(path: string) -> string;
-extern fn cartan_safetensors_find_offset(path: string, tensor_name: string) -> float;
 extern fn cartan_safetensors_load_tensor_f32(path: string, header_len: float, data_start: float, num_elements: float) -> ptr;
+
+extern fn cartan_safetensors_find_offset(path: string, tensor_name: string) -> float;
 
 fn hub_load_safetensors_tensor(filepath: string, tensor_name: string, num_elements: float) -> ptr {
     let h_len = cartan_safetensors_header_length(filepath);
     if (h_len <= 0.0) {
         printf("[hub] Error: Invalid or missing safetensors weight checkpoint: %s\n", filepath);
-        return cartan_tree_create();
+        return cartan_vec_create();
     }
     let data_offset = cartan_safetensors_find_offset(filepath, tensor_name);
     return cartan_safetensors_load_tensor_f32(filepath, h_len, data_offset, num_elements);
@@ -135,4 +140,12 @@ fn hub_load_dataset(repo_id: string, split: string) -> Dataset {
         records: records
     };
     return d;
+}
+
+fn hub_download_file(repo_id: string, filename: string, out_path: string) -> float {
+    let url = cartan_string_concat("https://huggingface.co/datasets/", repo_id);
+    let full_url = cartan_string_concat(cartan_string_concat(url, "/resolve/main/"), filename);
+    let payload = ingest_fetch_url(full_url);
+    cartan_write_file(out_path, payload);
+    return 1.0;
 }

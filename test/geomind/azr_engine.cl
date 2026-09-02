@@ -3,6 +3,7 @@
 
 include "geometry.cl";
 include "src/std/fs.cl";
+include "src/std/string.cl";
 include "src/std/math.cl";
 
 

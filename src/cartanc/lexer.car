@@ -3,6 +3,7 @@
 extern fn cartan_arena_alloc(size: float) -> ptr;
 extern fn free(p: ptr);
 extern fn cartan_string_eq(s1: string, s2: string) -> float;
+extern fn c_cartan_string_char_at(s: string, idx: float) -> float;
 
 struct Lexer {
     source: string; 
@@ -81,16 +82,14 @@ fn lexer_peek(lexer: Lexer) -> float {
     if (lexer.current >= lexer.length) {
         return 0.0; // EOF
     }
-    var ptr_s: ptr = lexer.source; 
-    return ptr_s[lexer.current];
+    return c_cartan_string_char_at(lexer.source, lexer.current);
 }
 
 fn lexer_peek_next(lexer: Lexer) -> float {
     if (lexer.current + 1.0 >= lexer.length) {
         return 0.0; // EOF
     }
-    var ptr_s: ptr = lexer.source; 
-    return ptr_s[lexer.current + 1.0];
+    return c_cartan_string_char_at(lexer.source, lexer.current + 1.0);
 }
 
 fn lexer_advance(lexer: Lexer) -> float {

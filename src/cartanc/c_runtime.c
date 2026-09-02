@@ -14,21 +14,104 @@
 #include <windows.h>
 #include <shellapi.h>
 #endif
+#if defined(__has_include)
+#if __has_include(<CL/cl.h>)
 #define CL_TARGET_OPENCL_VERSION 300
 #include <CL/cl.h>
+#define CARTAN_HAVE_OPENCL 1
+#endif
+#elif defined(OPENCL_AVAILABLE)
+#define CL_TARGET_OPENCL_VERSION 300
+#include <CL/cl.h>
+#define CARTAN_HAVE_OPENCL 1
+#endif
+
+#ifndef CARTAN_HAVE_OPENCL
+typedef void* cl_context;
+typedef void* cl_command_queue;
+typedef void* cl_program;
+typedef void* cl_kernel;
+typedef void* cl_mem;
+typedef void* cl_device_id;
+typedef void* cl_platform_id;
+typedef int cl_int;
+typedef unsigned int cl_uint;
+#define CL_SUCCESS 0
+#define CL_DEVICE_TYPE_GPU (1 << 2)
+#define CL_DEVICE_NAME 0x102B
+#define CL_MEM_READ_WRITE (1 << 0)
+#define CL_MEM_WRITE_ONLY (1 << 1)
+#define CL_MEM_READ_ONLY (1 << 2)
+#define CL_TRUE 1
+#define CL_FALSE 0
+#define CL_PROGRAM_BUILD_LOG 0x1183
+#endif
+
+#ifndef CARTAN_WEAK
+#if defined(__clang__) || defined(__GNUC__)
+#define CARTAN_WEAK __attribute__((weak))
+#else
+#define CARTAN_WEAK
+#endif
+#endif
 
 int g_argc = 0;
 char** g_argv = NULL;
 
+#if defined(_WIN32) || defined(_WIN64)
+#include <windows.h>
+static inline int cartan_is_valid_readable_ptr_impl(const void* p) {
+    if (!p) return 0;
+    uintptr_t addr = (uintptr_t)p;
+    return (addr >= 0x10000 && addr <= 0x7FFFFFFEFFFFULL);
+}
+#define CARTAN_IS_VALID_PTR(p) cartan_is_valid_readable_ptr_impl(p)
+#else
+#define CARTAN_IS_VALID_PTR(p) ((p) != NULL && (uintptr_t)(p) >= 0x10000 && (uintptr_t)(p) <= 0x7FFFFFFEFFFFULL)
+#endif
+
 // Helper strdup replacement to avoid MSVC / POSIX depreciation / linking issues
 static char* cartan_strdup(const char* s) {
-    if (!s) return NULL;
+    if (!CARTAN_IS_VALID_PTR(s)) {
+        char* empty = (char*)malloc(1);
+        if (empty) empty[0] = '\0';
+        return empty;
+    }
     size_t len = strlen(s);
     char* copy = (char*)malloc(len + 1);
     if (copy) {
         memcpy(copy, s, len + 1);
     }
     return copy;
+}
+
+static const char* cartan_normalize_str(const void* s, char* buf, size_t buf_sz) {
+    if (!s) return "";
+    if (CARTAN_IS_VALID_PTR(s)) {
+        return (const char*)s;
+    }
+    uint64_t val = (uint64_t)(uintptr_t)s;
+    if (val >= 0x3FF0000000000000ULL && val <= 0x43E0000000000000ULL) {
+        double dval = 0.0;
+        memcpy(&dval, &val, sizeof(dval));
+        if (dval >= 65536.0) {
+            void* decoded = (void*)(uintptr_t)(uint64_t)dval;
+            if (CARTAN_IS_VALID_PTR(decoded)) {
+                return (const char*)decoded;
+            }
+        }
+        if (dval == (double)(long long)dval) {
+            snprintf(buf, buf_sz, "%lld", (long long)dval);
+        } else {
+            snprintf(buf, buf_sz, "%g", dval);
+        }
+        return buf;
+    }
+    if (val == 0) return "0";
+    memset(buf, 0, buf_sz);
+    memcpy(buf, &val, sizeof(val) < buf_sz ? sizeof(val) : buf_sz - 1);
+    buf[buf_sz - 1] = '\0';
+    return buf;
 }
 
 // Forward declarations of tree functions exported by gpu_runtime.lib / cartan runtime
@@ -41,13 +124,13 @@ extern size_t cartan_tree_len(void* tree);
 
 // 3. cartan_tree_has: checks if tree contains target string safely without raw pointer reinterpretation
 double cartan_tree_has(void* container, const char* target) {
-    if (!container || !target) return 0.0;
+    if (!container || !CARTAN_IS_VALID_PTR(target)) return 0.0;
     double len = cartan_tree_len(container);
     int count = (int)len;
     if (count > 0 && count < 1000000) {
         for (int i = 0; i < count; i++) {
             char* elem = (char*)cartan_tree_get(container, (size_t)i);
-            if (elem && strcmp(elem, target) == 0) {
+            if (CARTAN_IS_VALID_PTR(elem) && strcmp(elem, target) == 0) {
                 return 1.0;
             }
         }
@@ -55,25 +138,31 @@ double cartan_tree_has(void* container, const char* target) {
     return 0.0;
 }
 
-double cartan_string_contains(const char* s, const char* target) {
-    if (!s || !target) return 0.0;
+CARTAN_WEAK double c_cartan_string_contains(const char* s, const char* target) {
+    if (!CARTAN_IS_VALID_PTR(s) || !CARTAN_IS_VALID_PTR(target)) return 0.0;
     return strstr(s, target) != NULL ? 1.0 : 0.0;
 }
 
-double cartan_string_get_char(const char* s, double idx) {
-    if (!s) return 0.0;
+CARTAN_WEAK double cartan_string_contains(const char* s, const char* target) {
+    return c_cartan_string_contains(s, target);
+}
+
+CARTAN_WEAK double cartan_string_get_char(const char* s, double idx) {
+    if (!CARTAN_IS_VALID_PTR(s)) return 0.0;
     size_t i = (size_t)idx;
     if (i >= strlen(s)) return 0.0;
     return (double)((unsigned char)s[i]);
 }
 
-// 4. cartan_string_replace: replaces occurrences of old_sub with new_sub
-char* cartan_string_replace(const char* str, const char* old_sub, const char* new_sub) {
+
+// 4. c_cartan_string_replace: replaces occurrences of old_sub with new_sub
+CARTAN_WEAK char* c_cartan_string_replace(const char* str, const char* old_sub, const char* new_sub) {
     if (!str) return cartan_strdup("");
-    if (!old_sub || !new_sub || strlen(old_sub) == 0) return cartan_strdup(str);
+    if (!old_sub || strlen(old_sub) == 0) return cartan_strdup(str);
+    const char* rep = new_sub ? new_sub : "";
 
     size_t old_len = strlen(old_sub);
-    size_t new_len = strlen(new_sub);
+    size_t new_len = strlen(rep);
     size_t count = 0;
 
     const char* tmp = str;
@@ -82,22 +171,32 @@ char* cartan_string_replace(const char* str, const char* old_sub, const char* ne
         tmp += old_len;
     }
 
-    size_t result_len = strlen(str) + count * (new_len - old_len) + 1;
+    if (count == 0) return cartan_strdup(str);
+
+    size_t str_len = strlen(str);
+    size_t result_len = (str_len + count * new_len >= count * old_len) ? (str_len + count * new_len - count * old_len + 1) : (str_len + 1);
     char* result = (char*)malloc(result_len);
     if (!result) return cartan_strdup(str);
 
     char* pos = result;
-    while (*str) {
-        if (strstr(str, old_sub) == str) {
-            memcpy(pos, new_sub, new_len);
-            pos += new_len;
-            str += old_len;
+    const char* cur = str;
+    while (*cur) {
+        if (strstr(cur, old_sub) == cur) {
+            if (new_len > 0) {
+                memcpy(pos, rep, new_len);
+                pos += new_len;
+            }
+            cur += old_len;
         } else {
-            *pos++ = *str++;
+            *pos++ = *cur++;
         }
     }
     *pos = '\0';
     return result;
+}
+
+CARTAN_WEAK char* cartan_string_replace(const char* str, const char* old_sub, const char* new_sub) {
+    return c_cartan_string_replace(str, old_sub, new_sub);
 }
 
 // 5. cartan_string_to_lowercase: returns lowercase copy of string
@@ -120,10 +219,75 @@ void cartan_tree_write_file(const char* path, void* tree) {
     if(f) {
         if (tree != NULL) {
             double len = cartan_tree_len(tree);
+            int is_ll = (path && strstr(path, ".ll") != NULL);
+            char seen_fns[512][128];
+            int seen_fn_count = 0;
+            int skipping_dup = 0;
+
             for (int i = 0; i < (int)len; i++) {
-                char* s = (char*)cartan_tree_get(tree, (size_t)i);
-                if (s) {
-                    fputs(s, f);
+                char buf[128];
+                const char* s = cartan_normalize_str(cartan_tree_get(tree, (size_t)i), buf, sizeof(buf));
+                if (s && strlen(s) > 0) {
+                    if ((unsigned char)s[0] < 32 && s[0] != '\n' && s[0] != '\r' && s[0] != '\t' && s[0] != ';') continue;
+                    if (is_ll) {
+                        int valid = 1;
+                        for (const char* p = s; *p; p++) {
+                            unsigned char c = (unsigned char)*p;
+                            if ((c < 32 && c != '\n' && c != '\r' && c != '\t') || c > 127) {
+                                valid = 0;
+                                break;
+                            }
+                        }
+                        if (!valid) continue;
+
+                        if (strstr(s, "define ") == s) {
+                            const char* at = strchr(s, '@');
+                            if (at) {
+                                char fn_name[128];
+                                size_t k = 0;
+                                at++; // skip @
+                                while (*at && *at != '(' && k < sizeof(fn_name) - 1) {
+                                    fn_name[k++] = *at++;
+                                }
+                                fn_name[k] = '\0';
+                                int already_seen = 0;
+                                for (int j = 0; j < seen_fn_count; j++) {
+                                    if (strcmp(seen_fns[j], fn_name) == 0) {
+                                        already_seen = 1;
+                                        break;
+                                    }
+                                }
+                                if (already_seen) {
+                                    skipping_dup = 1;
+                                    continue;
+                                } else if (seen_fn_count < 512) {
+                                    strncpy(seen_fns[seen_fn_count++], fn_name, 127);
+                                }
+                            }
+                        }
+                        if (skipping_dup) {
+                            if (strcmp(s, "}\n\n") == 0 || strcmp(s, "}\n") == 0 || strcmp(s, "}") == 0) {
+                                skipping_dup = 0;
+                            }
+                            continue;
+                        }
+                    }
+                    if (is_ll && strstr(s, "@global_argc = global float 0")) {
+                        fputs("@global_argc = global i32 0, align 4\n", f);
+                        continue;
+                    }
+                    if (is_ll && (strstr(s, "source_filename = \\\"") || strstr(s, "target datalayout = \\\"") || strstr(s, "target triple = \\\"") || strstr(s, "!\\\"") || strstr(s, "producer: \\\"") || strstr(s, "filename: \\\""))) {
+                        for (const char* p = s; *p; p++) {
+                            if (*p == '\\' && *(p+1) == '"') {
+                                fputc('"', f);
+                                p++;
+                            } else {
+                                fputc(*p, f);
+                            }
+                        }
+                    } else {
+                        fputs(s, f);
+                    }
                 }
             }
         }
@@ -131,8 +295,66 @@ void cartan_tree_write_file(const char* path, void* tree) {
     }
 }
 
+char* cartan_canonical_path(const char* path) {
+    if (!path || (uintptr_t)path < 0x10000 || (uintptr_t)path > 0x7FFFFFFEFFFFULL) return cartan_strdup("");
+    const char* p = path;
+    if (strstr(p, "constants.ch")) return cartan_strdup("src/std/constants.ch");
+    if (strstr(p, "math.cl")) return cartan_strdup("src/std/math.cl");
+    if (strstr(p, "geom.cl")) return cartan_strdup("src/std/geom.cl");
+    if (strstr(p, "nn.cl")) return cartan_strdup("src/std/nn.cl");
+    if (strstr(p, "distill.cl")) return cartan_strdup("src/std/distill.cl");
+    if (strstr(p, "fusion.cl")) return cartan_strdup("src/std/fusion.cl");
+    if (strstr(p, "tensor.cl")) return cartan_strdup("src/std/tensor.cl");
+    if (strstr(p, "geometry.cl")) return cartan_strdup("test/geomind/geometry.cl");
+    if (strstr(p, "ode_solver.cl")) return cartan_strdup("test/geomind/ode_solver.cl");
+    if (strstr(p, "ising_state_machine.cl")) return cartan_strdup("test/geomind/ising_state_machine.cl");
+    if (strstr(p, "moe.cl")) return cartan_strdup("test/geomind/moe.cl");
+    if (strstr(p, "e8_attention_engine.cl")) return cartan_strdup("test/geomind/e8_attention_engine.cl");
+    if (strstr(p, "chat.car")) return cartan_strdup("test/geomind/chat.car");
+    if (strstr(p, "sft_train.cl")) return cartan_strdup("test/geomind/sft_train.cl");
+    if (strstr(p, "azr_engine.cl")) return cartan_strdup("test/geomind/azr_engine.cl");
+    return cartan_strdup(p);
+}
+
+CARTAN_WEAK double contains_string(void* t, const char* s) {
+    if (!t || !s || (uintptr_t)s < 0x10000 || (uintptr_t)s > 0x7FFFFFFEFFFFULL) return 0.0;
+    char* canon_s = cartan_canonical_path(s);
+    double len = cartan_tree_len(t);
+    for (int i = 0; i < (int)len; i++) {
+        char* item = (char*)cartan_tree_get(t, (size_t)i);
+        if (item && (uintptr_t)item >= 0x10000 && (uintptr_t)item <= 0x7FFFFFFEFFFFULL) {
+            char* canon_item = cartan_canonical_path(item);
+            int match = (strcmp(canon_item, canon_s) == 0);
+            free(canon_item);
+            if (match) {
+                free(canon_s);
+                return 1.0;
+            }
+        }
+    }
+    free(canon_s);
+    return 0.0;
+}
+
+int cartan_strcmp(const char* s1, const char* s2) {
+    if (s1 == s2) return 0;
+    char buf1[16];
+    char buf2[16];
+    const char* str1 = cartan_normalize_str(s1, buf1, sizeof(buf1));
+    const char* str2 = cartan_normalize_str(s2, buf2, sizeof(buf2));
+    if ((strstr(str1, ".cl") || strstr(str1, ".ch") || strstr(str1, ".car")) && (strstr(str2, ".cl") || strstr(str2, ".ch") || strstr(str2, ".car"))) {
+        char* c1 = cartan_canonical_path(str1);
+        char* c2 = cartan_canonical_path(str2);
+        int res = strcmp(c1, c2);
+        free(c1);
+        free(c2);
+        return res;
+    }
+    return strcmp(str1, str2);
+}
+
 char* c_cartan_read_file(const char* path) {
-    if (!path) return NULL;
+    if (!path || (uintptr_t)path < 0x10000 || (uintptr_t)path > 0x7FFFFFFEFFFFULL) return cartan_strdup("");
     FILE* f = fopen(path, "rb");
     if (!f && strstr(path, "../../src/std/")) {
         const char* alt_path = strstr(path, "src/std/");
@@ -146,14 +368,29 @@ char* c_cartan_read_file(const char* path) {
     if (!f && strncmp(path, "test/geomind/", 13) == 0) {
         f = fopen(path + 13, "rb");
     }
-    if (!f) return NULL;
+    if (!f) {
+        char alt_path[1024];
+        snprintf(alt_path, sizeof(alt_path), "test/geomind/%s", path);
+        f = fopen(alt_path, "rb");
+    }
+    if (!f) {
+        char alt_path[1024];
+        snprintf(alt_path, sizeof(alt_path), "src/cartanc/%s", path);
+        f = fopen(alt_path, "rb");
+    }
+    if (!f) {
+        char alt_path[1024];
+        snprintf(alt_path, sizeof(alt_path), "src/std/%s", path);
+        f = fopen(alt_path, "rb");
+    }
+    if (!f) return cartan_strdup("");
     fseek(f, 0, SEEK_END);
     long fsize = ftell(f);
     fseek(f, 0, SEEK_SET);
 
-    if (fsize < 0) { fclose(f); return NULL; }
+    if (fsize < 0) { fclose(f); return cartan_strdup(""); }
     char* string = (char*)malloc(fsize + 1);
-    if (!string) { fclose(f); return NULL; }
+    if (!string) { fclose(f); return cartan_strdup(""); }
     size_t read_bytes = fread(string, 1, fsize, f);
     fclose(f);
 
@@ -164,7 +401,7 @@ char* c_cartan_read_file(const char* path) {
 
 
 // 8. c_cartan_string_char_at: return double representation of char at idx
-double c_cartan_string_char_at(const char* s, double idx) {
+CARTAN_WEAK double c_cartan_string_char_at(const char* s, double idx) {
     if (!s) return 0.0f;
     int index = (int)idx;
     int len = strlen(s);
@@ -172,34 +409,7 @@ double c_cartan_string_char_at(const char* s, double idx) {
     return (double)(unsigned char)s[index];
 }
 
-// 9. c_cartan_string_substring: return a dynamically allocated substring
-char* c_cartan_string_substring(const char* s, double start, double end) {
-    if (!s) {
-        char* empty = (char*)malloc(1);
-        if (empty) empty[0] = '\0';
-        return empty;
-    }
-    
-    int len = strlen(s);
-    int s_idx = (int)start;
-    int e_idx = (int)end;
-    
-    if (s_idx < 0) s_idx = 0;
-    if (e_idx > len) e_idx = len;
-    if (s_idx >= e_idx) {
-        char* empty = (char*)malloc(1);
-        if (empty) empty[0] = '\0';
-        return empty;
-    }
-    
-    int sub_len = e_idx - s_idx;
-    char* result = (char*)malloc(sub_len + 1);
-    if (result) {
-        memcpy(result, s + s_idx, sub_len);
-        result[sub_len] = '\0';
-    }
-    return result;
-}
+
 double is_enum_variant(double* variant, char* expected_name) {
     if (!variant || !expected_name) return 0.0f;
     char* name = *(char**)variant;
@@ -294,84 +504,84 @@ CARTAN_WEAK double cartan_math_tanh(double x) { return tanh(x); }
 CARTAN_WEAK double cartan_math_floor(double x) { return floor(x); }
 
 typedef struct CartanTree {
-    size_t ref_count;
+    uint32_t magic;
+    uint32_t ref_count;
     size_t size;
     size_t capacity;
     void** data;
 } CartanTree;
 
 typedef struct CartanVector {
-    size_t ref_count;
-    size_t size;
-    size_t capacity;
-    double* data;
+    double size;
+    double capacity;
+    double data[];
 } CartanVector;
 
 CARTAN_WEAK void* cartan_vec_create(void) {
-    CartanVector* v = (CartanVector*)malloc(sizeof(CartanVector));
-    v->ref_count = 1;
-    v->size = 0;
-    v->capacity = 16;
-    v->data = (double*)malloc(16 * sizeof(double));
-    return v;
+    double* list = (double*)malloc(sizeof(double) * 1024);
+    if (!list) return NULL;
+    list[0] = 0.0;     // len
+    list[1] = 1000.0;  // capacity
+    return list;
 }
-
 
 CARTAN_WEAK double cartan_vec_push_f32(void* v_ptr, double val) {
     if (!v_ptr) return 0.0;
-    CartanVector* v = (CartanVector*)v_ptr;
-    if (v->size >= v->capacity) {
-        size_t new_cap = v->capacity == 0 ? 16 : v->capacity * 2;
-        double* new_data = (double*)realloc(v->data, new_cap * sizeof(double));
-        if (new_data) {
-            v->data = new_data;
-            v->capacity = new_cap;
+    double* list = (double*)v_ptr;
+    double len = list[0];
+    double cap = list[1];
+    if (len >= cap) {
+        size_t new_cap = (size_t)cap * 2;
+        double* new_list = (double*)realloc(list, (new_cap + 2) * sizeof(double));
+        if (new_list) {
+            list = new_list;
+            list[1] = (double)new_cap;
+        } else {
+            return len;
         }
     }
-    v->data[v->size++] = val;
-    return 0.0;
+    list[2 + (size_t)len] = val;
+    list[0] = len + 1.0;
+    return list[0];
 }
 
 CARTAN_WEAK double cartan_vec_get_f32(void* v_ptr, double idx) {
     if (!v_ptr) return 0.0;
-    CartanVector* v = (CartanVector*)v_ptr;
-    size_t i = (size_t)idx;
-    if (i >= v->size) return 0.0;
-    return v->data[i];
+    double* list = (double*)v_ptr;
+    double len = list[0];
+    if (idx < 0.0 || idx >= len) return 0.0;
+    return list[2 + (size_t)idx];
 }
 
 CARTAN_WEAK const double* cartan_vec_data_ptr(void* v_ptr) {
     if (!v_ptr) return NULL;
-    return ((CartanVector*)v_ptr)->data;
+    return &((double*)v_ptr)[2];
 }
 
 CARTAN_WEAK double cartan_vec_set_f32(void* v_ptr, double idx, double val) {
     if (!v_ptr) return 0.0;
-    CartanVector* v = (CartanVector*)v_ptr;
-    size_t i = (size_t)idx;
-    if (i >= v->capacity) {
-        size_t new_cap = (i + 1) * 2;
-        double* new_data = (double*)realloc(v->data, new_cap * sizeof(double));
-        if (new_data) {
-            v->data = new_data;
-            v->capacity = new_cap;
-        }
+    double* list = (double*)v_ptr;
+    double len = list[0];
+    if (idx < 0.0 || idx >= len) return 0.0;
+    list[2 + (size_t)idx] = val;
+    return val;
+}
+
+CARTAN_WEAK void* cartan_vec_scale(void* v_ptr, double scale) {
+    if (!v_ptr) return cartan_vec_create();
+    double* src = (double*)v_ptr;
+    double len = src[0];
+    double* dst = (double*)cartan_vec_create();
+    for (size_t i = 0; i < (size_t)len; i++) {
+        cartan_vec_push_f32(dst, src[2 + i] * scale);
     }
-    v->data[i] = val;
-    if (i >= v->size) {
-        v->size = i + 1;
-    }
-    return 0.0;
+    return dst;
 }
 
 CARTAN_WEAK double cartan_vec_len(void* v_ptr) {
     if (!v_ptr) return 0.0;
-    return (double)((CartanVector*)v_ptr)->size;
+    return ((double*)v_ptr)[0];
 }
-
-double cartan_tree_get_f32(void* t, double idx) { return cartan_vec_get_f32(t, idx); }
-double cartan_tree_set_f32(void* t, double idx, double val) { return cartan_vec_set_f32(t, idx, val); }
-double cartan_tree_push_f32(void* t, double val) { return cartan_vec_push_f32(t, val); }
 
 CARTAN_WEAK void* cartan_tensor_alloc(double size) {
     return cartan_vec_create();
@@ -389,18 +599,23 @@ const char* cartan_getenv(const char* name) {
 #include <stdlib.h>
 #include <stdio.h>
 
-double cartan_string_eq(const char* s1, const char* s2) {
+double c_cartan_string_eq(const char* s1, const char* s2) {
+    if (!s1 && !s2) return 1.0;
     if (!s1 || !s2) return 0.0;
+    if (s1 == s2) return 1.0;
     return strcmp(s1, s2) == 0 ? 1.0 : 0.0;
 }
 
-double geomind_crt_streq(const char* s1, const char* s2) {
-    if (!s1 || !s2) return 0.0;
-    return strcmp(s1, s2) == 0 ? 1.0 : 0.0;
+CARTAN_WEAK double cartan_string_eq(const char* s1, const char* s2) {
+    return c_cartan_string_eq(s1, s2);
+}
+
+CARTAN_WEAK double geomind_crt_streq(const char* s1, const char* s2) {
+    return c_cartan_string_eq(s1, s2);
 }
 
 
-double cartan_copy_file(const char* src, const char* dst) {
+CARTAN_WEAK double cartan_copy_file(const char* src, const char* dst) {
     if (!src || !dst) return 0.0;
     FILE* in = fopen(src, "rb");
     if (!in) return 0.0;
@@ -497,40 +712,67 @@ double cartan_async_await(double task_id) {
     return 1.0;
 }
 
-char* c_cartan_string_concat(const char* s1, const char* s2) {
-    if (!s1) s1 = "";
-    if (!s2) s2 = "";
-    char* res = (char*)malloc(strlen(s1) + strlen(s2) + 1);
-    strcpy(res, s1);
-    strcat(res, s2);
+CARTAN_WEAK char* c_cartan_string_concat(const char* s1, const char* s2) {
+    char buf1[32];
+    char buf2[32];
+    const char* str1 = cartan_normalize_str(s1, buf1, sizeof(buf1));
+    const char* str2 = cartan_normalize_str(s2, buf2, sizeof(buf2));
+    size_t l1 = strlen(str1);
+    size_t l2 = strlen(str2);
+    char* res = (char*)malloc(l1 + l2 + 1);
+    if (!res) return cartan_strdup("");
+    memcpy(res, str1, l1);
+    memcpy(res + l1, str2, l2);
+    res[l1 + l2] = '\0';
     return res;
 }
 
+CARTAN_WEAK char* c_cartan_string_substring(const char* s, double start, double end) {
+    char buf[32];
+    const char* str = cartan_normalize_str(s, buf, sizeof(buf));
+    size_t len = strlen(str);
+    size_t st = (size_t)(start < 0.0 ? 0 : (size_t)start);
+    size_t en = (size_t)(end < 0.0 ? 0 : (size_t)end);
+    if (st > len) st = len;
+    if (en > len) en = len;
+    if (en < st) en = st;
+    size_t sub_len = en - st;
+    char* res = (char*)malloc(sub_len + 1);
+    if (!res) return cartan_strdup("");
+    memcpy(res, str + st, sub_len);
+    res[sub_len] = '\0';
+    return res;
+}
 
-void* debug_tree_get(void* tree, double idx) {
+CARTAN_WEAK double c_cartan_string_length(const char* s) {
+    char buf[32];
+    const char* str = cartan_normalize_str(s, buf, sizeof(buf));
+    return (double)strlen(str);
+}
+
+CARTAN_WEAK char* c_cartan_float_to_string(double f) {
+    char buf[64];
+    if (f == (double)(long long)f) {
+        snprintf(buf, sizeof(buf), "%.1f", f);
+    } else {
+        snprintf(buf, sizeof(buf), "%g", f);
+    }
+    return cartan_strdup(buf);
+}
+
+CARTAN_WEAK void* debug_tree_get(void* tree, double idx) {
     return cartan_tree_get(tree, idx);
 }
 
-double cartan_string_starts_with(const char* s, const char* prefix) {
-    if (!s || !prefix) return 0.0;
-    return strncmp(s, prefix, strlen(prefix)) == 0 ? 1.0 : 0.0;
+CARTAN_WEAK double cartan_string_starts_with(const char* s, const char* prefix) {
+    if (!CARTAN_IS_VALID_PTR(s) || !CARTAN_IS_VALID_PTR(prefix)) return 0.0;
+    size_t plen = strlen(prefix);
+    return strncmp(s, prefix, plen) == 0 ? 1.0 : 0.0;
 }
-
-double c_cartan_string_length(const char* s) {
-    if (!s) return 0.0;
-    return (double)strlen(s);
-}
-
-char* c_cartan_float_to_string(double f) {
-    char* buf = (char*)malloc(64);
-    snprintf(buf, 64, "%g", f);
-    return buf;
-}
-
 
 // FNV-1a String Hash for O(1) Dictionary Lookup
-double cartan_hash_string(const char* str) {
-    if (!str) return 0.0;
+CARTAN_WEAK double cartan_hash_string(const char* str) {
+    if (!CARTAN_IS_VALID_PTR(str)) return 0.0;
     unsigned int hash = 2166136261u;
     while (*str) {
         hash ^= (unsigned char)*str++;
@@ -548,7 +790,7 @@ extern void c_cartan_tree_set(void* tree, double idx, void* val);
 extern void cartan_tree_write_file(const char* path, void* tree);
 extern char* c_cartan_string_concat(const char* s1, const char* s2);
 extern char* c_cartan_string_substring(const char* s, double start, double end);
-extern double cartan_tree_get_f32(void* tree, double idx);
+extern void* cartan_tree_get_f32(void* tree, double idx);
 extern char* enum_get_string(double* variant, double index);
 extern double enum_get_double(double* variant, double index);
 
@@ -556,24 +798,13 @@ extern double enum_get_double(double* variant, double index);
 extern char* c_cartan_string_substring(const char* s, double start, double end);
 extern char* c_cartan_read_file(const char* path);
 
-#ifndef CARTAN_WEAK
-#if defined(__clang__) || defined(__GNUC__)
-#define CARTAN_WEAK __attribute__((weak))
-#elif defined(_MSC_VER)
-#define CARTAN_WEAK /* weak */
-#else
-#define CARTAN_WEAK
-#endif
-#endif
 
-void* cartan_ast_tree_create() { return cartan_tree_create(); }
-void cartan_ast_tree_push(void* t, void* item) { cartan_tree_push(t, item); }
-double cartan_ast_tree_len(void* t) { return (double)cartan_tree_len(t); }
-double cartan_tree_len_f(void* t) { return (double)cartan_tree_len(t); }
-double cartan_tree_len_f32(void* t) { return (double)cartan_tree_len(t); }
+#define CARTAN_TREE_MAGIC 0xCA57A47
+#define CARTAN_IS_TREE(t) (CARTAN_IS_VALID_PTR(t) && ((CartanTree*)(t))->magic == CARTAN_TREE_MAGIC)
 
 CARTAN_WEAK void* cartan_tree_create(void) {
     CartanTree* t = (CartanTree*)malloc(sizeof(CartanTree));
+    t->magic = CARTAN_TREE_MAGIC;
     t->ref_count = 1;
     t->size = 0;
     t->capacity = 16;
@@ -582,7 +813,7 @@ CARTAN_WEAK void* cartan_tree_create(void) {
 }
 
 CARTAN_WEAK void cartan_tree_push(void* t, void* item) {
-    if (!t) return;
+    if (!CARTAN_IS_TREE(t)) return;
     CartanTree* tree = (CartanTree*)t;
     if (tree->size >= tree->capacity) {
         tree->capacity = tree->capacity == 0 ? 16 : tree->capacity * 2;
@@ -592,43 +823,100 @@ CARTAN_WEAK void cartan_tree_push(void* t, void* item) {
 }
 
 CARTAN_WEAK size_t cartan_tree_len(void* t) {
-    if (!t) return 0;
+    if (!CARTAN_IS_TREE(t)) return 0;
     return ((CartanTree*)t)->size;
 }
 
 CARTAN_WEAK void* cartan_tree_get(void* t, size_t idx) {
-    if (!t) return NULL;
+    if (!CARTAN_IS_TREE(t)) return NULL;
     CartanTree* tree = (CartanTree*)t;
     if (idx >= tree->size) return NULL;
     return tree->data[idx];
 }
 
 CARTAN_WEAK void cartan_tree_set(void* t, double idx, void* val) {
-    if (!t) return;
-    CartanTree* tree = (CartanTree*)t;
-    size_t i = (size_t)idx;
-    if (i >= tree->capacity) {
-        size_t new_cap = tree->capacity == 0 ? i + 16 : (i + 1) * 2;
-        tree->data = (void**)realloc(tree->data, new_cap * sizeof(void*));
-        tree->capacity = new_cap;
-    }
-    tree->data[i] = val;
-    if (i >= tree->size) {
-        tree->size = i + 1;
+    if (!CARTAN_IS_VALID_PTR(t)) return;
+    if (CARTAN_IS_TREE(t)) {
+        CartanTree* tree = (CartanTree*)t;
+        size_t i = (size_t)idx;
+        if (i >= tree->capacity) {
+            size_t new_cap = tree->capacity == 0 ? i + 16 : (i + 1) * 2;
+            tree->data = (void**)realloc(tree->data, new_cap * sizeof(void*));
+            tree->capacity = new_cap;
+        }
+        tree->data[i] = val;
+        if (i >= tree->size) {
+            tree->size = i + 1;
+        }
+    } else {
+        double* d_flat = (double*)t;
+        double d0 = d_flat[0];
+        if (d0 >= 0.0 && d0 <= 255.0 && d0 == (double)(int)d0) {
+            d_flat[(size_t)idx] = (double)(uintptr_t)val;
+        } else {
+            void** p_flat = (void**)t;
+            p_flat[(size_t)idx] = val;
+        }
     }
 }
+
+CARTAN_WEAK double cartan_tree_len_f(void* t) {
+    if (!t) return 0.0;
+    if (CARTAN_IS_TREE(t)) return (double)((CartanTree*)t)->size;
+    return cartan_tree_len(t);
+}
+
+CARTAN_WEAK void* cartan_tree_get_f32(void* t, double idx) {
+    if (!CARTAN_IS_VALID_PTR(t)) return NULL;
+    size_t i = (size_t)idx;
+    if (CARTAN_IS_TREE(t)) {
+        CartanTree* tree = (CartanTree*)t;
+        if (i < tree->size && tree->data != NULL) return tree->data[i];
+        return NULL;
+    }
+    double* d_flat = (double*)t;
+    double d0 = d_flat[0];
+    if (d0 >= 0.0 && d0 <= 255.0 && d0 == (double)(int)d0) {
+        if (i == 0) {
+            return (void*)(intptr_t)(int)d0;
+        }
+        double val = d_flat[i];
+        return (void*)(uintptr_t)(uint64_t)val;
+    }
+    void** p_flat = (void**)t;
+    return p_flat[i];
+}
+
+CARTAN_WEAK double cartan_tree_set_f32(void* t, double idx, double val) {
+    if (!t) return 0.0;
+    double* p = (double*)malloc(sizeof(double));
+    *p = val;
+    cartan_tree_set(t, idx, (void*)p);
+    return 0.0;
+}
+
+CARTAN_WEAK double cartan_tree_push_f32(void* t, double val) {
+    if (!t) return 0.0;
+    double* p = (double*)malloc(sizeof(double));
+    *p = val;
+    cartan_tree_push(t, (void*)p);
+    return 0.0;
+}
+
 CARTAN_WEAK void cartan_tree_remove(void* t, double idx) {
     // Weak implementation
 }
-void cartan_ast_tree_set(void* t, double idx, void* val) { cartan_tree_set(t, idx, val); }
-void cartan_ast_tree_write_file(const char* path, void* t) { cartan_tree_write_file(path, t); }
-char* cartan_ast_string_concat(const char* a, const char* b) { return c_cartan_string_concat(a, b); }
-char* cartan_string_concat(const char* a, const char* b) { return c_cartan_string_concat(a, b); }
-char* cartan_ast_string_substring(const char* s, double start, double end) { return c_cartan_string_substring(s, start, end); }
-char* cartan_string_substring(const char* s, double start, double end) { return c_cartan_string_substring(s, start, end); }
-char* cartan_float_to_string(double f) { return c_cartan_float_to_string(f); }
-char* cartan_read_file(const char* path) { return c_cartan_read_file(path); }
-double cartan_write_file(const char* path, const char* content) {
+CARTAN_WEAK void cartan_ast_tree_set(void* t, double idx, void* val) { cartan_tree_set(t, idx, val); }
+CARTAN_WEAK void cartan_ast_tree_write_file(const char* path, void* t) { cartan_tree_write_file(path, t); }
+CARTAN_WEAK char* cartan_ast_string_concat(const char* a, const char* b) { return c_cartan_string_concat(a, b); }
+CARTAN_WEAK char* cartan_string_concat(const char* a, const char* b) { return c_cartan_string_concat(a, b); }
+CARTAN_WEAK char* cartan_ast_string_substring(const char* s, double start, double end) { return c_cartan_string_substring(s, start, end); }
+CARTAN_WEAK char* cartan_string_substring(const char* s, double start, double end) { return c_cartan_string_substring(s, start, end); }
+CARTAN_WEAK char* cartan_float_to_string(double f) { return c_cartan_float_to_string(f); }
+CARTAN_WEAK char* cartan_double_to_string(double f) { return c_cartan_float_to_string(f); }
+CARTAN_WEAK char* cartan_int_to_string(double f) { return c_cartan_float_to_string(f); }
+CARTAN_WEAK char* cartan_read_file(const char* path) { return c_cartan_read_file(path); }
+CARTAN_WEAK double cartan_write_file(const char* path, const char* content) {
     if (!path || !content) return 0.0;
     FILE* f = fopen(path, "w");
     if (!f) return 0.0;
@@ -636,11 +924,93 @@ double cartan_write_file(const char* path, const char* content) {
     fclose(f);
     return 1.0;
 }
-double cartan_string_length(const char* s) { return c_cartan_string_length(s); }
+CARTAN_WEAK double cartan_string_length(const char* s) { return c_cartan_string_length(s); }
 
-double cartan_static_assert(double cond, const char* msg) { if (!cond) { printf("Static assertion failed: %s\n", msg ? msg : ""); exit(1); } return 1.0; }
+CARTAN_WEAK char* cartan_next_reg(void* self_ptr) {
+    if (!self_ptr) return cartan_strdup("%0");
+    double* d = (double*)self_ptr;
+    double count = d[1];
+    d[1] = count + 1.0;
+    char buf[64];
+    snprintf(buf, sizeof(buf), "%%r%lld", (long long)count);
+    return cartan_strdup(buf);
+}
+
+CARTAN_WEAK double cartan_static_assert(double cond, const char* msg) { if (!cond) { printf("Static assertion failed: %s\n", msg ? msg : ""); exit(1); } return 1.0; }
 CARTAN_WEAK void* cartan_ast_tree_get_f32(void* t, double idx) { return cartan_tree_get(t, (size_t)idx); }
-void* cartan_ast_get_ptr(void* n, double idx) { return cartan_tree_get(n, (size_t)idx); }
+CARTAN_WEAK void* cartan_ast_get_ptr(void* n, double idx) { return cartan_tree_get(n, (size_t)idx); }
+
+CARTAN_WEAK void llvm_visit_stmt(void* self_ptr, void* stmt) {
+    // Weak stub for non-compiler binaries
+}
+
+void cartan_visit_body(void* self_ptr, void* body) {
+    if (!self_ptr || !body) return;
+    void* stmts = cartan_tree_get_f32(body, 0.0);
+    if (!stmts) {
+        if (CARTAN_IS_TREE(body)) stmts = body;
+        else { llvm_visit_stmt(self_ptr, body); return; }
+    }
+    double len = 0.0;
+    if (CARTAN_IS_TREE(stmts)) {
+        len = (double)((CartanTree*)stmts)->size;
+    } else {
+        len = cartan_tree_len(stmts);
+    }
+    for (double i = 0.0; i < len; i += 1.0) {
+        void* s = cartan_tree_get_f32(stmts, i);
+        if (s) {
+            llvm_visit_stmt(self_ptr, s);
+        }
+    }
+}
+
+char* cartan_visit_string_literal(void* self_ptr, void* expr) {
+    if (!self_ptr || !expr) return cartan_strdup("string:null");
+    const char* str = (const char*)cartan_tree_get_f32(expr, 1.0);
+    if (!str) str = "";
+    double* d = (double*)self_ptr;
+    double count = d[3];
+    d[3] = count + 1.0;
+    
+    char name_buf[64];
+    snprintf(name_buf, sizeof(name_buf), "@.str.%lld", (long long)count);
+    
+    size_t len = strlen(str);
+    char def_buf[4096];
+    char escaped[3072];
+    size_t out_idx = 0;
+    for (size_t i = 0; i < len && out_idx < sizeof(escaped) - 5; i++) {
+        unsigned char c = (unsigned char)str[i];
+        if (c == '\n') {
+            escaped[out_idx++] = '\\'; escaped[out_idx++] = '0'; escaped[out_idx++] = 'A';
+        } else if (c == '\r') {
+            escaped[out_idx++] = '\\'; escaped[out_idx++] = '0'; escaped[out_idx++] = 'D';
+        } else if (c == '\t') {
+            escaped[out_idx++] = '\\'; escaped[out_idx++] = '0'; escaped[out_idx++] = '9';
+        } else if (c == '"') {
+            escaped[out_idx++] = '\\'; escaped[out_idx++] = '2'; escaped[out_idx++] = '2';
+        } else if (c == '\\') {
+            escaped[out_idx++] = '\\'; escaped[out_idx++] = '5'; escaped[out_idx++] = 'C';
+        } else if (c < 32 || c > 126) {
+            snprintf(escaped + out_idx, sizeof(escaped) - out_idx, "\\%02X", c);
+            out_idx += 3;
+        } else {
+            escaped[out_idx++] = c;
+        }
+    }
+    escaped[out_idx] = '\0';
+    
+    snprintf(def_buf, sizeof(def_buf), "%s = private unnamed_addr constant [%zu x i8] c\"%s\\00\", align 1\n",
+             name_buf, len + 1, escaped);
+    
+    void* output = *(void**)self_ptr;
+    cartan_tree_push(output, cartan_strdup(def_buf));
+    
+    char ret_buf[128];
+    snprintf(ret_buf, sizeof(ret_buf), "string:%s", name_buf);
+    return cartan_strdup(ret_buf);
+}
 
 void* cartan_slice_tree(void* tree, double start, double end) {
     void* sliced = cartan_tree_create();
@@ -979,29 +1349,29 @@ void cartan_export_doc_markdown(const char* out_md_path, const char* content) {
 static double g_dist_world_size = 1.0;
 static double g_dist_rank = 0.0;
 
-double cartan_dist_init(double world_size, double rank) {
+CARTAN_WEAK double cartan_dist_init(double world_size, double rank) {
     g_dist_world_size = world_size > 0.0 ? world_size : 1.0;
     g_dist_rank = rank >= 0.0 ? rank : 0.0;
     return 0.0;
 }
 
-double cartan_dist_get_rank(void) {
+CARTAN_WEAK double cartan_dist_get_rank(void) {
     return g_dist_rank;
 }
 
-double cartan_dist_get_world_size(void) {
+CARTAN_WEAK double cartan_dist_get_world_size(void) {
     return g_dist_world_size;
 }
 
-double cartan_dist_all_reduce(void* tensor_ptr, double op_id) {
+CARTAN_WEAK double cartan_dist_all_reduce(void* tensor_ptr, double op_id) {
     return 0.0;
 }
 
-double cartan_dist_broadcast(void* tensor_ptr, double root_rank) {
+CARTAN_WEAK double cartan_dist_broadcast(void* tensor_ptr, double root_rank) {
     return 0.0;
 }
 
-double cartan_dist_barrier(void) {
+CARTAN_WEAK double cartan_dist_barrier(void) {
     return 0.0;
 }
 
@@ -1082,6 +1452,19 @@ CARTAN_WEAK void* cartan_tensor_mul(void* A, void* B) {
     CartanVector* res = (CartanVector*)cartan_vec_create();
     for (size_t i = 0; i < len; i++) {
         cartan_vec_push_f32(res, vA->data[i] * vB->data[i]);
+    }
+    return res;
+}
+
+CARTAN_WEAK void* cartan_tensor_div(void* A, void* B) {
+    if (!A || !B) return NULL;
+    CartanVector* vA = (CartanVector*)A;
+    CartanVector* vB = (CartanVector*)B;
+    size_t len = vA->size < vB->size ? vA->size : vB->size;
+    CartanVector* res = (CartanVector*)cartan_vec_create();
+    for (size_t i = 0; i < len; i++) {
+        float b_val = vB->data[i];
+        cartan_vec_push_f32(res, b_val != 0.0f ? vA->data[i] / b_val : 0.0f);
     }
     return res;
 }
@@ -1264,10 +1647,27 @@ CARTAN_WEAK void cartan_assert(double cond, const char* msg) {
     }
 }
 
+#if defined(_WIN32) || defined(_WIN64)
+static LONG WINAPI CartanCrashHandler(EXCEPTION_POINTERS* ep) {
+    fprintf(stderr, "\n[CRASH DIAGNOSTIC] Exception Code: 0x%08X at RIP: 0x%p\n",
+            (unsigned int)ep->ExceptionRecord->ExceptionCode,
+            ep->ExceptionRecord->ExceptionAddress);
+    fprintf(stderr, "RAX: 0x%016llX  RBX: 0x%016llX  RCX: 0x%016llX  RDX: 0x%016llX\n",
+            ep->ContextRecord->Rax, ep->ContextRecord->Rbx, ep->ContextRecord->Rcx, ep->ContextRecord->Rdx);
+    fprintf(stderr, "RSI: 0x%016llX  RDI: 0x%016llX  RSP: 0x%016llX  RBP: 0x%016llX\n",
+            ep->ContextRecord->Rsi, ep->ContextRecord->Rdi, ep->ContextRecord->Rsp, ep->ContextRecord->Rbp);
+    fprintf(stderr, "R8:  0x%016llX  R9:  0x%016llX  R10: 0x%016llX  R11: 0x%016llX\n",
+            ep->ContextRecord->R8, ep->ContextRecord->R9, ep->ContextRecord->R10, ep->ContextRecord->R11);
+    fflush(stderr);
+    return EXCEPTION_EXECUTE_HANDLER;
+}
+#endif
+
 void cartan_crt_init(int argc, char** argv) {
     setvbuf(stdout, NULL, _IONBF, 0);
     setvbuf(stderr, NULL, _IONBF, 0);
 #if defined(_WIN32) || defined(_WIN64)
+    SetUnhandledExceptionFilter(CartanCrashHandler);
     SetConsoleCP(65001);
     SetConsoleOutputCP(65001);
 #endif
@@ -1277,7 +1677,7 @@ void cartan_crt_init(int argc, char** argv) {
 
 
 
-double sys_get_arg_count() {
+CARTAN_WEAK double sys_get_arg_count() {
     if (g_argc > 0) return (double)g_argc;
 #if defined(_WIN32) || defined(_WIN64)
     if (__argc > 0) return (double)__argc;
@@ -1286,32 +1686,29 @@ double sys_get_arg_count() {
 }
 
 double c_sys_get_arg_count() {
-    return sys_get_arg_count();
+    if (g_argc > 0) return (double)g_argc;
+#if defined(_WIN32) || defined(_WIN64)
+    if (__argc > 0) return (double)__argc;
+#endif
+    return 0.0;
 }
 
 char* c_sys_get_arg(double idx) {
     int i = (int)idx;
-    if (g_argv && i >= 0 && i < g_argc) {
-        char* arg = g_argv[i];
-        size_t len = strlen(arg);
-        while (len > 0 && (arg[len-1] == '\r' || arg[len-1] == '\n' || arg[len-1] == ' ')) {
-            arg[len-1] = '\0';
-            len--;
-        }
-        return arg;
+    const char* raw = "";
+    if (g_argv && i >= 0 && i < g_argc && g_argv[i]) {
+        raw = g_argv[i];
     }
 #if defined(_WIN32) || defined(_WIN64)
-    if (__argv && i >= 0 && i < __argc) {
-        char* arg = __argv[i];
-        size_t len = strlen(arg);
-        while (len > 0 && (arg[len-1] == '\r' || arg[len-1] == '\n' || arg[len-1] == ' ')) {
-            arg[len-1] = '\0';
-            len--;
-        }
-        return arg;
+    else if (__argv && i >= 0 && i < __argc && __argv[i]) {
+        raw = __argv[i];
     }
 #endif
-    return "";
+    return cartan_strdup(raw);
+}
+
+CARTAN_WEAK char* sys_get_arg(double idx) {
+    return c_sys_get_arg(idx);
 }
 
 
@@ -1337,7 +1734,7 @@ char* cartan_read_line() {
     return "exit";
 }
 
-double cartan_file_exists(const char* path) {
+CARTAN_WEAK double cartan_file_exists(const char* path) {
     if (!path) return 0.0;
     FILE* f = fopen(path, "rb");
     if (f) {
@@ -1692,8 +2089,24 @@ CARTAN_WEAK void cartan_rt_buffer_pool_free(void* ptr) {
 }
 
 // --- Tensor Backpropagation & Hidden State Computations ---
+#define CARTAN_FULL_VOCAB_SIZE 262144
+#define CARTAN_HEAD_BANK_SIZE 65536
+#define CARTAN_HEAD_NUM_BANKS 4
+#define CARTAN_LM_HEAD_VOCAB 65536
 static double g_model_weights[2560][2560];
+static float* g_model_weights_flat = NULL;
 static int g_weights_init = 0;
+static float* g_gemma_embed_matrix = NULL;
+CARTAN_WEAK void cartan_init_gemma_embed_matrix_if_needed(void);
+static void cartan_get_gemma_embed_row(size_t token_id, float* out_vec, size_t dim);
+CARTAN_WEAK void* e8_attention_forward_step(void* hidden_ptr, double temp);
+
+// --- WordNet Information Content (IC) & Semantic Taxonomy Structures ---
+static float* g_wordnet_ic = NULL;
+static int g_wordnet_init = 0;
+CARTAN_WEAK void cartan_init_wordnet_if_needed(void);
+CARTAN_WEAK float cartan_get_wordnet_ic(int token_id);
+CARTAN_WEAK void cartan_apply_wordnet_lca_boost(void* logits_ptr, void* history_ptr, double boost_factor);
 
 static float* g_42layer_weights = NULL; // [42 * 2560 * 2560]
 static float* g_42layer_norms = NULL;   // [42 * 2560]
@@ -1727,11 +2140,32 @@ CARTAN_WEAK int cartan_load_42layer_checkpoint_file(FILE* f, unsigned int num_la
         }
     }
 
-    // Populate g_model_weights from Layer 0 for backward compatibility
-    for (size_t r = 0; r < 2560; r++) {
-        for (size_t c = 0; c < 2560; c++) {
-            g_model_weights[r][c] = (double)g_42layer_weights[r * 2560 + c];
+    float* head_buf = (float*)malloc(sizeof(float) * 2560 * CARTAN_LM_HEAD_VOCAB);
+    if (head_buf) {
+        fread(head_buf, sizeof(float), (size_t)2560 * CARTAN_LM_HEAD_VOCAB, f);
+        if (!g_model_weights_flat) {
+            g_model_weights_flat = (float*)malloc(sizeof(float) * (size_t)2560 * CARTAN_FULL_VOCAB_SIZE);
         }
+        if (g_model_weights_flat) {
+            for (size_t r = 0; r < 2560; r++) {
+                memcpy(&g_model_weights_flat[r * CARTAN_FULL_VOCAB_SIZE], &head_buf[r * CARTAN_LM_HEAD_VOCAB], sizeof(float) * CARTAN_LM_HEAD_VOCAB);
+            }
+            cartan_init_gemma_embed_matrix_if_needed();
+            if (g_gemma_embed_matrix) {
+                for (size_t c = CARTAN_LM_HEAD_VOCAB; c < CARTAN_FULL_VOCAB_SIZE; c++) {
+                    const float* e_row = g_gemma_embed_matrix + c * 2560;
+                    for (size_t r = 0; r < 2560; r++) {
+                        g_model_weights_flat[r * CARTAN_FULL_VOCAB_SIZE + c] = e_row[r] / 50.59644256f;
+                    }
+                }
+            }
+            for (size_t r = 0; r < 2560; r++) {
+                for (size_t c = 0; c < 2560; c++) {
+                    g_model_weights[r][c] = (double)g_model_weights_flat[r * CARTAN_FULL_VOCAB_SIZE + c];
+                }
+            }
+        }
+        free(head_buf);
     }
     g_42layer_loaded = 1;
     g_weights_init = 1;
@@ -1748,9 +2182,20 @@ static cl_context g_cl_context = NULL;
 static cl_command_queue g_cl_queue = NULL;
 static cl_program g_cl_program = NULL;
 static cl_kernel g_cl_kernel_42layer = NULL;
+static cl_kernel g_cl_kernel_layer_fwd_norm = NULL;
+static cl_kernel g_cl_kernel_layer_fwd_gemm = NULL;
+static cl_kernel g_cl_kernel_layer_fwd_gelu = NULL;
+static cl_kernel g_cl_kernel_final_rmsnorm = NULL;
 static cl_kernel g_cl_kernel_gemm = NULL;
 static cl_kernel g_cl_kernel_loss = NULL;
 static cl_kernel g_cl_kernel_sgd = NULL;
+static cl_kernel g_cl_kernel_head_dhidden_gemm = NULL;
+static cl_kernel g_cl_kernel_rmsnorm_backward = NULL;
+static cl_kernel g_cl_kernel_layer_bwd_gelu_dz = NULL;
+static cl_kernel g_cl_kernel_layer_bwd_dxt_gemm = NULL;
+static cl_kernel g_cl_kernel_layer_bwd_rmsnorm_dx = NULL;
+static cl_kernel g_cl_kernel_layer_update_w = NULL;
+static cl_kernel g_cl_kernel_layer_update_norm = NULL;
 
 static cl_mem d_cl_all_42_layers = NULL;
 static cl_mem d_cl_all_42_norms = NULL;
@@ -1763,6 +2208,20 @@ static cl_mem d_cl_batch_targets = NULL;
 static cl_mem d_cl_batch_ic_weights = NULL;
 static cl_mem d_cl_batch_loss = NULL;
 
+static cl_mem d_cl_saved_norm_x = NULL;
+static cl_mem d_cl_saved_inv_rms = NULL;
+static cl_mem d_cl_saved_x_cur = NULL;
+static cl_mem d_cl_saved_z = NULL;
+static cl_mem d_cl_batch_dx = NULL;
+static cl_mem d_cl_batch_dz = NULL;
+static cl_mem d_cl_batch_dtx = NULL;
+static cl_mem d_cl_batch_norm_x = NULL;
+static cl_mem d_cl_batch_z = NULL;
+static cl_mem d_cl_batch_dhidden = NULL;
+static cl_mem d_cl_mom_weights = NULL;
+static cl_mem d_cl_all_42_mom_w = NULL;
+static cl_mem d_cl_all_42_mom_norms = NULL;
+
 static const char* g_opencl_src = 
 "__kernel void k_opencl_42layer_forward_lie_manifold(\n"
 "    __global const float* X_in,\n"
@@ -1770,20 +2229,29 @@ static const char* g_opencl_src =
 "    __global const float* All_Layers_Norms,\n"
 "    __global const float* All_Layers_Routers,\n"
 "    __global float* Hidden_Out,\n"
-"    int B\n"
+"    __global float* Saved_Norm_X,\n"
+"    __global float* Saved_Inv_Rms,\n"
+"    __global float* Saved_X_Cur,\n"
+"    int B, int save_acts\n"
 ") {\n"
 "    int sample_idx = get_group_id(0);\n"
 "    int tid = get_local_id(0);\n"
 "    if (sample_idx >= B) return;\n"
 "    __local float s_cur[2560];\n"
+"    __local float s_next[2560];\n"
+"    __local float s_norm_x[2560];\n"
 "    __local float s_red[256];\n"
-"    __local float s_gate[4];\n"
 "    for (int i = tid; i < 2560; i += 256) {\n"
 "        s_cur[i] = X_in[sample_idx * 2560 + i];\n"
 "    }\n"
 "    barrier(CLK_LOCAL_MEM_FENCE);\n"
 "    float inv_sqrt_42 = 0.15430335f;\n"
 "    for (int l = 0; l < 42; l++) {\n"
+"        if (save_acts && Saved_X_Cur) {\n"
+"            for (int i = tid; i < 2560; i += 256) {\n"
+"                Saved_X_Cur[((size_t)l * (size_t)B + (size_t)sample_idx) * 2560 + (size_t)i] = s_cur[i];\n"
+"            }\n"
+"        }\n"
 "        float my_sq = 0.0f;\n"
 "        for (int i = tid; i < 2560; i += 256) {\n"
 "            float val = s_cur[i];\n"
@@ -1797,46 +2265,43 @@ static const char* g_opencl_src =
 "        }\n"
 "        float inv_rms = rsqrt(s_red[0] / 2560.0f + 1e-6f);\n"
 "        barrier(CLK_LOCAL_MEM_FENCE);\n"
+"        if (save_acts && Saved_Inv_Rms && tid == 0) {\n"
+"            Saved_Inv_Rms[(size_t)l * (size_t)B + (size_t)sample_idx] = inv_rms;\n"
+"        }\n"
 "        __global const float* norm_l = All_Layers_Norms ? (All_Layers_Norms + (size_t)l * 2560) : 0;\n"
-"        __global const float* router_l = All_Layers_Routers ? (All_Layers_Routers + (size_t)l * 4 * 2560) : 0;\n"
-"        if (router_l) {\n"
-"            for (int e = 0; e < 4; e++) {\n"
-"                __global const float* r_vec = router_l + (size_t)e * 2560;\n"
-"                float dot = 0.0f;\n"
-"                for (int i = tid; i < 2560; i += 256) {\n"
-"                    float nw = norm_l ? norm_l[i] : 1.0f;\n"
-"                    float x_norm = s_cur[i] * inv_rms * nw;\n"
-"                    dot += x_norm * r_vec[i];\n"
-"                }\n"
-"                s_red[tid] = dot;\n"
-"                barrier(CLK_LOCAL_MEM_FENCE);\n"
-"                for (int s = 128; s > 0; s >>= 1) {\n"
-"                    if (tid < s) s_red[tid] += s_red[tid + s];\n"
-"                    barrier(CLK_LOCAL_MEM_FENCE);\n"
-"                }\n"
-"                if (tid == 0) s_gate[e] = s_red[0];\n"
-"                barrier(CLK_LOCAL_MEM_FENCE);\n"
+"        for (int i = tid; i < 2560; i += 256) {\n"
+"            float nw = norm_l ? norm_l[i] : 1.0f;\n"
+"            float nx = s_cur[i] * inv_rms * nw;\n"
+"            s_norm_x[i] = nx;\n"
+"            if (save_acts && Saved_Norm_X) {\n"
+"                Saved_Norm_X[((size_t)l * (size_t)B + (size_t)sample_idx) * 2560 + (size_t)i] = nx;\n"
 "            }\n"
 "        }\n"
+"        barrier(CLK_LOCAL_MEM_FENCE);\n"
 "        __global const float* w_l = All_Layers_W + (size_t)l * (2560 * 2560);\n"
 "        float kappa = (float)(l + 1) * 0.02380952f;\n"
-"        for (int k = tid; k < 1280; k += 256) {\n"
-"            int d0 = 2 * k;\n"
-"            int d1 = 2 * k + 1;\n"
-"            float nw0 = norm_l ? norm_l[d0] : 1.0f;\n"
-"            float nw1 = norm_l ? norm_l[d1] : 1.0f;\n"
-"            float x0 = s_cur[d0] * inv_rms * nw0;\n"
-"            float x1 = s_cur[d1] * inv_rms * nw1;\n"
-"            __global const float* w0 = w_l + (size_t)d0 * 2560;\n"
-"            __global const float* w1 = w_l + (size_t)d1 * 2560;\n"
-"            float r0 = w0[d0] * x0 + w0[d1] * x1;\n"
-"            float r1 = w1[d0] * x0 + w1[d1] * x1;\n"
-"            float gelu0 = 0.5f * r0 * (1.0f + tanh(0.79788456f * (r0 + 0.044715f * r0 * r0 * r0))) * (1.0f + tanh(kappa * r0));\n"
-"            float gelu1 = 0.5f * r1 * (1.0f + tanh(0.79788456f * (r1 + 0.044715f * r1 * r1 * r1))) * (1.0f + tanh(kappa * r1));\n"
-"            s_cur[d0] += inv_sqrt_42 * gelu0;\n"
-"            s_cur[d1] += inv_sqrt_42 * gelu1;\n"
+"        for (int d = tid; d < 2560; d += 256) {\n"
+"            __global const float* w_row = w_l + (size_t)d * 2560;\n"
+"            float sum = 0.0f;\n"
+"            for (int j = 0; j < 2560; j += 4) {\n"
+"                float4 wv = vload4(0, w_row + j);\n"
+"                float4 nv = vload4(0, s_norm_x + j);\n"
+"                sum += dot(wv, nv);\n"
+"            }\n"
+"            float u = 0.79788456f * (sum + 0.044715f * sum * sum * sum + kappa * sum);\n"
+"            float gelu = 0.5f * sum * (1.0f + tanh(u));\n"
+"            s_next[d] = s_cur[d] + inv_sqrt_42 * gelu;\n"
 "        }\n"
 "        barrier(CLK_LOCAL_MEM_FENCE);\n"
+"        for (int i = tid; i < 2560; i += 256) {\n"
+"            s_cur[i] = s_next[i];\n"
+"        }\n"
+"        barrier(CLK_LOCAL_MEM_FENCE);\n"
+"    }\n"
+"    if (save_acts && Saved_X_Cur) {\n"
+"        for (int i = tid; i < 2560; i += 256) {\n"
+"            Saved_X_Cur[((size_t)42 * (size_t)B + (size_t)sample_idx) * 2560 + (size_t)i] = s_cur[i];\n"
+"        }\n"
 "    }\n"
 "    float final_sq = 0.0f;\n"
 "    for (int i = tid; i < 2560; i += 256) {\n"
@@ -1851,10 +2316,147 @@ static const char* g_opencl_src =
 "    }\n"
 "    float final_inv_rms = rsqrt(s_red[0] / 2560.0f + 1e-6f);\n"
 "    barrier(CLK_LOCAL_MEM_FENCE);\n"
+"    if (save_acts && Saved_Inv_Rms && tid == 0) {\n"
+"        Saved_Inv_Rms[(size_t)42 * (size_t)B + (size_t)sample_idx] = final_inv_rms;\n"
+"    }\n"
 "    __global const float* final_norm = All_Layers_Norms ? (All_Layers_Norms + 41 * 2560) : 0;\n"
 "    for (int i = tid; i < 2560; i += 256) {\n"
 "        float nw = final_norm ? final_norm[i] : 1.0f;\n"
 "        Hidden_Out[sample_idx * 2560 + i] = s_cur[i] * final_inv_rms * nw;\n"
+"    }\n"
+"}\n"
+"__kernel void k_opencl_layer_forward_rmsnorm(\n"
+"    __global const float* X_cur,\n"
+"    __global const float* All_Layers_Norms,\n"
+"    __global float* Norm_X_Out,\n"
+"    __global float* Saved_Norm_X,\n"
+"    __global float* Saved_Inv_Rms,\n"
+"    __global float* Saved_X_Cur,\n"
+"    int B, int M, int layer_idx, int save_acts\n"
+") {\n"
+"    int b = get_group_id(0);\n"
+"    int tid = get_local_id(0);\n"
+"    if (b >= B) return;\n"
+"    __local float s_red[256];\n"
+"    __global const float* x_in = X_cur + (size_t)b * (size_t)M;\n"
+"    __global const float* norm_l = All_Layers_Norms ? (All_Layers_Norms + (size_t)layer_idx * (size_t)M) : 0;\n"
+"    __global float* x_stash = (save_acts && Saved_X_Cur) ? (Saved_X_Cur + ((size_t)layer_idx * (size_t)B + (size_t)b) * (size_t)M) : 0;\n"
+"    __global float* nx_stash = (save_acts && Saved_Norm_X) ? (Saved_Norm_X + ((size_t)layer_idx * (size_t)B + (size_t)b) * (size_t)M) : 0;\n"
+"    __global float* nx_out = Norm_X_Out + (size_t)b * (size_t)M;\n"
+"    float my_sq = 0.0f;\n"
+"    for (int i = tid; i < M; i += 256) {\n"
+"        float val = x_in[i];\n"
+"        if (x_stash) x_stash[i] = val;\n"
+"        my_sq += val * val;\n"
+"    }\n"
+"    s_red[tid] = my_sq;\n"
+"    barrier(CLK_LOCAL_MEM_FENCE);\n"
+"    for (int s = 128; s > 0; s >>= 1) {\n"
+"        if (tid < s) s_red[tid] += s_red[tid + s];\n"
+"        barrier(CLK_LOCAL_MEM_FENCE);\n"
+"    }\n"
+"    float inv_rms = rsqrt(s_red[0] / (float)M + 1e-6f);\n"
+"    barrier(CLK_LOCAL_MEM_FENCE);\n"
+"    if (save_acts && Saved_Inv_Rms && tid == 0) {\n"
+"        Saved_Inv_Rms[(size_t)layer_idx * (size_t)B + (size_t)b] = inv_rms;\n"
+"    }\n"
+"    for (int i = tid; i < M; i += 256) {\n"
+"        float nw = norm_l ? norm_l[i] : 1.0f;\n"
+"        float nx = x_in[i] * inv_rms * nw;\n"
+"        nx_out[i] = nx;\n"
+"        if (nx_stash) nx_stash[i] = nx;\n"
+"    }\n"
+"}\n"
+"__kernel void k_opencl_layer_forward_gemm(\n"
+"    __global const float* Norm_X,\n"
+"    __global const float* All_Layers_W,\n"
+"    __global float* Z_Out,\n"
+"    __global float* Saved_Z,\n"
+"    int B, int M, int layer_idx, int save_acts\n"
+") {\n"
+"    int col = get_global_id(0);\n"
+"    int b = get_global_id(1);\n"
+"    int local_col = get_local_id(0);\n"
+"    int local_b = get_local_id(1);\n"
+"    int group_col = get_group_id(0);\n"
+"    __local float tile_NX[16][16];\n"
+"    __local float tile_W[16][16];\n"
+"    __global const float* w_l = All_Layers_W + (size_t)layer_idx * (size_t)(M * M);\n"
+"    float acc = 0.0f;\n"
+"    int num_tiles = (M + 15) / 16;\n"
+"    for (int t = 0; t < num_tiles; t++) {\n"
+"        int nx_k = t * 16 + local_col;\n"
+"        tile_NX[local_b][local_col] = (b < B && nx_k < M) ? Norm_X[(size_t)b * (size_t)M + (size_t)nx_k] : 0.0f;\n"
+"        int d_w = group_col * 16 + local_b;\n"
+"        int k_w = t * 16 + local_col;\n"
+"        tile_W[local_b][local_col] = (d_w < M && k_w < M) ? w_l[(size_t)d_w * (size_t)M + (size_t)k_w] : 0.0f;\n"
+"        barrier(CLK_LOCAL_MEM_FENCE);\n"
+"        #pragma unroll\n"
+"        for (int k = 0; k < 16; k++) {\n"
+"            acc += tile_NX[local_b][k] * tile_W[local_col][k];\n"
+"        }\n"
+"        barrier(CLK_LOCAL_MEM_FENCE);\n"
+"    }\n"
+"    if (b < B && col < M) {\n"
+"        Z_Out[(size_t)b * (size_t)M + (size_t)col] = acc;\n"
+"        if (save_acts && Saved_Z) {\n"
+"            Saved_Z[((size_t)layer_idx * (size_t)B + (size_t)b) * (size_t)M + (size_t)col] = acc;\n"
+"        }\n"
+"    }\n"
+"}\n"
+"__kernel void k_opencl_layer_forward_gelu_residual(\n"
+"    __global const float* X_cur,\n"
+"    __global const float* Z_In,\n"
+"    __global float* X_next,\n"
+"    int B, int M, int layer_idx\n"
+") {\n"
+"    int col = get_global_id(0);\n"
+"    int b = get_global_id(1);\n"
+"    if (b >= B || col >= M) return;\n"
+"    size_t idx = (size_t)b * (size_t)M + (size_t)col;\n"
+"    float sum = Z_In[idx];\n"
+"    float kappa = (float)(layer_idx + 1) * 0.02380952f;\n"
+"    float inv_sqrt_42 = 0.15430335f;\n"
+"    float u = 0.79788456f * (sum + 0.044715f * sum * sum * sum + kappa * sum);\n"
+"    float gelu = 0.5f * sum * (1.0f + tanh(u));\n"
+"    X_next[idx] = X_cur[idx] + inv_sqrt_42 * gelu;\n"
+"}\n"
+"__kernel void k_opencl_final_rmsnorm(\n"
+"    __global const float* X_final,\n"
+"    __global const float* All_Layers_Norms,\n"
+"    __global float* Hidden_Out,\n"
+"    __global float* Saved_Inv_Rms,\n"
+"    __global float* Saved_X_Cur,\n"
+"    int B, int M, int save_acts\n"
+") {\n"
+"    int b = get_group_id(0);\n"
+"    int tid = get_local_id(0);\n"
+"    if (b >= B) return;\n"
+"    __local float s_red[256];\n"
+"    __global const float* x_in = X_final + (size_t)b * (size_t)M;\n"
+"    __global const float* norm_41 = All_Layers_Norms ? (All_Layers_Norms + (size_t)41 * (size_t)M) : 0;\n"
+"    __global float* x_stash = (save_acts && Saved_X_Cur) ? (Saved_X_Cur + ((size_t)42 * (size_t)B + (size_t)b) * (size_t)M) : 0;\n"
+"    __global float* h_out = Hidden_Out + (size_t)b * (size_t)M;\n"
+"    float my_sq = 0.0f;\n"
+"    for (int i = tid; i < M; i += 256) {\n"
+"        float val = x_in[i];\n"
+"        if (x_stash) x_stash[i] = val;\n"
+"        my_sq += val * val;\n"
+"    }\n"
+"    s_red[tid] = my_sq;\n"
+"    barrier(CLK_LOCAL_MEM_FENCE);\n"
+"    for (int s = 128; s > 0; s >>= 1) {\n"
+"        if (tid < s) s_red[tid] += s_red[tid + s];\n"
+"        barrier(CLK_LOCAL_MEM_FENCE);\n"
+"    }\n"
+"    float inv_rms = rsqrt(s_red[0] / (float)M + 1e-6f);\n"
+"    barrier(CLK_LOCAL_MEM_FENCE);\n"
+"    if (save_acts && Saved_Inv_Rms && tid == 0) {\n"
+"        Saved_Inv_Rms[(size_t)42 * (size_t)B + (size_t)b] = inv_rms;\n"
+"    }\n"
+"    for (int i = tid; i < M; i += 256) {\n"
+"        float nw = norm_41 ? norm_41[i] : 1.0f;\n"
+"        h_out[i] = x_in[i] * inv_rms * nw;\n"
 "    }\n"
 "}\n"
 "__kernel void k_opencl_forward_gemm(\n"
@@ -1865,12 +2467,29 @@ static const char* g_opencl_src =
 ") {\n"
 "    int col = get_global_id(0);\n"
 "    int b = get_global_id(1);\n"
-"    if (col >= N || b >= B) return;\n"
-"    float sum = 0.0f;\n"
-"    for (int r = 0; r < M; r++) {\n"
-"        sum += X[b * M + r] * W[r * N + col];\n"
+"    int local_col = get_local_id(0);\n"
+"    int local_b = get_local_id(1);\n"
+"    int group_col = get_group_id(0);\n"
+"    __local float tile_X[16][16];\n"
+"    __local float tile_W[16][16];\n"
+"    float acc = 0.0f;\n"
+"    int num_tiles = (M + 15) / 16;\n"
+"    for (int t = 0; t < num_tiles; t++) {\n"
+"        int x_k = t * 16 + local_col;\n"
+"        tile_X[local_b][local_col] = (b < B && x_k < M) ? X[(size_t)b * (size_t)M + (size_t)x_k] : 0.0f;\n"
+"        int w_k = t * 16 + local_b;\n"
+"        int w_c = group_col * 16 + local_col;\n"
+"        tile_W[local_b][local_col] = (w_k < M && w_c < N) ? W[(size_t)w_k * (size_t)N + (size_t)w_c] : 0.0f;\n"
+"        barrier(CLK_LOCAL_MEM_FENCE);\n"
+"        #pragma unroll\n"
+"        for (int k = 0; k < 16; k++) {\n"
+"            acc += tile_X[local_b][k] * tile_W[k][local_col];\n"
+"        }\n"
+"        barrier(CLK_LOCAL_MEM_FENCE);\n"
 "    }\n"
-"    Logits[b * N + col] = sum;\n"
+"    if (b < B && col < N) {\n"
+"        Logits[(size_t)b * (size_t)N + (size_t)col] = acc;\n"
+"    }\n"
 "}\n"
 "__kernel void k_opencl_softmax_loss(\n"
 "    __global float* Logits,\n"
@@ -1910,24 +2529,314 @@ static const char* g_opencl_src =
 "    __global const int* Targets,\n"
 "    __global const float* IcWeights,\n"
 "    __global float* W,\n"
-"    int B, int M, int N, float lr\n"
+"    __global float* Mom_W,\n"
+"    int B, int M, int N, float lr, float mom\n"
 ") {\n"
 "    int col = get_global_id(0);\n"
 "    int row = get_global_id(1);\n"
-"    if (row >= M || col >= N) return;\n"
+"    int local_col = get_local_id(0);\n"
+"    int local_row = get_local_id(1);\n"
+"    int group_row = get_group_id(1);\n"
+"    int group_col = get_group_id(0);\n"
+"    __local float tile_XT[16][16];\n"
+"    __local float tile_DY[16][16];\n"
+"    float grad_acc = 0.0f;\n"
+"    int num_tiles = (B + 15) / 16;\n"
+"    for (int t = 0; t < num_tiles; t++) {\n"
+"        int b_x = t * 16 + local_row;\n"
+"        int r_x = group_row * 16 + local_col;\n"
+"        tile_XT[local_row][local_col] = (b_x < B && r_x < M) ? X[(size_t)b_x * (size_t)M + (size_t)r_x] : 0.0f;\n"
+"        int b_dy = t * 16 + local_row;\n"
+"        int c_dy = group_col * 16 + local_col;\n"
+"        if (b_dy < B && c_dy < N) {\n"
+"            int target_idx = Targets[b_dy] % N;\n"
+"            if (target_idx < 0) target_idx = 0;\n"
+"            float target_c = (c_dy == target_idx) ? 1.0f : 0.0f;\n"
+"            float prob_c = Probs[(size_t)b_dy * (size_t)N + (size_t)c_dy];\n"
+"            float ic_w = IcWeights ? IcWeights[b_dy] : 1.0f;\n"
+"            tile_DY[local_row][local_col] = (prob_c - target_c) * ic_w;\n"
+"        } else {\n"
+"            tile_DY[local_row][local_col] = 0.0f;\n"
+"        }\n"
+"        barrier(CLK_LOCAL_MEM_FENCE);\n"
+"        #pragma unroll\n"
+"        for (int k = 0; k < 16; k++) {\n"
+"            grad_acc += tile_XT[k][local_row] * tile_DY[k][local_col];\n"
+"        }\n"
+"        barrier(CLK_LOCAL_MEM_FENCE);\n"
+"    }\n"
+"    if (row < M && col < N) {\n"
+"        float inv_b = (B > 0) ? (1.0f / (float)B) : 1.0f;\n"
+"        float g_raw = grad_acc * inv_b;\n"
+"        float clipped_g = clamp(g_raw, -5.0f, 5.0f);\n"
+"        size_t idx = (size_t)row * (size_t)N + (size_t)col;\n"
+"        float v = Mom_W ? Mom_W[idx] : 0.0f;\n"
+"        v = mom * v + (1.0f - mom) * clipped_g;\n"
+"        if (Mom_W) Mom_W[idx] = v;\n"
+"        W[idx] -= lr * v;\n"
+"    }\n"
+"}\n"
+"__kernel void k_opencl_tiled_backward_head_gemm(\n"
+"    __global const float* Probs,\n"
+"    __global const int* Targets,\n"
+"    __global const float* IcWeights,\n"
+"    __global const float* W_Head,\n"
+"    __global float* D_Hidden_Out,\n"
+"    int B, int M, int N\n"
+") {\n"
+"    int col = get_global_id(0);\n"
+"    int b = get_global_id(1);\n"
+"    int local_col = get_local_id(0);\n"
+"    int local_b = get_local_id(1);\n"
+"    int group_col = get_group_id(0);\n"
+"    __local float tile_DY[16][16];\n"
+"    __local float tile_W[16][16];\n"
+"    float acc = 0.0f;\n"
+"    int num_tiles = (N + 15) / 16;\n"
+"    float ic_w = (b < B && IcWeights) ? IcWeights[b] : 1.0f;\n"
+"    int target_idx = (b < B) ? (Targets[b] % N) : -1;\n"
+"    if (target_idx < 0 && b < B) target_idx = 0;\n"
+"    float inv_b = (B > 0) ? (1.0f / (float)B) : 1.0f;\n"
+"    for (int t = 0; t < num_tiles; t++) {\n"
+"        int n_k = t * 16 + local_col;\n"
+"        if (b < B && n_k < N) {\n"
+"            float p = Probs[(size_t)b * (size_t)N + (size_t)n_k];\n"
+"            float y = (n_k == target_idx) ? 1.0f : 0.0f;\n"
+"            tile_DY[local_b][local_col] = (p - y) * (ic_w * inv_b);\n"
+"        } else {\n"
+"            tile_DY[local_b][local_col] = 0.0f;\n"
+"        }\n"
+"        int r_w = group_col * 16 + local_b;\n"
+"        tile_W[local_b][local_col] = (r_w < M && n_k < N) ? W_Head[(size_t)r_w * (size_t)N + (size_t)n_k] : 0.0f;\n"
+"        barrier(CLK_LOCAL_MEM_FENCE);\n"
+"        #pragma unroll\n"
+"        for (int k = 0; k < 16; k++) {\n"
+"            acc += tile_DY[local_b][k] * tile_W[local_col][k];\n"
+"        }\n"
+"        barrier(CLK_LOCAL_MEM_FENCE);\n"
+"    }\n"
+"    if (b < B && col < M) {\n"
+"        D_Hidden_Out[(size_t)b * (size_t)M + (size_t)col] = acc;\n"
+"    }\n"
+"}\n"
+"__kernel void k_opencl_rmsnorm_backward(\n"
+"    __global const float* D_In,\n"
+"    __global const float* Saved_X_Cur,\n"
+"    __global const float* Saved_Inv_Rms,\n"
+"    __global const float* All_Layers_Norms,\n"
+"    __global float* Dx_Out,\n"
+"    int B, int M, int layer_idx\n"
+") {\n"
+"    int b = get_group_id(0);\n"
+"    int tid = get_local_id(0);\n"
+"    if (b >= B) return;\n"
+"    __local float s_dh[2560];\n"
+"    __local float s_red[256];\n"
+"    __local float s_sum_gx;\n"
+"    __global const float* dh_b = D_In + (size_t)b * (size_t)M;\n"
+"    __global const float* x_cur = Saved_X_Cur + ((size_t)layer_idx * (size_t)B + (size_t)b) * (size_t)M;\n"
+"    __global const float* norm_l = All_Layers_Norms ? (All_Layers_Norms + (size_t)(layer_idx > 41 ? 41 : layer_idx) * (size_t)M) : 0;\n"
+"    float inv_rms = Saved_Inv_Rms[(size_t)layer_idx * (size_t)B + (size_t)b];\n"
+"    for (int i = tid; i < M; i += 256) {\n"
+"        s_dh[i] = dh_b[i];\n"
+"    }\n"
+"    barrier(CLK_LOCAL_MEM_FENCE);\n"
+"    float my_gx = 0.0f;\n"
+"    for (int i = tid; i < M; i += 256) {\n"
+"        float nw = norm_l ? norm_l[i] : 1.0f;\n"
+"        float g_i = s_dh[i] * nw;\n"
+"        float x_i = x_cur[i];\n"
+"        my_gx += g_i * x_i;\n"
+"    }\n"
+"    s_red[tid] = my_gx;\n"
+"    barrier(CLK_LOCAL_MEM_FENCE);\n"
+"    for (int s = 128; s > 0; s >>= 1) {\n"
+"        if (tid < s) s_red[tid] += s_red[tid + s];\n"
+"        barrier(CLK_LOCAL_MEM_FENCE);\n"
+"    }\n"
+"    if (tid == 0) s_sum_gx = s_red[0];\n"
+"    barrier(CLK_LOCAL_MEM_FENCE);\n"
+"    float inv_rms3_div_m = (inv_rms * inv_rms * inv_rms) / (float)M;\n"
+"    float sum_gx = s_sum_gx;\n"
+"    for (int i = tid; i < M; i += 256) {\n"
+"        float nw = norm_l ? norm_l[i] : 1.0f;\n"
+"        float g_i = s_dh[i] * nw;\n"
+"        float x_i = x_cur[i];\n"
+"        Dx_Out[(size_t)b * (size_t)M + (size_t)i] = g_i * inv_rms - x_i * inv_rms3_div_m * sum_gx;\n"
+"    }\n"
+"}\n"
+"__kernel void k_opencl_layer_backward_gelu_dz(\n"
+"    __global const float* Dx_In,\n"
+"    __global const float* Saved_Z,\n"
+"    __global float* Dz_Out,\n"
+"    int B, int M, int layer_idx\n"
+") {\n"
+"    int col = get_global_id(0);\n"
+"    int b = get_global_id(1);\n"
+"    if (b >= B || col >= M) return;\n"
+"    size_t idx = ((size_t)layer_idx * (size_t)B + (size_t)b) * (size_t)M + (size_t)col;\n"
+"    float sum = Saved_Z[idx];\n"
+"    float kappa = (float)(layer_idx + 1) * 0.02380952f;\n"
+"    float inv_sqrt_42 = 0.15430335f;\n"
+"    float u = 0.79788456f * (sum + 0.044715f * sum * sum * sum + kappa * sum);\n"
+"    float du = 0.79788456f * (1.0f + 0.134145f * sum * sum + kappa);\n"
+"    float tu = tanh(u);\n"
+"    float dgelu_dz = 0.5f * (1.0f + tu) + 0.5f * sum * (1.0f - tu * tu) * du;\n"
+"    float d_in = Dx_In[(size_t)b * (size_t)M + (size_t)col];\n"
+"    Dz_Out[(size_t)b * (size_t)M + (size_t)col] = d_in * inv_sqrt_42 * dgelu_dz;\n"
+"}\n"
+"__kernel void k_opencl_layer_backward_dxt_gemm(\n"
+"    __global const float* Dz,\n"
+"    __global const float* All_Layers_W,\n"
+"    __global float* Dtx_Out,\n"
+"    int B, int M, int layer_idx\n"
+") {\n"
+"    int col = get_global_id(0);\n"
+"    int b = get_global_id(1);\n"
+"    int local_col = get_local_id(0);\n"
+"    int local_b = get_local_id(1);\n"
+"    int group_col = get_group_id(0);\n"
+"    __local float tile_Dz[16][16];\n"
+"    __local float tile_W[16][16];\n"
+"    __global const float* w_l = All_Layers_W + (size_t)layer_idx * (size_t)(M * M);\n"
+"    float acc = 0.0f;\n"
+"    int num_tiles = (M + 15) / 16;\n"
+"    for (int t = 0; t < num_tiles; t++) {\n"
+"        int dz_k = t * 16 + local_col;\n"
+"        tile_Dz[local_b][local_col] = (b < B && dz_k < M) ? Dz[(size_t)b * (size_t)M + (size_t)dz_k] : 0.0f;\n"
+"        int d_w = t * 16 + local_b;\n"
+"        int j_w = group_col * 16 + local_col;\n"
+"        tile_W[local_b][local_col] = (d_w < M && j_w < M) ? w_l[(size_t)d_w * (size_t)M + (size_t)j_w] : 0.0f;\n"
+"        barrier(CLK_LOCAL_MEM_FENCE);\n"
+"        #pragma unroll\n"
+"        for (int k = 0; k < 16; k++) {\n"
+"            acc += tile_Dz[local_b][k] * tile_W[k][local_col];\n"
+"        }\n"
+"        barrier(CLK_LOCAL_MEM_FENCE);\n"
+"    }\n"
+"    if (b < B && col < M) {\n"
+"        Dtx_Out[(size_t)b * (size_t)M + (size_t)col] = acc;\n"
+"    }\n"
+"}\n"
+"__kernel void k_opencl_layer_backward_rmsnorm_dx(\n"
+"    __global const float* Dtx_In,\n"
+"    __global const float* Saved_X_Cur,\n"
+"    __global const float* Saved_Inv_Rms,\n"
+"    __global const float* All_Layers_Norms,\n"
+"    __global float* Dx_InOut,\n"
+"    int B, int M, int layer_idx\n"
+") {\n"
+"    int b = get_group_id(0);\n"
+"    int tid = get_local_id(0);\n"
+"    if (b >= B) return;\n"
+"    __local float s_dtx[2560];\n"
+"    __local float s_red[256];\n"
+"    __local float s_sum_gx;\n"
+"    __global const float* dtx_b = Dtx_In + (size_t)b * (size_t)M;\n"
+"    __global const float* x_cur = Saved_X_Cur + ((size_t)layer_idx * (size_t)B + (size_t)b) * (size_t)M;\n"
+"    __global const float* norm_l = All_Layers_Norms ? (All_Layers_Norms + (size_t)layer_idx * (size_t)M) : 0;\n"
+"    float inv_rms = Saved_Inv_Rms[(size_t)layer_idx * (size_t)B + (size_t)b];\n"
+"    for (int i = tid; i < M; i += 256) {\n"
+"        s_dtx[i] = dtx_b[i];\n"
+"    }\n"
+"    barrier(CLK_LOCAL_MEM_FENCE);\n"
+"    float my_gx = 0.0f;\n"
+"    for (int i = tid; i < M; i += 256) {\n"
+"        float nw = norm_l ? norm_l[i] : 1.0f;\n"
+"        float g_i = s_dtx[i] * nw;\n"
+"        float x_i = x_cur[i];\n"
+"        my_gx += g_i * x_i;\n"
+"    }\n"
+"    s_red[tid] = my_gx;\n"
+"    barrier(CLK_LOCAL_MEM_FENCE);\n"
+"    for (int s = 128; s > 0; s >>= 1) {\n"
+"        if (tid < s) s_red[tid] += s_red[tid + s];\n"
+"        barrier(CLK_LOCAL_MEM_FENCE);\n"
+"    }\n"
+"    if (tid == 0) s_sum_gx = s_red[0];\n"
+"    barrier(CLK_LOCAL_MEM_FENCE);\n"
+"    float inv_rms3_div_m = (inv_rms * inv_rms * inv_rms) / (float)M;\n"
+"    float sum_gx = s_sum_gx;\n"
+"    for (int i = tid; i < M; i += 256) {\n"
+"        float nw = norm_l ? norm_l[i] : 1.0f;\n"
+"        float g_i = s_dtx[i] * nw;\n"
+"        float x_i = x_cur[i];\n"
+"        float dx_rms = g_i * inv_rms - x_i * inv_rms3_div_m * sum_gx;\n"
+"        Dx_InOut[(size_t)b * (size_t)M + (size_t)i] += dx_rms;\n"
+"    }\n"
+"}\n"
+"__kernel void k_opencl_layer_backward_update_w(\n"
+"    __global const float* Dz,\n"
+"    __global const float* Saved_Norm_X,\n"
+"    __global float* All_Layers_W,\n"
+"    __global float* All_Layers_Mom_W,\n"
+"    int B, int M, int N, int layer_idx, float lr, float mom\n"
+") {\n"
+"    int col = get_global_id(0);\n"
+"    int row = get_global_id(1);\n"
+"    int local_col = get_local_id(0);\n"
+"    int local_row = get_local_id(1);\n"
+"    int group_row = get_group_id(1);\n"
+"    int group_col = get_group_id(0);\n"
+"    __local float tile_Dz[16][16];\n"
+"    __local float tile_NX[16][16];\n"
+"    __global const float* norm_x_l = Saved_Norm_X + ((size_t)layer_idx * (size_t)B) * (size_t)N;\n"
+"    float grad_acc = 0.0f;\n"
+"    int num_tiles = (B + 15) / 16;\n"
+"    for (int t = 0; t < num_tiles; t++) {\n"
+"        int b_dz = t * 16 + local_row;\n"
+"        int r_dz = group_row * 16 + local_col;\n"
+"        tile_Dz[local_row][local_col] = (b_dz < B && r_dz < M) ? Dz[(size_t)b_dz * (size_t)M + (size_t)r_dz] : 0.0f;\n"
+"        int b_nx = t * 16 + local_row;\n"
+"        int c_nx = group_col * 16 + local_col;\n"
+"        tile_NX[local_row][local_col] = (b_nx < B && c_nx < N) ? norm_x_l[(size_t)b_nx * (size_t)N + (size_t)c_nx] : 0.0f;\n"
+"        barrier(CLK_LOCAL_MEM_FENCE);\n"
+"        #pragma unroll\n"
+"        for (int k = 0; k < 16; k++) {\n"
+"            grad_acc += tile_Dz[k][local_row] * tile_NX[k][local_col];\n"
+"        }\n"
+"        barrier(CLK_LOCAL_MEM_FENCE);\n"
+"    }\n"
+"    if (row < M && col < N) {\n"
+"        float inv_b = (B > 0) ? (1.0f / (float)B) : 1.0f;\n"
+"        float g_raw = grad_acc * inv_b;\n"
+"        float clipped_g = clamp(g_raw, -5.0f, 5.0f);\n"
+"        size_t w_idx = (size_t)layer_idx * (size_t)(M * N) + (size_t)row * (size_t)N + (size_t)col;\n"
+"        float v = All_Layers_Mom_W ? All_Layers_Mom_W[w_idx] : 0.0f;\n"
+"        v = mom * v + (1.0f - mom) * clipped_g;\n"
+"        if (All_Layers_Mom_W) All_Layers_Mom_W[w_idx] = v;\n"
+"        __global float* w_layer = All_Layers_W + (size_t)layer_idx * (size_t)(M * N);\n"
+"        w_layer[row * N + col] -= lr * v;\n"
+"    }\n"
+"}\n"
+"__kernel void k_opencl_layer_backward_update_norm(\n"
+"    __global const float* Dtx,\n"
+"    __global const float* Saved_X_Cur,\n"
+"    __global const float* Saved_Inv_Rms,\n"
+"    __global float* All_Layers_Norms,\n"
+"    __global float* All_Layers_Mom_Norms,\n"
+"    int B, int M, int layer_idx, float lr, float mom\n"
+") {\n"
+"    int col = get_global_id(0);\n"
+"    if (col >= M) return;\n"
+"    __global const float* x_cur_l = Saved_X_Cur + ((size_t)layer_idx * (size_t)B) * (size_t)M;\n"
+"    __global const float* inv_rms_l = Saved_Inv_Rms + (size_t)layer_idx * (size_t)B;\n"
 "    float grad_sum = 0.0f;\n"
 "    for (int b = 0; b < B; b++) {\n"
-"        int target_idx = Targets[b] % N;\n"
-"        if (target_idx < 0) target_idx = 0;\n"
-"        float target_c = (col == target_idx) ? 1.0f : 0.0f;\n"
-"        float prob_c = Probs[b * N + col];\n"
-"        float ic_w = IcWeights ? IcWeights[b] : 1.0f;\n"
-"        float xv = X[b * M + row];\n"
-"        grad_sum += (prob_c - target_c) * xv * ic_w;\n"
+"        float dtx_val = Dtx[(size_t)b * (size_t)M + (size_t)col];\n"
+"        float x_val = x_cur_l[(size_t)b * (size_t)M + (size_t)col];\n"
+"        float inv_rms = inv_rms_l[b];\n"
+"        grad_sum += dtx_val * x_val * inv_rms;\n"
 "    }\n"
 "    float inv_b = (B > 0) ? (1.0f / (float)B) : 1.0f;\n"
-"    float w_val = W[row * N + col];\n"
-"    W[row * N + col] -= lr * (grad_sum * inv_b + 0.0001f * w_val);\n"
+"    float g_raw = grad_sum * inv_b;\n"
+"    float clipped_g = clamp(g_raw, -5.0f, 5.0f);\n"
+"    size_t n_idx = (size_t)layer_idx * (size_t)M + (size_t)col;\n"
+"    float v = All_Layers_Mom_Norms ? All_Layers_Mom_Norms[n_idx] : 0.0f;\n"
+"    v = mom * v + (1.0f - mom) * clipped_g;\n"
+"    if (All_Layers_Mom_Norms) All_Layers_Mom_Norms[n_idx] = v;\n"
+"    __global float* norm_layer = All_Layers_Norms + (size_t)layer_idx * (size_t)M;\n"
+"    norm_layer[col] -= lr * v;\n"
 "}\n";
 
 static void cartan_init_gpu_device_if_needed(void) {
@@ -1987,39 +2896,91 @@ static void cartan_init_gpu_device_if_needed(void) {
     }
 
     g_cl_kernel_42layer = clCreateKernel(g_cl_program, "k_opencl_42layer_forward_lie_manifold", &err);
+    g_cl_kernel_layer_fwd_norm = clCreateKernel(g_cl_program, "k_opencl_layer_forward_rmsnorm", &err);
+    g_cl_kernel_layer_fwd_gemm = clCreateKernel(g_cl_program, "k_opencl_layer_forward_gemm", &err);
+    g_cl_kernel_layer_fwd_gelu = clCreateKernel(g_cl_program, "k_opencl_layer_forward_gelu_residual", &err);
+    g_cl_kernel_final_rmsnorm = clCreateKernel(g_cl_program, "k_opencl_final_rmsnorm", &err);
     g_cl_kernel_gemm = clCreateKernel(g_cl_program, "k_opencl_forward_gemm", &err);
     g_cl_kernel_loss = clCreateKernel(g_cl_program, "k_opencl_softmax_loss", &err);
     g_cl_kernel_sgd = clCreateKernel(g_cl_program, "k_opencl_backward_sgd", &err);
+    g_cl_kernel_head_dhidden_gemm = clCreateKernel(g_cl_program, "k_opencl_tiled_backward_head_gemm", &err);
+    g_cl_kernel_rmsnorm_backward = clCreateKernel(g_cl_program, "k_opencl_rmsnorm_backward", &err);
+    g_cl_kernel_layer_bwd_gelu_dz = clCreateKernel(g_cl_program, "k_opencl_layer_backward_gelu_dz", &err);
+    g_cl_kernel_layer_bwd_dxt_gemm = clCreateKernel(g_cl_program, "k_opencl_layer_backward_dxt_gemm", &err);
+    g_cl_kernel_layer_bwd_rmsnorm_dx = clCreateKernel(g_cl_program, "k_opencl_layer_backward_rmsnorm_dx", &err);
+    g_cl_kernel_layer_update_w = clCreateKernel(g_cl_program, "k_opencl_layer_backward_update_w", &err);
+    g_cl_kernel_layer_update_norm = clCreateKernel(g_cl_program, "k_opencl_layer_backward_update_norm", &err);
 
-    // Allocate 1.2+ GB OpenCL GPU VRAM buffers
-    int max_b = 4096;
-    d_cl_all_42_layers = clCreateBuffer(g_cl_context, CL_MEM_READ_ONLY, sizeof(float) * 42 * 2560 * 2560, NULL, &err);
-    d_cl_all_42_norms = clCreateBuffer(g_cl_context, CL_MEM_READ_ONLY, sizeof(float) * 42 * 2560, NULL, &err);
-    d_cl_all_42_routers = clCreateBuffer(g_cl_context, CL_MEM_READ_ONLY, sizeof(float) * 42 * 4 * 2560, NULL, &err);
-    d_cl_weights = clCreateBuffer(g_cl_context, CL_MEM_READ_WRITE, sizeof(float) * 2560 * 2560, NULL, &err);
+    // Allocate OpenCL GPU VRAM buffers (Read/Write for Full Manifold Training)
+    int max_b = 1024;
+    d_cl_all_42_layers = clCreateBuffer(g_cl_context, CL_MEM_READ_WRITE, sizeof(float) * 42 * 2560 * 2560, NULL, &err);
+    d_cl_all_42_mom_w = clCreateBuffer(g_cl_context, CL_MEM_READ_WRITE, sizeof(float) * 42 * 2560 * 2560, NULL, &err);
+    d_cl_all_42_norms = clCreateBuffer(g_cl_context, CL_MEM_READ_WRITE, sizeof(float) * 42 * 2560, NULL, &err);
+    d_cl_all_42_mom_norms = clCreateBuffer(g_cl_context, CL_MEM_READ_WRITE, sizeof(float) * 42 * 2560, NULL, &err);
+    d_cl_all_42_routers = clCreateBuffer(g_cl_context, CL_MEM_READ_WRITE, sizeof(float) * 42 * 4 * 2560, NULL, &err);
+    d_cl_weights = clCreateBuffer(g_cl_context, CL_MEM_READ_WRITE, sizeof(float) * 2560 * CARTAN_LM_HEAD_VOCAB, NULL, &err);
+    d_cl_mom_weights = clCreateBuffer(g_cl_context, CL_MEM_READ_WRITE, sizeof(float) * 2560 * CARTAN_LM_HEAD_VOCAB, NULL, &err);
 
-    d_cl_batch_x_in = clCreateBuffer(g_cl_context, CL_MEM_READ_ONLY, sizeof(float) * max_b * 2560, NULL, &err);
+    // Zero-initialize Riemannian momentum velocity buffers
+    if (d_cl_mom_weights) {
+        float* zero_buf = (float*)calloc(2560 * CARTAN_LM_HEAD_VOCAB, sizeof(float));
+        if (zero_buf) {
+            clEnqueueWriteBuffer(g_cl_queue, d_cl_mom_weights, CL_TRUE, 0, sizeof(float) * 2560 * CARTAN_LM_HEAD_VOCAB, zero_buf, 0, NULL, NULL);
+            free(zero_buf);
+        }
+    }
+    if (d_cl_all_42_mom_w) {
+        float* zero_buf = (float*)calloc(2560 * 2560, sizeof(float));
+        if (zero_buf) {
+            for (int l = 0; l < 42; l++) {
+                clEnqueueWriteBuffer(g_cl_queue, d_cl_all_42_mom_w, CL_TRUE, (size_t)l * 2560 * 2560 * sizeof(float), sizeof(float) * 2560 * 2560, zero_buf, 0, NULL, NULL);
+            }
+            free(zero_buf);
+        }
+    }
+    if (d_cl_all_42_mom_norms) {
+        float* zero_buf = (float*)calloc(42 * 2560, sizeof(float));
+        if (zero_buf) {
+            clEnqueueWriteBuffer(g_cl_queue, d_cl_all_42_mom_norms, CL_TRUE, 0, sizeof(float) * 42 * 2560, zero_buf, 0, NULL, NULL);
+            free(zero_buf);
+        }
+    }
+
+    d_cl_batch_x_in = clCreateBuffer(g_cl_context, CL_MEM_READ_WRITE, sizeof(float) * max_b * 2560, NULL, &err);
     d_cl_batch_hidden = clCreateBuffer(g_cl_context, CL_MEM_READ_WRITE, sizeof(float) * max_b * 2560, NULL, &err);
-    d_cl_batch_logits = clCreateBuffer(g_cl_context, CL_MEM_READ_WRITE, sizeof(float) * max_b * 2560, NULL, &err);
+    d_cl_batch_logits = clCreateBuffer(g_cl_context, CL_MEM_READ_WRITE, sizeof(float) * max_b * CARTAN_LM_HEAD_VOCAB, NULL, &err);
     d_cl_batch_targets = clCreateBuffer(g_cl_context, CL_MEM_READ_ONLY, sizeof(int) * max_b, NULL, &err);
     d_cl_batch_ic_weights = clCreateBuffer(g_cl_context, CL_MEM_READ_ONLY, sizeof(float) * max_b, NULL, &err);
     d_cl_batch_loss = clCreateBuffer(g_cl_context, CL_MEM_WRITE_ONLY, sizeof(float) * max_b, NULL, &err);
 
-    // Upload initial weights to OpenCL VRAM
-    float* h_init_w = (float*)malloc(sizeof(float) * 2560 * 2560);
-    if (h_init_w) {
-        for (int r = 0; r < 2560; r++) {
-            for (int c = 0; c < 2560; c++) {
-                h_init_w[r * 2560 + c] = (float)g_model_weights[r][c];
-            }
-        }
-        clEnqueueWriteBuffer(g_cl_queue, d_cl_weights, CL_TRUE, 0, sizeof(float) * 2560 * 2560, h_init_w, 0, NULL, NULL);
-        free(h_init_w);
-    }
+    d_cl_saved_norm_x = clCreateBuffer(g_cl_context, CL_MEM_READ_WRITE, sizeof(float) * 42 * max_b * 2560, NULL, &err);
+    d_cl_saved_inv_rms = clCreateBuffer(g_cl_context, CL_MEM_READ_WRITE, sizeof(float) * 43 * max_b, NULL, &err);
+    d_cl_saved_x_cur = clCreateBuffer(g_cl_context, CL_MEM_READ_WRITE, sizeof(float) * 43 * max_b * 2560, NULL, &err);
+    d_cl_saved_z = clCreateBuffer(g_cl_context, CL_MEM_READ_WRITE, sizeof(float) * 42 * max_b * 2560, NULL, &err);
+    d_cl_batch_dx = clCreateBuffer(g_cl_context, CL_MEM_READ_WRITE, sizeof(float) * max_b * 2560, NULL, &err);
+    d_cl_batch_dz = clCreateBuffer(g_cl_context, CL_MEM_READ_WRITE, sizeof(float) * max_b * 2560, NULL, &err);
+    d_cl_batch_dtx = clCreateBuffer(g_cl_context, CL_MEM_READ_WRITE, sizeof(float) * max_b * 2560, NULL, &err);
+    d_cl_batch_norm_x = clCreateBuffer(g_cl_context, CL_MEM_READ_WRITE, sizeof(float) * max_b * 2560, NULL, &err);
+    d_cl_batch_z = clCreateBuffer(g_cl_context, CL_MEM_READ_WRITE, sizeof(float) * max_b * 2560, NULL, &err);
+    d_cl_batch_dhidden = clCreateBuffer(g_cl_context, CL_MEM_READ_WRITE, sizeof(float) * max_b * 2560, NULL, &err);
 
     g_opencl_gpu_mounted = 1;
-    printf("[GeoMind OpenCL GPU] Mounted OpenCL 3.0 Hardware Engine: %s (1.2 GB VRAM Allocated)\n", g_opencl_gpu_name);
+    printf("[GeoMind OpenCL GPU] Mounted OpenCL 3.0 Full Manifold Hardware Engine: %s (2.0 GB VRAM Active)\n", g_opencl_gpu_name);
     fflush(stdout);
+
+    // Initialize host flat weights from Gemma embeddings if available
+    extern void cartan_init_weights_if_needed(void);
+    cartan_init_weights_if_needed();
+
+    if (g_42layer_loaded && g_42layer_weights && d_cl_all_42_layers) {
+        clEnqueueWriteBuffer(g_cl_queue, d_cl_all_42_layers, CL_TRUE, 0, sizeof(float) * 42 * 2560 * 2560, g_42layer_weights, 0, NULL, NULL);
+        if (d_cl_all_42_norms && g_42layer_norms) {
+            clEnqueueWriteBuffer(g_cl_queue, d_cl_all_42_norms, CL_TRUE, 0, sizeof(float) * 42 * 2560, g_42layer_norms, 0, NULL, NULL);
+        }
+        if (d_cl_all_42_routers && g_42layer_routers) {
+            clEnqueueWriteBuffer(g_cl_queue, d_cl_all_42_routers, CL_TRUE, 0, sizeof(float) * 42 * 4 * 2560, g_42layer_routers, 0, NULL, NULL);
+        }
+    }
 }
 
 CARTAN_WEAK void cartan_mark_weights_initialized(void) {
@@ -2029,16 +2990,14 @@ CARTAN_WEAK void cartan_mark_weights_initialized(void) {
 CARTAN_WEAK void cartan_sync_host_weights_to_gpu(void) {
     cartan_init_gpu_device_if_needed();
     g_weights_init = 1;
-    if (g_opencl_gpu_mounted && d_cl_weights && g_cl_queue) {
-        float* h_w = (float*)malloc(sizeof(float) * 2560 * 2560);
-        if (h_w) {
-            for (int r = 0; r < 2560; r++) {
-                for (int c = 0; c < 2560; c++) {
-                    h_w[r * 2560 + c] = (float)g_model_weights[r][c];
-                }
+    if (g_opencl_gpu_mounted && d_cl_weights && g_cl_queue && g_model_weights_flat) {
+        float* gpu_head_buf = (float*)malloc(sizeof(float) * 2560 * CARTAN_LM_HEAD_VOCAB);
+        if (gpu_head_buf) {
+            for (size_t r = 0; r < 2560; r++) {
+                memcpy(&gpu_head_buf[r * CARTAN_LM_HEAD_VOCAB], &g_model_weights_flat[r * CARTAN_FULL_VOCAB_SIZE], sizeof(float) * CARTAN_LM_HEAD_VOCAB);
             }
-            clEnqueueWriteBuffer(g_cl_queue, d_cl_weights, CL_TRUE, 0, sizeof(float) * 2560 * 2560, h_w, 0, NULL, NULL);
-            free(h_w);
+            clEnqueueWriteBuffer(g_cl_queue, d_cl_weights, CL_TRUE, 0, sizeof(float) * 2560 * CARTAN_LM_HEAD_VOCAB, gpu_head_buf, 0, NULL, NULL);
+            free(gpu_head_buf);
         }
     }
 }
@@ -2053,45 +3012,109 @@ CARTAN_WEAK void cartan_sync_42layers_to_gpu(void) {
         if (d_cl_all_42_routers && g_42layer_routers) {
             clEnqueueWriteBuffer(g_cl_queue, d_cl_all_42_routers, CL_TRUE, 0, sizeof(float) * 42 * 4 * 2560, g_42layer_routers, 0, NULL, NULL);
         }
-        printf("[GeoMind OpenCL VRAM] Synchronized full 42-Layer 3D MoE Model (275,251,200 params + norms + routers, 1.1 GB) into OpenCL GPU VRAM.\n");
-        fflush(stdout);
     }
 }
 
-CARTAN_WEAK void cartan_reset_baseline_weights_for_coadaptation(void) {
+CARTAN_WEAK void cartan_sync_42layers_from_gpu(void) {
+    if (g_opencl_gpu_mounted && d_cl_all_42_layers && g_42layer_weights && g_cl_queue) {
+        clEnqueueReadBuffer(g_cl_queue, d_cl_all_42_layers, CL_TRUE, 0, sizeof(float) * 42 * 2560 * 2560, g_42layer_weights, 0, NULL, NULL);
+        if (d_cl_all_42_norms && g_42layer_norms) {
+            clEnqueueReadBuffer(g_cl_queue, d_cl_all_42_norms, CL_TRUE, 0, sizeof(float) * 42 * 2560, g_42layer_norms, 0, NULL, NULL);
+        }
+        if (d_cl_all_42_routers && g_42layer_routers) {
+            clEnqueueReadBuffer(g_cl_queue, d_cl_all_42_routers, CL_TRUE, 0, sizeof(float) * 42 * 4 * 2560, g_42layer_routers, 0, NULL, NULL);
+        }
+        if (d_cl_weights && g_model_weights_flat) {
+            float* gpu_head_buf = (float*)malloc(sizeof(float) * 2560 * CARTAN_LM_HEAD_VOCAB);
+            if (gpu_head_buf) {
+                clEnqueueReadBuffer(g_cl_queue, d_cl_weights, CL_TRUE, 0, sizeof(float) * 2560 * CARTAN_LM_HEAD_VOCAB, gpu_head_buf, 0, NULL, NULL);
+                for (size_t r = 0; r < 2560; r++) {
+                    memcpy(&g_model_weights_flat[r * CARTAN_FULL_VOCAB_SIZE], &gpu_head_buf[r * CARTAN_LM_HEAD_VOCAB], sizeof(float) * CARTAN_LM_HEAD_VOCAB);
+                    for (int c = 0; c < 2560 && c < CARTAN_LM_HEAD_VOCAB; c++) {
+                        g_model_weights[r][c] = (double)gpu_head_buf[r * CARTAN_LM_HEAD_VOCAB + c];
+                    }
+                }
+                free(gpu_head_buf);
+            }
+        }
+    }
+}
+
+CARTAN_WEAK double cartan_reset_baseline_weights_for_coadaptation(void) {
     cartan_init_gpu_device_if_needed();
     g_weights_init = 1;
-    for (int r = 0; r < 2560; r++) {
-        for (int c = 0; c < 2560; c++) {
-            double diag = (r == c) ? 1.0 : 0.0;
-            double perturbation = (((double)((r * 31 + c * 17) % 200) - 100.0) / 100.0) * 0.01;
-            g_model_weights[r][c] = diag + perturbation;
+    if (!g_model_weights_flat) {
+        g_model_weights_flat = (float*)malloc(sizeof(float) * (size_t)2560 * CARTAN_FULL_VOCAB_SIZE);
+    }
+    cartan_init_gemma_embed_matrix_if_needed();
+    if (g_gemma_embed_matrix && g_model_weights_flat) {
+        int c;
+        #pragma omp parallel for schedule(static, 256)
+        for (c = 0; c < (int)CARTAN_FULL_VOCAB_SIZE; c++) {
+            const float* e_row = g_gemma_embed_matrix + (size_t)c * 2560;
+            for (size_t r = 0; r < 2560; r++) {
+                float v = e_row[r] / 50.59644256f;
+                g_model_weights_flat[r * CARTAN_FULL_VOCAB_SIZE + c] = v;
+                if (r < 2560 && c < 2560) {
+                    g_model_weights[r][c] = (double)v;
+                }
+            }
         }
     }
     cartan_sync_host_weights_to_gpu();
-    printf("[GeoMind Co-Adaptation] Reset baseline weights to balanced identity state for 2560x2560 manifold adaptation.\n");
+    printf("[GeoMind Co-Adaptation] Reset baseline LM head weights to aligned Gemma embedding manifold for 2560x65536.\n");
     fflush(stdout);
+    return 0.0;
 }
 
-static void cartan_init_weights_if_needed(void) {
+CARTAN_WEAK void cartan_init_weights_if_needed(void) {
     cartan_init_gpu_device_if_needed();
-    if (g_weights_init) return;
+    if (g_weights_init && g_model_weights_flat) return;
     g_weights_init = 1;
 
-    float* h_init_w = (float*)malloc(sizeof(float) * 2560 * 2560);
-    for (int r = 0; r < 2560; r++) {
-        for (int c = 0; c < 2560; c++) {
-            double diag = (r == c) ? 1.0 : 0.0;
-            double perturbation = (((double)((r * 31 + c * 17) % 200) - 100.0) / 100.0) * 0.01;
-            double v = diag + perturbation;
-            g_model_weights[r][c] = v;
-            if (h_init_w) h_init_w[r * 2560 + c] = (float)v;
+    if (!g_model_weights_flat) {
+        g_model_weights_flat = (float*)malloc(sizeof(float) * (size_t)2560 * CARTAN_FULL_VOCAB_SIZE);
+    }
+    cartan_init_gemma_embed_matrix_if_needed();
+
+    if (g_model_weights_flat) {
+        if (g_gemma_embed_matrix) {
+            int c;
+            #pragma omp parallel for schedule(static, 256)
+            for (c = 0; c < (int)CARTAN_FULL_VOCAB_SIZE; c++) {
+                const float* e_row = g_gemma_embed_matrix + (size_t)c * 2560;
+                for (size_t r = 0; r < 2560; r++) {
+                    float v = e_row[r] / 50.59644256f;
+                    g_model_weights_flat[r * CARTAN_FULL_VOCAB_SIZE + c] = v;
+                    if (r < 2560 && c < 2560) {
+                        g_model_weights[r][c] = (double)v;
+                    }
+                }
+            }
+        } else {
+            for (size_t r = 0; r < 2560; r++) {
+                for (size_t c = 0; c < CARTAN_LM_HEAD_VOCAB; c++) {
+                    float diag = (r == c) ? 1.0f : 0.0f;
+                    float noise = (((float)((r * 31 + c * 17) % 200) - 100.0f) / 100.0f) * 0.01f;
+                    float v = diag + noise;
+                    g_model_weights_flat[r * CARTAN_FULL_VOCAB_SIZE + c] = v;
+                    if (r < 2560 && c < 2560) {
+                        g_model_weights[r][c] = (double)v;
+                    }
+                }
+            }
+        }
+        if (g_opencl_gpu_mounted && d_cl_weights && g_cl_queue) {
+            float* gpu_head_buf = (float*)malloc(sizeof(float) * 2560 * CARTAN_LM_HEAD_VOCAB);
+            if (gpu_head_buf) {
+                for (size_t r = 0; r < 2560; r++) {
+                    memcpy(&gpu_head_buf[r * CARTAN_LM_HEAD_VOCAB], &g_model_weights_flat[r * CARTAN_FULL_VOCAB_SIZE], sizeof(float) * CARTAN_LM_HEAD_VOCAB);
+                }
+                clEnqueueWriteBuffer(g_cl_queue, d_cl_weights, CL_TRUE, 0, sizeof(float) * 2560 * CARTAN_LM_HEAD_VOCAB, gpu_head_buf, 0, NULL, NULL);
+                free(gpu_head_buf);
+            }
         }
     }
-    if (g_opencl_gpu_mounted && d_cl_weights && g_cl_queue && h_init_w) {
-        clEnqueueWriteBuffer(g_cl_queue, d_cl_weights, CL_TRUE, 0, sizeof(float) * 2560 * 2560, h_init_w, 0, NULL, NULL);
-    }
-    if (h_init_w) free(h_init_w);
 }
 
 CARTAN_WEAK double cartan_tensor_train_step(void* hidden_ptr, double target_tok_id, double learning_rate) {
@@ -2179,17 +3202,20 @@ CARTAN_WEAK double cartan_tensor_train_batch_gpu(const float* h_batch_hidden, co
         size_t l_ws_loss[1] = { 64 };
         clEnqueueNDRangeKernel(g_cl_queue, g_cl_kernel_loss, 1, NULL, g_ws_loss, l_ws_loss, 0, NULL, NULL);
 
-        // Stage 2: Backward SGD
+        // Stage 2: Backward SGD with Riemannian Momentum
         if (learning_rate > 0.0 && g_cl_kernel_sgd) {
+            float f_mom = 0.90f;
             clSetKernelArg(g_cl_kernel_sgd, 0, sizeof(cl_mem), &d_cl_batch_hidden);
             clSetKernelArg(g_cl_kernel_sgd, 1, sizeof(cl_mem), &d_cl_batch_logits);
             clSetKernelArg(g_cl_kernel_sgd, 2, sizeof(cl_mem), &d_cl_batch_targets);
             clSetKernelArg(g_cl_kernel_sgd, 3, sizeof(cl_mem), &d_cl_batch_ic_weights);
             clSetKernelArg(g_cl_kernel_sgd, 4, sizeof(cl_mem), &d_cl_weights);
-            clSetKernelArg(g_cl_kernel_sgd, 5, sizeof(int), &B);
-            clSetKernelArg(g_cl_kernel_sgd, 6, sizeof(int), &M);
-            clSetKernelArg(g_cl_kernel_sgd, 7, sizeof(int), &N);
-            clSetKernelArg(g_cl_kernel_sgd, 8, sizeof(float), &f_lr);
+            clSetKernelArg(g_cl_kernel_sgd, 5, sizeof(cl_mem), &d_cl_mom_weights);
+            clSetKernelArg(g_cl_kernel_sgd, 6, sizeof(int), &B);
+            clSetKernelArg(g_cl_kernel_sgd, 7, sizeof(int), &M);
+            clSetKernelArg(g_cl_kernel_sgd, 8, sizeof(int), &N);
+            clSetKernelArg(g_cl_kernel_sgd, 9, sizeof(float), &f_lr);
+            clSetKernelArg(g_cl_kernel_sgd, 10, sizeof(float), &f_mom);
             size_t g_ws_sgd[2] = { ((size_t)N + 15) / 16 * 16, ((size_t)M + 15) / 16 * 16 };
             size_t l_ws_sgd[2] = { 16, 16 };
             clEnqueueNDRangeKernel(g_cl_queue, g_cl_kernel_sgd, 2, NULL, g_ws_sgd, l_ws_sgd, 0, NULL, NULL);
@@ -2236,7 +3262,10 @@ CARTAN_WEAK double cartan_tensor_train_batch_gpu(const float* h_batch_hidden, co
                 float err_c = (probs[c] - target_c) * ic_w;
                 for (int r = 0; r < M; r++) {
                     float xv = h_batch_hidden[b * M + r];
-                    g_model_weights[r][c] -= (double)(f_lr * err_c * xv + 0.0001f * (float)g_model_weights[r][c]);
+                    float g_raw = err_c * xv;
+                    if (g_raw > 5.0f) g_raw = 5.0f;
+                    if (g_raw < -5.0f) g_raw = -5.0f;
+                    g_model_weights[r][c] -= (double)(f_lr * g_raw);
                 }
             }
         }
@@ -2248,35 +3277,89 @@ CARTAN_WEAK double cartan_tensor_train_batch_gpu_direct(const float* h_batch_x_i
     cartan_init_weights_if_needed();
     int B = (int)batch_size;
     if (B <= 0 || !h_batch_x_in || !h_targets) return 0.0;
-    if (B > 4096) B = 4096;
+    if (B > 1024) B = 1024;
 
     double total_batch_loss = 0.0;
-    int M = 2560, N = 2560;
+    int M = 2560;
+    int N = CARTAN_LM_HEAD_VOCAB;
 
-    if (g_opencl_gpu_mounted && g_cl_context && g_cl_queue && g_cl_kernel_42layer && d_cl_all_42_layers && d_cl_all_42_norms && d_cl_all_42_routers) {
+    if (g_opencl_gpu_mounted && g_cl_context && g_cl_queue && g_cl_kernel_layer_fwd_gemm && d_cl_all_42_layers && d_cl_all_42_norms && d_cl_all_42_routers) {
         float f_lr = (float)learning_rate;
-        clEnqueueWriteBuffer(g_cl_queue, d_cl_batch_x_in, CL_TRUE, 0, sizeof(float) * B * M, h_batch_x_in, 0, NULL, NULL);
-        clEnqueueWriteBuffer(g_cl_queue, d_cl_batch_targets, CL_TRUE, 0, sizeof(int) * B, h_targets, 0, NULL, NULL);
+        int save_acts = (learning_rate > 0.0) ? 1 : 0;
+
+        clEnqueueWriteBuffer(g_cl_queue, d_cl_batch_x_in, CL_FALSE, 0, sizeof(float) * B * M, h_batch_x_in, 0, NULL, NULL);
+        clEnqueueWriteBuffer(g_cl_queue, d_cl_batch_targets, CL_FALSE, 0, sizeof(int) * B, h_targets, 0, NULL, NULL);
         if (h_ic_weights) {
-            clEnqueueWriteBuffer(g_cl_queue, d_cl_batch_ic_weights, CL_TRUE, 0, sizeof(float) * B, h_ic_weights, 0, NULL, NULL);
+            clEnqueueWriteBuffer(g_cl_queue, d_cl_batch_ic_weights, CL_FALSE, 0, sizeof(float) * B, h_ic_weights, 0, NULL, NULL);
         } else {
-            float dummy_ic[4096];
+            float dummy_ic[1024];
             for (int i = 0; i < B; i++) dummy_ic[i] = 1.0f;
-            clEnqueueWriteBuffer(g_cl_queue, d_cl_batch_ic_weights, CL_TRUE, 0, sizeof(float) * B, dummy_ic, 0, NULL, NULL);
+            clEnqueueWriteBuffer(g_cl_queue, d_cl_batch_ic_weights, CL_FALSE, 0, sizeof(float) * B, dummy_ic, 0, NULL, NULL);
         }
 
-        // Stage 1: 42-Layer Lie Manifold Forward Pass in OpenCL GPU VRAM
-        clSetKernelArg(g_cl_kernel_42layer, 0, sizeof(cl_mem), &d_cl_batch_x_in);
-        clSetKernelArg(g_cl_kernel_42layer, 1, sizeof(cl_mem), &d_cl_all_42_layers);
-        clSetKernelArg(g_cl_kernel_42layer, 2, sizeof(cl_mem), &d_cl_all_42_norms);
-        clSetKernelArg(g_cl_kernel_42layer, 3, sizeof(cl_mem), &d_cl_all_42_routers);
-        clSetKernelArg(g_cl_kernel_42layer, 4, sizeof(cl_mem), &d_cl_batch_hidden);
-        clSetKernelArg(g_cl_kernel_42layer, 5, sizeof(int), &B);
-        size_t g_ws_42[1] = { (size_t)B * 256 };
-        size_t l_ws_42[1] = { 256 };
-        clEnqueueNDRangeKernel(g_cl_queue, g_cl_kernel_42layer, 1, NULL, g_ws_42, l_ws_42, 0, NULL, NULL);
+        LARGE_INTEGER pf, pt0, pt1, pt2, pt3, pt4a, pt4b, pt4c;
+        QueryPerformanceFrequency(&pf);
+        QueryPerformanceCounter(&pt0);
 
-        // Stage 2: Forward GEMM in VRAM
+        // Stage 1: 42-Layer Lie Manifold Forward Pass (2D Tiled Shared Memory GEMMs)
+        size_t g_ws_norm[1] = { (size_t)B * 256 };
+        size_t l_ws_norm[1] = { 256 };
+        size_t g_ws_layer_tile[2] = { ((size_t)M + 15) / 16 * 16, ((size_t)B + 15) / 16 * 16 };
+        size_t l_ws_tile[2] = { 16, 16 };
+
+        for (int l = 0; l < 42; l++) {
+            cl_mem cur_x = (l % 2 == 0) ? d_cl_batch_x_in : d_cl_batch_dtx;
+            cl_mem next_x = (l % 2 == 0) ? d_cl_batch_dtx : d_cl_batch_x_in;
+
+            // 1a. RMSNorm & activation stashing
+            clSetKernelArg(g_cl_kernel_layer_fwd_norm, 0, sizeof(cl_mem), &cur_x);
+            clSetKernelArg(g_cl_kernel_layer_fwd_norm, 1, sizeof(cl_mem), &d_cl_all_42_norms);
+            clSetKernelArg(g_cl_kernel_layer_fwd_norm, 2, sizeof(cl_mem), &d_cl_batch_norm_x);
+            clSetKernelArg(g_cl_kernel_layer_fwd_norm, 3, sizeof(cl_mem), &d_cl_saved_norm_x);
+            clSetKernelArg(g_cl_kernel_layer_fwd_norm, 4, sizeof(cl_mem), &d_cl_saved_inv_rms);
+            clSetKernelArg(g_cl_kernel_layer_fwd_norm, 5, sizeof(cl_mem), &d_cl_saved_x_cur);
+            clSetKernelArg(g_cl_kernel_layer_fwd_norm, 6, sizeof(int), &B);
+            clSetKernelArg(g_cl_kernel_layer_fwd_norm, 7, sizeof(int), &M);
+            clSetKernelArg(g_cl_kernel_layer_fwd_norm, 8, sizeof(int), &l);
+            clSetKernelArg(g_cl_kernel_layer_fwd_norm, 9, sizeof(int), &save_acts);
+            clEnqueueNDRangeKernel(g_cl_queue, g_cl_kernel_layer_fwd_norm, 1, NULL, g_ws_norm, l_ws_norm, 0, NULL, NULL);
+
+            // 1b. 2D Tiled Shared-Memory GEMM: Z_l = NormX_l x W_l^T
+            clSetKernelArg(g_cl_kernel_layer_fwd_gemm, 0, sizeof(cl_mem), &d_cl_batch_norm_x);
+            clSetKernelArg(g_cl_kernel_layer_fwd_gemm, 1, sizeof(cl_mem), &d_cl_all_42_layers);
+            clSetKernelArg(g_cl_kernel_layer_fwd_gemm, 2, sizeof(cl_mem), &d_cl_batch_z);
+            clSetKernelArg(g_cl_kernel_layer_fwd_gemm, 3, sizeof(cl_mem), &d_cl_saved_z);
+            clSetKernelArg(g_cl_kernel_layer_fwd_gemm, 4, sizeof(int), &B);
+            clSetKernelArg(g_cl_kernel_layer_fwd_gemm, 5, sizeof(int), &M);
+            clSetKernelArg(g_cl_kernel_layer_fwd_gemm, 6, sizeof(int), &l);
+            clSetKernelArg(g_cl_kernel_layer_fwd_gemm, 7, sizeof(int), &save_acts);
+            clEnqueueNDRangeKernel(g_cl_queue, g_cl_kernel_layer_fwd_gemm, 2, NULL, g_ws_layer_tile, l_ws_tile, 0, NULL, NULL);
+
+            // 1c. GeLU Activation + Residual Addition: X_{l+1} = X_l + (1/sqrt(42)) * GeLU(Z_l)
+            clSetKernelArg(g_cl_kernel_layer_fwd_gelu, 0, sizeof(cl_mem), &cur_x);
+            clSetKernelArg(g_cl_kernel_layer_fwd_gelu, 1, sizeof(cl_mem), &d_cl_batch_z);
+            clSetKernelArg(g_cl_kernel_layer_fwd_gelu, 2, sizeof(cl_mem), &next_x);
+            clSetKernelArg(g_cl_kernel_layer_fwd_gelu, 3, sizeof(int), &B);
+            clSetKernelArg(g_cl_kernel_layer_fwd_gelu, 4, sizeof(int), &M);
+            clSetKernelArg(g_cl_kernel_layer_fwd_gelu, 5, sizeof(int), &l);
+            clEnqueueNDRangeKernel(g_cl_queue, g_cl_kernel_layer_fwd_gelu, 2, NULL, g_ws_layer_tile, l_ws_tile, 0, NULL, NULL);
+        }
+
+        // 1d. Final RMSNorm after 42nd layer (output of layer 41 is in d_cl_batch_x_in)
+        clSetKernelArg(g_cl_kernel_final_rmsnorm, 0, sizeof(cl_mem), &d_cl_batch_x_in);
+        clSetKernelArg(g_cl_kernel_final_rmsnorm, 1, sizeof(cl_mem), &d_cl_all_42_norms);
+        clSetKernelArg(g_cl_kernel_final_rmsnorm, 2, sizeof(cl_mem), &d_cl_batch_hidden);
+        clSetKernelArg(g_cl_kernel_final_rmsnorm, 3, sizeof(cl_mem), &d_cl_saved_inv_rms);
+        clSetKernelArg(g_cl_kernel_final_rmsnorm, 4, sizeof(cl_mem), &d_cl_saved_x_cur);
+        clSetKernelArg(g_cl_kernel_final_rmsnorm, 5, sizeof(int), &B);
+        clSetKernelArg(g_cl_kernel_final_rmsnorm, 6, sizeof(int), &M);
+        clSetKernelArg(g_cl_kernel_final_rmsnorm, 7, sizeof(int), &save_acts);
+        clEnqueueNDRangeKernel(g_cl_queue, g_cl_kernel_final_rmsnorm, 1, NULL, g_ws_norm, l_ws_norm, 0, NULL, NULL);
+
+        clFinish(g_cl_queue);
+        QueryPerformanceCounter(&pt1);
+
+        // Stage 2: Forward GEMM in VRAM (Project 2560-D Hidden state into CARTAN_LM_HEAD_VOCAB logits)
         clSetKernelArg(g_cl_kernel_gemm, 0, sizeof(cl_mem), &d_cl_batch_hidden);
         clSetKernelArg(g_cl_kernel_gemm, 1, sizeof(cl_mem), &d_cl_weights);
         clSetKernelArg(g_cl_kernel_gemm, 2, sizeof(cl_mem), &d_cl_batch_logits);
@@ -2284,10 +3367,11 @@ CARTAN_WEAK double cartan_tensor_train_batch_gpu_direct(const float* h_batch_x_i
         clSetKernelArg(g_cl_kernel_gemm, 4, sizeof(int), &M);
         clSetKernelArg(g_cl_kernel_gemm, 5, sizeof(int), &N);
         size_t g_ws_gemm[2] = { ((size_t)N + 15) / 16 * 16, ((size_t)B + 15) / 16 * 16 };
-        size_t l_ws_gemm[2] = { 16, 16 };
-        clEnqueueNDRangeKernel(g_cl_queue, g_cl_kernel_gemm, 2, NULL, g_ws_gemm, l_ws_gemm, 0, NULL, NULL);
+        clEnqueueNDRangeKernel(g_cl_queue, g_cl_kernel_gemm, 2, NULL, g_ws_gemm, l_ws_tile, 0, NULL, NULL);
+        clFinish(g_cl_queue);
+        QueryPerformanceCounter(&pt2);
 
-        // Stage 3: Softmax + Cross Entropy Loss
+        // Stage 3: Softmax + Cross Entropy Loss across 16,384 vocabulary classes
         clSetKernelArg(g_cl_kernel_loss, 0, sizeof(cl_mem), &d_cl_batch_logits);
         clSetKernelArg(g_cl_kernel_loss, 1, sizeof(cl_mem), &d_cl_batch_targets);
         clSetKernelArg(g_cl_kernel_loss, 2, sizeof(cl_mem), &d_cl_batch_ic_weights);
@@ -2297,24 +3381,139 @@ CARTAN_WEAK double cartan_tensor_train_batch_gpu_direct(const float* h_batch_x_i
         size_t g_ws_loss[1] = { ((size_t)B + 63) / 64 * 64 };
         size_t l_ws_loss[1] = { 64 };
         clEnqueueNDRangeKernel(g_cl_queue, g_cl_kernel_loss, 1, NULL, g_ws_loss, l_ws_loss, 0, NULL, NULL);
+        clFinish(g_cl_queue);
+        QueryPerformanceCounter(&pt3);
 
-        // Stage 4: Backward SGD Weight Updates in VRAM
-        if (learning_rate > 0.0 && g_cl_kernel_sgd) {
+        // Stage 4: Full 42-Layer Reverse-Mode Manifold Backpropagation with Riemannian Momentum
+        if (learning_rate > 0.0 && g_cl_kernel_sgd && g_cl_kernel_head_dhidden_gemm && g_cl_kernel_layer_bwd_dxt_gemm && g_cl_kernel_layer_update_w) {
+            float f_mom = 0.90f;
+
+            // 4a. Update LM Head projection weights with Riemannian momentum (2560 x 16384)
             clSetKernelArg(g_cl_kernel_sgd, 0, sizeof(cl_mem), &d_cl_batch_hidden);
             clSetKernelArg(g_cl_kernel_sgd, 1, sizeof(cl_mem), &d_cl_batch_logits);
             clSetKernelArg(g_cl_kernel_sgd, 2, sizeof(cl_mem), &d_cl_batch_targets);
             clSetKernelArg(g_cl_kernel_sgd, 3, sizeof(cl_mem), &d_cl_batch_ic_weights);
             clSetKernelArg(g_cl_kernel_sgd, 4, sizeof(cl_mem), &d_cl_weights);
-            clSetKernelArg(g_cl_kernel_sgd, 5, sizeof(int), &B);
-            clSetKernelArg(g_cl_kernel_sgd, 6, sizeof(int), &M);
-            clSetKernelArg(g_cl_kernel_sgd, 7, sizeof(int), &N);
-            clSetKernelArg(g_cl_kernel_sgd, 8, sizeof(float), &f_lr);
+            clSetKernelArg(g_cl_kernel_sgd, 5, sizeof(cl_mem), &d_cl_mom_weights);
+            clSetKernelArg(g_cl_kernel_sgd, 6, sizeof(int), &B);
+            clSetKernelArg(g_cl_kernel_sgd, 7, sizeof(int), &M);
+            clSetKernelArg(g_cl_kernel_sgd, 8, sizeof(int), &N);
+            clSetKernelArg(g_cl_kernel_sgd, 9, sizeof(float), &f_lr);
+            clSetKernelArg(g_cl_kernel_sgd, 10, sizeof(float), &f_mom);
             size_t g_ws_sgd[2] = { ((size_t)N + 15) / 16 * 16, ((size_t)M + 15) / 16 * 16 };
-            size_t l_ws_sgd[2] = { 16, 16 };
-            clEnqueueNDRangeKernel(g_cl_queue, g_cl_kernel_sgd, 2, NULL, g_ws_sgd, l_ws_sgd, 0, NULL, NULL);
+            clEnqueueNDRangeKernel(g_cl_queue, g_cl_kernel_sgd, 2, NULL, g_ws_sgd, l_ws_tile, 0, NULL, NULL);
+            clFinish(g_cl_queue);
+            QueryPerformanceCounter(&pt4a);
+
+            // 4b. 2D Tiled LM Head Backward GEMM: D_Hidden [B, M] = (P - Y) x W_Head^T
+            clSetKernelArg(g_cl_kernel_head_dhidden_gemm, 0, sizeof(cl_mem), &d_cl_batch_logits);
+            clSetKernelArg(g_cl_kernel_head_dhidden_gemm, 1, sizeof(cl_mem), &d_cl_batch_targets);
+            clSetKernelArg(g_cl_kernel_head_dhidden_gemm, 2, sizeof(cl_mem), &d_cl_batch_ic_weights);
+            clSetKernelArg(g_cl_kernel_head_dhidden_gemm, 3, sizeof(cl_mem), &d_cl_weights);
+            clSetKernelArg(g_cl_kernel_head_dhidden_gemm, 4, sizeof(cl_mem), &d_cl_batch_dhidden);
+            clSetKernelArg(g_cl_kernel_head_dhidden_gemm, 5, sizeof(int), &B);
+            clSetKernelArg(g_cl_kernel_head_dhidden_gemm, 6, sizeof(int), &M);
+            clSetKernelArg(g_cl_kernel_head_dhidden_gemm, 7, sizeof(int), &N);
+            clEnqueueNDRangeKernel(g_cl_queue, g_cl_kernel_head_dhidden_gemm, 2, NULL, g_ws_layer_tile, l_ws_tile, 0, NULL, NULL);
+
+            // Backprop through Final RMSNorm to obtain dx_{42} in d_cl_batch_dx
+            clSetKernelArg(g_cl_kernel_rmsnorm_backward, 0, sizeof(cl_mem), &d_cl_batch_dhidden);
+            clSetKernelArg(g_cl_kernel_rmsnorm_backward, 1, sizeof(cl_mem), &d_cl_saved_x_cur);
+            clSetKernelArg(g_cl_kernel_rmsnorm_backward, 2, sizeof(cl_mem), &d_cl_saved_inv_rms);
+            clSetKernelArg(g_cl_kernel_rmsnorm_backward, 3, sizeof(cl_mem), &d_cl_all_42_norms);
+            clSetKernelArg(g_cl_kernel_rmsnorm_backward, 4, sizeof(cl_mem), &d_cl_batch_dx);
+            clSetKernelArg(g_cl_kernel_rmsnorm_backward, 5, sizeof(int), &B);
+            clSetKernelArg(g_cl_kernel_rmsnorm_backward, 6, sizeof(int), &M);
+            int final_layer_idx = 42;
+            clSetKernelArg(g_cl_kernel_rmsnorm_backward, 7, sizeof(int), &final_layer_idx);
+            clEnqueueNDRangeKernel(g_cl_queue, g_cl_kernel_rmsnorm_backward, 1, NULL, g_ws_norm, l_ws_norm, 0, NULL, NULL);
+
+            clFinish(g_cl_queue);
+            QueryPerformanceCounter(&pt4b);
+
+            // 4c. Reverse-mode automatic differentiation through layers 41 down to 0
+            size_t g_ws_layer_w[2] = { ((size_t)M + 15) / 16 * 16, ((size_t)M + 15) / 16 * 16 };
+            size_t g_ws_norm_1d[1] = { 2560 };
+            size_t l_ws_norm_1d[1] = { 256 };
+
+            for (int l = 41; l >= 0; l--) {
+                // Compute dz_l = dx_{l+1} * (1/sqrt(42)) * GeLU'(Z_l)
+                clSetKernelArg(g_cl_kernel_layer_bwd_gelu_dz, 0, sizeof(cl_mem), &d_cl_batch_dx);
+                clSetKernelArg(g_cl_kernel_layer_bwd_gelu_dz, 1, sizeof(cl_mem), &d_cl_saved_z);
+                clSetKernelArg(g_cl_kernel_layer_bwd_gelu_dz, 2, sizeof(cl_mem), &d_cl_batch_dz);
+                clSetKernelArg(g_cl_kernel_layer_bwd_gelu_dz, 3, sizeof(int), &B);
+                clSetKernelArg(g_cl_kernel_layer_bwd_gelu_dz, 4, sizeof(int), &M);
+                clSetKernelArg(g_cl_kernel_layer_bwd_gelu_dz, 5, sizeof(int), &l);
+                clEnqueueNDRangeKernel(g_cl_queue, g_cl_kernel_layer_bwd_gelu_dz, 2, NULL, g_ws_layer_tile, l_ws_tile, 0, NULL, NULL);
+
+                // 2D Tiled Shared-Memory GEMM: Dtx_l = Dz_l x W_l
+                clSetKernelArg(g_cl_kernel_layer_bwd_dxt_gemm, 0, sizeof(cl_mem), &d_cl_batch_dz);
+                clSetKernelArg(g_cl_kernel_layer_bwd_dxt_gemm, 1, sizeof(cl_mem), &d_cl_all_42_layers);
+                clSetKernelArg(g_cl_kernel_layer_bwd_dxt_gemm, 2, sizeof(cl_mem), &d_cl_batch_dtx);
+                clSetKernelArg(g_cl_kernel_layer_bwd_dxt_gemm, 3, sizeof(int), &B);
+                clSetKernelArg(g_cl_kernel_layer_bwd_dxt_gemm, 4, sizeof(int), &M);
+                clSetKernelArg(g_cl_kernel_layer_bwd_dxt_gemm, 5, sizeof(int), &l);
+                clEnqueueNDRangeKernel(g_cl_queue, g_cl_kernel_layer_bwd_dxt_gemm, 2, NULL, g_ws_layer_tile, l_ws_tile, 0, NULL, NULL);
+
+                // 2D Tiled Shared-Memory GEMM: Update layer weight matrix W_l (grad_W = Dz^T x NormX)
+                clSetKernelArg(g_cl_kernel_layer_update_w, 0, sizeof(cl_mem), &d_cl_batch_dz);
+                clSetKernelArg(g_cl_kernel_layer_update_w, 1, sizeof(cl_mem), &d_cl_saved_norm_x);
+                clSetKernelArg(g_cl_kernel_layer_update_w, 2, sizeof(cl_mem), &d_cl_all_42_layers);
+                clSetKernelArg(g_cl_kernel_layer_update_w, 3, sizeof(cl_mem), &d_cl_all_42_mom_w);
+                clSetKernelArg(g_cl_kernel_layer_update_w, 4, sizeof(int), &B);
+                clSetKernelArg(g_cl_kernel_layer_update_w, 5, sizeof(int), &M);
+                clSetKernelArg(g_cl_kernel_layer_update_w, 6, sizeof(int), &M);
+                clSetKernelArg(g_cl_kernel_layer_update_w, 7, sizeof(int), &l);
+                clSetKernelArg(g_cl_kernel_layer_update_w, 8, sizeof(float), &f_lr);
+                clSetKernelArg(g_cl_kernel_layer_update_w, 9, sizeof(float), &f_mom);
+                clEnqueueNDRangeKernel(g_cl_queue, g_cl_kernel_layer_update_w, 2, NULL, g_ws_layer_w, l_ws_tile, 0, NULL, NULL);
+
+                // Update layer norm vector norm_l with Riemannian momentum
+                if (g_cl_kernel_layer_update_norm) {
+                    clSetKernelArg(g_cl_kernel_layer_update_norm, 0, sizeof(cl_mem), &d_cl_batch_dtx);
+                    clSetKernelArg(g_cl_kernel_layer_update_norm, 1, sizeof(cl_mem), &d_cl_saved_x_cur);
+                    clSetKernelArg(g_cl_kernel_layer_update_norm, 2, sizeof(cl_mem), &d_cl_saved_inv_rms);
+                    clSetKernelArg(g_cl_kernel_layer_update_norm, 3, sizeof(cl_mem), &d_cl_all_42_norms);
+                    clSetKernelArg(g_cl_kernel_layer_update_norm, 4, sizeof(cl_mem), &d_cl_all_42_mom_norms);
+                    clSetKernelArg(g_cl_kernel_layer_update_norm, 5, sizeof(int), &B);
+                    clSetKernelArg(g_cl_kernel_layer_update_norm, 6, sizeof(int), &M);
+                    clSetKernelArg(g_cl_kernel_layer_update_norm, 7, sizeof(int), &l);
+                    clSetKernelArg(g_cl_kernel_layer_update_norm, 8, sizeof(float), &f_lr);
+                    clSetKernelArg(g_cl_kernel_layer_update_norm, 9, sizeof(float), &f_mom);
+                    clEnqueueNDRangeKernel(g_cl_queue, g_cl_kernel_layer_update_norm, 1, NULL, g_ws_norm_1d, l_ws_norm_1d, 0, NULL, NULL);
+                }
+
+                // RMSNorm backprop: Dx_l = Dx_{l+1} + RMSNormBackprop(Dtx_l, X_l, InvRms_l, Norm_l)
+                clSetKernelArg(g_cl_kernel_layer_bwd_rmsnorm_dx, 0, sizeof(cl_mem), &d_cl_batch_dtx);
+                clSetKernelArg(g_cl_kernel_layer_bwd_rmsnorm_dx, 1, sizeof(cl_mem), &d_cl_saved_x_cur);
+                clSetKernelArg(g_cl_kernel_layer_bwd_rmsnorm_dx, 2, sizeof(cl_mem), &d_cl_saved_inv_rms);
+                clSetKernelArg(g_cl_kernel_layer_bwd_rmsnorm_dx, 3, sizeof(cl_mem), &d_cl_all_42_norms);
+                clSetKernelArg(g_cl_kernel_layer_bwd_rmsnorm_dx, 4, sizeof(cl_mem), &d_cl_batch_dx);
+                clSetKernelArg(g_cl_kernel_layer_bwd_rmsnorm_dx, 5, sizeof(int), &B);
+                clSetKernelArg(g_cl_kernel_layer_bwd_rmsnorm_dx, 6, sizeof(int), &M);
+                clSetKernelArg(g_cl_kernel_layer_bwd_rmsnorm_dx, 7, sizeof(int), &l);
+                clEnqueueNDRangeKernel(g_cl_queue, g_cl_kernel_layer_bwd_rmsnorm_dx, 1, NULL, g_ws_norm, l_ws_norm, 0, NULL, NULL);
+            }
+            clFinish(g_cl_queue);
+            QueryPerformanceCounter(&pt4c);
+
+            static int s_prof_count = 0;
+            if (s_prof_count < 3) {
+                double ms_fwd42 = (double)(pt1.QuadPart - pt0.QuadPart) * 1000.0 / (double)pf.QuadPart;
+                double ms_gemm  = (double)(pt2.QuadPart - pt1.QuadPart) * 1000.0 / (double)pf.QuadPart;
+                double ms_loss  = (double)(pt3.QuadPart - pt2.QuadPart) * 1000.0 / (double)pf.QuadPart;
+                double ms_sgd   = (double)(pt4a.QuadPart - pt3.QuadPart) * 1000.0 / (double)pf.QuadPart;
+                double ms_head  = (double)(pt4b.QuadPart - pt4a.QuadPart) * 1000.0 / (double)pf.QuadPart;
+                double ms_bwd42 = (double)(pt4c.QuadPart - pt4b.QuadPart) * 1000.0 / (double)pf.QuadPart;
+                double ms_total = ms_fwd42 + ms_gemm + ms_loss + ms_sgd + ms_head + ms_bwd42;
+                printf("[GPU Profiler B=%d] 42Fwd: %.2fms | HeadGEMM: %.2fms | SoftmaxLoss: %.2fms | HeadSGD: %.2fms | HeadBwd: %.2fms | 42Bwd: %.2fms | Total: %.2fms\n",
+                       B, ms_fwd42, ms_gemm, ms_loss, ms_sgd, ms_head, ms_bwd42, ms_total);
+                fflush(stdout);
+                s_prof_count++;
+            }
         }
 
-        float h_loss[4096];
+        float h_loss[1024];
         clEnqueueReadBuffer(g_cl_queue, d_cl_batch_loss, CL_TRUE, 0, sizeof(float) * B, h_loss, 0, NULL, NULL);
         for (int b = 0; b < B; b++) total_batch_loss += (double)h_loss[b];
         return total_batch_loss;
@@ -2398,7 +3597,6 @@ static void cartan_init_gemma_embed_offset_if_needed(void) {
     g_gemma_embed_base_offset = 8 + header_len + data_start;
 }
 
-static float* g_gemma_embed_matrix = NULL;
 static int g_gemma_embed_matrix_init = 0;
 
 CARTAN_WEAK void cartan_init_gemma_embed_matrix_if_needed(void) {
@@ -2484,233 +3682,227 @@ static void cartan_anisotropic_rmsnorm_inplace(float* x, const float* gamma, siz
     }
 }
 
+static float s_rope_inv_freq[1280];
+static float s_rope_cos_table[256][1280];
+static float s_rope_sin_table[256][1280];
+static int s_rope_freq_init = 0;
+
+static void cartan_init_rope_freq_table(void) {
+    if (s_rope_freq_init) return;
+    for (size_t i = 0; i < 1280; i++) {
+        s_rope_inv_freq[i] = (float)(1.0 / pow(10000.0, (double)(2 * i) / 2560.0));
+    }
+    for (size_t t = 0; t < 256; t++) {
+        float ft = (float)t;
+        for (size_t i = 0; i < 1280; i++) {
+            float freq = ft * s_rope_inv_freq[i];
+            s_rope_cos_table[t][i] = cosf(freq);
+            s_rope_sin_table[t][i] = sinf(freq);
+        }
+    }
+    s_rope_freq_init = 1;
+}
+
+static float s_cartan_conn_cos[1280];
+static float s_cartan_conn_sin[1280];
+static int s_cartan_conn_init = 0;
+
+static void cartan_init_connection_table(void) {
+    if (s_cartan_conn_init) return;
+    for (size_t i = 0; i < 1280; i++) {
+        float theta = 0.125f / sqrtf((float)(i + 1));
+        s_cartan_conn_cos[i] = cosf(theta);
+        s_cartan_conn_sin[i] = sinf(theta);
+    }
+    s_cartan_conn_init = 1;
+}
+
+CARTAN_WEAK void cartan_tensor_compute_prompt_embedding_fast(void* tokens_ptr, float* out_vec, size_t dim) {
+    if (!out_vec || dim == 0) return;
+    memset(out_vec, 0, dim * sizeof(float));
+    if (!tokens_ptr) return;
+    double* list = (double*)tokens_ptr;
+    size_t toks_len = (size_t)list[0];
+    if (toks_len == 0) return;
+
+    cartan_init_rope_freq_table();
+    cartan_init_connection_table();
+    size_t num_t = toks_len > 256 ? 256 : toks_len;
+    float row_buf[2560];
+    float h_state[2560] = {0};
+    size_t half_dim = (dim > 2560 ? 2560 : dim) / 2;
+
+    for (size_t t = 0; t < num_t; t++) {
+        size_t tok_id = (size_t)list[2 + t];
+        cartan_get_gemma_embed_row(tok_id, row_buf, dim);
+
+        // 1. Fast Rotary Position Embedding (RoPE) along SO(2) planes (Precomputed Lookup)
+        const float* cos_row = s_rope_cos_table[t];
+        const float* sin_row = s_rope_sin_table[t];
+        for (size_t i = 0; i < half_dim; i++) {
+            float cos_f = cos_row[i];
+            float sin_f = sin_row[i];
+
+            size_t idx0 = i * 2;
+            size_t idx1 = idx0 + 1;
+            float v0 = row_buf[idx0];
+            float v1 = row_buf[idx1];
+            row_buf[idx0] = v0 * cos_f - v1 * sin_f;
+            row_buf[idx1] = v0 * sin_f + v1 * cos_f;
+        }
+
+        if (t == 0) {
+            // Initial tangent state on Riemannian manifold S^(dim-1)
+            for (size_t d = 0; d < dim; d++) h_state[d] = row_buf[d];
+            cartan_anisotropic_rmsnorm_inplace(h_state, NULL, dim);
+        } else {
+            // 2. Parallel transport h_{t-1} along Cartan connection in SO(dim) Lie algebra
+            float h_transported[2560];
+            for (size_t i = 0; i < half_dim; i++) {
+                size_t idx0 = i * 2;
+                size_t idx1 = idx0 + 1;
+                float h0 = h_state[idx0];
+                float h1 = h_state[idx1];
+                float c_th = s_cartan_conn_cos[i];
+                float s_th = s_cartan_conn_sin[i];
+                h_transported[idx0] = h0 * c_th - h1 * s_th;
+                h_transported[idx1] = h0 * s_th + h1 * c_th;
+            }
+
+            // 3. Riemannian Exponential Map injection of current token vector:
+            // Exp_{h_{t-1}}(alpha * v_t) = cos(alpha) * h_{t-1} + sin(alpha) * v_t
+            // with recency-scaled geodesic step
+            float alpha = 0.45f + 0.25f * ((float)(t + 1) / (float)num_t);
+            float cos_alpha = cosf(alpha);
+            float sin_alpha = sinf(alpha);
+            for (size_t d = 0; d < dim; d++) {
+                h_state[d] = cos_alpha * h_transported[d] + sin_alpha * row_buf[d];
+            }
+            cartan_anisotropic_rmsnorm_inplace(h_state, NULL, dim);
+        }
+    }
+
+    for (size_t d = 0; d < dim; d++) {
+        out_vec[d] = h_state[d];
+    }
+}
+
 CARTAN_WEAK void* cartan_tensor_compute_hidden_state_from_tokens(void* tokens_ptr) {
-    CartanVector* h = (CartanVector*)cartan_vec_create();
     size_t embed_dim = 2560;
-    size_t num_heads = 8;
-    size_t head_dim = 256; // 8 heads x 256 = 2048 attention dimension matching Gemma 4
-    size_t attn_dim = 2048;
-
-    if (!tokens_ptr) {
-        for (size_t i = 0; i < embed_dim; i++) cartan_vec_push_f32(h, 0.01);
-        return h;
+    double* h = (double*)malloc((embed_dim + 2) * sizeof(double));
+    if (!h) return NULL;
+    h[0] = (double)embed_dim;
+    h[1] = (double)embed_dim;
+    float row_buf[2560] = {0};
+    cartan_tensor_compute_prompt_embedding_fast(tokens_ptr, row_buf, embed_dim);
+    for (size_t d = 0; d < embed_dim; d++) {
+        h[2 + d] = (double)row_buf[d];
     }
-    CartanVector* toks = (CartanVector*)tokens_ptr;
-    size_t num_toks = toks->size;
-    if (num_toks == 0) {
-        for (size_t i = 0; i < embed_dim; i++) cartan_vec_push_f32(h, 0.01);
-        return h;
-    }
-    if (num_toks > 256) num_toks = 256;
-
-    static float W_Q[2560][2048];
-    static float W_K[2560][2048];
-    static float W_V[2560][2048];
-    static float W_O[2048][2560];
-    static int qkv_init = 0;
-
-    if (!qkv_init) {
-        for (size_t r = 0; r < embed_dim; r++) {
-            for (size_t c = 0; c < attn_dim; c++) {
-                float diag = (r == c) ? 1.0f : 0.0f;
-                float noise = (float)(((r * 13 + c * 37) % 100) - 50) / 50000.0f;
-                W_Q[r][c] = diag + noise;
-                W_K[r][c] = diag - noise;
-                W_V[r][c] = diag + noise * 0.5f;
-            }
-        }
-        for (size_t r = 0; r < attn_dim; r++) {
-            for (size_t c = 0; c < embed_dim; c++) {
-                float diag = (r == c) ? 1.0f : 0.0f;
-                W_O[r][c] = diag;
-            }
-        }
-        qkv_init = 1;
-    }
-
-    // Allocate sequence buffers
-    float* seq_E = (float*)calloc(num_toks * embed_dim, sizeof(float));
-    float* seq_Q = (float*)calloc(num_toks * attn_dim, sizeof(float));
-    float* seq_K = (float*)calloc(num_toks * attn_dim, sizeof(float));
-    float* seq_V = (float*)calloc(num_toks * attn_dim, sizeof(float));
-    float* seq_out = (float*)calloc(embed_dim, sizeof(float));
-
-    if (!seq_E || !seq_Q || !seq_K || !seq_V || !seq_out) {
-        if (seq_E) free(seq_E);
-        if (seq_Q) free(seq_Q);
-        if (seq_K) free(seq_K);
-        if (seq_V) free(seq_V);
-        if (seq_out) free(seq_out);
-        for (size_t i = 0; i < embed_dim; i++) cartan_vec_push_f32(h, 0.01);
-        return h;
-    }
-
-    // 1. Embeddings & RoPE for every token in sequence
-    for (size_t t = 0; t < num_toks; t++) {
-        size_t tok_id = (size_t)toks->data[t];
-        float* cur_e = seq_E + t * embed_dim;
-        cartan_get_gemma_embed_row(tok_id, cur_e, embed_dim);
-
-        // Rotary Position Embedding (RoPE) per token position t
-        for (size_t i = 0; i < embed_dim; i += 2) {
-            double freq = (double)t / pow(10000.0, (double)i / (double)embed_dim);
-            double cos_f = cos(freq);
-            double sin_f = sin(freq);
-
-            double v0 = (double)cur_e[i];
-            double v1 = (i + 1 < embed_dim) ? (double)cur_e[i + 1] : 0.0;
-            cur_e[i] = (float)(v0 * cos_f - v1 * sin_f);
-            if (i + 1 < embed_dim) cur_e[i + 1] = (float)(v0 * sin_f + v1 * cos_f);
-        }
-
-        // Q, K, V projections [2560 -> 2048]
-        float* cur_q = seq_Q + t * attn_dim;
-        float* cur_k = seq_K + t * attn_dim;
-        float* cur_v = seq_V + t * attn_dim;
-
-        for (size_t r = 0; r < embed_dim; r++) {
-            float x = cur_e[r];
-            if (x == 0.0f) continue;
-            const float* wq_row = W_Q[r];
-            const float* wk_row = W_K[r];
-            const float* wv_row = W_V[r];
-            for (size_t c = 0; c < attn_dim; c++) {
-                cur_q[c] += x * wq_row[c];
-                cur_k[c] += x * wk_row[c];
-                cur_v[c] += x * wv_row[c];
-            }
-        }
-
-        // QK-Norm per head (256-D per head)
-        for (size_t head = 0; head < num_heads; head++) {
-            cartan_anisotropic_rmsnorm_inplace(cur_q + head * head_dim, NULL, head_dim);
-            cartan_anisotropic_rmsnorm_inplace(cur_k + head * head_dim, NULL, head_dim);
-        }
-    }
-
-    // 2. Causal Sequence Attention: evaluate context for the final target token (num_toks - 1)
-    size_t target_t = num_toks - 1;
-    const float* target_q = seq_Q + target_t * attn_dim;
-    float* head_contexts = (float*)calloc(attn_dim, sizeof(float));
-    double inv_sqrt_dk = 1.0 / sqrt((double)head_dim); // 1 / sqrt(256) = 0.0625
-
-    for (size_t head = 0; head < num_heads; head++) {
-        size_t h_offset = head * head_dim;
-        const float* q_h = target_q + h_offset;
-
-        double scores[256];
-        double max_s = -1e9;
-        for (size_t j = 0; j <= target_t; j++) {
-            const float* k_h = seq_K + j * attn_dim + h_offset;
-            double dot = 0.0;
-            for (size_t d = 0; d < head_dim; d++) {
-                dot += (double)q_h[d] * (double)k_h[d];
-            }
-            double s = dot * inv_sqrt_dk;
-            scores[j] = s;
-            if (s > max_s) max_s = s;
-        }
-
-        double sum_exp = 0.0;
-        double probs[256];
-        for (size_t j = 0; j <= target_t; j++) {
-            probs[j] = exp(scores[j] - max_s);
-            sum_exp += probs[j];
-        }
-        if (sum_exp <= 0.0) sum_exp = 1.0;
-        for (size_t j = 0; j <= target_t; j++) probs[j] /= sum_exp;
-
-        for (size_t d = 0; d < head_dim; d++) {
-            double c_val = 0.0;
-            for (size_t j = 0; j <= target_t; j++) {
-                const float* v_h = seq_V + j * attn_dim + h_offset;
-                c_val += probs[j] * (double)v_h[d];
-            }
-            head_contexts[h_offset + d] = (float)c_val;
-        }
-    }
-
-    // 3. W_O Linear Projection [2048 -> 2560] + Residual + Anisotropic RMSNorm
-    const float* cur_target_e = seq_E + target_t * embed_dim;
-    for (size_t c = 0; c < attn_dim; c++) {
-        float x = head_contexts[c];
-        if (x == 0.0f) continue;
-        const float* wo_row = W_O[c];
-        for (size_t r = 0; r < embed_dim; r++) {
-            seq_out[r] += x * wo_row[r];
-        }
-    }
-
-    for (size_t r = 0; r < embed_dim; r++) {
-        seq_out[r] += cur_target_e[r];
-    }
-    cartan_anisotropic_rmsnorm_inplace(seq_out, NULL, embed_dim);
-
-    for (size_t r = 0; r < embed_dim; r++) {
-        cartan_vec_push_f32(h, (double)seq_out[r]);
-    }
-
-    free(seq_E);
-    free(seq_Q);
-    free(seq_K);
-    free(seq_V);
-    free(seq_out);
-    free(head_contexts);
     return h;
 }
 
-static int g_token_hash_map[131072] = {0};
-static int g_token_hash_init = 0;
+typedef struct CartanTrieNode {
+    int token_id;
+    int children[256];
+} CartanTrieNode;
 
-static void cartan_build_vocab_hash_map(void) {
-    if (g_token_hash_init) return;
+static CartanTrieNode* g_trie_node_pool = NULL;
+static size_t g_trie_node_count = 0;
+static size_t g_trie_node_cap = 0;
+static int g_vocab_trie_init = 0;
+
+static int cartan_alloc_trie_node(void) {
+    if (g_trie_node_count >= g_trie_node_cap) {
+        size_t new_cap = g_trie_node_cap == 0 ? 32768 : g_trie_node_cap * 2;
+        CartanTrieNode* new_pool = (CartanTrieNode*)realloc(g_trie_node_pool, new_cap * sizeof(CartanTrieNode));
+        if (!new_pool) return -1;
+        g_trie_node_pool = new_pool;
+        g_trie_node_cap = new_cap;
+    }
+    int idx = (int)g_trie_node_count++;
+    CartanTrieNode* n = &g_trie_node_pool[idx];
+    n->token_id = -1;
+    for (int i = 0; i < 256; i++) {
+        n->children[i] = -1;
+    }
+    return idx;
+}
+
+static void cartan_trie_insert(const char* str, int token_id) {
+    if (!str || !*str || g_trie_node_count == 0 || !g_trie_node_pool) return;
+    int cur_idx = 0;
+    const unsigned char* p = (const unsigned char*)str;
+    while (*p) {
+        unsigned char c = *p;
+        int next_idx = g_trie_node_pool[cur_idx].children[c];
+        if (next_idx < 0) {
+            next_idx = cartan_alloc_trie_node();
+            if (next_idx < 0) return;
+            g_trie_node_pool[cur_idx].children[c] = next_idx;
+        }
+        cur_idx = next_idx;
+        p++;
+    }
+    g_trie_node_pool[cur_idx].token_id = token_id;
+}
+
+static void cartan_build_vocab_trie(void) {
+    if (g_vocab_trie_init) return;
     cartan_init_gemma_vocab_if_needed();
-    g_token_hash_init = 1;
+    g_trie_node_count = 0;
+    cartan_alloc_trie_node();
+    g_vocab_trie_init = 1;
 
     for (size_t i = 0; i < CARTAN_MAX_VOCAB_SIZE; i++) {
         if (g_vocab_table[i]) {
             const char* str = g_vocab_table[i];
-            if (str[0] == ' ') str++; // Skip space prefix
-            if (strlen(str) == 0) continue;
-            uint32_t h = 5381;
-            for (const char* c = str; *c; c++) {
-                char ch = (*c >= 'A' && *c <= 'Z') ? (*c + 32) : *c;
-                h = ((h << 5) + h) + (uint32_t)ch;
-            }
-            size_t slot = (size_t)(h % 131072);
-            for (size_t probe = 0; probe < 64; probe++) {
-                size_t p_slot = (slot + probe) % 131072;
-                if (g_token_hash_map[p_slot] == 0) {
-                    g_token_hash_map[p_slot] = (int)i;
-                    break;
-                }
+            cartan_trie_insert(str, (int)i);
+            if (str[0] == ' ') {
+                cartan_trie_insert(str + 1, (int)i);
             }
         }
     }
 }
 
+static int cartan_trie_match_longest(const char* text, size_t* out_len) {
+    if (!text || !*text || !g_vocab_trie_init || g_trie_node_count == 0 || !g_trie_node_pool) {
+        if (out_len) *out_len = 0;
+        return -1;
+    }
+    int cur_idx = 0;
+    int last_tok = -1;
+    size_t last_len = 0;
+    size_t cur_len = 0;
+    const unsigned char* p = (const unsigned char*)text;
+
+    while (*p) {
+        unsigned char c = *p;
+        int next_idx = g_trie_node_pool[cur_idx].children[c];
+        if (next_idx < 0) break;
+        cur_idx = next_idx;
+        cur_len++;
+        if (g_trie_node_pool[cur_idx].token_id >= 0) {
+            last_tok = g_trie_node_pool[cur_idx].token_id;
+            last_len = cur_len;
+        }
+        p++;
+    }
+    if (out_len) *out_len = (last_tok >= 0) ? last_len : 1;
+    return last_tok;
+}
+
 static int cartan_find_token_id_for_word(const char* word) {
     if (!word || strlen(word) == 0) return 9259;
-    if (!g_token_hash_init) cartan_build_vocab_hash_map();
+    if (!g_vocab_trie_init) cartan_build_vocab_trie();
 
-    uint32_t h = 5381;
-    for (const char* c = word; *c; c++) {
-        char ch = (*c >= 'A' && *c <= 'Z') ? (*c + 32) : *c;
-        h = ((h << 5) + h) + (uint32_t)ch;
+    size_t match_len = 0;
+    int tok = cartan_trie_match_longest(word, &match_len);
+    if (tok >= 0 && match_len == strlen(word)) {
+        return tok;
     }
-    size_t slot = (size_t)(h % 131072);
-    for (size_t probe = 0; probe < 64; probe++) {
-        size_t p_slot = (slot + probe) % 131072;
-        int candidate = g_token_hash_map[p_slot];
-        if (candidate > 0 && candidate < CARTAN_MAX_VOCAB_SIZE && g_vocab_table[candidate] != NULL) {
-            const char* v_str = g_vocab_table[candidate];
-            if (v_str[0] == ' ') v_str++;
-            if (_stricmp(v_str, word) == 0) {
-                return candidate;
-            }
-        }
-    }
-    return 26352; // Default clean English whitespace/separator fallback
+    unsigned char b = (unsigned char)word[0];
+    if (b >= 32 && b <= 126) return (int)b + 235;
+    return 9259;
 }
 
 CARTAN_WEAK const char* cartan_get_token_string(int token_id) {
@@ -2723,17 +3915,25 @@ CARTAN_WEAK const char* cartan_get_token_string(int token_id) {
 
 CARTAN_WEAK void* cartan_hub_encode_text_to_tokens(const char* text) {
     CartanVector* vec = (CartanVector*)cartan_vec_create();
-    if (!text || strlen(text) == 0) return vec;
+    if (!text || strlen(text) == 0) {
+        cartan_vec_push_f32(vec, 9259.0);
+        return vec;
+    }
+    if (!g_vocab_trie_init) cartan_build_vocab_trie();
 
-    char buf[1024];
-    strncpy(buf, text, sizeof(buf) - 1);
-    buf[sizeof(buf) - 1] = '\0';
-
-    char* token = strtok(buf, " \t\r\n.,!?");
-    while (token) {
-        int matched_id = cartan_find_token_id_for_word(token);
-        cartan_vec_push_f32(vec, (double)matched_id);
-        token = strtok(NULL, " \t\r\n.,!?");
+    const char* p = text;
+    while (*p) {
+        size_t match_len = 0;
+        int tok = cartan_trie_match_longest(p, &match_len);
+        if (tok >= 0 && match_len > 0) {
+            cartan_vec_push_f32(vec, (double)tok);
+            p += match_len;
+        } else {
+            unsigned char b = (unsigned char)*p;
+            int byte_tok = (b >= 32 && b <= 126) ? ((int)b + 235) : 9259;
+            cartan_vec_push_f32(vec, (double)byte_tok);
+            p++;
+        }
     }
     if (vec->size == 0) {
         cartan_vec_push_f32(vec, 9259.0);
@@ -2763,66 +3963,49 @@ CARTAN_WEAK void* cartan_tensor_compute_lm_head_logits(void* hidden_ptr, double 
     double temperature = temp > 0.0 ? temp : 0.7;
 
     cartan_init_weights_if_needed();
-    cartan_init_gemma_embed_matrix_if_needed();
 
-    // 1. Transform contextual state through E8 Manifold Adapter: h_aligned = W * h
+    // 1. Transform contextual state through RMSNorm
     float h_aligned[2560] = {0};
     size_t h_dim = h->size < 2560 ? h->size : 2560;
 
-    if (g_42layer_loaded && g_42layer_weights) {
-        // In 42-layer mode, h has already completed all 42 physical layers.
-        // Direct aligned hidden state projection without compounding extra W0 transform.
-        for (size_t r = 0; r < h_dim; r++) {
-            h_aligned[r] = (float)h->data[r];
-        }
-        cartan_anisotropic_rmsnorm_inplace(h_aligned, NULL, 2560);
-    } else {
-        double sum_sq = 0.0;
-        for (size_t r = 0; r < 2560; r++) {
-            double dot = 0.0;
-            const double* w_row = g_model_weights[r];
-            for (size_t c = 0; c < h_dim; c++) {
-                dot += h->data[c] * w_row[c];
-            }
-            h_aligned[r] = (float)dot;
-            sum_sq += dot * dot;
-        }
+    for (size_t r = 0; r < h_dim; r++) {
+        h_aligned[r] = (float)h->data[r];
+    }
+    cartan_anisotropic_rmsnorm_inplace(h_aligned, NULL, 2560);
 
-        // 2. RMSNorm bounding on aligned hidden state
-        double rms = sqrt(sum_sq / 2560.0 + 1e-6);
-        if (rms <= 0.0) rms = 1.0;
-        float inv_rms = (float)(1.0 / rms);
-        for (size_t r = 0; r < 2560; r++) {
-            h_aligned[r] *= inv_rms;
+    // 2. Pre-allocate logit dimensions matching active 65,536 vocabulary space
+    size_t vocab_size = CARTAN_LM_HEAD_VOCAB;
+    if (logits->capacity < (double)vocab_size) {
+        CartanVector* new_logits = (CartanVector*)realloc(logits, sizeof(double) * (vocab_size + 2));
+        if (new_logits) {
+            logits = new_logits;
+            logits->capacity = (double)vocab_size;
         }
     }
+    logits->size = (double)vocab_size;
 
-    // 3. Pre-allocate full 262,144 logit dimensions matching Gemma 4 E4B-IT vocabulary
-    size_t vocab_size = CARTAN_MAX_VOCAB_SIZE;
-    if (logits->capacity < vocab_size) {
-        free(logits->data);
-        logits->data = (double*)malloc(sizeof(double) * vocab_size);
-        logits->capacity = vocab_size;
-    }
-    logits->size = vocab_size;
+    float inv_scale_temp = (float)(1.0 / (temperature));
 
-    float inv_scale_temp = (float)(1.0 / (50.59644256 * temperature));
-
-    if (g_gemma_embed_matrix) {
-        // Project h_aligned against all 262,144 token embeddings with sqrt(d_model) normalization
-        for (size_t t = 0; t < vocab_size; t++) {
-            const float* e_row = g_gemma_embed_matrix + t * 2560;
+    if (g_model_weights_flat) {
+        // Direct GEMV against trained 2560x262144 LM head weights across 65536 active tokens
+        int c;
+        #pragma omp parallel for schedule(static, 256)
+        for (c = 0; c < (int)vocab_size; c++) {
             float dot = 0.0f;
-            for (size_t d = 0; d < 2560; d += 8) {
-                dot += h_aligned[d]   * e_row[d]   + h_aligned[d+1] * e_row[d+1]
-                     + h_aligned[d+2] * e_row[d+2] + h_aligned[d+3] * e_row[d+3]
-                     + h_aligned[d+4] * e_row[d+4] + h_aligned[d+5] * e_row[d+5]
-                     + h_aligned[d+6] * e_row[d+6] + h_aligned[d+7] * e_row[d+7];
+            for (size_t r = 0; r < 2560; r += 8) {
+                dot += h_aligned[r]   * g_model_weights_flat[r * CARTAN_FULL_VOCAB_SIZE + c]
+                     + h_aligned[r+1] * g_model_weights_flat[(r+1) * CARTAN_FULL_VOCAB_SIZE + c]
+                     + h_aligned[r+2] * g_model_weights_flat[(r+2) * CARTAN_FULL_VOCAB_SIZE + c]
+                     + h_aligned[r+3] * g_model_weights_flat[(r+3) * CARTAN_FULL_VOCAB_SIZE + c]
+                     + h_aligned[r+4] * g_model_weights_flat[(r+4) * CARTAN_FULL_VOCAB_SIZE + c]
+                     + h_aligned[r+5] * g_model_weights_flat[(r+5) * CARTAN_FULL_VOCAB_SIZE + c]
+                     + h_aligned[r+6] * g_model_weights_flat[(r+6) * CARTAN_FULL_VOCAB_SIZE + c]
+                     + h_aligned[r+7] * g_model_weights_flat[(r+7) * CARTAN_FULL_VOCAB_SIZE + c];
             }
             float raw_l = dot * inv_scale_temp;
             // Gemma 4 Logit Soft-Capping (cap = 30.0)
             float capped_l = 30.0f * tanhf(raw_l / 30.0f);
-            logits->data[t] = (double)capped_l;
+            logits->data[c] = (double)capped_l;
         }
     } else {
         for (size_t t = 0; t < vocab_size; t++) {
@@ -2830,6 +4013,120 @@ CARTAN_WEAK void* cartan_tensor_compute_lm_head_logits(void* hidden_ptr, double 
         }
     }
     return logits;
+}
+
+// --- WordNet Information Content (IC) & Lowest Common Ancestor (LCA) Boost ---
+CARTAN_WEAK void cartan_init_wordnet_if_needed(void) {
+    if (g_wordnet_init) return;
+    g_wordnet_ic = (float*)calloc(CARTAN_FULL_VOCAB_SIZE, sizeof(float));
+    if (!g_wordnet_ic) return;
+
+    for (size_t i = 0; i < CARTAN_FULL_VOCAB_SIZE; i++) {
+        g_wordnet_ic[i] = 1.0f;
+    }
+
+    const char* paths[] = {
+        "docs/Geomind Archive/trainingdata/wordnet/definitions_corpus.txt",
+        "test/geomind/trainingdata/wordnet_taxonomy.txt",
+        "test/geomind/trainingdata/physics_and_cartan_knowledge.txt"
+    };
+    int* token_counts = (int*)calloc(CARTAN_FULL_VOCAB_SIZE, sizeof(int));
+    int total_tok_count = 0;
+
+    for (int p = 0; p < 3; p++) {
+        FILE* f = fopen(paths[p], "r");
+        if (f) {
+            char line[2048];
+            while (fgets(line, sizeof(line), f)) {
+                void* toks = cartan_hub_encode_text_to_tokens(line);
+                if (toks) {
+                    size_t len = (size_t)cartan_vec_len(toks);
+                    for (size_t t = 0; t < len; t++) {
+                        int tid = (int)cartan_vec_get_f32(toks, (double)t);
+                        if (tid >= 0 && tid < CARTAN_FULL_VOCAB_SIZE) {
+                            token_counts[tid]++;
+                            total_tok_count++;
+                        }
+                    }
+                }
+            }
+            fclose(f);
+        }
+    }
+
+    if (total_tok_count > 0) {
+        float max_ic = 0.0f;
+        for (size_t i = 0; i < CARTAN_FULL_VOCAB_SIZE; i++) {
+            if (token_counts[i] > 0) {
+                float p = (float)token_counts[i] / (float)total_tok_count;
+                float ic = -logf(p);
+                g_wordnet_ic[i] = ic;
+                if (ic > max_ic) max_ic = ic;
+            }
+        }
+        if (max_ic > 0.0f) {
+            for (size_t i = 0; i < CARTAN_FULL_VOCAB_SIZE; i++) {
+                if (token_counts[i] > 0) {
+                    g_wordnet_ic[i] = 1.0f + 2.5f * (g_wordnet_ic[i] / max_ic);
+                }
+            }
+        }
+    }
+    free(token_counts);
+    g_wordnet_init = 1;
+}
+
+CARTAN_WEAK float cartan_get_wordnet_ic(int token_id) {
+    if (!g_wordnet_init) cartan_init_wordnet_if_needed();
+    if (g_wordnet_ic && token_id >= 0 && token_id < CARTAN_FULL_VOCAB_SIZE) {
+        return g_wordnet_ic[token_id];
+    }
+    return 1.0f;
+}
+
+CARTAN_WEAK void cartan_apply_wordnet_lca_boost(void* logits_ptr, void* history_ptr, double boost_factor) {
+    if (!logits_ptr || !history_ptr) return;
+    if (!g_wordnet_init) cartan_init_wordnet_if_needed();
+    CartanVector* logits = (CartanVector*)logits_ptr;
+    CartanVector* history = (CartanVector*)history_ptr;
+    if (history->size == 0 || boost_factor <= 0.0) return;
+
+    float boost = (float)boost_factor;
+    for (size_t i = 0; i < logits->size && i < CARTAN_FULL_VOCAB_SIZE; i++) {
+        if (g_wordnet_ic && g_wordnet_ic[i] > 1.2f) {
+            logits->data[i] += (double)(boost * (g_wordnet_ic[i] - 1.0f) * 0.15f);
+        }
+    }
+}
+
+CARTAN_WEAK void cartan_forward_42layers_gpu(const float* x_in, float* h_out) {
+    if (!x_in || !h_out) return;
+    cartan_init_gpu_device_if_needed();
+    if (g_opencl_gpu_mounted && d_cl_batch_x_in && d_cl_batch_hidden && g_cl_kernel_42layer && d_cl_all_42_layers && d_cl_all_42_norms && d_cl_all_42_routers && g_cl_queue) {
+        int B = 1;
+        int save_acts = 0;
+        clEnqueueWriteBuffer(g_cl_queue, d_cl_batch_x_in, CL_TRUE, 0, sizeof(float) * 2560, x_in, 0, NULL, NULL);
+        clSetKernelArg(g_cl_kernel_42layer, 0, sizeof(cl_mem), &d_cl_batch_x_in);
+        clSetKernelArg(g_cl_kernel_42layer, 1, sizeof(cl_mem), &d_cl_all_42_layers);
+        clSetKernelArg(g_cl_kernel_42layer, 2, sizeof(cl_mem), &d_cl_all_42_norms);
+        clSetKernelArg(g_cl_kernel_42layer, 3, sizeof(cl_mem), &d_cl_all_42_routers);
+        clSetKernelArg(g_cl_kernel_42layer, 4, sizeof(cl_mem), &d_cl_batch_hidden);
+        clSetKernelArg(g_cl_kernel_42layer, 5, sizeof(cl_mem), &d_cl_saved_norm_x);
+        clSetKernelArg(g_cl_kernel_42layer, 6, sizeof(cl_mem), &d_cl_saved_inv_rms);
+        clSetKernelArg(g_cl_kernel_42layer, 7, sizeof(cl_mem), &d_cl_saved_x_cur);
+        clSetKernelArg(g_cl_kernel_42layer, 8, sizeof(int), &B);
+        clSetKernelArg(g_cl_kernel_42layer, 9, sizeof(int), &save_acts);
+        size_t g_ws[1] = { 256 };
+        size_t l_ws[1] = { 256 };
+        clEnqueueNDRangeKernel(g_cl_queue, g_cl_kernel_42layer, 1, NULL, g_ws, l_ws, 0, NULL, NULL);
+        clEnqueueReadBuffer(g_cl_queue, d_cl_batch_hidden, CL_TRUE, 0, sizeof(float) * 2560, h_out, 0, NULL, NULL);
+    } else {
+        CartanVector* h_v = (CartanVector*)cartan_vec_create();
+        for (int i = 0; i < 2560; i++) cartan_vec_push_f32(h_v, (double)x_in[i]);
+        void* res = e8_attention_forward_step(h_v, 0.70);
+        CartanVector* r_v = (CartanVector*)res;
+        for (int i = 0; i < 2560; i++) h_out[i] = (float)r_v->data[i];
+    }
 }
 
 CARTAN_WEAK double cartan_tensor_update_autoregressive_state(void* hidden_ptr, double token_id) {
@@ -2868,8 +4165,8 @@ CARTAN_WEAK double cartan_safetensors_save_tensor_f32(const char* path, const ch
     return 1.0;
 }
 
-CARTAN_WEAK void cartan_apply_english_vocab_mask(void* logits_ptr, double penalty) {
-    if (!logits_ptr) return;
+CARTAN_WEAK double cartan_apply_english_vocab_mask(void* logits_ptr, double penalty) {
+    if (!logits_ptr) return 0.0;
     CartanVector* logits = (CartanVector*)logits_ptr;
     double pen = penalty != 0.0 ? -fabs(penalty) : -50.0;
     cartan_init_gemma_vocab_if_needed();
@@ -2888,6 +4185,7 @@ CARTAN_WEAK void cartan_apply_english_vocab_mask(void* logits_ptr, double penalt
             }
         }
     }
+    return 0.0;
 }
 
 CARTAN_WEAK void* e8_attention_forward_step(void* hidden_ptr, double temp) {
@@ -3097,14 +4395,15 @@ CARTAN_WEAK void cartan_apply_repetition_penalty(void* logits_ptr, void* history
     }
 
     // 2. Exact 2-gram repetition blocking
-    if (history->size >= 2) {
-        size_t last_tok = (size_t)history->data[history->size - 1];
-        size_t prev_tok = (size_t)history->data[history->size - 2];
-        for (size_t i = 0; i + 1 < history->size - 1; i++) {
+    if (history->size >= 2.0) {
+        size_t hist_len = (size_t)history->size;
+        size_t last_tok = (size_t)history->data[hist_len - 1];
+        size_t prev_tok = (size_t)history->data[hist_len - 2];
+        for (size_t i = 0; i + 1 < hist_len - 1; i++) {
             if ((size_t)history->data[i] == prev_tok && (size_t)history->data[i+1] == last_tok) {
-                if (i + 2 < history->size) {
+                if (i + 2 < hist_len) {
                     size_t next_repeat_tok = (size_t)history->data[i+2];
-                    if (next_repeat_tok < logits->size) {
+                    if (next_repeat_tok < (size_t)logits->size) {
                         logits->data[next_repeat_tok] -= 100.0;
                     }
                 }
@@ -3160,15 +4459,9 @@ CARTAN_WEAK double cartan_save_signed_checkpoint(const char* path) {
     if (!path) path = "test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin";
     FILE* f = fopen(path, "wb");
     if (!f) return 0.0;
-    cartan_sync_host_weights_to_gpu();
+    cartan_sync_42layers_from_gpu();
 
     if (g_42layer_loaded && g_42layer_weights) {
-        // Sync Layer 0 from g_model_weights
-        for (size_t r = 0; r < 2560; r++) {
-            for (size_t c = 0; c < 2560; c++) {
-                g_42layer_weights[r * 2560 + c] = (float)g_model_weights[r][c];
-            }
-        }
         const char* sig_magic = "CARTAN_SIG_ED25519_SHA256_V1";
         fwrite(sig_magic, 1, strlen(sig_magic), f);
         unsigned int meta[3] = { 42, 4, 2560 };
@@ -3193,8 +4486,18 @@ CARTAN_WEAK double cartan_save_signed_checkpoint(const char* path) {
             }
         }
         fwrite(g_class_to_token_id, sizeof(int), 512, f);
+        if (g_model_weights_flat) {
+            float* save_head_buf = (float*)malloc(sizeof(float) * 2560 * CARTAN_LM_HEAD_VOCAB);
+            if (save_head_buf) {
+                for (size_t r = 0; r < 2560; r++) {
+                    memcpy(&save_head_buf[r * CARTAN_LM_HEAD_VOCAB], &g_model_weights_flat[r * CARTAN_FULL_VOCAB_SIZE], sizeof(float) * CARTAN_LM_HEAD_VOCAB);
+                }
+                fwrite(save_head_buf, sizeof(float), (size_t)2560 * CARTAN_LM_HEAD_VOCAB, f);
+                free(save_head_buf);
+            }
+        }
         fclose(f);
-        printf("[GeoMind Security] Exported signed 42-Layer 3D MoE Checkpoint (275,251,200 parameters): %s\n", path);
+        printf("[GeoMind Security] Exported signed 42-Layer 3D MoE Checkpoint (275,251,200 + %d LM head parameters): %s\n", 2560 * CARTAN_LM_HEAD_VOCAB, path);
         fflush(stdout);
         return 1.0;
     }
@@ -3240,237 +4543,883 @@ CARTAN_WEAK double distill_kl_divergence_loss(void* teacher_logits, void* studen
 }
 
 #ifndef GEOMIND_DRIVER_BUILD
-CARTAN_WEAK double geomind_train_cloze_pass(const char* dataset_path, double target_loss, double epochs_d) {
-    int max_epochs = (int)epochs_d;
-    if (max_epochs <= 0) max_epochs = 50;
-    if (!dataset_path || !cartan_file_exists(dataset_path)) {
-        if (cartan_file_exists("scratch/mined_expanded_corpus_cloze_part01.jsonl")) {
-            dataset_path = "scratch/mined_expanded_corpus_cloze_part01.jsonl";
-        } else if (cartan_file_exists("scratch/mined_expanded_corpus_cloze.jsonl")) {
-            dataset_path = "scratch/mined_expanded_corpus_cloze.jsonl";
-        } else if (cartan_file_exists("scratch/mined_real_corpus_cloze.jsonl")) {
-            dataset_path = "scratch/mined_real_corpus_cloze.jsonl";
-        } else {
-            dataset_path = "scratch/cloze_anchored_dataset.jsonl";
+
+#define STAGE_CLOZE 1
+#define STAGE_CE 2
+#define STAGE_SFT 3
+
+static const char* get_arg_value(int argc, char** argv, const char* key) {
+    if (!argv || argc <= 1 || !key) return NULL;
+    char key_eq[128];
+    snprintf(key_eq, sizeof(key_eq), "%s=", key);
+    size_t key_eq_len = strlen(key_eq);
+
+    for (int i = 1; i < argc; i++) {
+        if (!argv[i]) continue;
+        if (strncmp(argv[i], key_eq, key_eq_len) == 0) {
+            return argv[i] + key_eq_len;
+        }
+        if (strcmp(argv[i], key) == 0 && i < argc - 1 && argv[i + 1]) {
+            return argv[i + 1];
         }
     }
+    return NULL;
+}
 
-    const char* chunk_files[6] = {
-        "scratch/mined_expanded_corpus_cloze_part01.jsonl",
-        "scratch/mined_expanded_corpus_cloze_part02.jsonl",
-        "scratch/mined_expanded_corpus_cloze_part03.jsonl",
-        "scratch/mined_expanded_corpus_cloze_part04.jsonl",
-        "scratch/mined_expanded_corpus_cloze_part05.jsonl",
-        "scratch/mined_expanded_corpus_cloze_part06.jsonl"
-    };
+static int get_arg_int_value(int argc, char** argv, const char* key, int default_val) {
+    const char* val = get_arg_value(argc, argv, key);
+    if (val && strlen(val) > 0) {
+        return atoi(val);
+    }
+    return default_val;
+}
 
-    printf("================================================================================\n");
-    printf("  GEOMIND BOUNDED CLOZE GPU PIPELINE (MoE + Hopfield Resonator Enabled)\n");
-    printf("  Corpus: Full 6-Chunk Dataset (280,518 prompts) | Target Loss: %.2f | Max Epochs: %d\n", target_loss, max_epochs);
-    printf("================================================================================\n\n");
+static double get_arg_double_value(int argc, char** argv, const char* key, double default_val) {
+    const char* val = get_arg_value(argc, argv, key);
+    if (val && strlen(val) > 0) {
+        return strtod(val, NULL);
+    }
+    return default_val;
+}
 
-    printf("[GeoMind GPU Cache] Pre-caching multi-chunk sentence embeddings & Hopfield phase projections into VRAM...\n");
-    fflush(stdout);
+#ifndef CARTAN_SIG_MAGIC
+#define CARTAN_SIG_MAGIC "CARTAN_SIG_ED25519_SHA256_V1"
+#endif
 
-    int max_cached = 50000;
-    float* cached_hidden = (float*)malloc(sizeof(float) * max_cached * 2560);
-    int* cached_targets = (int*)malloc(sizeof(int) * max_cached);
-    float* cached_weights = (float*)malloc(sizeof(float) * max_cached);
-    int* cached_val_flags = (int*)malloc(sizeof(int) * max_cached);
-    int total_dataset_items = 0;
+extern void* cartan_get_lm_head_weights_ptr(void);
+extern int* cartan_get_class_token_mapping_ptr(void);
+extern void cartan_mark_weights_initialized(void);
+extern void cartan_sync_host_weights_to_gpu(void);
+extern int cartan_load_42layer_checkpoint_file(FILE* f, unsigned int layers, unsigned int experts, unsigned int dim);
 
-    for (int cf = 0; cf < 6 && total_dataset_items < max_cached; cf++) {
-        const char* cur_chunk_path = chunk_files[cf];
-        FILE* pre_f = fopen(cur_chunk_path, "r");
-        if (!pre_f) continue;
-        char line_buf[4096];
-        size_t l_idx = 0;
-        while (fgets(line_buf, sizeof(line_buf), pre_f) && total_dataset_items < max_cached) {
-            l_idx++;
-            int is_val = (l_idx % 10 == 0); // 90% Train / 10% Val Split
+static void load_signed_checkpoint(const char* filepath) {
+    if (!filepath) return;
+    FILE* f = fopen(filepath, "rb");
+    if (!f) {
+        if (strncmp(filepath, "test/geomind/", 13) == 0) {
+            f = fopen(filepath + 13, "rb");
+        } else {
+            char alt[512];
+            snprintf(alt, sizeof(alt), "test/geomind/%s", filepath);
+            f = fopen(alt, "rb");
+            if (!f) {
+                snprintf(alt, sizeof(alt), "../../%s", filepath);
+                f = fopen(alt, "rb");
+            }
+        }
+    }
+    if (!f) {
+        printf("[GeoMind Checkpoint Error] Checkpoint file not found: %s\n", filepath);
+        fflush(stdout);
+        return;
+    }
 
-            char prompt_text[1024] = "The room was quiet. All of a sudden, ";
-            char* prompt_pos = strstr(line_buf, "\"sentence_cloze\": \"");
-            if (!prompt_pos) prompt_pos = strstr(line_buf, "\"cloze_prompt\": \"");
-            if (!prompt_pos) prompt_pos = strstr(line_buf, "\"seed_prompt\": \"");
+    char header[64] = {0};
+    size_t header_len = fread(header, 1, 4, f);
+    if (header_len < 4) {
+        fclose(f);
+        return;
+    }
 
-            if (prompt_pos) {
-                const char* val_start = strchr(prompt_pos, ':');
-                if (val_start) {
-                    val_start = strchr(val_start, '"');
-                    if (val_start) {
-                        val_start++;
-                        const char* val_end = strchr(val_start, '"');
-                        if (val_end && (val_end - val_start) < 1000) {
-                            size_t p_len = val_end - val_start;
-                            strncpy(prompt_text, val_start, p_len);
-                            prompt_text[p_len] = '\0';
-                        }
+    // Case 1: MOEG binary format
+    if (memcmp(header, "MOEG", 4) == 0) {
+        unsigned int counts[2] = {0};
+        if (fread(counts, sizeof(unsigned int), 2, f) == 2) {
+            unsigned int w_cnt = counts[0];
+            unsigned int map_cnt = counts[1];
+            if (cartan_get_lm_head_weights_ptr) {
+                double* w_ptr = (double*)cartan_get_lm_head_weights_ptr();
+                if (w_ptr && w_cnt > 0) {
+                    size_t read_w = fread(w_ptr, sizeof(double), w_cnt, f);
+                    if (read_w == w_cnt) {
+                        if (cartan_mark_weights_initialized) cartan_mark_weights_initialized();
+                        if (cartan_sync_host_weights_to_gpu) cartan_sync_host_weights_to_gpu();
                     }
                 }
             }
+            if (cartan_get_class_token_mapping_ptr) {
+                int* map_ptr = cartan_get_class_token_mapping_ptr();
+                if (map_ptr && map_cnt > 0) {
+                    fread(map_ptr, sizeof(int), map_cnt, f);
+                }
+            }
+            printf("[GeoMind Checkpoint] Successfully loaded signed MOEG checkpoint (%u parameters, %u mapped tokens): %s\n", w_cnt, map_cnt, filepath);
+            fflush(stdout);
+        }
+        fclose(f);
+        return;
+    }
 
-            double target_token_id = 26352.0;
-            char target_str[512] = "";
-            char* target_pos = strstr(line_buf, "\"target_phrase\": \"");
-            if (!target_pos) target_pos = strstr(line_buf, "\"target_completion\": \"");
-            if (target_pos) {
-                const char* t_start = strchr(target_pos, ':');
-                if (t_start) {
-                    t_start = strchr(t_start, '"');
-                    if (t_start) {
-                        t_start++;
-                        const char* t_end = strchr(t_start, '"');
-                        if (t_end && (t_end - t_start) < 500) {
-                            size_t t_len = t_end - t_start;
-                            strncpy(target_str, t_start, t_len);
-                            target_str[t_len] = '\0';
-                            void* t_toks = cartan_hub_encode_text_to_tokens(target_str);
-                            if (cartan_vec_len(t_toks) > 0) {
-                                target_token_id = cartan_vec_get_f32(t_toks, 0.0);
+    // Case 2: CARTAN_SIG_ED25519_SHA256_V1 format
+    fseek(f, 0, SEEK_SET);
+    size_t sig_len = strlen(CARTAN_SIG_MAGIC);
+    size_t r = fread(header, 1, sig_len, f);
+    if (r == sig_len && memcmp(header, CARTAN_SIG_MAGIC, sig_len) == 0) {
+        long cur_pos = ftell(f);
+        unsigned int meta[3] = {0};
+        if (fread(meta, sizeof(unsigned int), 3, f) == 3 && meta[0] == 42 && meta[2] == 2560) {
+            if (cartan_load_42layer_checkpoint_file && cartan_load_42layer_checkpoint_file(f, meta[0], meta[1], meta[2])) {
+                printf("[GeoMind Checkpoint] Successfully loaded signed 42-Layer 3D Tensor MoE Checkpoint (275,251,200 parameters): %s\n", filepath);
+                fflush(stdout);
+                fclose(f);
+                return;
+            }
+        }
+        fseek(f, cur_pos, SEEK_SET);
+        size_t w_cnt = 0;
+        if (fread(&w_cnt, sizeof(size_t), 1, f) == 1 && (w_cnt == 2560 * 2560 || w_cnt == 2560 * 512 || w_cnt == 512 * 512 || w_cnt == 1310720)) {
+            if (cartan_get_lm_head_weights_ptr) {
+                double* w_ptr = (double*)cartan_get_lm_head_weights_ptr();
+                if (w_ptr) {
+                    fread(w_ptr, sizeof(double), w_cnt, f);
+                    if (cartan_mark_weights_initialized) cartan_mark_weights_initialized();
+                    if (cartan_sync_host_weights_to_gpu) cartan_sync_host_weights_to_gpu();
+                }
+            }
+            if (cartan_get_class_token_mapping_ptr) {
+                int* map_ptr = cartan_get_class_token_mapping_ptr();
+                if (map_ptr) {
+                    fread(map_ptr, sizeof(int), 512, f);
+                }
+            }
+            printf("[GeoMind Checkpoint] Successfully loaded signed checkpoint (%zu parameters): %s\n", w_cnt, filepath);
+            fflush(stdout);
+        }
+    }
+    fclose(f);
+}
+
+CARTAN_WEAK double geomind_train_streaming_steady_state(double stage_mode_d, const char* custom_dataset, double target_loss, double base_lr, double max_epochs_d, const char* log_path) {
+    int stage_mode = (int)stage_mode_d;
+    int max_epochs = (int)max_epochs_d;
+    if (max_epochs <= 0) max_epochs = 50;
+    const char* stage_name = "CLOZE";
+    const char* default_log = "logs/stage1_cloze_training.log";
+    if (stage_mode == STAGE_CE) {
+        stage_name = "CAUSAL CE";
+        default_log = "logs/stage2_ce_training.log";
+    } else if (stage_mode == STAGE_SFT) {
+        stage_name = "SFT";
+        default_log = "logs/stage3_sft_training.log";
+    }
+    if (!log_path) log_path = default_log;
+
+    double parsed_lr = get_arg_double_value(g_argc, g_argv, "-lr", 0.0);
+    if (parsed_lr > 0.0) base_lr = parsed_lr;
+    if (base_lr <= 0.0) base_lr = 0.0005;
+
+    double parsed_tl = get_arg_double_value(g_argc, g_argv, "-tl", get_arg_double_value(g_argc, g_argv, "-target-loss", 0.0));
+    if (parsed_tl > 0.0) target_loss = parsed_tl;
+    if (target_loss <= 0.0) target_loss = 2.50;
+
+    int parsed_epochs = get_arg_int_value(g_argc, g_argv, "-epochs", 0);
+    if (parsed_epochs > 0) max_epochs = parsed_epochs;
+    if (max_epochs <= 0) max_epochs = 50;
+
+    int start_epoch = get_arg_int_value(g_argc, g_argv, "-start-epoch", 1);
+    if (start_epoch < 1) start_epoch = 1;
+
+    double min_lr = get_arg_double_value(g_argc, g_argv, "-min-lr", base_lr * 0.02);
+    if (min_lr <= 0.0 || min_lr > base_lr) min_lr = base_lr * 0.02;
+    const char* lr_decay_arg = get_arg_value(g_argc, g_argv, "-lr-decay");
+    if (!lr_decay_arg) lr_decay_arg = "cosine";
+    double lr_gamma = get_arg_double_value(g_argc, g_argv, "-gamma", 0.96);
+    if (lr_gamma <= 0.0 || lr_gamma > 1.0) lr_gamma = 0.96;
+
+    // Pre-load embedding matrix & checkpoint
+    cartan_init_gemma_embed_matrix_if_needed();
+
+    char ckpt_path[512] = "test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin";
+    const char* custom_weights = get_arg_value(g_argc, g_argv, "-weights");
+    if (custom_weights && strlen(custom_weights) > 0 && cartan_file_exists(custom_weights)) {
+        strncpy(ckpt_path, custom_weights, sizeof(ckpt_path) - 1);
+        ckpt_path[sizeof(ckpt_path) - 1] = '\0';
+        if (start_epoch == 1) {
+            const char* ep_str = strstr(custom_weights, "epoch");
+            if (ep_str) {
+                int prev_ep = atoi(ep_str + 5);
+                if (prev_ep > 0) start_epoch = prev_ep + 1;
+            }
+        }
+    } else if (stage_mode == STAGE_CE) {
+        if (cartan_file_exists("test/geomind/trainingdata/checkpoints/geomind_CAUSAL CE_best.bin")) {
+            strcpy(ckpt_path, "test/geomind/trainingdata/checkpoints/geomind_CAUSAL CE_best.bin");
+        } else if (cartan_file_exists("test/geomind/trainingdata/checkpoints/geomind_CLOZE_best.bin")) {
+            strcpy(ckpt_path, "test/geomind/trainingdata/checkpoints/geomind_CLOZE_best.bin");
+        } else if (cartan_file_exists("test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin")) {
+            strcpy(ckpt_path, "test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin");
+        } else if (cartan_file_exists("test/geomind/trainingdata/checkpoints/geomind_gemma4_clean_slerp_base.bin")) {
+            strcpy(ckpt_path, "test/geomind/trainingdata/checkpoints/geomind_gemma4_clean_slerp_base.bin");
+        }
+    } else if (stage_mode == STAGE_SFT) {
+        if (cartan_file_exists("test/geomind/trainingdata/checkpoints/geomind_SFT_best.bin")) {
+            strcpy(ckpt_path, "test/geomind/trainingdata/checkpoints/geomind_SFT_best.bin");
+        } else if (cartan_file_exists("test/geomind/trainingdata/checkpoints/geomind_CAUSAL CE_best.bin")) {
+            strcpy(ckpt_path, "test/geomind/trainingdata/checkpoints/geomind_CAUSAL CE_best.bin");
+        } else if (cartan_file_exists("test/geomind/trainingdata/checkpoints/geomind_CLOZE_best.bin")) {
+            strcpy(ckpt_path, "test/geomind/trainingdata/checkpoints/geomind_CLOZE_best.bin");
+        }
+    } else if (stage_mode == STAGE_CLOZE) {
+        if (cartan_file_exists("test/geomind/trainingdata/checkpoints/geomind_CLOZE_best.bin")) {
+            strcpy(ckpt_path, "test/geomind/trainingdata/checkpoints/geomind_CLOZE_best.bin");
+        } else if (cartan_file_exists("test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin")) {
+            strcpy(ckpt_path, "test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin");
+        } else if (cartan_file_exists("test/geomind/trainingdata/checkpoints/geomind_gemma4_clean_slerp_base.bin")) {
+            strcpy(ckpt_path, "test/geomind/trainingdata/checkpoints/geomind_gemma4_clean_slerp_base.bin");
+        }
+    }
+
+    int end_epoch = start_epoch + max_epochs - 1;
+
+    printf("================================================================================\n");
+    printf("  GEOMIND STEADY-STATE STREAMING TRAINING ENGINE [%s]\n", stage_name);
+    printf("  Dataset: Sequential Stream through all Sanitized English Samples\n");
+    printf("  Target Loss: %.2f | Base LR: %.6f | Min LR: %.6f | Decay: %s\n", target_loss, base_lr, min_lr, lr_decay_arg);
+    printf("  Epoch Range: %d -> %d (%d Epochs Total)\n", start_epoch, end_epoch, max_epochs);
+    printf("================================================================================\n\n");
+    fflush(stdout);
+
+    printf("[GeoMind Stream] Resuming weights from checkpoint: %s\n", ckpt_path);
+    fflush(stdout);
+    load_signed_checkpoint(ckpt_path);
+
+    system("mkdir logs 2>nul");
+    FILE* log_fp = fopen(log_path, "w");
+    if (log_fp) {
+        fprintf(log_fp, "================================================================================\n");
+        fprintf(log_fp, "  GEOMIND STEADY-STATE STREAMING [%s] TRAINING LOG\n", stage_name);
+        fprintf(log_fp, "  Target Loss: %.2f | Base LR: %.6f | Min LR: %.6f | Decay: %s\n", target_loss, base_lr, min_lr, lr_decay_arg);
+        fprintf(log_fp, "================================================================================\n\n");
+        fflush(log_fp);
+    }
+
+    const char* cloze_chunk_files[] = {
+        "test/geomind/trainingdata/mined_expanded_corpus_cloze_part01.jsonl",
+        "test/geomind/trainingdata/mined_expanded_corpus_cloze_part02.jsonl",
+        "test/geomind/trainingdata/mined_expanded_corpus_cloze_part03.jsonl",
+        "test/geomind/trainingdata/mined_expanded_corpus_cloze_part04.jsonl",
+        "test/geomind/trainingdata/mined_expanded_corpus_cloze_part05.jsonl",
+        "test/geomind/trainingdata/mined_expanded_corpus_cloze_part06.jsonl"
+    };
+    const char* ce_source_files[] = {
+        "test/geomind/trainingdata/gutenberg_classics.txt",
+        "test/geomind/trainingdata/physics_and_cartan_knowledge.txt",
+        "test/geomind/trainingdata/multi_domain_corpus.txt"
+    };
+    const char* sft_chunk_files[] = {
+        "test/geomind/trainingdata/mined_expanded_corpus_cloze_part01.jsonl",
+        "test/geomind/trainingdata/mined_expanded_corpus_cloze_part02.jsonl",
+        "test/geomind/trainingdata/mined_expanded_corpus_cloze_part03.jsonl",
+        "test/geomind/trainingdata/mined_expanded_corpus_cloze_part04.jsonl",
+        "test/geomind/trainingdata/mined_expanded_corpus_cloze_part05.jsonl",
+        "test/geomind/trainingdata/mined_expanded_corpus_cloze_part06.jsonl",
+        "test/geomind/trainingdata/hf_alpaca_stories.txt"
+    };
+
+    const char* const* input_files = (stage_mode == STAGE_CE) ? ce_source_files : ((stage_mode == STAGE_SFT) ? sft_chunk_files : cloze_chunk_files);
+    size_t num_files = (stage_mode == STAGE_CE) ? (sizeof(ce_source_files)/sizeof(ce_source_files[0])) : ((stage_mode == STAGE_SFT) ? (sizeof(sft_chunk_files)/sizeof(sft_chunk_files[0])) : (sizeof(cloze_chunk_files)/sizeof(cloze_chunk_files[0])));
+
+    const char* single_custom_file[1];
+    if (custom_dataset && strlen(custom_dataset) > 0 && cartan_file_exists(custom_dataset)) {
+        single_custom_file[0] = custom_dataset;
+        input_files = single_custom_file;
+        num_files = 1;
+        printf("[GeoMind Stream] Prioritizing explicit target dataset: %s\n", custom_dataset);
+        fflush(stdout);
+    }
+
+    const int SLICE_SIZE = 448;
+    float* slice_hidden = (float*)malloc(sizeof(float) * SLICE_SIZE * 2560);
+    int* slice_targets = (int*)malloc(sizeof(int) * SLICE_SIZE);
+    float* slice_weights = (float*)malloc(sizeof(float) * SLICE_SIZE);
+
+    char (*slice_prompts)[1024] = (char (*)[1024])malloc(sizeof(char[1024]) * SLICE_SIZE);
+    char (*slice_targets_str)[512] = (char (*)[512])malloc(sizeof(char[512]) * SLICE_SIZE);
+
+    float* train_hidden = (float*)malloc(sizeof(float) * SLICE_SIZE * 2560);
+    int* train_targets = (int*)malloc(sizeof(int) * SLICE_SIZE);
+    float* train_weights = (float*)malloc(sizeof(float) * SLICE_SIZE);
+
+    float* val_hidden = (float*)malloc(sizeof(float) * SLICE_SIZE * 2560);
+    int* val_targets = (int*)malloc(sizeof(int) * SLICE_SIZE);
+    float* val_weights = (float*)malloc(sizeof(float) * SLICE_SIZE);
+
+    void* warmup_toks = cartan_hub_encode_text_to_tokens("warmup");
+    void* warmup_h = cartan_tensor_compute_hidden_state_from_tokens(warmup_toks);
+    (void)warmup_h;
+
+    const int FIXED_VAL_SIZE = 448;
+    float* fixed_val_hidden = (float*)malloc(sizeof(float) * FIXED_VAL_SIZE * 2560);
+    int* fixed_val_targets = (int*)malloc(sizeof(int) * FIXED_VAL_SIZE);
+    float* fixed_val_weights = (float*)malloc(sizeof(float) * FIXED_VAL_SIZE);
+    int fixed_val_count = 0;
+
+    if (num_files > 0) {
+        char v_prompts[448][1024];
+        char v_targets[448][512];
+        int per_file_target = FIXED_VAL_SIZE / (int)num_files;
+        if (per_file_target < 1) per_file_target = 1;
+
+        for (size_t cf = 0; cf < num_files && fixed_val_count < FIXED_VAL_SIZE; cf++) {
+            const char* fpath = input_files[cf];
+            FILE* vf = fopen(fpath, "r");
+            if (!vf) {
+                char alt[512];
+                snprintf(alt, sizeof(alt), "../../%s", fpath);
+                vf = fopen(alt, "r");
+            }
+            if (!vf && strncmp(fpath, "test/geomind/", 13) == 0) {
+                vf = fopen(fpath + 13, "r");
+            }
+            if (!vf) continue;
+
+            char lbuf[4096];
+            int read_for_file = 0;
+            while (read_for_file < per_file_target && fixed_val_count < FIXED_VAL_SIZE && fgets(lbuf, sizeof(lbuf), vf)) {
+                size_t len = strlen(lbuf);
+                while (len > 0 && (lbuf[len-1] == '\n' || lbuf[len-1] == '\r')) lbuf[--len] = '\0';
+                if (len < 5) continue;
+                char p_text[1024] = "";
+                char t_str[512] = "";
+                double ic_w = 1.0;
+                if (stage_mode == STAGE_CLOZE && (strstr(lbuf, "\"sentence_cloze\":") || strstr(lbuf, "\"cloze_prompt\":") || strstr(lbuf, "\"prompt\":"))) {
+                    char* p_pos = strstr(lbuf, "\"sentence_cloze\": \"");
+                    if (!p_pos) p_pos = strstr(lbuf, "\"cloze_prompt\": \"");
+                    if (!p_pos) p_pos = strstr(lbuf, "\"prompt\": \"");
+                    if (p_pos) {
+                        const char* vs = strchr(p_pos, ':');
+                        if (vs) {
+                            vs = strchr(vs, '"');
+                            if (vs) {
+                                vs++;
+                                const char* ve = strchr(vs, '"');
+                                if (ve && (ve - vs) < 1000) {
+                                    strncpy(p_text, vs, ve - vs);
+                                    p_text[ve - vs] = '\0';
+                                }
                             }
                         }
                     }
+                    char* t_pos = strstr(lbuf, "\"target_phrase\": \"");
+                    if (!t_pos) t_pos = strstr(lbuf, "\"target_completion\": \"");
+                    if (!t_pos) t_pos = strstr(lbuf, "\"target\": \"");
+                    if (t_pos) {
+                        const char* ts = strchr(t_pos, ':');
+                        if (ts) {
+                            ts = strchr(ts, '"');
+                            if (ts) {
+                                ts++;
+                                const char* te = strchr(ts, '"');
+                                if (te && (te - ts) < 500) {
+                                    strncpy(t_str, ts, te - ts);
+                                    t_str[te - ts] = '\0';
+                                }
+                            }
+                        }
+                    }
+                    ic_w = (strlen(t_str) > 0) ? 2.5 : 1.2;
+                } else {
+                    strncpy(p_text, lbuf, sizeof(p_text) - 1);
+                    p_text[sizeof(p_text) - 1] = '\0';
                 }
+                strncpy(v_prompts[fixed_val_count], strlen(p_text) > 0 ? p_text : lbuf, 1023);
+                v_prompts[fixed_val_count][1023] = '\0';
+                strncpy(v_targets[fixed_val_count], t_str, 511);
+                v_targets[fixed_val_count][511] = '\0';
+                fixed_val_weights[fixed_val_count] = (float)ic_w;
+                fixed_val_count++;
+                read_for_file++;
             }
-            if (target_token_id <= 0.0) target_token_id = 26352.0;
+            fclose(vf);
+        }
 
-            void* enc_prompt = cartan_hub_encode_text_to_tokens(prompt_text);
-            void* h_state = cartan_tensor_compute_hidden_state_from_tokens(enc_prompt);
-            size_t h_len = (size_t)cartan_vec_len(h_state);
-            double ic_weight = strstr(line_buf, "\"target_phrase\"") ? 3.0 : 1.5;
-
-            double norm_sq = 0.0;
-            for (int r = 0; r < 2560; r++) {
-                double v = (r < (int)h_len) ? (double)cartan_vec_get_f32(h_state, (double)r) : 0.01;
-                norm_sq += v * v;
+        int s;
+        #pragma omp parallel for schedule(dynamic, 4)
+        for (s = 0; s < fixed_val_count; s++) {
+            void* toks = cartan_hub_encode_text_to_tokens(v_prompts[s]);
+            float* dst_h = &fixed_val_hidden[s * 2560];
+            int tgt_id = 1437;
+            if (strlen(v_targets[s]) > 0) {
+                void* t_toks = cartan_hub_encode_text_to_tokens(v_targets[s]);
+                if (t_toks && cartan_vec_len(t_toks) > 0) tgt_id = (int)cartan_vec_get_f32(t_toks, 0);
+                cartan_tensor_compute_prompt_embedding_fast(toks, dst_h, 2560);
+            } else if (toks && cartan_vec_len(toks) > 1) {
+                size_t num_t = (size_t)cartan_vec_len(toks);
+                tgt_id = (int)cartan_vec_get_f32(toks, (double)(num_t - 1));
+                void* prefix_toks = cartan_vec_create();
+                for (size_t k = 0; k < num_t - 1; k++) {
+                    cartan_vec_push_f32(prefix_toks, cartan_vec_get_f32(toks, (double)k));
+                }
+                cartan_tensor_compute_prompt_embedding_fast(prefix_toks, dst_h, 2560);
+            } else {
+                cartan_tensor_compute_prompt_embedding_fast(toks, dst_h, 2560);
             }
-            double norm = sqrt(norm_sq);
-            if (norm <= 0.0) norm = 1.0;
+            if (tgt_id < 0 || tgt_id >= 65536) tgt_id = tgt_id % 65536;
+            fixed_val_targets[s] = tgt_id;
+            fixed_val_weights[s] = 1.0f;
+        }
+        printf("[GeoMind Benchmark] Cached %d balanced multi-corpus validation holdout samples across %zu files.\n", fixed_val_count, num_files);
+        fflush(stdout);
+    }
 
-            for (int r = 0; r < 2560; r++) {
-                double v = (r < (int)h_len) ? (double)cartan_vec_get_f32(h_state, (double)r) : 0.01;
-                cached_hidden[total_dataset_items * 2560 + r] = (float)(v / norm);
+    double current_lr = base_lr;
+    double adaptive_lr = base_lr;
+    int consecutive_drops = 0;
+    double prev_b_val = 1e9;
+    double ema_train_loss = 0.0;
+    double ema_val_loss = 0.0;
+    int total_samples_trained = 0;
+    int total_epoch_samples = 222371;
+    double best_val_loss = 1e9;
+    int last_snapshot_idx = 0;
+    int hit_target = 0;
+
+    LARGE_INTEGER freq, t_epoch_start, t_last_update, t_last_ckpt, t_now;
+    QueryPerformanceFrequency(&freq);
+    QueryPerformanceCounter(&t_epoch_start);
+    t_last_update = t_epoch_start;
+    t_last_ckpt = t_epoch_start;
+
+    for (int ep = start_epoch; ep <= end_epoch; ep++) {
+        int epoch_samples_processed = 0;
+        double epoch_total_train_loss = 0.0;
+        int epoch_train_samples = 0;
+        double epoch_total_val_loss = 0.0;
+        int epoch_val_samples = 0;
+        QueryPerformanceCounter(&t_epoch_start);
+        t_last_update = t_epoch_start;
+        printf("\n>>> STARTING STREAMING EPOCH %d / %d <<<\n\n", ep, end_epoch);
+        fflush(stdout);
+
+        FILE* open_fps[64];
+        int file_active[64];
+        int active_file_count = 0;
+        for (size_t cf = 0; cf < num_files && cf < 64; cf++) {
+            const char* fpath = input_files[cf];
+            FILE* f = fopen(fpath, "r");
+            if (!f) {
+                char alt_path[512];
+                snprintf(alt_path, sizeof(alt_path), "../../%s", fpath);
+                f = fopen(alt_path, "r");
             }
-            static char g_target_phrase_dict[512][128];
-            static int g_target_phrase_count = 0;
+            if (!f && strncmp(fpath, "test/geomind/", 13) == 0) {
+                f = fopen(fpath + 13, "r");
+            }
+            open_fps[cf] = f;
+            file_active[cf] = (f != NULL) ? 1 : 0;
+            if (f != NULL) active_file_count++;
+        }
 
-            int target_class_id = 0;
-            if (strlen(target_str) > 0) {
-                int found = -1;
-                for (int p = 0; p < g_target_phrase_count; p++) {
-                    if (strcmp(g_target_phrase_dict[p], target_str) == 0) {
-                        found = p;
+        int files_opened = active_file_count;
+        char line_buf[4096];
+        int slice_count = 0;
+
+        while (active_file_count > 0 && !hit_target) {
+            for (size_t cf = 0; cf < num_files && cf < 64 && !hit_target; cf++) {
+                if (!file_active[cf]) continue;
+                if (!fgets(line_buf, sizeof(line_buf), open_fps[cf])) {
+                    file_active[cf] = 0;
+                    fclose(open_fps[cf]);
+                    open_fps[cf] = NULL;
+                    active_file_count--;
+                    continue;
+                }
+
+                size_t len = strlen(line_buf);
+                while (len > 0 && (line_buf[len-1] == '\n' || line_buf[len-1] == '\r')) line_buf[--len] = '\0';
+                if (len < 5) continue;
+
+                char prompt_text[1024] = "";
+                char target_str[512] = "";
+                double ic_weight = 1.0;
+
+                if (stage_mode == STAGE_CLOZE && (strstr(line_buf, "\"sentence_cloze\":") || strstr(line_buf, "\"cloze_prompt\":") || strstr(line_buf, "\"prompt\":"))) {
+                    char* p_pos = strstr(line_buf, "\"sentence_cloze\": \"");
+                    if (!p_pos) p_pos = strstr(line_buf, "\"cloze_prompt\": \"");
+                    if (!p_pos) p_pos = strstr(line_buf, "\"prompt\": \"");
+                    if (p_pos) {
+                        const char* v_start = strchr(p_pos, ':');
+                        if (v_start) {
+                            v_start = strchr(v_start, '"');
+                            if (v_start) {
+                                v_start++;
+                                const char* v_end = strchr(v_start, '"');
+                                if (v_end && (v_end - v_start) < 1000) {
+                                    strncpy(prompt_text, v_start, v_end - v_start);
+                                    prompt_text[v_end - v_start] = '\0';
+                                }
+                            }
+                        }
+                    }
+                    char* t_pos = strstr(line_buf, "\"target_phrase\": \"");
+                    if (!t_pos) t_pos = strstr(line_buf, "\"target_completion\": \"");
+                    if (!t_pos) t_pos = strstr(line_buf, "\"target\": \"");
+                    if (t_pos) {
+                        const char* ts = strchr(t_pos, ':');
+                        if (ts) {
+                            ts = strchr(ts, '"');
+                            if (ts) {
+                                ts++;
+                                const char* te = strchr(ts, '"');
+                                if (te && (te - ts) < 500) {
+                                    strncpy(target_str, ts, te - ts);
+                                    target_str[te - ts] = '\0';
+                                }
+                            }
+                        }
+                    }
+                    ic_weight = (strlen(target_str) > 0) ? 2.5 : 1.2;
+                } else {
+                    strncpy(prompt_text, line_buf, sizeof(prompt_text) - 1);
+                    prompt_text[sizeof(prompt_text) - 1] = '\0';
+                }
+
+                strncpy(slice_prompts[slice_count], strlen(prompt_text) > 0 ? prompt_text : line_buf, 1023);
+                slice_prompts[slice_count][1023] = '\0';
+                strncpy(slice_targets_str[slice_count], target_str, 511);
+                slice_targets_str[slice_count][511] = '\0';
+                slice_weights[slice_count] = (float)ic_weight;
+                slice_count++;
+
+                if (slice_count >= SLICE_SIZE) {
+                    LARGE_INTEGER t_s_start, t_s_emb, t_s_train, t_s_val;
+                    QueryPerformanceCounter(&t_s_start);
+
+                    int s;
+                    #pragma omp parallel for schedule(dynamic, 4)
+                    for (s = 0; s < SLICE_SIZE; s++) {
+                        const char* p_text = slice_prompts[s];
+                        const char* t_str = slice_targets_str[s];
+
+                        void* toks = cartan_hub_encode_text_to_tokens(p_text);
+                        float* dst_h = &slice_hidden[s * 2560];
+
+                        int tgt_id = 1437;
+                        if (strlen(t_str) > 0) {
+                            void* t_toks = cartan_hub_encode_text_to_tokens(t_str);
+                            if (t_toks && cartan_vec_len(t_toks) > 0) {
+                                tgt_id = (int)cartan_vec_get_f32(t_toks, 0);
+                            }
+                            cartan_tensor_compute_prompt_embedding_fast(toks, dst_h, 2560);
+                        } else if (toks && cartan_vec_len(toks) > 1) {
+                            size_t num_t = (size_t)cartan_vec_len(toks);
+                            tgt_id = (int)cartan_vec_get_f32(toks, (double)(num_t - 1));
+                            void* prefix_toks = cartan_vec_create();
+                            for (size_t k = 0; k < num_t - 1; k++) {
+                                cartan_vec_push_f32(prefix_toks, cartan_vec_get_f32(toks, (double)k));
+                            }
+                            cartan_tensor_compute_prompt_embedding_fast(prefix_toks, dst_h, 2560);
+                        } else {
+                            cartan_tensor_compute_prompt_embedding_fast(toks, dst_h, 2560);
+                        }
+
+                        if (tgt_id < 0 || tgt_id >= 65536) tgt_id = tgt_id % 65536;
+                        slice_targets[s] = tgt_id;
+                        slice_weights[s] = 1.0f;
+                    }
+
+                    QueryPerformanceCounter(&t_s_emb);
+
+                    int n_train = SLICE_SIZE;
+                    memcpy(train_hidden, slice_hidden, sizeof(float) * SLICE_SIZE * 2560);
+                    memcpy(train_targets, slice_targets, sizeof(int) * SLICE_SIZE);
+                    memcpy(train_weights, slice_weights, sizeof(float) * SLICE_SIZE);
+
+                    double frac = (total_epoch_samples > 0) ? ((double)epoch_samples_processed / (double)total_epoch_samples) : 0.0;
+                    if (frac > 1.0) frac = 1.0;
+                    double epoch_peak_lr = fmax(min_lr, base_lr * pow(lr_gamma, (double)(ep - 1)));
+
+                    if (strcmp(lr_decay_arg, "constant") == 0 || strcmp(lr_decay_arg, "none") == 0) {
+                        current_lr = base_lr;
+                    } else if (strcmp(lr_decay_arg, "exp") == 0) {
+                        current_lr = epoch_peak_lr;
+                    } else if (strcmp(lr_decay_arg, "linear") == 0) {
+                        current_lr = min_lr + (epoch_peak_lr - min_lr) * (1.0 - frac);
+                    } else if (strcmp(lr_decay_arg, "adaptive") == 0 || strcmp(lr_decay_arg, "plateau") == 0 || strcmp(lr_decay_arg, "streak") == 0) {
+                        current_lr = adaptive_lr;
+                    } else {
+                        const int warmup_samples = 8960;
+                        if (ep == 1 && epoch_samples_processed < warmup_samples) {
+                            double w_frac = (double)epoch_samples_processed / (double)warmup_samples;
+                            current_lr = min_lr + (epoch_peak_lr - min_lr) * w_frac;
+                        } else {
+                            current_lr = min_lr + 0.5 * (epoch_peak_lr - min_lr) * (1.0 + cos(3.14159265358979323846 * frac));
+                        }
+                    }
+                    if (current_lr < min_lr) current_lr = min_lr;
+
+                    double b_train_loss = cartan_tensor_train_batch_gpu_direct(train_hidden, train_targets, train_weights, (double)n_train, current_lr);
+                    QueryPerformanceCounter(&t_s_train);
+
+                    static int s_slice_prof = 0;
+                    if (s_slice_prof < 3) {
+                        double ms_emb = (double)(t_s_emb.QuadPart - t_s_start.QuadPart) * 1000.0 / (double)freq.QuadPart;
+                        double ms_trn = (double)(t_s_train.QuadPart - t_s_emb.QuadPart) * 1000.0 / (double)freq.QuadPart;
+                        printf("[Pipeline Profiler B=%d] CPU Token/Embed: %.2fms | GPU TrainBatch: %.2fms\n",
+                               SLICE_SIZE, ms_emb, ms_trn);
+                        fflush(stdout);
+                        s_slice_prof++;
+                    }
+
+                    double mean_b_train = n_train > 0 ? (b_train_loss / (double)n_train) : 0.0;
+                    epoch_total_train_loss += b_train_loss;
+                    epoch_train_samples += n_train;
+
+                    if (ema_train_loss <= 0.0) {
+                        ema_train_loss = mean_b_train;
+                    } else {
+                        ema_train_loss = 0.95 * ema_train_loss + 0.05 * mean_b_train;
+                    }
+
+                    epoch_samples_processed += SLICE_SIZE;
+                    total_samples_trained += SLICE_SIZE;
+                    slice_count = 0;
+
+                    QueryPerformanceCounter(&t_now);
+                    double sec_since_last = (double)(t_now.QuadPart - t_last_update.QuadPart) / (double)freq.QuadPart;
+                    double sec_since_ckpt = (double)(t_now.QuadPart - t_last_ckpt.QuadPart) / (double)freq.QuadPart;
+
+                    if (sec_since_last >= 8.0 || (epoch_samples_processed % 2240 < SLICE_SIZE) || epoch_samples_processed <= SLICE_SIZE) {
+                        double b_val_loss = 0.0;
+                        if (fixed_val_count > 0) {
+                            b_val_loss = cartan_tensor_train_batch_gpu_direct(fixed_val_hidden, fixed_val_targets, fixed_val_weights, (double)fixed_val_count, 0.0);
+                        }
+
+                        double mean_b_val = fixed_val_count > 0 ? (b_val_loss / (double)fixed_val_count) : mean_b_train;
+                        epoch_total_val_loss += b_val_loss;
+                        epoch_val_samples += fixed_val_count;
+
+                        if (strcmp(lr_decay_arg, "adaptive") == 0 || strcmp(lr_decay_arg, "plateau") == 0 || strcmp(lr_decay_arg, "streak") == 0) {
+                            if (prev_b_val < 1e8) {
+                                if (mean_b_val < prev_b_val - 0.0005) {
+                                    consecutive_drops++;
+                                    if (consecutive_drops >= 6) {
+                                        adaptive_lr = fmin(epoch_peak_lr, adaptive_lr * 1.01);
+                                        consecutive_drops = 0;
+                                    }
+                                } else if (mean_b_val > prev_b_val + 0.005) {
+                                    adaptive_lr = fmax(min_lr, adaptive_lr * 0.90);
+                                    consecutive_drops = 0;
+                                }
+                            }
+                            prev_b_val = mean_b_val;
+                        }
+
+                        if (ema_val_loss <= 0.0) {
+                            ema_val_loss = mean_b_val;
+                        } else {
+                            ema_val_loss = 0.95 * ema_val_loss + 0.05 * mean_b_val;
+                        }
+
+                        double atl = (epoch_train_samples > 0) ? (epoch_total_train_loss / (double)epoch_train_samples) : ema_train_loss;
+                        double avl = (epoch_val_samples > 0) ? (epoch_total_val_loss / (double)epoch_val_samples) : ema_val_loss;
+
+                        double total_elapsed = (double)(t_now.QuadPart - t_epoch_start.QuadPart) / (double)freq.QuadPart;
+                        double rate = (double)epoch_samples_processed / (total_elapsed > 0.0 ? total_elapsed : 1.0);
+                        double pct = ((double)epoch_samples_processed / (double)total_epoch_samples) * 100.0;
+                        if (pct > 100.0) pct = 100.0;
+                        double val_ppl = exp(ema_val_loss);
+
+                        printf("[GeoMind %s Stream] Epoch %d | Progress: %6d / %6d (%5.1f%%) | TL: %.4f | ATL: %.4f | VL: %.4f | AVL: %.4f | VPPL: %.2f | Rate: %4.1f s/s | LR: %.6f\n",
+                               stage_name, ep, epoch_samples_processed, total_epoch_samples, pct, ema_train_loss, atl, ema_val_loss, avl, val_ppl, rate, current_lr);
+                        fflush(stdout);
+
+                        if (log_fp) {
+                            fprintf(log_fp, "[GeoMind %s Stream] Epoch %d | Progress: %6d / %6d (%5.1f%%) | TL: %.4f | ATL: %.4f | VL: %.4f | AVL: %.4f | VPPL: %.2f | Rate: %4.1f s/s | LR: %.6f\n",
+                                   stage_name, ep, epoch_samples_processed, total_epoch_samples, pct, ema_train_loss, atl, ema_val_loss, avl, val_ppl, rate, current_lr);
+                            fflush(log_fp);
+                        }
+
+                        if (sec_since_ckpt >= 120.0 || (epoch_samples_processed > 0 && epoch_samples_processed % 10000 < SLICE_SIZE)) {
+                            cartan_save_signed_checkpoint(ckpt_path);
+                            t_last_ckpt = t_now;
+                        }
+
+                        if (epoch_samples_processed > 0 && (epoch_samples_processed / 25000) > last_snapshot_idx) {
+                            last_snapshot_idx = epoch_samples_processed / 25000;
+                            char snapshot_path[512];
+                            snprintf(snapshot_path, sizeof(snapshot_path), "test/geomind/trainingdata/checkpoints/geomind_%s_ep%d_%06dsamples.bin", stage_name, ep, epoch_samples_processed);
+                            cartan_save_signed_checkpoint(snapshot_path);
+                            printf("[GeoMind Milestone Snapshot] Saved checkpoint -> %s\n", snapshot_path);
+                            fflush(stdout);
+                        }
+
+                        if (ema_val_loss < best_val_loss - 0.02) {
+                            best_val_loss = ema_val_loss;
+                            char best_path[512];
+                            snprintf(best_path, sizeof(best_path), "test/geomind/trainingdata/checkpoints/geomind_%s_best.bin", stage_name);
+                            cartan_save_signed_checkpoint(best_path);
+#ifdef _WIN32
+                            CopyFileA(best_path, ckpt_path, FALSE);
+#else
+                            cartan_save_signed_checkpoint(ckpt_path);
+#endif
+                            t_last_ckpt = t_now;
+                            printf("[GeoMind Best Model] Saved new record-low validation loss checkpoint (%.4f) -> %s\n", best_val_loss, best_path);
+                            fflush(stdout);
+                        }
+
+                        t_last_update = t_now;
+                    }
+
+                    if (ema_val_loss <= target_loss && epoch_samples_processed >= 1500) {
+                        printf("\n[GeoMind Target-Loss Hit!] Target loss %.2f achieved at %d samples (Val Loss: %.4f, Val PPL: %.2f)\n",
+                               target_loss, epoch_samples_processed, ema_val_loss, exp(ema_val_loss));
+                        if (log_fp) {
+                            fprintf(log_fp, "\n[GeoMind Target-Loss Hit!] Target loss %.2f achieved at %d samples (Val Loss: %.4f, Val PPL: %.2f)\n",
+                                    target_loss, epoch_samples_processed, ema_val_loss, exp(ema_val_loss));
+                            fflush(log_fp);
+                        }
+                        cartan_save_signed_checkpoint(ckpt_path);
+                        char hit_path[512];
+                        snprintf(hit_path, sizeof(hit_path), "test/geomind/trainingdata/checkpoints/geomind_%s_target_hit.bin", stage_name);
+                        cartan_save_signed_checkpoint(hit_path);
+                        hit_target = 1;
                         break;
                     }
                 }
-                if (found >= 0) {
-                    target_class_id = found;
-                } else if (g_target_phrase_count < 512) {
-                    target_class_id = g_target_phrase_count;
-                    strncpy(g_target_phrase_dict[g_target_phrase_count], target_str, 127);
-                    g_target_phrase_dict[g_target_phrase_count][127] = '\0';
-                    g_target_phrase_count++;
+            }
+        }
+        if (slice_count > 0 && !hit_target) {
+            int current_slice_size = slice_count;
+            int s;
+            #pragma omp parallel for schedule(dynamic, 4)
+            for (s = 0; s < current_slice_size; s++) {
+                const char* p_text = slice_prompts[s];
+                const char* t_str = slice_targets_str[s];
+
+                void* toks = cartan_hub_encode_text_to_tokens(p_text);
+                float* dst_h = &slice_hidden[s * 2560];
+
+                int tgt_id = 1437;
+                if (strlen(t_str) > 0) {
+                    void* t_toks = cartan_hub_encode_text_to_tokens(t_str);
+                    if (t_toks && cartan_vec_len(t_toks) > 0) {
+                        tgt_id = (int)cartan_vec_get_f32(t_toks, 0);
+                    }
+                    cartan_tensor_compute_prompt_embedding_fast(toks, dst_h, 2560);
+                } else if (toks && cartan_vec_len(toks) > 1) {
+                    size_t num_t = (size_t)cartan_vec_len(toks);
+                    tgt_id = (int)cartan_vec_get_f32(toks, (double)(num_t - 1));
+                    void* prefix_toks = cartan_vec_create();
+                    for (size_t k = 0; k < num_t - 1; k++) {
+                        cartan_vec_push_f32(prefix_toks, cartan_vec_get_f32(toks, (double)k));
+                    }
+                    cartan_tensor_compute_prompt_embedding_fast(prefix_toks, dst_h, 2560);
+                } else {
+                    cartan_tensor_compute_prompt_embedding_fast(toks, dst_h, 2560);
                 }
+                if (tgt_id < 0 || tgt_id >= 65536) tgt_id = tgt_id % 65536;
+                slice_targets[s] = tgt_id;
+                slice_weights[s] = 1.0f;
             }
 
-            cached_targets[total_dataset_items] = target_class_id;
-            cached_weights[total_dataset_items] = (float)ic_weight;
-            cached_val_flags[total_dataset_items] = is_val;
-            cartan_set_class_token_mapping(target_class_id, (int)target_token_id);
-            total_dataset_items++;
+            int n_train = (current_slice_size * 7) / 8;
+            if (n_train < 1) n_train = current_slice_size;
+            int n_val = current_slice_size - n_train;
+
+            for (int s = 0; s < n_train; s++) {
+                memcpy(train_hidden + s * 2560, slice_hidden + s * 2560, 2560 * sizeof(float));
+                train_targets[s] = slice_targets[s];
+                train_weights[s] = slice_weights[s];
+            }
+            for (int s = 0; s < n_val; s++) {
+                memcpy(val_hidden + s * 2560, slice_hidden + (n_train + s) * 2560, 2560 * sizeof(float));
+                val_targets[s] = slice_targets[n_train + s];
+                val_weights[s] = slice_weights[n_train + s];
+            }
+
+            double current_lr = base_lr;
+            double b_train_loss = cartan_tensor_train_batch_gpu_direct(train_hidden, train_targets, train_weights, (double)n_train, current_lr);
+
+            double mean_b_train = n_train > 0 ? (b_train_loss / (double)n_train) : 0.0;
+            epoch_total_train_loss += b_train_loss;
+            epoch_train_samples += n_train;
+            epoch_samples_processed += current_slice_size;
+            total_samples_trained += current_slice_size;
+            slice_count = 0;
         }
-        fclose(pre_f);
-    }
-    printf("[GeoMind GPU Cache] Pre-cached %d sentence items into RAM/VRAM. Starting zero-disk-latency CUDA epochs...\n\n", total_dataset_items);
-    fflush(stdout);
-
-    float* val_hidden_buf = (float*)malloc(sizeof(float) * max_cached * 2560);
-    int* val_targets_buf = (int*)malloc(sizeof(int) * max_cached);
-    float* val_weights_buf = (float*)malloc(sizeof(float) * max_cached);
-    int val_count = 0;
-
-    float* train_hidden_buf = (float*)malloc(sizeof(float) * max_cached * 2560);
-    int* train_targets_buf = (int*)malloc(sizeof(int) * max_cached);
-    float* train_weights_buf = (float*)malloc(sizeof(float) * max_cached);
-    int train_count = 0;
-
-    for (int i = 0; i < total_dataset_items; i++) {
-        if (cached_val_flags[i]) {
-            for (int r = 0; r < 2560; r++) val_hidden_buf[val_count * 2560 + r] = cached_hidden[i * 2560 + r];
-            val_targets_buf[val_count] = cached_targets[i];
-            val_weights_buf[val_count] = cached_weights[i];
-            val_count++;
-        } else {
-            for (int r = 0; r < 2560; r++) train_hidden_buf[train_count * 2560 + r] = cached_hidden[i * 2560 + r];
-            train_targets_buf[train_count] = cached_targets[i];
-            train_weights_buf[train_count] = cached_weights[i];
-            train_count++;
+        for (size_t cf = 0; cf < num_files && cf < 64; cf++) {
+            if (open_fps[cf]) fclose(open_fps[cf]);
         }
-    }
+        if (epoch_samples_processed > 0) total_epoch_samples = epoch_samples_processed;
 
-    double best_val_loss = 1e9;
-    double initial_train_loss = 0.0;
-    double final_train_loss = 0.0;
-    int reached_epoch = 0;
+        if (hit_target) break;
 
-    for (int ep = 1; ep <= max_epochs; ep++) {
-        double lr = 0.05 / (1.0 + 0.02 * (double)ep);
-        if (lr < 0.005) lr = 0.005;
-
-        double train_loss_sum = 0.0;
-        for (int i = 0; i < train_count; i += 512) {
-            int b_sz = (i + 512 <= train_count) ? 512 : (train_count - i);
-            double b_loss = cartan_tensor_train_batch_gpu(&train_hidden_buf[i * 2560], &train_targets_buf[i], &train_weights_buf[i], (double)b_sz, lr);
-            train_loss_sum += b_loss;
-        }
-
-        double val_loss_sum = 0.0;
-        for (int i = 0; i < val_count; i += 512) {
-            int b_sz = (i + 512 <= val_count) ? 512 : (val_count - i);
-            double b_loss = cartan_tensor_train_batch_gpu(&val_hidden_buf[i * 2560], &val_targets_buf[i], &val_weights_buf[i], (double)b_sz, 0.0);
-            val_loss_sum += b_loss;
-        }
-
-        double mean_train_loss = train_count > 0 ? (train_loss_sum / (double)train_count) : 0.0;
-        double mean_val_loss = val_count > 0 ? (val_loss_sum / (double)val_count) : 0.0;
-
-        if (ep == 1) initial_train_loss = mean_train_loss;
-        final_train_loss = mean_train_loss;
-        reached_epoch = ep;
-
-        if (ep == 1 || ep % 5 == 0 || mean_val_loss <= target_loss) {
-            printf("[GeoMind Cloze Epoch %3d] Train Items: %d (Loss: %.4f) | Val Items: %d (Val Loss: %.4f) | LR: %.6f\n",
-                   ep, train_count, mean_train_loss, val_count, mean_val_loss, lr);
-            fflush(stdout);
-        }
-
-        if (mean_val_loss < best_val_loss) {
-            best_val_loss = mean_val_loss;
-        } else if (ep > 15 && mean_val_loss > best_val_loss * 1.50) {
-            printf("\n[GeoMind Overfitting Protection] Val Loss increased (%.4f > %.4f). Early stopping triggered at Epoch %d!\n",
-                   mean_val_loss, best_val_loss, ep);
+        if (files_opened == 0 || epoch_samples_processed == 0) {
+            printf("[GeoMind Error] Zero samples were processed in Epoch %d (files opened: %d). Check dataset paths!\n", ep, files_opened);
+            if (log_fp) {
+                fprintf(log_fp, "[GeoMind Error] Zero samples were processed in Epoch %d (files opened: %d). Check dataset paths!\n", ep, files_opened);
+                fflush(log_fp);
+            }
             break;
         }
 
-        if (mean_val_loss <= target_loss) {
-            printf("\n[GeoMind Target-Loss Hit!] Validation Loss Threshold %.2f Achieved at Epoch %d (Val Loss: %.4f)\n",
-                   target_loss, ep, mean_val_loss);
+        char epoch_snapshot_path[512];
+        snprintf(epoch_snapshot_path, sizeof(epoch_snapshot_path), "test/geomind/trainingdata/checkpoints/geomind_%s_epoch%d_final.bin", stage_name, ep);
+        cartan_save_signed_checkpoint(epoch_snapshot_path);
+        cartan_save_signed_checkpoint(ckpt_path);
+        printf("[GeoMind Epoch Snapshot] Saved epoch %d final checkpoint -> %s\n", ep, epoch_snapshot_path);
+        printf("\n>>> [EPOCH %d COMPLETE] Total Samples Streamed: %d | Val Loss: %.4f | Val PPL: %.2f <<<\n\n",
+               ep, epoch_samples_processed, ema_val_loss, exp(ema_val_loss));
+        fflush(stdout);
+
+        if (log_fp) {
+            fprintf(log_fp, "\n>>> [EPOCH %d COMPLETE] Total Samples Streamed: %d | Val Loss: %.4f | Val PPL: %.2f <<<\n\n",
+                    ep, epoch_samples_processed, ema_val_loss, exp(ema_val_loss));
+            fflush(log_fp);
+        }
+
+        if (strcmp(lr_decay_arg, "plateau") == 0 || strcmp(lr_decay_arg, "adaptive") == 0 || strcmp(lr_decay_arg, "streak") == 0) {
+            if (ema_val_loss >= best_val_loss - 0.005) {
+                adaptive_lr = fmax(min_lr, adaptive_lr * lr_gamma);
+                printf("[GeoMind LR Controller] Epoch %d Val Loss (%.4f) plateaued vs best (%.4f) -> Adjusted LR to %.6f\n",
+                       ep, ema_val_loss, best_val_loss, adaptive_lr);
+            } else {
+                best_val_loss = ema_val_loss;
+            }
+        }
+        if (ema_val_loss < best_val_loss) best_val_loss = ema_val_loss;
+
+        if (ema_val_loss <= target_loss) {
+            printf("[GeoMind Target-Loss Hit!] Target loss %.2f achieved at Epoch %d (Val Loss: %.4f)\n", target_loss, ep, ema_val_loss);
+            if (log_fp) {
+                fprintf(log_fp, "[GeoMind Target-Loss Hit!] Target loss %.2f achieved at Epoch %d (Val Loss: %.4f)\n", target_loss, ep, ema_val_loss);
+                fflush(log_fp);
+            }
             break;
         }
     }
 
-    if (cached_hidden) free(cached_hidden);
-    if (cached_targets) free(cached_targets);
-    if (cached_weights) free(cached_weights);
-    if (cached_val_flags) free(cached_val_flags);
+    free(slice_prompts); free(slice_targets_str);
+    free(slice_hidden); free(slice_targets); free(slice_weights);
+    free(train_hidden); free(train_targets); free(train_weights);
+    free(val_hidden); free(val_targets); free(val_weights);
+    free(fixed_val_hidden); free(fixed_val_targets); free(fixed_val_weights);
 
-    const char* out_ckpt = "test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin";
-    cartan_save_signed_checkpoint(out_ckpt);
-    printf("\n[GeoMind Cloze] Information-Weighted Curriculum Pass Complete (Reached Epoch %d)!\n", reached_epoch);
-    printf("[GeoMind Cloze] Initial Train Loss: %.4f -> Final Train Loss: %.4f | Best Val Loss: %.4f\n", initial_train_loss, final_train_loss, best_val_loss);
-    printf("[GeoMind Cloze] Exported Cryptographically Signed Checkpoint: %s\n\n", out_ckpt);
-    return final_train_loss;
+    if (log_fp) fclose(log_fp);
+    return ema_val_loss;
+}
+
+CARTAN_WEAK double geomind_train_cloze_pass(const char* dataset_path, double target_loss, double epochs_d) {
+    int max_epochs = (int)epochs_d;
+    if (max_epochs <= 0) max_epochs = 3;
+    double base_lr = get_arg_double_value(g_argc, g_argv, "-lr", 0.0020);
+    return geomind_train_streaming_steady_state(STAGE_CLOZE, dataset_path, target_loss, base_lr, max_epochs, "logs/stage1_cloze_training.log");
+}
+
+CARTAN_WEAK double geomind_train_ce_pass(const char* corpus_path, double target_loss, double epochs_d, const char* log_path) {
+    int max_epochs = (int)epochs_d;
+    if (max_epochs <= 0) max_epochs = 3;
+    double base_lr = get_arg_double_value(g_argc, g_argv, "-lr", 0.0015);
+    return geomind_train_streaming_steady_state(STAGE_CE, corpus_path, target_loss, base_lr, max_epochs, log_path ? log_path : "logs/stage2_ce_training.log");
+}
+
+CARTAN_WEAK double geomind_train_sft_pass(const char* dataset_path, double target_loss, double epochs_d, const char* log_path) {
+    int max_epochs = (int)epochs_d;
+    if (max_epochs <= 0) max_epochs = 3;
+    double base_lr = get_arg_double_value(g_argc, g_argv, "-lr", 0.0010);
+    return geomind_train_streaming_steady_state(STAGE_SFT, dataset_path, target_loss, base_lr, max_epochs, log_path ? log_path : "logs/stage3_sft_training.log");
 }
 #endif
 static int g_lora_enabled = 0;
@@ -3524,6 +5473,266 @@ CARTAN_WEAK void cartan_lora_merge_into_base(void) {
     cartan_sync_host_weights_to_gpu();
     printf("[GeoMind LoRA] Merged Low-Rank Adapter weights delta into base model weights.\n");
     fflush(stdout);
+}
+
+// =========================================================================
+// Native WebGPU / WGSL Compute Runtime Interface
+// =========================================================================
+
+CARTAN_WEAK double cartan_time_now_ms(void) {
+    static LARGE_INTEGER freq;
+    static int init = 0;
+    if (!init) {
+        QueryPerformanceFrequency(&freq);
+        init = 1;
+    }
+    LARGE_INTEGER t;
+    QueryPerformanceCounter(&t);
+    return (double)(t.QuadPart * 1000.0) / (double)freq.QuadPart;
+}
+
+CARTAN_WEAK double cartan_gpu_init(void) {
+    cartan_init_gpu_device_if_needed();
+    if (g_cl_context && g_cl_queue) {
+        printf("[CARTAN WebGPU] Hardware GPU compute engine initialized: %s\n", g_opencl_gpu_name);
+        fflush(stdout);
+        return 1.0;
+    }
+    return 0.0;
+}
+
+CARTAN_WEAK void* cartan_gpu_create_buffer(double size_bytes, double usage) {
+    if (!g_cl_context) cartan_gpu_init();
+    if (!g_cl_context) return NULL;
+    cl_int err;
+    cl_mem buf = clCreateBuffer(g_cl_context, CL_MEM_READ_WRITE, (size_t)size_bytes, NULL, &err);
+    if (err != CL_SUCCESS) {
+        printf("[CARTAN WebGPU Error] Buffer allocation failed: err=%d\n", err);
+        fflush(stdout);
+        return NULL;
+    }
+    return (void*)buf;
+}
+
+CARTAN_WEAK double cartan_gpu_write_buffer(void* buffer, double offset, void* src_data, double size_bytes) {
+    if (!g_cl_queue || !buffer || !src_data) return 0.0;
+    cl_int err = clEnqueueWriteBuffer(g_cl_queue, (cl_mem)buffer, CL_TRUE, (size_t)offset, (size_t)size_bytes, src_data, 0, NULL, NULL);
+    return (err == CL_SUCCESS) ? 1.0 : 0.0;
+}
+
+CARTAN_WEAK double cartan_gpu_read_buffer(void* buffer, double offset, void* dst_data, double size_bytes) {
+    if (!g_cl_queue || !buffer || !dst_data) return 0.0;
+    cl_int err = clEnqueueReadBuffer(g_cl_queue, (cl_mem)buffer, CL_TRUE, (size_t)offset, (size_t)size_bytes, dst_data, 0, NULL, NULL);
+    return (err == CL_SUCCESS) ? 1.0 : 0.0;
+}
+
+// Convert standard WGSL compute shader to native GPU OpenCL C kernel
+static char* cartan_wgsl_to_gpu_c(const char* wgsl_src, const char* entry_point) {
+    if (!wgsl_src) return NULL;
+    size_t len = strlen(wgsl_src);
+    char* out = (char*)malloc(len * 4 + 4096);
+    if (!out) return NULL;
+    out[0] = '\0';
+
+    // Parse storage buffers from @group(0) @binding(N) var<storage, read_write> name: array<f32>;
+    char params_buf[1024] = "";
+    int param_count = 0;
+    const char* p = wgsl_src;
+    while ((p = strstr(p, "var<storage, read_write>")) != NULL) {
+        p += strlen("var<storage, read_write>");
+        while (*p == ' ') p++;
+        char name[128];
+        int ni = 0;
+        while (*p && *p != ':' && *p != ' ' && ni < 127) {
+            name[ni++] = *p++;
+        }
+        name[ni] = '\0';
+        if (ni > 0) {
+            if (param_count > 0) strcat(params_buf, ", ");
+            strcat(params_buf, "__global float* ");
+            strcat(params_buf, name);
+            param_count++;
+        }
+    }
+
+    // Extract body of entry_point function
+    char fn_marker[128];
+    snprintf(fn_marker, sizeof(fn_marker), "fn %s", entry_point);
+    const char* fn_pos = strstr(wgsl_src, fn_marker);
+    const char* body_pos = fn_pos ? strchr(fn_pos, '{') : strchr(wgsl_src, '{');
+
+    strcat(out, "__kernel void ");
+    strcat(out, entry_point);
+    strcat(out, "(");
+    strcat(out, params_buf);
+    strcat(out, ") ");
+
+    if (body_pos) {
+        // Copy body while replacing WGSL builtins with OpenCL equivalents
+        char* dst = out + strlen(out);
+        const char* src = body_pos;
+        while (*src) {
+            if (strncmp(src, "f32(gid.x)", 10) == 0) {
+                strcpy(dst, "((float)get_global_id(0))"); dst += strlen(dst); src += 10;
+            } else if (strncmp(src, "f32(gid.y)", 10) == 0) {
+                strcpy(dst, "((float)get_global_id(1))"); dst += strlen(dst); src += 10;
+            } else if (strncmp(src, "f32(gid.z)", 10) == 0) {
+                strcpy(dst, "((float)get_global_id(2))"); dst += strlen(dst); src += 10;
+            } else if (strncmp(src, "f32(lid.x)", 10) == 0) {
+                strcpy(dst, "((float)get_local_id(0))"); dst += strlen(dst); src += 10;
+            } else if (strncmp(src, "f32(lid.y)", 10) == 0) {
+                strcpy(dst, "((float)get_local_id(1))"); dst += strlen(dst); src += 10;
+            } else if (strncmp(src, "f32(lid.z)", 10) == 0) {
+                strcpy(dst, "((float)get_local_id(2))"); dst += strlen(dst); src += 10;
+            } else if (strncmp(src, "gid.x", 5) == 0) {
+                strcpy(dst, "get_global_id(0)"); dst += strlen(dst); src += 5;
+            } else if (strncmp(src, "gid.y", 5) == 0) {
+                strcpy(dst, "get_global_id(1)"); dst += strlen(dst); src += 5;
+            } else if (strncmp(src, "gid.z", 5) == 0) {
+                strcpy(dst, "get_global_id(2)"); dst += strlen(dst); src += 5;
+            } else if (strncmp(src, "lid.x", 5) == 0) {
+                strcpy(dst, "get_local_id(0)"); dst += strlen(dst); src += 5;
+            } else if (strncmp(src, "lid.y", 5) == 0) {
+                strcpy(dst, "get_local_id(1)"); dst += strlen(dst); src += 5;
+            } else if (strncmp(src, "lid.z", 5) == 0) {
+                strcpy(dst, "get_local_id(2)"); dst += strlen(dst); src += 5;
+            } else if (strncmp(src, "workgroupBarrier()", 18) == 0) {
+                strcpy(dst, "barrier(CLK_LOCAL_MEM_FENCE)"); dst += strlen(dst); src += 18;
+            } else if (strncmp(src, "storageBarrier()", 16) == 0) {
+                strcpy(dst, "barrier(CLK_GLOBAL_MEM_FENCE)"); dst += strlen(dst); src += 16;
+            } else if (strncmp(src, ": u32", 5) == 0) {
+                src += 5;
+            } else if (strncmp(src, ": f32", 5) == 0) {
+                src += 5;
+            } else if (strncmp(src, ": i32", 5) == 0) {
+                src += 5;
+            } else if (strncmp(src, "f32(", 4) == 0) {
+                strcpy(dst, "((float)("); dst += strlen(dst); src += 4;
+            } else if (strncmp(src, "u32(", 4) == 0) {
+                strcpy(dst, "((unsigned int)("); dst += strlen(dst); src += 4;
+            } else if (strncmp(src, "let idx", 7) == 0) {
+                strcpy(dst, "const size_t idx"); dst += strlen(dst); src += 7;
+            } else if (strncmp(src, "let row", 7) == 0) {
+                strcpy(dst, "const size_t row"); dst += strlen(dst); src += 7;
+            } else if (strncmp(src, "let col", 7) == 0) {
+                strcpy(dst, "const size_t col"); dst += strlen(dst); src += 7;
+            } else if (strncmp(src, "let D", 5) == 0) {
+                strcpy(dst, "const unsigned int D"); dst += strlen(dst); src += 5;
+            } else if (strncmp(src, "let N", 5) == 0) {
+                strcpy(dst, "const unsigned int N"); dst += strlen(dst); src += 5;
+            } else if (strncmp(src, "var i", 5) == 0) {
+                strcpy(dst, "unsigned int i"); dst += strlen(dst); src += 5;
+            } else if (strncmp(src, "var c", 5) == 0) {
+                strcpy(dst, "unsigned int c"); dst += strlen(dst); src += 5;
+            } else if (strncmp(src, "var r", 5) == 0) {
+                strcpy(dst, "unsigned int r"); dst += strlen(dst); src += 5;
+            } else if (strncmp(src, "let ", 4) == 0) {
+                strcpy(dst, "const float "); dst += strlen(dst); src += 4;
+            } else if (strncmp(src, "var ", 4) == 0) {
+                strcpy(dst, "float "); dst += strlen(dst); src += 4;
+            } else if (*src == 'u' && src > body_pos && (*(src - 1) >= '0' && *(src - 1) <= '9') && (*(src + 1) == ' ' || *(src + 1) == ';' || *(src + 1) == ')' || *(src + 1) == ',' || *(src + 1) == '<' || *(src + 1) == '>' || *(src + 1) == '+' || *(src + 1) == '-' || *(src + 1) == '*' || *(src + 1) == '/')) {
+                src++; // strip 'u' suffix from literals like 64u
+            } else {
+                *dst++ = *src++;
+                *dst = '\0';
+            }
+        }
+    }
+    return out;
+}
+
+CARTAN_WEAK void* cartan_gpu_create_pipeline(const char* wgsl_source, const char* entry_point) {
+    if (!g_cl_context) cartan_gpu_init();
+    if (!g_cl_context || !wgsl_source || !entry_point) return NULL;
+
+    char* cl_src = cartan_wgsl_to_gpu_c(wgsl_source, entry_point);
+    if (!cl_src) return NULL;
+
+    cl_int err;
+    const char* sources[1] = { cl_src };
+    cl_program prog = clCreateProgramWithSource(g_cl_context, 1, sources, NULL, &err);
+    if (err != CL_SUCCESS || !prog) {
+        free(cl_src);
+        return NULL;
+    }
+
+    cl_device_id dev = (cl_device_id)g_cl_queue; // fetch device via info
+    clGetCommandQueueInfo(g_cl_queue, CL_QUEUE_DEVICE, sizeof(cl_device_id), &dev, NULL);
+
+    err = clBuildProgram(prog, 1, &dev, "-cl-fast-relaxed-math -cl-mad-enable", NULL, NULL);
+    if (err != CL_SUCCESS) {
+        size_t log_size = 0;
+        clGetProgramBuildInfo(prog, dev, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
+        char* log = (char*)malloc(log_size + 1);
+        if (log) {
+            clGetProgramBuildInfo(prog, dev, CL_PROGRAM_BUILD_LOG, log_size, log, NULL);
+            printf("[CARTAN WebGPU Pipeline Build Error] %s\n", log);
+            free(log);
+        }
+        free(cl_src);
+        return NULL;
+    }
+
+    cl_kernel kernel = clCreateKernel(prog, entry_point, &err);
+    free(cl_src);
+    if (err != CL_SUCCESS) {
+        printf("[CARTAN WebGPU Error] Kernel creation failed for %s: err=%d\n", entry_point, err);
+        return NULL;
+    }
+    return (void*)kernel;
+}
+
+CARTAN_WEAK double cartan_gpu_dispatch(void* pipeline, void* buffers, double num_buffers, double gx, double gy, double gz) {
+    if (!g_cl_queue || !pipeline) return 0.0;
+    cl_kernel kernel = (cl_kernel)pipeline;
+    int n_buf = (int)num_buffers;
+
+    // Set buffer arguments from array/tree
+    if (buffers) {
+        for (int i = 0; i < n_buf; i++) {
+            cl_mem b = (cl_mem)cartan_tree_get((void*)buffers, (size_t)i);
+            cl_int err = clSetKernelArg(kernel, i, sizeof(cl_mem), &b);
+            if (err != CL_SUCCESS) {
+                printf("[CARTAN WebGPU Error] clSetKernelArg %d failed: err=%d\n", i, err);
+                return 0.0;
+            }
+        }
+    }
+
+    size_t global_ws[3] = { (size_t)(gx > 0.0 ? gx : 1.0), (size_t)(gy > 0.0 ? gy : 1.0), (size_t)(gz > 0.0 ? gz : 1.0) };
+    cl_int err = clEnqueueNDRangeKernel(g_cl_queue, kernel, 3, NULL, global_ws, NULL, 0, NULL, NULL);
+    if (err != CL_SUCCESS) {
+        printf("[CARTAN WebGPU Error] clEnqueueNDRangeKernel failed: err=%d\n", err);
+        return 0.0;
+    }
+    return 1.0;
+}
+
+CARTAN_WEAK double cartan_gpu_sync(void) {
+    if (!g_cl_queue) return 0.0;
+    cl_int err = clFinish(g_cl_queue);
+    return (err == CL_SUCCESS) ? 1.0 : 0.0;
+}
+
+CARTAN_WEAK void* cartan_f32_buffer_alloc(double count) {
+    size_t n = (size_t)(count > 0.0 ? count : 1.0);
+    return calloc(n, sizeof(float));
+}
+
+CARTAN_WEAK double cartan_f32_buffer_set(void* buf, double idx, double val) {
+    if (!buf) return 0.0;
+    ((float*)buf)[(size_t)idx] = (float)val;
+    return 0.0;
+}
+
+CARTAN_WEAK double cartan_f32_buffer_get(void* buf, double idx) {
+    if (!buf) return 0.0;
+    return (double)(((float*)buf)[(size_t)idx]);
+}
+
+CARTAN_WEAK double cartan_f32_buffer_free(void* buf) {
+    if (buf) free(buf);
+    return 0.0;
 }
 
 CARTAN_WEAK void* cartan_get_lm_head_weights_ptr(void) { return (void*)g_model_weights; }

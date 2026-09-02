@@ -46,6 +46,22 @@ fn bpe_get_rank(tok1: float, tok2: float) -> float {
     return -1.0;
 }
 
+fn tokenizer_sample_greedy(logits: ptr, vocab_size: float) -> float {
+    if (logits == 0.0 || vocab_size <= 0.0) { return 0.0; }
+    var best_idx = 0.0;
+    var max_val = logits[0];
+    var i = 1.0;
+    while (i < vocab_size) {
+        let v = logits[i];
+        if (v > max_val) {
+            max_val = v;
+            best_idx = i;
+        }
+        i = i + 1.0;
+    }
+    return best_idx;
+}
+
 extern fn cartan_hub_encode_text_to_tokens(text: string) -> ptr;
 
 fn bpe_encode(text: string) -> ptr {
@@ -60,17 +76,20 @@ fn sentencepiece_encode(text: string) -> ptr {
     return cartan_hub_encode_text_to_tokens(text);
 }
 
-
 fn wordpiece_encode(text: string) -> ptr {
-    var tokens = malloc(1024.0);
-    return tokens;
+    return cartan_hub_encode_text_to_tokens(text);
 }
 
 fn ising_encode(text: string) -> ptr {
-    var tokens = malloc(1024.0);
-    return tokens;
+    return cartan_hub_encode_text_to_tokens(text);
 }
 
 fn bpe_decode_token(token_id: float) -> string {
+    if (token_id == 0.0) { return "<pad>"; }
+    if (token_id == 1.0) { return "<eos>"; }
+    if (token_id == 2.0) { return "<bos>"; }
+    if (token_id == 3.0) { return "<unk>"; }
+    if (token_id == 108.0) { return "\n"; }
     return cartan_hub_decode_json_token("cache_google_gemma-4-E4B-it_tokenizer.json", token_id);
 }
+

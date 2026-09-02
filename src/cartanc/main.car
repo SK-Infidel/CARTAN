@@ -49,11 +49,11 @@ fn print_usage() {
 }
 
 fn contains_string(t: ptr, s: string) -> float {
-    let len = cartan_tree_len(t);
+    let len = cartan_tree_len_f(t);
     var i = 0.0;
     while (i < len) {
         let item = cartan_tree_get_f32(t, i);
-        if (strcmp(item, s) == 0) {
+        if (cartan_string_eq(item, s) != 0.0) {
             return 1.0;
         }
         i = i + 1.0;
@@ -72,29 +72,52 @@ fn ast_expansion_pass(ast: ptr, visited_files: ptr) -> ptr {
         let stmt = cartan_tree_get_f32(ast, i);
         if (stmt != 0.0) {
             let disc = cartan_tree_get_f32(stmt, 0.0);
+            printf("Processing stmt %s of %s (disc=%s)\n", cartan_float_to_string(i), cartan_float_to_string(len), cartan_float_to_string(disc));
+            cartan_flush(0.0);
             if (disc == 63.0) { // Stmt::Include (Index 63)
-                let path = cartan_tree_get_f32(stmt, 1.0);
-                if (contains_string(visited_files, path) == 0.0) {
+                var path = cartan_tree_get_f32(stmt, 1.0);
+                if (cartan_string_starts_with(path, "../../") != 0.0) {
+                    path = cartan_string_substring(path, 6.0, cartan_string_length(path));
+                }
+                if (cartan_file_exists(path) == 0.0) {
+                    let try_std = cartan_string_concat("src/std/", path);
+                    if (cartan_file_exists(try_std) != 0.0) {
+                        path = try_std;
+                    } else {
+                        let try_geomind = cartan_string_concat("test/geomind/", path);
+                        if (cartan_file_exists(try_geomind) != 0.0) {
+                            path = try_geomind;
+                        }
+                    }
+                }
+
+                if (contains_string(visited_files, path) == 0.0 && cartan_file_exists(path) != 0.0) {
                     cartan_tree_push(visited_files, path);
                     let source = cartan_read_file(path);
                     let length = cartan_string_length(source);
-                    let lexer = lexer_init(source, length);
-                    let tokens = cartan_tree_create();
-                    while (1.0) {
-                        let tok = lexer_next_token(lexer);
-                        cartan_tree_push(tokens, tok);
-                        if (tok.token_type[0] == 168.0) {
-                            break;
+                    if (length > 0.0) {
+                        let lexer = lexer_init(source, length);
+                        let tokens = cartan_tree_create();
+                        while (1.0) {
+                            let tok = lexer_next_token(lexer);
+                            cartan_tree_push(tokens, tok);
+                            if (tok.token_type == 0.0) {
+                                break;
+                            }
+                            let first_elem = tok.token_type[0];
+                            if (first_elem == 168.0) {
+                                break;
+                            }
                         }
-                    }
-                    let parser = parser_init(tokens);
-                    let sub_ast = parse(parser);
-                    let expanded_sub_ast = ast_expansion_pass(sub_ast, visited_files);
-                    let sub_len = cartan_tree_len(expanded_sub_ast);
-                    var j = 0.0;
-                    while (j < sub_len) {
-                        cartan_tree_push(new_ast, cartan_tree_get_f32(expanded_sub_ast, j));
-                        j = j + 1.0;
+                        let parser = parser_init(tokens);
+                        let sub_ast = parse(parser);
+                        let expanded_sub_ast = ast_expansion_pass(sub_ast, visited_files);
+                        let sub_len = cartan_tree_len(expanded_sub_ast);
+                        var j = 0.0;
+                        while (j < sub_len) {
+                            cartan_tree_push(new_ast, cartan_tree_get_f32(expanded_sub_ast, j));
+                            j = j + 1.0;
+                        }
                     }
                 }
             } else {
@@ -158,8 +181,9 @@ fn generate_markdown_doc(type_checker: ptr, input_file: string, out_md: string) 
     return 0.0;
 }
 
-fn main(argc: float, argv: ptr) -> float {
+fn main() -> float {
     cartan_flush(0.0);
+    let argc = sys_get_arg_count();
     if (argc < 2.0) {
         print_usage();
         return 0.0;
@@ -219,7 +243,7 @@ fn main(argc: float, argv: ptr) -> float {
                 let opt_ast = optimize_ast(ast);
                 let codegen = llvm_codegen_init();
                 let ir = generate(codegen, opt_ast);
-                cartan_tree_write_file("repl_tmp.ll", codegen.output);
+                cartan_tree_write_file("repl_tmp.ll", ir);
                 cartan_jit_eval("repl_tmp.ll");
             }
         }
@@ -377,7 +401,7 @@ fn main(argc: float, argv: ptr) -> float {
         let ir = generate(codegen, opt_ast);
         
         let out_ll = cartan_string_replace(output_file, ".exe", ".ll");
-        cartan_tree_write_file(out_ll, codegen.output);
+        cartan_tree_write_file(out_ll, ir);
         
         printf("Successfully wrote LLVM IR to ");
         printf(out_ll);
@@ -390,18 +414,9 @@ fn main(argc: float, argv: ptr) -> float {
             return 0.0;
         }
 
-        printf("Compiling LLVM IR to native executable via Zig (-O2 SIMD Vectorized Pass Pipeline)...\n");
-        let zig_cmd = cartan_string_concat("zig cc -target x86_64-windows-msvc -O2 -Xlinker /subsystem:console -DCARTAN_GPU_RUNTIME_LINKED -DCARTAN_COMPILED_LLVM -D_CRT_SECURE_NO_WARNINGS ", out_ll);
-        let cmd = cartan_string_concat(zig_cmd, " \"");
-        cmd = cartan_string_concat(cmd, user_profile);
-        cmd = cartan_string_concat(cmd, "\\.cartan\\c_runtime.c\" ");
-        let gpu_lib_path = cartan_string_concat(user_profile, "\\.cartan\\lib\\gpu_runtime.lib");
-        if (cartan_file_exists(gpu_lib_path) != 0.0) {
-            cmd = cartan_string_concat(cmd, "\"");
-            cmd = cartan_string_concat(cmd, gpu_lib_path);
-            cmd = cartan_string_concat(cmd, "\" ");
-        } else {}
-        cmd = cartan_string_concat(cmd, "-lshell32 -lws2_32 -luser32 -lgdi32 -lwinmm -lopengl32 -ld3dcompiler -lole32 -loleaut32 -lbcrypt -luserenv -ladvapi32 -o ");
+        printf("Compiling LLVM IR to native executable via Zig (-O3 LTO Vectorized Pass Pipeline)...\n");
+        let zig_cmd = cartan_string_concat("python tools/zig_wrapper.py ", out_ll);
+        let cmd = cartan_string_concat(zig_cmd, " src/cartanc/c_runtime.c -o ");
         cmd = cartan_string_concat(cmd, output_file);
         system(cmd);
 

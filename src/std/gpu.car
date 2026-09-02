@@ -1,0 +1,65 @@
+// src/std/gpu.car
+// Standard Library WebGPU Native Compute Interface for CARTAN
+
+extern fn cartan_gpu_init() -> float;
+extern fn cartan_gpu_create_buffer(size_bytes: float, usage: float) -> ptr;
+extern fn cartan_gpu_write_buffer(buffer: ptr, offset: float, src_data: ptr, size_bytes: float) -> float;
+extern fn cartan_gpu_read_buffer(buffer: ptr, offset: float, dst_data: ptr, size_bytes: float) -> float;
+extern fn cartan_gpu_create_pipeline(wgsl_source: string, entry_point: string) -> ptr;
+extern fn cartan_gpu_dispatch(pipe: ptr, buffers: ptr, num_buffers: float, gx: float, gy: float, gz: float) -> float;
+extern fn cartan_gpu_sync() -> float;
+extern fn cartan_f32_buffer_alloc(count: float) -> ptr;
+extern fn cartan_f32_buffer_set(buf: ptr, idx: float, val: float) -> float;
+extern fn cartan_f32_buffer_get(buf: ptr, idx: float) -> float;
+extern fn cartan_f32_buffer_free(buf: ptr) -> float;
+
+struct GpuBuffer {
+    handle: ptr;
+    size_bytes: float;
+}
+
+struct GpuPipeline {
+    handle: ptr;
+}
+
+// Initializes the hardware WebGPU device and command queue
+fn gpu_init() -> float {
+    return cartan_gpu_init();
+}
+
+// Allocates a storage buffer in GPU VRAM
+fn gpu_alloc(size_bytes: float) -> GpuBuffer {
+    let handle = cartan_gpu_create_buffer(size_bytes, 1.0);
+    return GpuBuffer {
+        handle: handle,
+        size_bytes: size_bytes
+    };
+}
+
+// Copies host memory to GPU VRAM storage buffer
+fn gpu_write(buf: GpuBuffer, data: ptr, size_bytes: float) -> float {
+    return cartan_gpu_write_buffer(buf.handle, 0.0, data, size_bytes);
+}
+
+// Reads GPU VRAM storage buffer contents back to host memory
+fn gpu_read(buf: GpuBuffer, data: ptr, size_bytes: float) -> float {
+    return cartan_gpu_read_buffer(buf.handle, 0.0, data, size_bytes);
+}
+
+// Compiles WGSL shader source and constructs a compute pipeline
+fn gpu_create_pipeline(wgsl_source: string, entry_point: string) -> GpuPipeline {
+    let handle = cartan_gpu_create_pipeline(wgsl_source, entry_point);
+    return GpuPipeline {
+        handle: handle
+    };
+}
+
+// Dispatches a compute pipeline across 3D workgroup dimensions
+fn gpu_dispatch(pipe: GpuPipeline, buffers: ptr, num_buffers: float, gx: float, gy: float, gz: float) -> float {
+    return cartan_gpu_dispatch(pipe.handle, buffers, num_buffers, gx, gy, gz);
+}
+
+// Synchronizes the GPU queue and waits for pending executions to complete
+fn gpu_sync() -> float {
+    return cartan_gpu_sync();
+}

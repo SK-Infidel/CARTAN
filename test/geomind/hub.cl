@@ -33,13 +33,14 @@ struct AutoModel {
     hidden_dim: float;
 }
 
+include "../../src/std/fs.cl";
+
 fn hub_sanitize_filename(name: string) -> string {
     let clean = string_replace(string_replace(string_replace(name, "../", ""), "..\\", ""), "/", "_");
     return string_replace(clean, "\\", "_");
 }
 
 extern fn cartan_http_download_file(url: string, path: string) -> float;
-extern fn cartan_file_exists(path: string) -> float;
 
 fn hub_fetch_weights(repo_id: string, filename: string) -> string {
     printf("[hub] Fetching model weights from Hub repository\n");

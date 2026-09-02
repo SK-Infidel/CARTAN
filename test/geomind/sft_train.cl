@@ -13,7 +13,7 @@ fn geomind_sft_train_run(repo_id: string, epochs: float, lr: float) -> float {
 
 
     printf("[GeoMind SFT] Initializing FRS Anisotropic Randers Supervised Fine-Tuning Engine (LR: %.6f)...\n", lr);
-    dist::init(1.0, 0.0);
+    dist_init(1.0, 0.0);
 
 
     let tax_path = "test/geomind/trainingdata/wordnet_taxonomy.txt";
@@ -70,7 +70,10 @@ fn geomind_sft_train_run(repo_id: string, epochs: float, lr: float) -> float {
     cartan_flush(0.0);
 
 
-    let step_size = (lr > 0.0) ? lr : 0.002;
+    var step_size = 0.002;
+    if (lr > 0.0) {
+        step_size = lr;
+    }
     while (current_epoch <= epochs) {
         let updated_w = geom_frs_riemannian_gradient_step(test_w, current_loss * 0.01, drift_val, step_size);
         let final_retracted_w = geom_frs_exp_map_retract(updated_w, current_loss * 0.001);
@@ -110,7 +113,7 @@ fn geomind_distill_train_run(teacher_model: string, student_epochs: float) {
     printf("[GeoMind Distill] Initial KL Divergence Loss: %s\n", cartan_float_to_string(loss));
 }
 
-extern fn cartan_safetensors_save_tensor_f32(path: string, name: string, tensor: ptr) -> float;
+extern fn cartan_safetensors_save_tensor_f32(path: string, name: string, t_ptr: ptr) -> float;
 
 fn geomind_merge_models_slerp(m1_weights: ptr, m2_weights: ptr, weight: float) -> ptr {
     printf("[GeoMind Fusion] Executing Zero-Day SLERP Weight Merging along Geodesic Manifold...\n");

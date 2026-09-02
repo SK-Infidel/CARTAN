@@ -117,3 +117,69 @@ fn fusion_tangent_space_slerp(base_w: ptr, target_w: ptr, alpha: float) -> ptr {
     }
     return out;
 }
+
+fn fusion_slerp_arrays(arr1: ptr, arr2: ptr, out_arr: ptr, size: float, weight: float) {
+    if (arr1 == 0.0 || arr2 == 0.0 || out_arr == 0.0 || size <= 0.0) { return; }
+    var norm1 = 0.0;
+    var norm2 = 0.0;
+    var dot = 0.0;
+    var i = 0.0;
+    while (i < size) {
+        let v1 = arr1[i];
+        let v2 = arr2[i];
+        norm1 = norm1 + v1 * v1;
+        norm2 = norm2 + v2 * v2;
+        dot = dot + v1 * v2;
+        i = i + 1.0;
+    }
+    norm1 = sqrt(norm1 + 0.000001);
+    norm2 = sqrt(norm2 + 0.000001);
+    let target_norm = norm1 * (1.0 - weight) + norm2 * weight;
+
+    var cos_omega = dot / (norm1 * norm2);
+    if (cos_omega > 0.9995) {
+        i = 0.0;
+        let w1 = 1.0 - weight;
+        let w2 = weight;
+        while (i < size) {
+            out_arr[i] = arr1[i] * w1 + arr2[i] * w2;
+            i = i + 1.0;
+        }
+        return;
+    }
+    if (cos_omega < -0.9995) { cos_omega = -0.9995; }
+
+    let omega = acos(cos_omega);
+    let sin_omega = sin(omega);
+    let scale1 = sin((1.0 - weight) * omega) / sin_omega;
+    let scale2 = sin(weight * omega) / sin_omega;
+
+    var norm_out = 0.0;
+    i = 0.0;
+    while (i < size) {
+        let slerp_v = arr1[i] * scale1 + arr2[i] * scale2;
+        norm_out = norm_out + slerp_v * slerp_v;
+        out_arr[i] = slerp_v;
+        i = i + 1.0;
+    }
+    norm_out = sqrt(norm_out + 0.000001);
+    let manifold_scale = target_norm / norm_out;
+    i = 0.0;
+    while (i < size) {
+        out_arr[i] = out_arr[i] * manifold_scale;
+        i = i + 1.0;
+    }
+}
+
+fn fusion_ties_arrays(arr1: ptr, arr2: ptr, arr3: ptr, out_arr: ptr, size: float, threshold: float) {
+    if (arr1 == 0.0 || arr2 == 0.0 || arr3 == 0.0 || out_arr == 0.0 || size <= 0.0) { return; }
+    var i = 0.0;
+    while (i < size) {
+        var sum_v = arr1[i] + arr2[i] + arr3[i];
+        let abs_v = math_abs_val(sum_v);
+        if (abs_v < threshold) { sum_v = 0.0; }
+        out_arr[i] = sum_v / 3.0;
+        i = i + 1.0;
+    }
+}
+

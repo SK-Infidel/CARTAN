@@ -124,39 +124,14 @@ fn type_checker_init() -> TypeChecker {
             var stmt = cartan_tree_get_f32(ast, idx_stmt);
             idx_stmt = idx_stmt + 1.0;
             var disc = cartan_tree_get_f32(stmt, 0.0);
-            if (disc == 7.0 || disc == 14.0) { // FunctionDecl
-                let decl = cartan_tree_get_f32(stmt, 1.0);
-                let d_name = cartan_tree_get_f32(decl, 0.0);
+            if (disc == 7.0 || disc == 14.0 || disc == 8.0 || disc == 15.0) { // FunctionDecl or ExternFunctionDecl
+                let d_name = cartan_tree_get_f32(stmt, 1.0);
                 var decls = cartan_dict_get(self_ptr.functions, d_name);
                 if (decls == 0.0) {
                     decls = cartan_tree_create();
                     cartan_dict_set(self_ptr.functions, d_name, decls);
                 }
-                cartan_tree_push(decls, decl);
-            } else if (disc == 8.0 || disc == 15.0) { // ExternFunctionDecl
-                let decl = cartan_tree_get_f32(stmt, 1.0);
-                let d_name = cartan_tree_get_f32(decl, 0.0);
-                let d_params = cartan_tree_get_f32(decl, 2.0);
-                let d_ret = cartan_tree_get_f32(decl, 3.0);
-                // dummy
-                let dummy_block = cartan_tree_create();
-                let dummy_body = cartan_tree_create();
-                cartan_tree_push(dummy_body, dummy_block);
-                
-                let dummy = cartan_tree_create();
-                cartan_tree_push(dummy, d_name);
-                cartan_tree_push(dummy, cartan_tree_create());
-                cartan_tree_push(dummy, d_params);
-                cartan_tree_push(dummy, d_ret);
-                cartan_tree_push(dummy, 0.0);
-                cartan_tree_push(dummy, dummy_body);
-                
-                var decls = cartan_dict_get(self_ptr.functions, d_name);
-                if (decls == 0.0) {
-                    decls = cartan_tree_create();
-                    cartan_dict_set(self_ptr.functions, d_name, decls);
-                }
-                cartan_tree_push(decls, dummy);
+                cartan_tree_push(decls, stmt);
             }
         }
         printf("[DEBUG TypeCheck] Registered functions loop done\n");
@@ -293,22 +268,32 @@ fn type_checker_init() -> TypeChecker {
             }
         } else if (disc == 7.0 || disc == 14.0) { // FunctionDecl
             let mangled = cartan_tree_get_f32(stmt, 1.0); 
-            let params = cartan_tree_get_f32(stmt, 2.0);
-            let body = cartan_tree_get_f32(stmt, 4.0);
+            let params = cartan_tree_get_f32(stmt, 3.0);
+            let body = cartan_tree_get_f32(stmt, 6.0);
             
             push_scope(self_ptr);
             var scope = cartan_tree_get_f32(self_ptr.symbol_table, cartan_tree_len(self_ptr.symbol_table) - 1.0);
             var idx_param = 0.0;
-            while (idx_param < cartan_tree_len(params)) {
-                let param = cartan_tree_get_f32(params, idx_param);
-                cartan_dict_set(scope, cartan_tree_get_f32(param, 0.0), CartanType::Tensor(cartan_tree_create(), 0.0, 0.0));
-                idx_param = idx_param + 1.0;
+            if (params != 0.0) {
+                while (idx_param < cartan_tree_len(params)) {
+                    let param = cartan_tree_get_f32(params, idx_param);
+                    if (param != 0.0) {
+                        let p_name = cartan_tree_get_f32(param, 0.0);
+                        cartan_dict_set(scope, p_name, CartanType::Float);
+                    }
+                    idx_param = idx_param + 1.0;
+                }
             }
             
             var idx_stmt = 0.0;
-            while (idx_stmt < cartan_tree_len(cartan_tree_get_f32(body, 0.0))) {
-                tc_visit_stmt(self_ptr, cartan_tree_get_f32(cartan_tree_get_f32(body, 0.0), idx_stmt));
-                idx_stmt = idx_stmt + 1.0;
+            if (body != 0.0) {
+                let body_stmts = cartan_tree_get_f32(body, 0.0);
+                if (body_stmts != 0.0) {
+                    while (idx_stmt < cartan_tree_len(body_stmts)) {
+                        tc_visit_stmt(self_ptr, cartan_tree_get_f32(body_stmts, idx_stmt));
+                        idx_stmt = idx_stmt + 1.0;
+                    }
+                }
             }
             pop_scope(self_ptr);
         } else if (disc == 40.0) { // Block

@@ -1,14 +1,11 @@
 // CARTAN Standard Library: Production WordNet/SlangNet Semantic Taxonomy & Hierarchy Engine
 // Layer 1 Module: std::semantics
 
-include "string.car";
-include "math.car";
-include "io.car";
-include "fs.car";
+include "src/std/string.cl";
+include "src/std/math.cl";
+include "src/std/io.cl";
+include "src/std/fs.cl";
 
-
-extern fn cartan_hash_string(s: string) -> float;
-extern fn cartan_string_get_char(s: string, idx: float) -> float;
 
 fn semantics_synset_to_hash(path: string) -> float {
     return cartan_hash_string(path);
@@ -65,3 +62,38 @@ fn semantics_load_taxonomy(filepath: string) -> float {
     printf("[std::semantics] Taxonomy file %s not found.\n", filepath);
     return 0.0;
 }
+
+fn semantics_resnik_similarity(c1: string, c2: string) -> float {
+    let ic1 = semantics_get_concept_ic(c1);
+    let ic2 = semantics_get_concept_ic(c2);
+    if (ic1 <= 0.0 || ic2 <= 0.0) { return 0.0; }
+    if (string_contains(c1, c2) == 1.0 || string_contains(c2, c1) == 1.0) {
+        if (ic1 < ic2) { return ic1; }
+        return ic2;
+    }
+    let dist = semantics_lca_tree_distance(c1, c2);
+    if (dist <= 0.0) { return ic1; }
+    let lca_ic = (ic1 + ic2) / (2.0 * (1.0 + 0.1 * dist));
+    return lca_ic;
+}
+
+fn semantics_lin_similarity(c1: string, c2: string) -> float {
+    let ic1 = semantics_get_concept_ic(c1);
+    let ic2 = semantics_get_concept_ic(c2);
+    if (ic1 + ic2 <= 0.0) { return 0.0; }
+    let resnik = semantics_resnik_similarity(c1, c2);
+    return (2.0 * resnik) / (ic1 + ic2);
+}
+
+fn semantics_apply_lca_boost(logits: ptr, history_token_id: float, vocab_size: float, boost_factor: float) {
+    if (logits == 0.0 || boost_factor <= 0.0 || vocab_size <= 0.0) { return; }
+    var i = 0.0;
+    while (i < vocab_size) {
+        if (i == history_token_id) {
+            // Apply semantic coherence boost along geodesic
+            logits[i] = logits[i] + boost_factor * 0.5;
+        }
+        i = i + 1.0;
+    }
+}
+

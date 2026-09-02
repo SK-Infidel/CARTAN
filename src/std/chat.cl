@@ -16,11 +16,19 @@ include "ising_state_machine.cl";
 include "e8_attention_engine.cl";
 
 
-extern fn cartan_string_contains(s: string, target: string) -> float;
-extern fn cartan_string_length(s: string) -> float;
+include "../../src/std/string.cl";
 extern fn c_cartan_print_token(tok: float) -> float;
-
 extern fn cartan_tokenizer_is_valid_bigram(tok1: float, tok2: float) -> float;
+
+extern fn cartan_apply_english_vocab_mask(logits_ptr: ptr, penalty: float) -> float;
+extern fn cartan_apply_repetition_penalty(logits_ptr: ptr, hist: ptr, penalty: float) -> float;
+extern fn cartan_tensor_compute_lm_head_logits(h: ptr, temp: float) -> ptr;
+extern fn cartan_tokenizer_sample_topp_topk(logits: ptr, top_k: float, top_p: float, temp: float) -> float;
+extern fn cartan_tensor_update_autoregressive_state(h: ptr, tok: float) -> float;
+extern fn e8_attention_forward_step(h: ptr, temp: float) -> ptr;
+extern fn e8_attention_compute_energy(h: ptr) -> float;
+extern fn cartan_tensor_compute_hidden_state_from_tokens(toks: ptr) -> ptr;
+extern fn cartan_hub_encode_text_to_tokens(s: string) -> ptr;
 
 fn geomind_chat_start() {
     printf("================================================================================\n");

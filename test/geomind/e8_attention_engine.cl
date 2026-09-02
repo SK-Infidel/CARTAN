@@ -4,6 +4,9 @@
 include "geometry.cl";
 include "../../src/std/autotune.cl";
 
+include "../../src/std/collections.cl";
+
+
 struct E8AttentionConfig {
     num_heads: float;
     head_dim: float;

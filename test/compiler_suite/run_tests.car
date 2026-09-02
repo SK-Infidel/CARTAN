@@ -182,7 +182,7 @@ fn main(argc: float, argv: ptr) -> float {
     system(t28_cmd);
 
     // [29/30] Positive test: test_lsp
-    let t29_cmd = "cartanc.exe lsp";
+    let t29_cmd = "echo. | cartanc.exe lsp";
     printf("[29/30] [// run-pass] Executing Native Language Server Protocol (LSP) Test: %s\n", t29_cmd);
     cartan_flush(0.0);
     system(t29_cmd);

@@ -82,24 +82,24 @@ fn geom_kronecker_embed_lookup(context_val: float, gauge_val: float) -> float {
     return context_val * gauge_val;
 }
 
-fn geom_frs_adaptive_geodesic_clip(grad: float, max_norm: float) -> float {
-    let abs_g = math_abs_val(grad);
+fn geom_frs_adaptive_geodesic_clip(g_val: float, max_norm: float) -> float {
+    let abs_g = math_abs_val(g_val);
     if (abs_g > max_norm) {
         var sign_g = 1.0;
-        if (grad < 0.0) { sign_g = -1.0; }
+        if (g_val < 0.0) { sign_g = -1.0; }
         return sign_g * max_norm;
     }
 
-    return grad;
+    return g_val;
 }
 
-fn geom_frs_riemannian_gradient_step(weight: float, grad: float, drift_b: float, lr: float) -> float {
+fn geom_frs_riemannian_gradient_step(weight: float, g_val: float, drift_b: float, lr: float) -> float {
     // Sherman-Morrison dual inverse metric gradient update on Finsler-Randers manifolds:
     // g_randers = g - ((g . b) / (1 + ||b||^2)) * b
     let b_sq = drift_b * drift_b;
-    let dot_gb = grad * drift_b;
+    let dot_gb = g_val * drift_b;
     let proj = (dot_gb / (1.0 + b_sq)) * drift_b;
-    let g_randers = grad - proj;
+    let g_randers = g_val - proj;
     let clipped_g = geom_frs_adaptive_geodesic_clip(g_randers, 5.0);
     return weight - (clipped_g * lr);
 }
@@ -114,10 +114,7 @@ fn geom_frs_exp_map_retract(weight: float, update: float) -> float {
     return weight * cos_v + unit_v * sin_v;
 }
 
-fn geom_e8_root_coordinate(idx: float, dim: float) -> float {
-    let root = cos(idx * 0.785398) + sin(dim * 0.314159);
-    return root;
-}
+
 
 
 

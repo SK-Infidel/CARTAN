@@ -1,0 +1,7 @@
+================================================================================
+  GEOMIND STEADY-STATE STREAMING [CLOZE] TRAINING LOG
+  Target Loss: 2.50 | Base LR: 0.000500 | Min LR: 0.000010 | Decay: cosine
+================================================================================
+
+[GeoMind CLOZE Stream] Epoch 1 | Progress:    448 / 222371 (  0.2%) | TL: 14.3043 | ATL: 14.3043 | VL: 14.3405 | AVL: 14.3405 | VPPL: 1690486.29 | Rate: 105.5 s/s | LR: 0.000010
+[GeoMind CLOZE Stream] Epoch 1 | Progress:   1344 / 222371 (  0.6%) | TL: 14.2896 | ATL: 14.2035 | VL: 14.3405 | AVL: 14.3402 | VPPL: 1690426.67 | Rate: 87.3 s/s | LR: 0.000059

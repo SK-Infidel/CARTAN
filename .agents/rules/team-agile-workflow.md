@@ -1,3 +1,7 @@
+---
+trigger: always_on
+---
+
 # Team Agile Workflow & Mind-Building Directives
 
 ## Core Mission & Mindset
@@ -40,6 +44,7 @@
 - [ ] Code passes static type checking and LLVM IR codegen via `cartanc.exe`.
 - [ ] Zero runtime regressions on target benchmarks or test files.
 - [ ] All new/modified functions include brief, clear comments explaining intent.
+- [ ] Verified compliance to rules, and intended functionality of current edit.
 - [ ] Implementation plan, task list, and walkthrough saved to `docs/archive/`.
 - [ ] `CHANGELOG.md` updated with concise summary.
 - [ ] `ISSUES.md` updated with any newly identified technical debt or fixed issues.
