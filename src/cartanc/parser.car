@@ -15,9 +15,8 @@ fn parser_init(tokens: ptr) -> Parser {
 
 
     fn peek(self_ptr: Parser) -> Token {
-let _t = cartan_tree_get_f32(self_ptr.tokens, self_ptr.current);
-return _t;
-}
+        return cartan_tree_get_f32(self_ptr.tokens, self_ptr.current);
+    }
 
 fn peek_next(self_ptr: Parser) -> Token {
 return cartan_tree_get_f32(self_ptr.tokens, self_ptr.current + 1.0);
@@ -27,11 +26,13 @@ fn previous(self_ptr: Parser) -> Token {
 return cartan_tree_get_f32(self_ptr.tokens, self_ptr.current - 1.0);
 }
 
+extern fn cartan_string_eq(s1: string, s2: string) -> float;
+extern fn cartan_string_length(s: string) -> float;
 extern fn cartan_ast_strdup(string: ptr) -> ptr;
 extern fn debug_print_ptr(p: Stmt) -> void;
 extern fn cartan_tree_push(t: ptr, itm: ptr) -> void;
 extern fn cartan_dump_bytes(ptr_val: ptr, size: float) -> float;
-extern fn printf(fmt: string, val: ptr) -> float;
+extern fn printf(fmt: string) -> i32;
 
     fn is_at_end(self_ptr: Parser) -> float {
         let t = peek(self_ptr);
@@ -43,15 +44,15 @@ extern fn printf(fmt: string, val: ptr) -> float;
     }
 
     fn parser_check(self_ptr: Parser, t_type: float) -> float {
-        if is_at_end(self_ptr) {
+        if (is_at_end(self_ptr) != 0.0) {
             return 0.0;
         }
          return peek(self_ptr).token_type[0] == t_type;
     }
 
     fn advance(self_ptr: Parser) -> Token {
-        if !is_at_end(self_ptr) {
-            self_ptr.current += 1;
+        if (is_at_end(self_ptr) == 0.0) {
+            self_ptr.current += 1.0;
         }
          return previous(self_ptr);
     }
@@ -65,7 +66,7 @@ extern fn printf(fmt: string, val: ptr) -> float;
     }
 
     fn consume(self_ptr: Parser, t_type: float, message: string) -> Token {
-        if parser_check(self_ptr, t_type) {
+        if (parser_check(self_ptr, t_type) != 0.0) {
              return advance(self_ptr);
         }
         let tok = peek(self_ptr);
@@ -92,13 +93,13 @@ extern fn printf(fmt: string, val: ptr) -> float;
     /// Main entry point for parsing the input token stream.
     /// Returns a list of global-scope AST statements or a parser diagnostic error.
     fn parse(self_ptr: Parser) -> ptr {
-  let statements = cartan_tree_create();
-while !is_at_end(self_ptr) {
-let stmt = declaration(self_ptr);
-cartan_tree_push(statements, stmt);
-}
-return statements;
-}
+        let statements = cartan_tree_create();
+        while (is_at_end(self_ptr) == 0.0) {
+            let stmt = declaration(self_ptr);
+            cartan_tree_push(statements, stmt);
+        }
+        return statements;
+    }
 
     /// Parses a declaration statement. A declaration can be a function, struct, variable,
     /// tensor, sequence, block, cognitive block, custom manifold space, actor, trait or impl.
@@ -126,7 +127,7 @@ return statements;
         let is_lazy = 0.0;
         let is_unified = 0.0;
         let is_latent = 0.0;
-        while parser_check(self_ptr, 47.0) || parser_check(self_ptr, 48.0) || parser_check(self_ptr, 52.0) {
+        while (parser_check(self_ptr, 47.0) != 0.0 || parser_check(self_ptr, 48.0) != 0.0 || parser_check(self_ptr, 52.0) != 0.0) {
             if (match_token(self_ptr, 47.0) != 0.0) { is_lazy = 1.0; }
             if (match_token(self_ptr, 48.0) != 0.0) { is_unified = 1.0; }
             if (match_token(self_ptr, 52.0) != 0.0) { is_latent = 1.0; }
@@ -424,10 +425,10 @@ return statements;
         consume(self_ptr, 154.0, "Expected  [  after tensor name for shape");
         
         let shape = cartan_tree_create();
-        if !parser_check(self_ptr, 155.0) {
+        if (parser_check(self_ptr, 155.0) == 0.0) {
             while (1.0) {
                 cartan_tree_push(shape, expression(self_ptr));
-                if !(match_token(self_ptr, 156.0) != 0.0) {
+                if (match_token(self_ptr, 156.0) == 0.0) {
                     break;
                 }
             }
@@ -460,9 +461,9 @@ return statements;
             let layout_token = consume(self_ptr, 107.0, "Expected layout type (SoA, Tiled)");
             let layout_name = layout_token.token_type[1];
             
-            if layout_name == "SoA" {
+            if (cartan_string_eq(layout_name, "SoA") != 0.0) {
                 layout_val = MemoryLayout::SoA;
-            } else if layout_name == "Tiled" {
+            } else if (cartan_string_eq(layout_name, "Tiled") != 0.0) {
                 consume(self_ptr, 150.0, "Expected  (  after Tiled");
                 let x_token = consume(self_ptr, 108.0, "Expected integer for Tile width");
                 let x = x_token.token_type[1];
@@ -493,7 +494,7 @@ return statements;
             let _tok2 = consume(self_ptr, 110.0, "Expected backend string");
             let backend_str = "";
             if (_tok2 != 0.0) { backend_str = _tok2.token_type[1]; }
-            if backend_str == "NVMe" {
+            if (cartan_string_eq(backend_str, "NVMe") != 0.0) {
                 backend = StorageBackend::NVMe;
             }
             consume(self_ptr, 151.0, "Expected  ) ");
@@ -529,7 +530,7 @@ return statements;
     
     fn parse_block(self_ptr: Parser) -> BlockStmt {
         let statements = cartan_tree_create();
-        while !parser_check(self_ptr, 153.0) && !is_at_end(self_ptr) {
+        while (parser_check(self_ptr, 153.0) == 0.0 && is_at_end(self_ptr) == 0.0) {
             cartan_tree_push(statements, declaration(self_ptr));
         }
         consume(self_ptr, 153.0, "Expected  }  after block");
@@ -545,9 +546,9 @@ return statements;
 
         consume(self_ptr, 152.0, "Expected  {  before pipeline body");
         let layers = cartan_tree_create();
-        while !parser_check(self_ptr, 153.0) && !is_at_end(self_ptr) {
+        while (parser_check(self_ptr, 153.0) == 0.0 && is_at_end(self_ptr) == 0.0) {
             cartan_tree_push(layers, expression(self_ptr));
-            if !parser_check(self_ptr, 153.0) {
+            if (parser_check(self_ptr, 153.0) == 0.0) {
                 consume(self_ptr, 156.0, "Expected  ,  between pipeline layers");
             }
         }
@@ -617,7 +618,7 @@ return statements;
         consume(self_ptr, 150.0, "Expected  (  after message name in  receive ");
         
         let params = cartan_tree_create();
-        if !parser_check(self_ptr, 151.0) {
+        if (parser_check(self_ptr, 151.0) == 0.0) {
             while (1.0) {
                 let _tok = consume(self_ptr, 107.0, "Expected parameter name");
         if (_tok == 0.0) { return 0.0; }
@@ -631,7 +632,7 @@ return statements;
                 
                 cartan_tree_push(params, Param { name: param_name, type_name: param_type });
                 
-                if !(match_token(self_ptr, 156.0) != 0.0) {
+                if (match_token(self_ptr, 156.0) == 0.0) {
                     break;
                 }
             }
@@ -664,7 +665,7 @@ return statements;
         consume(self_ptr, 152.0, "Expected  {  before impl body");
         
         let methods = cartan_tree_create();
-        while !parser_check(self_ptr, 153.0) && !is_at_end(self_ptr) {
+        while (parser_check(self_ptr, 153.0) == 0.0 && is_at_end(self_ptr) == 0.0) {
             if (match_token(self_ptr, 0.0) != 0.0) {
                 cartan_tree_push(methods, function_declaration(self_ptr, 0.0));
             } else {
@@ -684,7 +685,7 @@ return statements;
         consume(self_ptr, 152.0, "Expected  {  before trait body");
         
         let methods = cartan_tree_create();
-        while !parser_check(self_ptr, 153.0) && !is_at_end(self_ptr) {
+        while (parser_check(self_ptr, 153.0) == 0.0 && is_at_end(self_ptr) == 0.0) {
             if (match_token(self_ptr, 0.0) != 0.0) {
                 cartan_tree_push(methods, function_declaration(self_ptr, 0.0));
             } else {
@@ -719,67 +720,82 @@ return statements;
         consume(self_ptr, 152.0, "Expected  {  before enum body");
         
         let variants = cartan_tree_create();
-        while !parser_check(self_ptr, 153.0) && !is_at_end(self_ptr) {
+        while (parser_check(self_ptr, 153.0) == 0.0 && is_at_end(self_ptr) == 0.0) {
             let variant_name_token = consume(self_ptr, 107.0, "Expected variant name");
+            if (variant_name_token == 0.0) {
+                return 0.0;
+            }
             let variant_name = variant_name_token.token_type[1];
             
             let fields = 0.0;
             if (match_token(self_ptr, 150.0) != 0.0) {
                 let variant_fields = cartan_tree_create();
-                if !parser_check(self_ptr, 151.0) {
-                    let field_idx = 0;
+                if (parser_check(self_ptr, 151.0) == 0.0) {
+                    var field_idx = 0.0;
                     while (1.0) {
                         let token = advance(self_ptr);
-                        let id_opt = 0.0;
+                        var id_opt = "";
                         if (token.token_type[0] == 107.0) { id_opt = token.token_type[1]; }
                         else if (token.token_type[0] == 88.0) { id_opt = "ptr"; }
                         else if (token.token_type[0] == 104.0) { id_opt = "string"; }
-                        else if (token.token_type[0] == 8.0) { id_opt = "t"; }
+                        else if (token.token_type[0] == 8.0) { id_opt = "tree"; }
 
-                        if (id_opt != 0.0) { let id = id_opt;
-                            let type_str = id;
-                            if (type_str == "t" && match_token(self_ptr, 131.0) != 0.0) {
+                        if (cartan_string_length(id_opt) > 0.0) {
+                            var type_str = id_opt;
+                            if ((cartan_string_eq(type_str, "tree") != 0.0 || cartan_string_eq(type_str, "t") != 0.0) && match_token(self_ptr, 131.0) != 0.0) {
                                 let inner = advance(self_ptr);
-                                let inner_type = "";
+                                var inner_type = "";
                                 if (inner.token_type[0] == 107.0) { inner_type = inner.token_type[1]; }
                                 else if (inner.token_type[0] == 88.0) { inner_type = "ptr"; }
                                 else if (inner.token_type[0] == 104.0) { inner_type = "string"; }
                                 else { return 0.0; }
-                                consume(self_ptr, 133.0, "Expected  >  after t type");
-                                type_str = cartan_string_concat("t<", cartan_string_concat(inner_type, ">"));
+                                consume(self_ptr, 133.0, "Expected  >  after tree type");
+                                type_str = cartan_string_concat("tree<", cartan_string_concat(inner_type, ">"));
                             }
 
                             if (match_token(self_ptr, 157.0) != 0.0) {
                                 let type_token = advance(self_ptr);
-                                let t_opt = "";
+                                var t_opt = "";
                                 if (type_token.token_type[0] == 107.0) { t_opt = type_token.token_type[1]; }
                                 else if (type_token.token_type[0] == 88.0) { t_opt = "ptr"; }
                                 else if (type_token.token_type[0] == 104.0) { t_opt = "string"; }
                                 else if (type_token.token_type[0] == 8.0) {
                                     if (match_token(self_ptr, 131.0) != 0.0) {
                                         let inner = advance(self_ptr);
-                                        let inner_type = "";
+                                        var inner_type = "";
                                         if (inner.token_type[0] == 107.0) { inner_type = inner.token_type[1]; }
                                         else if (inner.token_type[0] == 88.0) { inner_type = "ptr"; }
                                         else if (inner.token_type[0] == 104.0) { inner_type = "string"; }
                                         else { return 0.0; }
-                                        consume(self_ptr, 133.0, "Expected  >  after t type");
-                                        t_opt = cartan_string_concat("t<", cartan_string_concat(inner_type, ">"));
+                                        consume(self_ptr, 133.0, "Expected  >  after tree type");
+                                        t_opt = cartan_string_concat("tree<", cartan_string_concat(inner_type, ">"));
                                     } else {
-                                        t_opt = "t";
+                                        t_opt = "tree";
                                     }
                                 } else { t_opt = 0.0; }
-                                if (t_opt != 0.0) { let t = t_opt;
+                                if (cartan_string_length(t_opt) > 0.0) {
                                     let _tup = cartan_tree_create();
                                     cartan_tree_push(_tup, type_str);
-                                    cartan_tree_push(_tup, t);
+                                    cartan_tree_push(_tup, t_opt);
                                     cartan_tree_push(variant_fields, _tup);
                                 } else {
                                     return 0.0;
                                 }
                             } else {
+                                var field_name = "_0";
+                                if (field_idx == 0.0) { field_name = "_0"; }
+                                else if (field_idx == 1.0) { field_name = "_1"; }
+                                else if (field_idx == 2.0) { field_name = "_2"; }
+                                else if (field_idx == 3.0) { field_name = "_3"; }
+                                else if (field_idx == 4.0) { field_name = "_4"; }
+                                else if (field_idx == 5.0) { field_name = "_5"; }
+                                else if (field_idx == 6.0) { field_name = "_6"; }
+                                else if (field_idx == 7.0) { field_name = "_7"; }
+                                else if (field_idx == 8.0) { field_name = "_8"; }
+                                else if (field_idx == 9.0) { field_name = "_9"; }
+                                else { field_name = "_N"; }
                                 let _tup2 = cartan_tree_create();
-                                cartan_tree_push(_tup2, cartan_string_concat("_", field_idx));
+                                cartan_tree_push(_tup2, field_name);
                                 cartan_tree_push(_tup2, type_str);
                                 cartan_tree_push(variant_fields, _tup2);
                             }
@@ -787,8 +803,8 @@ return statements;
                             return 0.0;
                         }
                         
-                        field_idx += 1;
-                        if !(match_token(self_ptr, 156.0) != 0.0) {
+                        field_idx = field_idx + 1.0;
+                        if (match_token(self_ptr, 156.0) == 0.0) {
                             break;
                         }
                     }
@@ -819,7 +835,7 @@ return statements;
         consume(self_ptr, 152.0, "Expected  {  before struct body");
         
         let fields = cartan_tree_create();
-        while !parser_check(self_ptr, 153.0) && !is_at_end(self_ptr) {
+        while (parser_check(self_ptr, 153.0) == 0.0 && is_at_end(self_ptr) == 0.0) {
             if (match_token(self_ptr, 0.0) != 0.0) {
                 let func = function_declaration(self_ptr, 0.0);
                 cartan_tree_push(fields, func);
@@ -998,7 +1014,7 @@ return statements;
                 }
                 cartan_tree_push(generic_bounds, GenericBound { name: p_name, bound: p_bound });
                 
-                if !(match_token(self_ptr, 156.0) != 0.0) {
+                if (match_token(self_ptr, 156.0) == 0.0) {
                     break;
                 }
             }
@@ -1008,7 +1024,7 @@ return statements;
         consume(self_ptr, 150.0, "Expected  (  after function name");
         
         let parameters = cartan_tree_create();
-        if !parser_check(self_ptr, 151.0) {
+        if (parser_check(self_ptr, 151.0) == 0.0) {
             while (1.0) {
                 let is_borrow = 0.0;
                 let is_mutable = 0.0;
@@ -1034,7 +1050,7 @@ return statements;
                 
                 cartan_tree_push(parameters, Param { name: p_name, type_name: p_type });
                 
-                if !(match_token(self_ptr, 156.0) != 0.0) {
+                if (match_token(self_ptr, 156.0) == 0.0) {
                     break;
                 }
             }
@@ -1069,7 +1085,7 @@ return statements;
         consume(self_ptr, 150.0, "Expected  (  after function name");
         
         let parameters = cartan_tree_create();
-        if !parser_check(self_ptr, 151.0) {
+        if (parser_check(self_ptr, 151.0) == 0.0) {
             while (1.0) {
                 let is_borrow = 0.0;
                 let is_mutable = 0.0;
@@ -1095,7 +1111,7 @@ return statements;
                 
                 cartan_tree_push(parameters, Param { name: p_name, type_name: p_type });
                 
-                if !(match_token(self_ptr, 156.0) != 0.0) {
+                if (match_token(self_ptr, 156.0) == 0.0) {
                     break;
                 }
             }
@@ -1140,16 +1156,16 @@ return statements;
         }
 
         consume(self_ptr, 161.0, "Expected  ;  after variable declaration");
-        return Stmt::VarDecl( name, is_const, type_annotation, value );
+        return Stmt::VarDecl( name, is_const, value, type_annotation );
     }
 
     fn statement(self_ptr: Parser) -> Stmt {
         if (match_token(self_ptr, 152.0) != 0.0) {
             return Stmt::Block(parse_block(self_ptr));
-        } else if parser_check(self_ptr, 164.0) || parser_check(self_ptr, 165.0) {
+        } else if (parser_check(self_ptr, 164.0) != 0.0 || parser_check(self_ptr, 165.0) != 0.0) {
             let is_simd = 0.0;
             let is_inbounds = 0.0;
-            while parser_check(self_ptr, 164.0) || parser_check(self_ptr, 165.0) {
+            while (parser_check(self_ptr, 164.0) != 0.0 || parser_check(self_ptr, 165.0) != 0.0) {
                 if (match_token(self_ptr, 164.0) != 0.0) {
                     is_simd = 1.0;
                 } else if (match_token(self_ptr, 165.0) != 0.0) {
@@ -1164,19 +1180,29 @@ return statements;
             }
             consume(self_ptr, 152.0, "Expected  {  after while condition");
             let body = parse_block(self_ptr);
-            return Stmt::While( condition, body, is_simd, is_inbounds );
+            return Stmt::WhileStmt( condition, body );
         } else if (match_token(self_ptr, 20.0) != 0.0) {
             let has_paren = (match_token(self_ptr, 150.0) != 0.0);
+            let prev_allow = self_ptr.allow_struct_init;
+            if (has_paren == 0.0) {
+                self_ptr.allow_struct_init = 0.0;
+            }
             let condition = expression(self_ptr);
+            self_ptr.allow_struct_init = prev_allow;
             if (has_paren != 0.0) {
                 consume(self_ptr, 151.0, "Expected  )  after while condition");
             }
             consume(self_ptr, 152.0, "Expected  {  after while condition");
             let body = parse_block(self_ptr);
-            return Stmt::While( condition, body,  0.0,  0.0 );
+            return Stmt::WhileStmt( condition, body );
         } else if (match_token(self_ptr, 18.0) != 0.0) {
             let has_paren = (match_token(self_ptr, 150.0) != 0.0);
+            let prev_allow = self_ptr.allow_struct_init;
+            if (has_paren == 0.0) {
+                self_ptr.allow_struct_init = 0.0;
+            }
             let condition = expression(self_ptr);
+            self_ptr.allow_struct_init = prev_allow;
             if (has_paren != 0.0) {
                 consume(self_ptr, 151.0, "Expected  )  after if condition");
             }
@@ -1194,7 +1220,7 @@ return statements;
                     false_block = parse_block(self_ptr);
                 }
             }
-            return Stmt::If( condition, true_block, false_block );
+            return Stmt::IfStmt( condition, true_block, false_block );
         } else if (match_token(self_ptr, 23.0) != 0.0) {
             consume(self_ptr, 150.0, "Expected  (  after  is_match ");
             let condition = expression(self_ptr);
@@ -1223,13 +1249,13 @@ return statements;
                 match_token(self_ptr, 156.0);
             }
             consume(self_ptr, 153.0, "Expected  }  after is_match arms");
-            return Stmt::is_match( condition, arms );
+            return Stmt::MatchStmt( condition, arms );
         } else if (match_token(self_ptr, 26.0) != 0.0) {
             consume(self_ptr, 161.0, "Expected  ;  after  break ");
-            return Stmt::Break;
+            return Stmt::BreakStmt;
         } else if (match_token(self_ptr, 27.0) != 0.0) {
             consume(self_ptr, 161.0, "Expected  ;  after  continue ");
-            return Stmt::Continue;
+            return Stmt::ContinueStmt;
         } else if (match_token(self_ptr, 28.0) != 0.0) {
             consume(self_ptr, 152.0, "Expected  {  after  try ");
             let try_block = parse_block(self_ptr);
@@ -1265,7 +1291,7 @@ return statements;
                  value = expression(self_ptr);
             }
             consume(self_ptr, 161.0, "Expected  ;  after return value");
-            return Stmt::Return( value );
+            return Stmt::ReturnStmt( value );
         } else if (match_token(self_ptr, 34.0) != 0.0) {
             let expr = expression(self_ptr);
             consume(self_ptr, 161.0, "Expected  ;  after backward expression");
@@ -1330,7 +1356,7 @@ return statements;
             consume(self_ptr, 151.0, "Expected  )  after project_vocab arguments");
             consume(self_ptr, 161.0, "Expected  ;  after project_vocab");
             
-            return Stmt::ProjectVocab( source_tensor, target_vocab );
+            return Stmt::ProjectVocabStmt( source_tensor, target_vocab );
         } else if (match_token(self_ptr, 75.0) != 0.0) {
             consume(self_ptr, 76.0, "Expected  spike  after  emit ");
             consume(self_ptr, 150.0, "Expected  (  after  spike ");
@@ -1346,7 +1372,7 @@ return statements;
     fn expression_statement(self_ptr: Parser) -> Stmt {
         let expr = expression(self_ptr);
         consume(self_ptr, 161.0, "Expected  ;  after expression");
-        return Stmt::Expr(expr);
+        return Stmt::ExprStmt(expr);
     }
 
     fn expression(self_ptr: Parser) -> Expr {
@@ -1415,7 +1441,7 @@ return statements;
     fn logical_and(self_ptr: Parser) -> Expr {
         let expr = equality(self_ptr);
         while (match_token(self_ptr, 135.0) != 0.0) {
-            let op = "";
+            let op = "&&";
             let right = equality(self_ptr);
             expr = Expr::BinaryOp(  expr, op,  right );
         }
@@ -1425,7 +1451,10 @@ return statements;
     fn equality(self_ptr: Parser) -> Expr {
         let expr = comparison(self_ptr);
         while (match_token(self_ptr, 129.0) != 0.0 || match_token(self_ptr, 130.0) != 0.0) {
-            let op = previous(self_ptr).lexeme;
+            let op_tok = previous(self_ptr).token_type;
+            let op_val = op_tok[0];
+            var op = "==";
+            if (op_val == 130.0) { op = "!="; }
             let right = comparison(self_ptr);
             expr = Expr::BinaryOp(  expr, op,  right );
         }
@@ -1435,7 +1464,12 @@ return statements;
     fn comparison(self_ptr: Parser) -> Expr {
         let expr = term(self_ptr);
         while (match_token(self_ptr, 133.0) != 0.0 || match_token(self_ptr, 134.0) != 0.0 || match_token(self_ptr, 131.0) != 0.0 || match_token(self_ptr, 132.0) != 0.0) {
-            let op = previous(self_ptr).lexeme;
+            let op_tok = previous(self_ptr).token_type;
+            let op_val = op_tok[0];
+            var op = "<";
+            if (op_val == 132.0) { op = "<="; }
+            else if (op_val == 133.0) { op = ">"; }
+            else if (op_val == 134.0) { op = ">="; }
             let right = term(self_ptr);
             expr = Expr::BinaryOp(  expr, op,  right );
         }
@@ -1445,7 +1479,10 @@ return statements;
     fn term(self_ptr: Parser) -> Expr {
         let expr = factor(self_ptr);
         while (match_token(self_ptr, 113.0) != 0.0 || match_token(self_ptr, 114.0) != 0.0) {
-            let op = previous(self_ptr).lexeme;
+            let op_tok = previous(self_ptr).token_type;
+            let op_val = op_tok[0];
+            var op = "+";
+            if (op_val == 114.0) { op = "-"; }
             let right = factor(self_ptr);
             expr = Expr::BinaryOp(  expr, op,  right );
         }
@@ -1455,7 +1492,11 @@ return statements;
     fn factor(self_ptr: Parser) -> Expr {
         let expr = matmul(self_ptr);
         while (match_token(self_ptr, 115.0) != 0.0 || match_token(self_ptr, 116.0) != 0.0 || match_token(self_ptr, 117.0) != 0.0) {
-            let op = previous(self_ptr).lexeme;
+            let op_tok = previous(self_ptr).token_type;
+            let op_val = op_tok[0];
+            var op = "*";
+            if (op_val == 116.0) { op = "/"; }
+            else if (op_val == 117.0) { op = "%"; }
             let right = matmul(self_ptr);
             expr = Expr::BinaryOp(  expr, op,  right );
         }
@@ -1465,7 +1506,7 @@ return statements;
     fn matmul(self_ptr: Parser) -> Expr {
         let expr = unary(self_ptr);
         while (match_token(self_ptr, 148.0) != 0.0) {
-            let op = previous(self_ptr).lexeme;
+            let op = "@";
             let right = unary(self_ptr);
             expr = Expr::BinaryOp(  expr, op,  right );
         }
@@ -1476,9 +1517,6 @@ return statements;
         if (match_token(self_ptr, 67.0) != 0.0) {
             consume(self_ptr, 150.0, "Expected  (  after @attention");
             let routing_tok = consume(self_ptr, 107.0, "Expected routing keyword");
-            if routing_tok.lexeme != "routing" {
-                return 0.0;
-            }
             consume(self_ptr, 128.0, "Expected  = ");
             let _tok6 = consume(self_ptr, 110.0, "Expected routing string");
             let routing_val = "";
@@ -1497,7 +1535,10 @@ return statements;
             return Expr::Dereference(right);
         }
         if (match_token(self_ptr, 137.0) != 0.0 || match_token(self_ptr, 114.0) != 0.0) {
-            let op = previous(self_ptr).lexeme;
+            let op_tok = previous(self_ptr).token_type;
+            let op_val = op_tok[0];
+            var op = "!";
+            if (op_val == 114.0) { op = "-"; }
             let right = unary(self_ptr);
             return Expr::UnaryOp( op,  right );
         }
@@ -1509,10 +1550,10 @@ return statements;
         while (1.0) {
             if (match_token(self_ptr, 150.0) != 0.0) {
                 let args = cartan_tree_create();
-                if !parser_check(self_ptr, 151.0) {
+                if (parser_check(self_ptr, 151.0) == 0.0) {
                     while (1.0) {
                         cartan_tree_push(args, expression(self_ptr));
-                        if !(match_token(self_ptr, 156.0) != 0.0) {
+                        if (match_token(self_ptr, 156.0) == 0.0) {
                             break;
                         }
                     }
@@ -1693,8 +1734,10 @@ return statements;
         }
 
         if (match_token(self_ptr, 38.0) != 0.0 || match_token(self_ptr, 37.0) != 0.0) {
-            let op = previous(self_ptr).lexeme;
-            if parser_check(self_ptr, 150.0) {
+            let op_tok = previous(self_ptr);
+            let op = "";
+            if (op_tok != 0.0 && op_tok.token_type != 0.0) { op = op_tok.token_type[1]; }
+            if (parser_check(self_ptr, 150.0) != 0.0) {
                 consume(self_ptr, 150.0, "Expected  ( ");
                 let target = expression(self_ptr);
                 consume(self_ptr, 151.0, "Expected  ) ");
@@ -1788,10 +1831,10 @@ return statements;
 
         if (match_token(self_ptr, 154.0) != 0.0) {
             let elements = cartan_tree_create();
-            if !parser_check(self_ptr, 155.0) {
+            if (parser_check(self_ptr, 155.0) == 0.0) {
                 while (1.0) {
                     cartan_tree_push(elements, expression(self_ptr));
-                    if !(match_token(self_ptr, 156.0) != 0.0) {
+                    if (match_token(self_ptr, 156.0) == 0.0) {
                         break;
                     }
                 }
@@ -1805,7 +1848,8 @@ return statements;
         }
 
         if (match_token(self_ptr, 112.0) != 0.0) {
-            return Expr::Boolean(previous(self_ptr).lexeme == "1.0");
+            let b_tok = previous(self_ptr).token_type;
+            return Expr::Boolean(b_tok[1]);
         }
         
         let token = advance(self_ptr);

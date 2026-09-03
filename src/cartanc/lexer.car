@@ -63,6 +63,21 @@ fn check_keyword(lexeme: string) -> ptr {
     if (cartan_string_eq(lexeme, "mut") != 0.0) { return TokenType::Mut;}
     if (cartan_string_eq(lexeme, "parameter") != 0.0) { return TokenType::Parameter;}
     if (cartan_string_eq(lexeme, "under") != 0.0) { return TokenType::Under;}
+    if (cartan_string_eq(lexeme, "break") != 0.0) { return TokenType::Break;}
+    if (cartan_string_eq(lexeme, "continue") != 0.0) { return TokenType::Continue;}
+    if (cartan_string_eq(lexeme, "try") != 0.0) { return TokenType::Try;}
+    if (cartan_string_eq(lexeme, "catch") != 0.0) { return TokenType::Catch;}
+    if (cartan_string_eq(lexeme, "throw") != 0.0) { return TokenType::Throw;}
+    if (cartan_string_eq(lexeme, "in") != 0.0) { return TokenType::In;}
+    if (cartan_string_eq(lexeme, "stream") != 0.0) { return TokenType::Stream;}
+    if (cartan_string_eq(lexeme, "pipeline") != 0.0) { return TokenType::Pipeline;}
+    if (cartan_string_eq(lexeme, "trait") != 0.0) { return TokenType::Trait;}
+    if (cartan_string_eq(lexeme, "impl") != 0.0) { return TokenType::Impl;}
+    if (cartan_string_eq(lexeme, "receive") != 0.0) { return TokenType::Receive;}
+    if (cartan_string_eq(lexeme, "dataframe") != 0.0) { return TokenType::Dataframe;}
+    if (cartan_string_eq(lexeme, "spawn") != 0.0) { return TokenType::Spawn;}
+    if (cartan_string_eq(lexeme, "as") != 0.0) { return TokenType::As;}
+    if (cartan_string_eq(lexeme, "at") != 0.0) { return TokenType::At;}
     if (cartan_string_eq(lexeme, "import") != 0.0) { return TokenType::Import;}
     return TokenType::Identifier(lexeme);
 }

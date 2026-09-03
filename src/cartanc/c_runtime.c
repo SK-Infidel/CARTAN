@@ -70,6 +70,23 @@ static inline int cartan_is_valid_readable_ptr_impl(const void* p) {
 #define CARTAN_IS_VALID_PTR(p) ((p) != NULL && (uintptr_t)(p) >= 0x10000 && (uintptr_t)(p) <= 0x7FFFFFFEFFFFULL)
 #endif
 
+static inline void* cartan_sanitize_ptr(const void* p) {
+    if (!p) return NULL;
+    if (CARTAN_IS_VALID_PTR(p)) return (void*)p;
+    uint64_t val = (uint64_t)(uintptr_t)p;
+    if (val >= 0x3FF0000000000000ULL && val <= 0x43E0000000000000ULL) {
+        double dval = 0.0;
+        memcpy(&dval, &val, sizeof(dval));
+        if (dval >= 65536.0) {
+            void* decoded = (void*)(uintptr_t)(uint64_t)dval;
+            if (CARTAN_IS_VALID_PTR(decoded)) {
+                return decoded;
+            }
+        }
+    }
+    return (void*)p;
+}
+
 // Helper strdup replacement to avoid MSVC / POSIX depreciation / linking issues
 static char* cartan_strdup(const char* s) {
     if (!CARTAN_IS_VALID_PTR(s)) {
@@ -118,14 +135,36 @@ static const char* cartan_normalize_str(const void* s, char* buf, size_t buf_sz)
 extern void* cartan_tree_create(void);
 extern void cartan_tree_push(void* tree, void* item);
 extern void* cartan_tree_get(void* tree, size_t idx);
-extern size_t cartan_tree_len(void* tree);
+extern double cartan_tree_len(void* tree);
+double cartan_tree_len_f(void* t);
+
+typedef struct CartanTree {
+    uint32_t magic;
+    uint32_t ref_count;
+    size_t size;
+    size_t capacity;
+    void** data;
+} CartanTree;
+
+#define CARTAN_TREE_MAGIC 0xCA57A47
+#define CARTAN_IS_TREE(t) (cartan_is_tree_obj(t) != 0)
+
+static inline int cartan_is_tree_obj(void* t) {
+    if (!CARTAN_IS_VALID_PTR(t)) return 0;
+    if (((CartanTree*)t)->magic == CARTAN_TREE_MAGIC) return 1;
+    uint64_t* u = (uint64_t*)t;
+    if (u[0] > 0 && u[0] < 10000000ULL && CARTAN_IS_VALID_PTR((void*)u[1]) && u[2] <= u[0]) {
+        return 2;
+    }
+    return 0;
+}
 
 
 
 // 3. cartan_tree_has: checks if tree contains target string safely without raw pointer reinterpretation
 double cartan_tree_has(void* container, const char* target) {
-    if (!container || !CARTAN_IS_VALID_PTR(target)) return 0.0;
-    double len = cartan_tree_len(container);
+    if (!container || !cartan_is_tree_obj(container) || !CARTAN_IS_VALID_PTR(target)) return 0.0;
+    double len = cartan_tree_len_f(container);
     int count = (int)len;
     if (count > 0 && count < 1000000) {
         for (int i = 0; i < count; i++) {
@@ -154,6 +193,36 @@ CARTAN_WEAK double cartan_string_get_char(const char* s, double idx) {
     return (double)((unsigned char)s[i]);
 }
 
+
+CARTAN_WEAK char* cartan_llvm_format_string_literal(const char* s, double id) {
+    if (!s) s = "";
+    size_t s_len = strlen(s);
+    char* hex_bytes = (char*)malloc(s_len * 4 + 4);
+    size_t byte_count = 0;
+    size_t h_idx = 0;
+    for (size_t i = 0; i < s_len; i++) {
+        unsigned char b = (unsigned char)s[i];
+        if (b == '\\' && i + 1 < s_len) {
+            char next = s[i + 1];
+            if (next == 'n') { b = '\n'; i++; }
+            else if (next == 'r') { b = '\r'; i++; }
+            else if (next == 't') { b = '\t'; i++; }
+            else if (next == '\\') { b = '\\'; i++; }
+            else if (next == '"') { b = '"'; i++; }
+        }
+        sprintf(hex_bytes + h_idx, "\\%02x", b);
+        h_idx += 3;
+        byte_count++;
+    }
+    sprintf(hex_bytes + h_idx, "\\00");
+    byte_count++;
+
+    size_t cap = 256 + h_idx;
+    char* buf = (char*)malloc(cap);
+    sprintf(buf, "@.str.%.0f = private unnamed_addr constant [%zu x i8] c\"%s\", align 1\n", id, byte_count, hex_bytes);
+    free(hex_bytes);
+    return buf;
+}
 
 // 4. c_cartan_string_replace: replaces occurrences of old_sub with new_sub
 CARTAN_WEAK char* c_cartan_string_replace(const char* str, const char* old_sub, const char* new_sub) {
@@ -215,84 +284,91 @@ char* cartan_string_to_lowercase(const char* str) {
 // 6. cartan_tree_write_file: write tree elements to file
 
 void cartan_tree_write_file(const char* path, void* tree) {
+    fprintf(stderr, "[DEBUG write_file] start path=%s, tree=%p\n", path ? path : "null", tree);
+    if (!path || !tree) return;
     FILE* f = fopen(path, "w");
-    if(f) {
-        if (tree != NULL) {
-            double len = cartan_tree_len(tree);
-            int is_ll = (path && strstr(path, ".ll") != NULL);
-            char seen_fns[512][128];
-            int seen_fn_count = 0;
-            int skipping_dup = 0;
+    if (!f) {
+        fprintf(stderr, "[DEBUG write_file] fopen failed for %s\n", path);
+        return;
+    }
 
-            for (int i = 0; i < (int)len; i++) {
-                char buf[128];
-                const char* s = cartan_normalize_str(cartan_tree_get(tree, (size_t)i), buf, sizeof(buf));
-                if (s && strlen(s) > 0) {
-                    if ((unsigned char)s[0] < 32 && s[0] != '\n' && s[0] != '\r' && s[0] != '\t' && s[0] != ';') continue;
-                    if (is_ll) {
-                        int valid = 1;
-                        for (const char* p = s; *p; p++) {
-                            unsigned char c = (unsigned char)*p;
-                            if ((c < 32 && c != '\n' && c != '\r' && c != '\t') || c > 127) {
-                                valid = 0;
+    double len = cartan_tree_len_f(tree);
+    fprintf(stderr, "[DEBUG write_file] tree len=%f\n", len);
+    int is_ll = (strstr(path, ".ll") != NULL);
+    char (*seen_fns)[128] = is_ll ? (char (*)[128])calloc(512, 128) : NULL;
+    int seen_fn_count = 0;
+    int skipping_dup = 0;
+
+    for (int i = 0; i < (int)len; i++) {
+        char buf[1024];
+        void* raw_item = cartan_tree_get(tree, (size_t)i);
+        if (i < 5) fprintf(stderr, "[DEBUG write_file] item %d = %p\n", i, raw_item);
+        const char* s = cartan_normalize_str(raw_item, buf, sizeof(buf));
+        if (s && strlen(s) > 0) {
+            if ((unsigned char)s[0] < 32 && s[0] != '\n' && s[0] != '\r' && s[0] != '\t' && s[0] != ';') continue;
+            if (is_ll && seen_fns) {
+                int valid = 1;
+                for (const char* p = s; *p; p++) {
+                    unsigned char c = (unsigned char)*p;
+                    if ((c < 32 && c != '\n' && c != '\r' && c != '\t') || c > 127) {
+                        valid = 0;
+                        break;
+                    }
+                }
+                if (!valid) continue;
+
+                if (strstr(s, "define ") == s) {
+                    const char* at = strchr(s, '@');
+                    if (at) {
+                        char fn_name[128];
+                        size_t k = 0;
+                        at++; // skip @
+                        while (*at && *at != '(' && k < sizeof(fn_name) - 1) {
+                            fn_name[k++] = *at++;
+                        }
+                        fn_name[k] = '\0';
+                        int already_seen = 0;
+                        for (int j = 0; j < seen_fn_count; j++) {
+                            if (strcmp(seen_fns[j], fn_name) == 0) {
+                                already_seen = 1;
                                 break;
                             }
                         }
-                        if (!valid) continue;
-
-                        if (strstr(s, "define ") == s) {
-                            const char* at = strchr(s, '@');
-                            if (at) {
-                                char fn_name[128];
-                                size_t k = 0;
-                                at++; // skip @
-                                while (*at && *at != '(' && k < sizeof(fn_name) - 1) {
-                                    fn_name[k++] = *at++;
-                                }
-                                fn_name[k] = '\0';
-                                int already_seen = 0;
-                                for (int j = 0; j < seen_fn_count; j++) {
-                                    if (strcmp(seen_fns[j], fn_name) == 0) {
-                                        already_seen = 1;
-                                        break;
-                                    }
-                                }
-                                if (already_seen) {
-                                    skipping_dup = 1;
-                                    continue;
-                                } else if (seen_fn_count < 512) {
-                                    strncpy(seen_fns[seen_fn_count++], fn_name, 127);
-                                }
-                            }
-                        }
-                        if (skipping_dup) {
-                            if (strcmp(s, "}\n\n") == 0 || strcmp(s, "}\n") == 0 || strcmp(s, "}") == 0) {
-                                skipping_dup = 0;
-                            }
+                        if (already_seen) {
+                            skipping_dup = 1;
                             continue;
+                        } else if (seen_fn_count < 512) {
+                            strncpy(seen_fns[seen_fn_count++], fn_name, 127);
                         }
-                    }
-                    if (is_ll && strstr(s, "@global_argc = global float 0")) {
-                        fputs("@global_argc = global i32 0, align 4\n", f);
-                        continue;
-                    }
-                    if (is_ll && (strstr(s, "source_filename = \\\"") || strstr(s, "target datalayout = \\\"") || strstr(s, "target triple = \\\"") || strstr(s, "!\\\"") || strstr(s, "producer: \\\"") || strstr(s, "filename: \\\""))) {
-                        for (const char* p = s; *p; p++) {
-                            if (*p == '\\' && *(p+1) == '"') {
-                                fputc('"', f);
-                                p++;
-                            } else {
-                                fputc(*p, f);
-                            }
-                        }
-                    } else {
-                        fputs(s, f);
                     }
                 }
+                if (skipping_dup) {
+                    if (strcmp(s, "}\n\n") == 0 || strcmp(s, "}\n") == 0 || strcmp(s, "}") == 0) {
+                        skipping_dup = 0;
+                    }
+                    continue;
+                }
+            }
+            if (is_ll && strstr(s, "@global_argc = global float 0")) {
+                fputs("@global_argc = global i32 0, align 4\n", f);
+                continue;
+            }
+            if (is_ll && (strstr(s, "source_filename = \\\"") || strstr(s, "target datalayout = \\\"") || strstr(s, "target triple = \\\"") || strstr(s, "!\\\"") || strstr(s, "producer: \\\"") || strstr(s, "filename: \\\""))) {
+                for (const char* p = s; *p; p++) {
+                    if (*p == '\\' && *(p+1) == '"') {
+                        fputc('"', f);
+                        p++;
+                    } else {
+                        fputc(*p, f);
+                    }
+                }
+            } else {
+                fputs(s, f);
             }
         }
-        fclose(f);
     }
+    if (seen_fns) free(seen_fns);
+    fclose(f);
 }
 
 char* cartan_canonical_path(const char* path) {
@@ -319,7 +395,7 @@ char* cartan_canonical_path(const char* path) {
 CARTAN_WEAK double contains_string(void* t, const char* s) {
     if (!t || !s || (uintptr_t)s < 0x10000 || (uintptr_t)s > 0x7FFFFFFEFFFFULL) return 0.0;
     char* canon_s = cartan_canonical_path(s);
-    double len = cartan_tree_len(t);
+    double len = cartan_tree_len_f(t);
     for (int i = 0; i < (int)len; i++) {
         char* item = (char*)cartan_tree_get(t, (size_t)i);
         if (item && (uintptr_t)item >= 0x10000 && (uintptr_t)item <= 0x7FFFFFFEFFFFULL) {
@@ -503,13 +579,7 @@ CARTAN_WEAK double cartan_math_fabs(double x) { return fabs(x); }
 CARTAN_WEAK double cartan_math_tanh(double x) { return tanh(x); }
 CARTAN_WEAK double cartan_math_floor(double x) { return floor(x); }
 
-typedef struct CartanTree {
-    uint32_t magic;
-    uint32_t ref_count;
-    size_t size;
-    size_t capacity;
-    void** data;
-} CartanTree;
+
 
 typedef struct CartanVector {
     double size;
@@ -525,21 +595,14 @@ CARTAN_WEAK void* cartan_vec_create(void) {
     return list;
 }
 
+CARTAN_WEAK void cartan_vec_destroy(void* v_ptr) {
+    if (v_ptr) free(v_ptr);
+}
+
 CARTAN_WEAK double cartan_vec_push_f32(void* v_ptr, double val) {
     if (!v_ptr) return 0.0;
     double* list = (double*)v_ptr;
     double len = list[0];
-    double cap = list[1];
-    if (len >= cap) {
-        size_t new_cap = (size_t)cap * 2;
-        double* new_list = (double*)realloc(list, (new_cap + 2) * sizeof(double));
-        if (new_list) {
-            list = new_list;
-            list[1] = (double)new_cap;
-        } else {
-            return len;
-        }
-    }
     list[2 + (size_t)len] = val;
     list[0] = len + 1.0;
     return list[0];
@@ -547,6 +610,21 @@ CARTAN_WEAK double cartan_vec_push_f32(void* v_ptr, double val) {
 
 CARTAN_WEAK double cartan_vec_get_f32(void* v_ptr, double idx) {
     if (!v_ptr) return 0.0;
+    int kind = cartan_is_tree_obj(v_ptr);
+    if (kind == 1) {
+        CartanTree* t = (CartanTree*)v_ptr;
+        size_t i = (size_t)idx;
+        if (i < t->size && t->data) return (double)(uintptr_t)t->data[i];
+        return 0.0;
+    }
+    if (kind == 2) {
+        uint64_t* u = (uint64_t*)v_ptr;
+        size_t sz = (size_t)u[2];
+        void** data = (void**)u[1];
+        size_t i = (size_t)idx;
+        if (i < sz && data) return (double)(uintptr_t)data[i];
+        return 0.0;
+    }
     double* list = (double*)v_ptr;
     double len = list[0];
     if (idx < 0.0 || idx >= len) return 0.0;
@@ -580,6 +658,9 @@ CARTAN_WEAK void* cartan_vec_scale(void* v_ptr, double scale) {
 
 CARTAN_WEAK double cartan_vec_len(void* v_ptr) {
     if (!v_ptr) return 0.0;
+    int kind = cartan_is_tree_obj(v_ptr);
+    if (kind == 1) return (double)((CartanTree*)v_ptr)->size;
+    if (kind == 2) return (double)((uint64_t*)v_ptr)[2];
     return ((double*)v_ptr)[0];
 }
 
@@ -606,10 +687,14 @@ const char* cartan_getenv(const char* name) {
 #include <stdio.h>
 
 double c_cartan_string_eq(const char* s1, const char* s2) {
-    if (!s1 && !s2) return 1.0;
-    if (!s1 || !s2) return 0.0;
-    if (s1 == s2) return 1.0;
-    return strcmp(s1, s2) == 0 ? 1.0 : 0.0;
+    char buf1[32];
+    char buf2[32];
+    const char* str1 = cartan_normalize_str(s1, buf1, sizeof(buf1));
+    const char* str2 = cartan_normalize_str(s2, buf2, sizeof(buf2));
+    if (!str1 && !str2) return 1.0;
+    if (!str1 || !str2) return 0.0;
+    if (str1 == str2) return 1.0;
+    return strcmp(str1, str2) == 0 ? 1.0 : 0.0;
 }
 
 CARTAN_WEAK double cartan_string_eq(const char* s1, const char* s2) {
@@ -791,7 +876,7 @@ CARTAN_WEAK double cartan_hash_string(const char* str) {
 extern void* cartan_tree_create(void);
 extern void cartan_tree_push(void* tree, void* item);
 extern void* cartan_tree_get(void* tree, size_t idx);
-extern size_t cartan_tree_len(void* tree);
+extern double cartan_tree_len(void* tree);
 extern void c_cartan_tree_set(void* tree, double idx, void* val);
 extern void cartan_tree_write_file(const char* path, void* tree);
 extern char* c_cartan_string_concat(const char* s1, const char* s2);
@@ -805,9 +890,6 @@ extern char* c_cartan_string_substring(const char* s, double start, double end);
 extern char* c_cartan_read_file(const char* path);
 
 
-#define CARTAN_TREE_MAGIC 0xCA57A47
-#define CARTAN_IS_TREE(t) (CARTAN_IS_VALID_PTR(t) && ((CartanTree*)(t))->magic == CARTAN_TREE_MAGIC)
-
 CARTAN_WEAK void* cartan_tree_create(void) {
     CartanTree* t = (CartanTree*)malloc(sizeof(CartanTree));
     t->magic = CARTAN_TREE_MAGIC;
@@ -819,30 +901,64 @@ CARTAN_WEAK void* cartan_tree_create(void) {
 }
 
 CARTAN_WEAK void cartan_tree_push(void* t, void* item) {
-    if (!CARTAN_IS_TREE(t)) return;
-    CartanTree* tree = (CartanTree*)t;
-    if (tree->size >= tree->capacity) {
-        tree->capacity = tree->capacity == 0 ? 16 : tree->capacity * 2;
-        tree->data = (void**)realloc(tree->data, tree->capacity * sizeof(void*));
+    t = cartan_sanitize_ptr(t);
+    if (!CARTAN_IS_VALID_PTR(t)) return;
+    int kind = cartan_is_tree_obj(t);
+    if (kind == 1) {
+        CartanTree* tree = (CartanTree*)t;
+        if (tree->size >= tree->capacity) {
+            tree->capacity *= 2;
+            tree->data = (void**)realloc(tree->data, tree->capacity * sizeof(void*));
+        }
+        tree->data[tree->size++] = cartan_sanitize_ptr(item);
+    } else if (kind == 2) {
+        uint64_t* u = (uint64_t*)t;
+        size_t cap = (size_t)u[0];
+        void** data = (void**)u[1];
+        size_t sz = (size_t)u[2];
+        if (sz >= cap) {
+            cap = cap == 0 ? 16 : cap * 2;
+            data = (void**)realloc(data, cap * sizeof(void*));
+            u[0] = (uint64_t)cap;
+            u[1] = (uint64_t)(uintptr_t)data;
+        }
+        data[sz++] = cartan_sanitize_ptr(item);
+        u[2] = (uint64_t)sz;
     }
-    tree->data[tree->size++] = item;
 }
 
-CARTAN_WEAK size_t cartan_tree_len(void* t) {
-    if (!CARTAN_IS_TREE(t)) return 0;
-    return ((CartanTree*)t)->size;
+CARTAN_WEAK double cartan_tree_len(void* t) {
+    t = cartan_sanitize_ptr(t);
+    if (!t) return 0.0;
+    int kind = cartan_is_tree_obj(t);
+    if (kind == 1) return (double)((CartanTree*)t)->size;
+    if (kind == 2) return (double)((uint64_t*)t)[2];
+    return 0.0;
 }
 
 CARTAN_WEAK void* cartan_tree_get(void* t, size_t idx) {
-    if (!CARTAN_IS_TREE(t)) return NULL;
-    CartanTree* tree = (CartanTree*)t;
-    if (idx >= tree->size) return NULL;
-    return tree->data[idx];
+    int kind = cartan_is_tree_obj(t);
+    if (kind == 1) {
+        CartanTree* tree = (CartanTree*)t;
+        if (idx >= tree->size) return NULL;
+        return tree->data[idx];
+    }
+    if (kind == 2) {
+        uint64_t* u = (uint64_t*)t;
+        size_t sz = (size_t)u[2];
+        void** data = (void**)u[1];
+        if (idx >= sz) return NULL;
+        return data[idx];
+    }
+    return NULL;
 }
 
 CARTAN_WEAK void cartan_tree_set(void* t, double idx, void* val) {
+    t = cartan_sanitize_ptr(t);
+    val = cartan_sanitize_ptr(val);
     if (!CARTAN_IS_VALID_PTR(t)) return;
-    if (CARTAN_IS_TREE(t)) {
+    int kind = cartan_is_tree_obj(t);
+    if (kind == 1) {
         CartanTree* tree = (CartanTree*)t;
         size_t i = (size_t)idx;
         if (i >= tree->capacity) {
@@ -854,43 +970,86 @@ CARTAN_WEAK void cartan_tree_set(void* t, double idx, void* val) {
         if (i >= tree->size) {
             tree->size = i + 1;
         }
-    } else {
-        double* d_flat = (double*)t;
-        double d0 = d_flat[0];
-        if (d0 >= 0.0 && d0 <= 255.0 && d0 == (double)(int)d0) {
-            d_flat[(size_t)idx] = (double)(uintptr_t)val;
-        } else {
-            void** p_flat = (void**)t;
-            p_flat[(size_t)idx] = val;
-        }
+        return;
     }
-}
-
-CARTAN_WEAK double cartan_tree_len_f(void* t) {
-    if (!t) return 0.0;
-    if (CARTAN_IS_TREE(t)) return (double)((CartanTree*)t)->size;
-    return cartan_tree_len(t);
-}
-
-CARTAN_WEAK void* cartan_tree_get_f32(void* t, double idx) {
-    if (!CARTAN_IS_VALID_PTR(t)) return NULL;
-    size_t i = (size_t)idx;
-    if (CARTAN_IS_TREE(t)) {
-        CartanTree* tree = (CartanTree*)t;
-        if (i < tree->size && tree->data != NULL) return tree->data[i];
-        return NULL;
+    if (kind == 2) {
+        uint64_t* u = (uint64_t*)t;
+        size_t cap = (size_t)u[0];
+        void** data = (void**)u[1];
+        size_t sz = (size_t)u[2];
+        size_t i = (size_t)idx;
+        if (i >= cap) {
+            size_t new_cap = cap == 0 ? i + 16 : (i + 1) * 2;
+            data = (void**)realloc(data, new_cap * sizeof(void*));
+            u[0] = new_cap;
+            u[1] = (uint64_t)data;
+        }
+        data[i] = val;
+        if (i >= sz) {
+            u[2] = i + 1;
+        }
+        return;
     }
     double* d_flat = (double*)t;
     double d0 = d_flat[0];
     if (d0 >= 0.0 && d0 <= 255.0 && d0 == (double)(int)d0) {
-        if (i == 0) {
-            return (void*)(intptr_t)(int)d0;
+        d_flat[(size_t)idx] = (double)(uintptr_t)val;
+    } else {
+        void** p_flat = (void**)t;
+        p_flat[(size_t)idx] = val;
+    }
+}
+
+CARTAN_WEAK double cartan_tree_len_f(void* t) {
+    t = cartan_sanitize_ptr(t);
+    if (!t) return 0.0;
+    int kind = cartan_is_tree_obj(t);
+    if (kind == 1) return (double)((CartanTree*)t)->size;
+    if (kind == 2) return (double)((uint64_t*)t)[2];
+    return 0.0;
+}
+
+CARTAN_WEAK void cartan_print_ptr(const char* label, void* p) {
+    printf("%s: 0x%p\n", label ? label : "ptr", p);
+    fflush(stdout);
+}
+
+CARTAN_WEAK void* cartan_tree_get_f32(void* t, double idx) {
+    t = cartan_sanitize_ptr(t);
+    if (!CARTAN_IS_VALID_PTR(t)) return NULL;
+    size_t i = (size_t)idx;
+    int kind = cartan_is_tree_obj(t);
+    if (kind == 1) {
+        CartanTree* tree = (CartanTree*)t;
+        if (i < tree->size && tree->data != NULL) return cartan_sanitize_ptr(tree->data[i]);
+        return NULL;
+    }
+    if (kind == 2) {
+        uint64_t* u = (uint64_t*)t;
+        size_t sz = (size_t)u[2];
+        void** data = (void**)u[1];
+        if (i < sz && data != NULL) return cartan_sanitize_ptr(data[i]);
+        return NULL;
+    }
+    uint64_t raw0 = *(uint64_t*)t;
+    uint64_t exp0 = (raw0 >> 48) & 0xFFFF;
+    if (exp0 >= 0x3FF0 && exp0 <= 0x4070) {
+        double* d_flat = (double*)t;
+        double d0 = d_flat[0];
+        if (d0 >= 1.0 && d0 <= 255.0 && d0 == (double)(int)d0) {
+            if (i == 0) {
+                return (void*)(intptr_t)(int)d0;
+            }
+            uint64_t raw_i = *(uint64_t*)&d_flat[i];
+            uint64_t exp_i = (raw_i >> 48) & 0xFFFF;
+            if (exp_i >= 0x3FF0 && exp_i <= 0x43E0) {
+                return cartan_sanitize_ptr((void*)(uintptr_t)(uint64_t)d_flat[i]);
+            }
+            return cartan_sanitize_ptr((void*)(uintptr_t)raw_i);
         }
-        double val = d_flat[i];
-        return (void*)(uintptr_t)(uint64_t)val;
     }
     void** p_flat = (void**)t;
-    return p_flat[i];
+    return cartan_sanitize_ptr(p_flat[i]);
 }
 
 CARTAN_WEAK double cartan_tree_set_f32(void* t, double idx, double val) {
@@ -910,8 +1069,31 @@ CARTAN_WEAK double cartan_tree_push_f32(void* t, double val) {
 }
 
 CARTAN_WEAK void cartan_tree_remove(void* t, double idx) {
-    // Weak implementation
+    t = cartan_sanitize_ptr(t);
+    if (!CARTAN_IS_VALID_PTR(t)) return;
+    int kind = cartan_is_tree_obj(t);
+    size_t i = (size_t)idx;
+    if (kind == 1) {
+        CartanTree* tree = (CartanTree*)t;
+        if (i < tree->size) {
+            for (size_t j = i; j + 1 < tree->size; j++) {
+                tree->data[j] = tree->data[j + 1];
+            }
+            tree->size--;
+        }
+    } else if (kind == 2) {
+        uint64_t* u = (uint64_t*)t;
+        size_t sz = (size_t)u[2];
+        void** data = (void**)u[1];
+        if (i < sz) {
+            for (size_t j = i; j + 1 < sz; j++) {
+                data[j] = data[j + 1];
+            }
+            u[2] = (uint64_t)(sz - 1);
+        }
+    }
 }
+CARTAN_WEAK void cartan_ast_tree_push(void* t, void* item) { cartan_tree_push(t, item); }
 CARTAN_WEAK void cartan_ast_tree_set(void* t, double idx, void* val) { cartan_tree_set(t, idx, val); }
 CARTAN_WEAK void cartan_ast_tree_write_file(const char* path, void* t) { cartan_tree_write_file(path, t); }
 CARTAN_WEAK char* cartan_ast_string_concat(const char* a, const char* b) { return c_cartan_string_concat(a, b); }
@@ -920,7 +1102,17 @@ CARTAN_WEAK char* cartan_ast_string_substring(const char* s, double start, doubl
 CARTAN_WEAK char* cartan_string_substring(const char* s, double start, double end) { return c_cartan_string_substring(s, start, end); }
 CARTAN_WEAK char* cartan_float_to_string(double f) { return c_cartan_float_to_string(f); }
 CARTAN_WEAK char* cartan_double_to_string(double f) { return c_cartan_float_to_string(f); }
-CARTAN_WEAK char* cartan_int_to_string(double f) { return c_cartan_float_to_string(f); }
+CARTAN_WEAK char* cartan_int_to_string(double f) {
+    char buf[64];
+    snprintf(buf, sizeof(buf), "%lld", (long long)f);
+    return cartan_strdup(buf);
+}
+CARTAN_WEAK char* cartan_strip_prefix(const char* str) {
+    if (!str) return "";
+    const char* last_colon = strrchr(str, ':');
+    if (last_colon) return (char*)(last_colon + 1);
+    return (char*)str;
+}
 CARTAN_WEAK char* cartan_read_file(const char* path) { return c_cartan_read_file(path); }
 CARTAN_WEAK double cartan_write_file(const char* path, const char* content) {
     if (!path || !content) return 0.0;
@@ -1021,7 +1213,7 @@ char* cartan_visit_string_literal(void* self_ptr, void* expr) {
 void* cartan_slice_tree(void* tree, double start, double end) {
     void* sliced = cartan_tree_create();
     if (!tree) return sliced;
-    double len = cartan_tree_len(tree);
+    double len = cartan_tree_len_f(tree);
     int s = (int)start;
     int e = (int)end;
     if (s < 0) s = 0;
@@ -1230,7 +1422,7 @@ void* cartan_tensor_to_dlpack(void* data_ptr, int64_t* shape, int ndim) {
 void* cartan_slice_nd(void* tree, double start, double end, double step) {
     void* sliced = cartan_tree_create();
     if (!tree) return sliced;
-    double len = cartan_tree_len(tree);
+    double len = cartan_tree_len_f(tree);
     int s = (int)start;
     int e = (int)end;
     int st = (int)step;
@@ -1393,7 +1585,7 @@ double cartan_rt_autograd_forward_grad(double input_val, double (*func)(double))
 void* cartan_rt_vmap_eval(void* input_tree, double (*fn_ptr)(double)) {
     void* out_tree = cartan_tree_create();
     if (!input_tree || !fn_ptr) return out_tree;
-    double len = cartan_tree_len(input_tree);
+    double len = cartan_tree_len_f(input_tree);
     for (size_t i = 0; i < (size_t)len; i++) {
         double val = enum_get_double((double*)cartan_tree_get(input_tree, i), 0);
         double res = fn_ptr(val);
@@ -1664,6 +1856,44 @@ static LONG WINAPI CartanCrashHandler(EXCEPTION_POINTERS* ep) {
             ep->ContextRecord->Rsi, ep->ContextRecord->Rdi, ep->ContextRecord->Rsp, ep->ContextRecord->Rbp);
     fprintf(stderr, "R8:  0x%016llX  R9:  0x%016llX  R10: 0x%016llX  R11: 0x%016llX\n",
             ep->ContextRecord->R8, ep->ContextRecord->R9, ep->ContextRecord->R10, ep->ContextRecord->R11);
+    void* stack[32];
+    unsigned short frames = CaptureStackBackTrace(0, 32, stack, NULL);
+    HMODULE hDbgHelp = LoadLibraryA("dbghelp.dll");
+    typedef struct {
+        DWORD   SizeOfStruct;
+        DWORD   TypeIndex;
+        ULONG64 Reserved[2];
+        DWORD   Index;
+        DWORD   Size;
+        ULONG64 ModBase;
+        DWORD   Flags;
+        ULONG64 Value;
+        ULONG64 Address;
+        DWORD   Register;
+        DWORD   Scope;
+        DWORD   Tag;
+        DWORD   NameLen;
+        DWORD   MaxNameLen;
+        CHAR    Name[1];
+    } C_SYMBOL_INFO;
+    typedef BOOL (WINAPI *SymInitFn)(HANDLE, PCSTR, BOOL);
+    typedef BOOL (WINAPI *SymFromAddrFn)(HANDLE, DWORD64, PDWORD64, C_SYMBOL_INFO*);
+    SymInitFn pSymInit = hDbgHelp ? (SymInitFn)GetProcAddress(hDbgHelp, "SymInitialize") : NULL;
+    SymFromAddrFn pSymFromAddr = hDbgHelp ? (SymFromAddrFn)GetProcAddress(hDbgHelp, "SymFromAddr") : NULL;
+    HANDLE hProc = GetCurrentProcess();
+    int sym_ok = (pSymInit && pSymFromAddr && pSymInit(hProc, NULL, TRUE));
+    char sym_buf[sizeof(C_SYMBOL_INFO) + 256];
+    C_SYMBOL_INFO* sym = (C_SYMBOL_INFO*)sym_buf;
+    sym->SizeOfStruct = sizeof(C_SYMBOL_INFO);
+    sym->MaxNameLen = 255;
+    for (unsigned short i = 0; i < frames; i++) {
+        DWORD64 disp = 0;
+        if (sym_ok && pSymFromAddr(hProc, (DWORD64)stack[i], &disp, sym)) {
+            fprintf(stderr, "  frame [%u]: %s + 0x%llx (%p)\n", i, sym->Name, (unsigned long long)disp, stack[i]);
+        } else {
+            fprintf(stderr, "  frame [%u]: %p\n", i, stack[i]);
+        }
+    }
     fflush(stderr);
     return EXCEPTION_EXECUTE_HANDLER;
 }

@@ -1,3 +1,23 @@
+## [8.229.0] - 2026-09-03 (Sprint 272: Full Self-Hosting Compiler Fixpoint Parity & Stage 3 Bootstrap)
+
+### Completed & Validated
+- **Full Compiler Self-Hosting Bootstrap (`cartanc.exe` -> `cartanc_stage2.exe` -> `cartanc_stage3.exe`)**:
+  - Achieved exact bit-for-bit SHA-256 fixed-point parity (`cartanc_stage2.ll` == `cartanc_stage3.ll`, SHA-256: `23dcd1407cfc64b42302f00a2b783b60a2103790bd965877e64bb012cb458f28`).
+  - Successfully promoted self-hosted binary to primary `cartanc.exe`.
+- **Logical AND Operator Token Fix (`src/cartanc/parser.car`)**:
+  - Resolved root cause of infinite lexer loops: `logical_and` had uninitialized `let op = "";`, causing `&&` operators to fall through and emit floating-point additions (`+`), which broke `is_alpha` and `is_digit`.
+  - Fixed `let op = "&&";` ensuring correct LLVM IR `and i1` boolean logic.
+- **Function Local Scope Isolation & Dictionary Cloning (`src/cartanc/llvm_codegen.car`, `src/cartanc/type_checker.car`)**:
+  - Implemented `cartan_dict_clone(dict)` to isolate local function symbol tables and prevent dictionary cross-contamination between successive function codegen passes.
+  - Initialized a clean `self_ptr.var_types = cartan_tree_create()` at the beginning of each function pass, eliminating type pollution where floating-point variables (like `disc`) inherited pointer types from preceding passes.
+  - Explicitly registered `cartan_dict_set(self_ptr.var_types, name, "double")` in `VarDecl` float branch.
+- **Dynamic 64-bit Struct Alignment (`src/cartanc/llvm_codegen.car`)**:
+  - Standardized all struct definitions and enum payload alignments to 64-bit `double`, preventing adjacent memory smashing in the lexer and AST nodes.
+- **Empirical Pipeline Verification**:
+  - Verified compilation and execution of `test/test_add.car` producing exact output `Result: 42.000000`.
+  - Verified `test/compiler_suite/test_primitives.car` producing exact output `Test Primitives Result: 42.000000`.
+  - Verified `test/compiler_suite/test_enums.car`, `test_optimizer.car`, and `test_static_assert.car`.
+
 ## [8.228.0] - 2026-09-02 (Sprint 271: Pure Native CARTAN WebGPU Causal Training & Biological Telemetry Engine)
 
 ### Completed & Validated

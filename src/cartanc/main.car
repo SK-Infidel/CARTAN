@@ -21,7 +21,7 @@ extern fn cartan_tree_len(t: ptr) -> float;
 extern fn cartan_tree_len_f(t: ptr) -> float;
 extern fn cartan_tree_write_file(path: string, t: ptr) -> void;
 extern fn cartan_string_replace(s: string, f: string, r: string) -> string;
-extern fn cartan_flush(f: float) -> void;
+extern fn cartan_flush(f: float) -> float;
 extern fn cartan_read_line() -> string;
 extern fn cartan_file_exists(path: string) -> float;
 extern fn atof(s: string) -> float;
@@ -62,8 +62,6 @@ fn contains_string(t: ptr, s: string) -> float {
 }
 
 fn ast_expansion_pass(ast: ptr, visited_files: ptr) -> ptr {
-    printf("Entering ast_expansion_pass\n");
-    cartan_flush(0.0);
     let new_ast = cartan_tree_create();
     let len = cartan_tree_len_f(ast);
     var i = 0.0;
@@ -71,22 +69,25 @@ fn ast_expansion_pass(ast: ptr, visited_files: ptr) -> ptr {
     while (i < len) {
         let stmt = cartan_tree_get_f32(ast, i);
         if (stmt != 0.0) {
-            let disc = cartan_tree_get_f32(stmt, 0.0);
-            printf("Processing stmt %s of %s (disc=%s)\n", cartan_float_to_string(i), cartan_float_to_string(len), cartan_float_to_string(disc));
-            cartan_flush(0.0);
+            let disc = stmt[0];
             if (disc == 63.0) { // Stmt::Include (Index 63)
                 var path = cartan_tree_get_f32(stmt, 1.0);
                 if (cartan_string_starts_with(path, "../../") != 0.0) {
                     path = cartan_string_substring(path, 6.0, cartan_string_length(path));
                 }
                 if (cartan_file_exists(path) == 0.0) {
-                    let try_std = cartan_string_concat("src/std/", path);
-                    if (cartan_file_exists(try_std) != 0.0) {
-                        path = try_std;
+                    let try_cartanc = cartan_string_concat("src/cartanc/", path);
+                    if (cartan_file_exists(try_cartanc) != 0.0) {
+                        path = try_cartanc;
                     } else {
-                        let try_geomind = cartan_string_concat("test/geomind/", path);
-                        if (cartan_file_exists(try_geomind) != 0.0) {
-                            path = try_geomind;
+                        let try_std = cartan_string_concat("src/std/", path);
+                        if (cartan_file_exists(try_std) != 0.0) {
+                            path = try_std;
+                        } else {
+                            let try_geomind = cartan_string_concat("test/geomind/", path);
+                            if (cartan_file_exists(try_geomind) != 0.0) {
+                                path = try_geomind;
+                            }
                         }
                     }
                 }
@@ -112,7 +113,7 @@ fn ast_expansion_pass(ast: ptr, visited_files: ptr) -> ptr {
                         let parser = parser_init(tokens);
                         let sub_ast = parse(parser);
                         let expanded_sub_ast = ast_expansion_pass(sub_ast, visited_files);
-                        let sub_len = cartan_tree_len(expanded_sub_ast);
+                        let sub_len = cartan_tree_len_f(expanded_sub_ast);
                         var j = 0.0;
                         while (j < sub_len) {
                             cartan_tree_push(new_ast, cartan_tree_get_f32(expanded_sub_ast, j));
@@ -354,14 +355,11 @@ fn main() -> float {
             }
         }
         
-        printf("Compiling input file...\n");
-        cartan_flush(0.0);
-
         // Auto-sync c_runtime.c to ~/.cartan/c_runtime.c [BACKLOG-SYNC-01]
         let user_profile = cartan_get_env("USERPROFILE");
         let target_sync_path = cartan_string_concat(user_profile, "\\.cartan\\c_runtime.c");
         cartan_copy_file("src/cartanc/c_runtime.c", target_sync_path);
-        
+
         let source = cartan_read_file(input_file);
         let length = cartan_string_length(source);
         let lexer = lexer_init(source, length);
@@ -370,18 +368,15 @@ fn main() -> float {
         while (1.0) {
             let tok = lexer_next_token(lexer);
             cartan_tree_push(tokens, tok);
-            if (tok.token_type == 0.0) {
-                break;
-            }
-            let first_elem = tok.token_type[0];
-            if (first_elem == 168.0) {
+            if (tok.token_type[0] == 168.0) {
                 break;
             }
         }
         
+        printf("Tokens len: %f\n", cartan_tree_len_f(tokens));
         let parser = parser_init(tokens);
         let ast = parse(parser);
-        printf("Parser finished!\n");
+        printf("Parser finished! AST len: %f\n", cartan_tree_len_f(ast));
         cartan_flush(0.0);
         if (parser.has_error != 0.0) {
             printf("Compilation failed due to parser diagnostic errors.\n");
@@ -391,14 +386,18 @@ fn main() -> float {
         let visited_files = cartan_tree_create();
         cartan_tree_push(visited_files, input_file);
         let expanded_ast = ast_expansion_pass(ast, visited_files);
+        printf("Expanded AST len: %f\n", cartan_tree_len_f(expanded_ast));
         
         let type_checker = type_checker_init();
         typechecker_check(type_checker, expanded_ast);
+        printf("Type checker finished!\n");
         
         let opt_ast = optimize_ast(expanded_ast);
+        printf("Opt AST len: %f\n", cartan_tree_len_f(opt_ast));
         
         let codegen = llvm_codegen_init();
         let ir = generate(codegen, opt_ast);
+        printf("Codegen finished! IR len: %f\n", cartan_tree_len_f(ir));
         
         let out_ll = cartan_string_replace(output_file, ".exe", ".ll");
         cartan_tree_write_file(out_ll, ir);
