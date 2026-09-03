@@ -2,7 +2,11 @@
 // CARTAN Standard Library: Continuous Hopfield Resonator & Banach Contraction Mapping Implementation
 
 include "src/std/math.cl";
+include "src/std/collections.cl";
+include "src/std/fs.cl";
+include "src/std/string.cl";
 
+extern fn cartan_tree_len_f(t: ptr) -> float;
 fn resonator_banach_contraction_relax(h_state: float, weight: float, beta: float, max_iters: float) -> float {
     var current_h = h_state;
     var iter = 0.0;
@@ -112,5 +116,219 @@ fn resonator_multidimensional_hopfield_relax(state_vec: ptr, weights_mat: ptr, d
         iter = iter + 1.0;
     }
 }
+
+fn resonator_create_attractor_bank() -> ptr {
+    return cartan_tree_create();
+}
+
+fn resonator_add_attractor(bank: ptr, vec: ptr, dim: float) -> float {
+    if (bank == 0.0 || vec == 0.0 || dim <= 0.0) { return 0.0; }
+    var sum_sq = 0.0;
+    var d = 0.0;
+    while (d < dim) {
+        let v = cartan_vec_get_f32(vec, d);
+        sum_sq = sum_sq + (v * v);
+        d = d + 1.0;
+    }
+    var inv_norm = 1.0;
+    if (sum_sq > 0.000001) {
+        inv_norm = 1.0 / sqrt(sum_sq);
+    }
+    let norm_vec = cartan_vec_create();
+    d = 0.0;
+    while (d < dim) {
+        let v = cartan_vec_get_f32(vec, d);
+        cartan_vec_push_f32(norm_vec, v * inv_norm);
+        d = d + 1.0;
+    }
+    cartan_tree_push(bank, norm_vec);
+    return cartan_tree_len_f(bank);
+}
+
+fn resonator_continuous_hopfield_relax(bank: ptr, state_vec: ptr, dim: float, beta: float, steps: float) -> float {
+    if (bank == 0.0 || state_vec == 0.0 || dim <= 0.0) { return 0.0; }
+    let num_basins = cartan_tree_len_f(bank);
+    if (num_basins == 0.0) { return 0.0; }
+
+    var step = 0.0;
+    var b = 1.0;
+    if (beta > 0.0) { b = beta; }
+    var max_steps = 2.0;
+    if (steps > 0.0) { max_steps = steps; }
+
+
+    while (step < max_steps) {
+        let scores = cartan_vec_create();
+        var max_score = -999999.0;
+        var k = 0.0;
+        while (k < num_basins) {
+            let basin_k = cartan_tree_get(bank, k);
+            var dot = 0.0;
+            var d = 0.0;
+            while (d < dim) {
+                let s_val = cartan_vec_get_f32(state_vec, d);
+                let b_val = cartan_vec_get_f32(basin_k, d);
+                dot = dot + (s_val * b_val);
+                d = d + 1.0;
+            }
+            let s_k = dot * b;
+            if (s_k > max_score) { max_score = s_k; }
+            cartan_vec_push_f32(scores, s_k);
+            k = k + 1.0;
+        }
+
+        var sum_exp = 0.0;
+        k = 0.0;
+        while (k < num_basins) {
+            let s_k = cartan_vec_get_f32(scores, k);
+            let p_k = exp(s_k - max_score);
+            cartan_vec_set_f32(scores, k, p_k);
+            sum_exp = sum_exp + p_k;
+            k = k + 1.0;
+        }
+
+        var inv_sum = 1.0;
+        if (sum_exp > 0.000001) { inv_sum = 1.0 / sum_exp; }
+
+        var d_idx = 0.0;
+        while (d_idx < dim) {
+            var recall_d = 0.0;
+            k = 0.0;
+            while (k < num_basins) {
+                let p_k = cartan_vec_get_f32(scores, k) * inv_sum;
+                let basin_k = cartan_tree_get(bank, k);
+                let b_val = cartan_vec_get_f32(basin_k, d_idx);
+                recall_d = recall_d + (p_k * b_val);
+                k = k + 1.0;
+            }
+            let cur_val = cartan_vec_get_f32(state_vec, d_idx);
+            cartan_vec_set_f32(state_vec, d_idx, cur_val * 0.70 + recall_d * 0.30);
+            d_idx = d_idx + 1.0;
+        }
+        step = step + 1.0;
+    }
+    return 1.0;
+}
+
+fn resonator_compute_energy(bank: ptr, state_vec: ptr, dim: float) -> float {
+    if (state_vec == 0.0 || dim <= 0.0) { return 1.0; }
+    var num_basins = 0.0;
+    if (bank != 0.0) { num_basins = cartan_tree_len_f(bank); }
+    
+    var norm_sq = 0.0;
+    var d = 0.0;
+    while (d < dim) {
+        let v = cartan_vec_get_f32(state_vec, d);
+        norm_sq = norm_sq + (v * v);
+        d = d + 1.0;
+    }
+    if (num_basins == 0.0) {
+        return norm_sq * 0.5 / dim;
+    }
+
+    var max_dot = -999999.0;
+    let dots = cartan_vec_create();
+    var k = 0.0;
+    while (k < num_basins) {
+        let basin_k = cartan_tree_get(bank, k);
+        var dot = 0.0;
+        d = 0.0;
+        while (d < dim) {
+            let s_val = cartan_vec_get_f32(state_vec, d);
+            let b_val = cartan_vec_get_f32(basin_k, d);
+            dot = dot + (s_val * b_val);
+            d = d + 1.0;
+        }
+        if (dot > max_dot) { max_dot = dot; }
+        cartan_vec_push_f32(dots, dot);
+        k = k + 1.0;
+    }
+
+    var sum_exp = 0.0;
+    k = 0.0;
+    while (k < num_basins) {
+        let dot_k = cartan_vec_get_f32(dots, k);
+        sum_exp = sum_exp + exp(dot_k - max_dot);
+        k = k + 1.0;
+    }
+    var safe_sum = 0.000001;
+    if (sum_exp > 0.000001) { safe_sum = sum_exp; }
+    let log_sum = max_dot + log(safe_sum);
+    let energy = (0.0 - log_sum) + (norm_sq * 0.5 / dim);
+    return energy;
+}
+
+fn resonator_save_basins(bank: ptr, path: string, dim: float) -> float {
+    if (bank == 0.0 || dim <= 0.0) { return 0.0; }
+    let num_basins = cartan_tree_len_f(bank);
+    let f = fopen(path, "wb");
+    if (f == 0.0) { return 0.0; }
+
+    let header = malloc(8.0);
+    header[0] = num_basins;
+    header[1] = dim;
+    fwrite(header, 4.0, 2.0, f);
+    free(header);
+
+    let v_buf = malloc(dim * 4.0);
+    var k = 0.0;
+    while (k < num_basins) {
+        let basin = cartan_tree_get(bank, k);
+        var d = 0.0;
+        while (d < dim) {
+            let v = cartan_vec_get_f32(basin, d);
+            v_buf[d] = v;
+            d = d + 1.0;
+        }
+        fwrite(v_buf, 4.0, dim, f);
+        k = k + 1.0;
+    }
+    free(v_buf);
+    fclose(f);
+    return num_basins;
+}
+
+fn resonator_load_basins(path: string, dim: float) -> ptr {
+    let f = fopen(path, "rb");
+    if (f == 0.0) { return 0.0; }
+
+    let header = malloc(8.0);
+    let read_hdr = fread(header, 4.0, 2.0, f);
+    if (read_hdr < 2.0) {
+        free(header);
+        fclose(f);
+        return 0.0;
+    }
+    let num_basins = header[0];
+    let stored_dim = header[1];
+    free(header);
+
+    if (num_basins <= 0.0 || stored_dim != dim) {
+        fclose(f);
+        return 0.0;
+    }
+
+    let bank = cartan_tree_create();
+    let v_buf = malloc(dim * 4.0);
+    var k = 0.0;
+    while (k < num_basins) {
+        let n_read = fread(v_buf, 4.0, dim, f);
+        if (n_read < dim) { break; }
+        let basin = cartan_vec_create();
+        var d = 0.0;
+        while (d < dim) {
+            let v = v_buf[d];
+            cartan_vec_push_f32(basin, v);
+            d = d + 1.0;
+        }
+        cartan_tree_push(bank, basin);
+        k = k + 1.0;
+    }
+    free(v_buf);
+    fclose(f);
+    return bank;
+}
+
+
 
 

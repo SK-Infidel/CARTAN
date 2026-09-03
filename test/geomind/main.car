@@ -10,6 +10,8 @@ include "test/geomind/streams.cl";
 include "test/geomind/chat.cl";
 include "test/geomind/sft_train.cl";
 include "test/geomind/azr_engine.cl";
+include "test/geomind/webgpu_causal_engine.cl";
+
 
 include "src/std/string.cl";
 include "src/std/distill.cl";
@@ -45,6 +47,7 @@ fn print_help_dialogue() -> float {
     printf("  --merge-slerp   Run Zero-Day SLERP geodesic model weight merging pipeline\n");
     printf("  --azr-selfplay  Run Absolute Zero Reasoning (AZR) compiler self-play loop\n");
     printf("  --ingest        Ingest material into Continuous Hopfield memory (-target <file>)\n");
+    printf("  --train-webgpu  Run pure native CARTAN WebGPU Causal Training Engine\n");
     printf("  --help, -h      Display this help dialogue and exit\n\n");
     printf("Targeting Flags:\n");
     printf("  -target <file>  Explicit dataset file path on disk\n");
@@ -234,6 +237,14 @@ fn main() -> float {
             cartan_flush(0.0);
             return 0.0;
         }
+
+        if (cartan_string_eq(flag, "--train-webgpu") == 1.0 || cartan_string_eq(flag, "--train-causal-webgpu") == 1.0) {
+            let target = get_cli_target_path(arg_count);
+            let res = webgpu_run_causal_training_pipeline(target, 5.0);
+            cartan_flush(0.0);
+            return 0.0;
+        }
+
 
         if (cartan_string_eq(flag, "--train-distill") == 1.0) {
             printf("[GeoMind Distill] Initializing Teacher vs GeoMind Student Logit Buffers...\n");

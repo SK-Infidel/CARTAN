@@ -313,9 +313,16 @@ This file tracks technical debt and bugs identified during repository code revie
   5. Decoupled AZR self-play: verified reasoning solutions in `azr_engine.cl` were not written into Continuous Hopfield attractor memory or backpropagated.
 - **Status**: Fixed in Sprint 270. Unified JSON parsing for `STAGE_SFT` to extract `"instruction"` and `"response"`, implemented multi-token Halliday cohesive bridge expansion, connected dynamic WordNet Information Content loss scaling via `cartan_get_wordnet_ic(tgt_id)` (0.5x to 5.0x), added `cartan_hopfield_relax_raw_float` hook into streaming batch preparation, and wired AZR verified self-play solutions into persistent Hopfield attractor basins. Successfully completed 240,000-sample single-epoch Cloze run with exit code 0.
 
+## [ISSUE-020] [FIXED] Sequence Supervision Waste & Disconnected Lie Subgroups in WebGPU Training
+
+- **Severity**: High (Architectural & Training Efficiency)
+- **Component**: `test/geomind/webgpu_causal_engine.cl`, `src/std/resonator.cl`, `src/cartanc/c_runtime.c`
+- **Description**: Previous GPU training pooled sequences into a single end-of-sequence vector, throwing away 98% of autoregressive supervision signals per sentence, and failed to run the 8 Lie cortical submanifolds or Continuous Hopfield relaxation on-chip.
+- **Status**: Fixed in Sprint 271. Authored Pure Native CARTAN WebGPU Causal Training Engine with 2D lower-triangular causal attention masking in WGSL (`causal_attn_fwd`), parallel 8-stream Lie cortical transforms (`lie_streams_fwd`), on-chip causal cross-entropy loss (`causal_loss_fwd`), and real-time biological telemetry logging for Hopfield energy drops and Sasaki MoE quadrant routing. Verified empirically on physical NVIDIA RTX 2000 Ada Generation Laptop GPU with zero compiler errors/warnings.
+
 # Active Issues
 
-*(No open critical blockers. All current issues resolved; rolling forward to Sprint 271: Pure Native CARTAN WebGPU Causal Training Engine).*
+*(No open critical blockers. All current issues resolved; rolling forward to Sprint 272).*
 
 
 

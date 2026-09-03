@@ -5754,8 +5754,10 @@ static char* cartan_wgsl_to_gpu_c(const char* wgsl_src, const char* entry_point)
     char params_buf[1024] = "";
     int param_count = 0;
     const char* p = wgsl_src;
-    while ((p = strstr(p, "var<storage, read_write>")) != NULL) {
-        p += strlen("var<storage, read_write>");
+    while ((p = strstr(p, "var<storage")) != NULL) {
+        p = strchr(p, '>');
+        if (!p) break;
+        p++;
         while (*p == ' ') p++;
         char name[128];
         int ni = 0;
@@ -5823,21 +5825,33 @@ static char* cartan_wgsl_to_gpu_c(const char* wgsl_src, const char* entry_point)
             } else if (strncmp(src, ": i32", 5) == 0) {
                 src += 5;
             } else if (strncmp(src, "f32(", 4) == 0) {
-                strcpy(dst, "((float)("); dst += strlen(dst); src += 4;
+                strcpy(dst, "((float)"); dst += strlen(dst); src += 4;
             } else if (strncmp(src, "u32(", 4) == 0) {
-                strcpy(dst, "((unsigned int)("); dst += strlen(dst); src += 4;
+                strcpy(dst, "((unsigned int)"); dst += strlen(dst); src += 4;
             } else if (strncmp(src, "let idx", 7) == 0) {
                 strcpy(dst, "const size_t idx"); dst += strlen(dst); src += 7;
+            } else if (strncmp(src, "let t_idx", 9) == 0) {
+                strcpy(dst, "const size_t t_idx"); dst += strlen(dst); src += 9;
+            } else if (strncmp(src, "let base", 8) == 0) {
+                strcpy(dst, "const size_t base"); dst += strlen(dst); src += 8;
             } else if (strncmp(src, "let row", 7) == 0) {
                 strcpy(dst, "const size_t row"); dst += strlen(dst); src += 7;
             } else if (strncmp(src, "let col", 7) == 0) {
                 strcpy(dst, "const size_t col"); dst += strlen(dst); src += 7;
             } else if (strncmp(src, "let D", 5) == 0) {
                 strcpy(dst, "const unsigned int D"); dst += strlen(dst); src += 5;
+            } else if (strncmp(src, "let T", 5) == 0) {
+                strcpy(dst, "const unsigned int T"); dst += strlen(dst); src += 5;
             } else if (strncmp(src, "let N", 5) == 0) {
                 strcpy(dst, "const unsigned int N"); dst += strlen(dst); src += 5;
             } else if (strncmp(src, "var i", 5) == 0) {
                 strcpy(dst, "unsigned int i"); dst += strlen(dst); src += 5;
+            } else if (strncmp(src, "var j", 5) == 0) {
+                strcpy(dst, "unsigned int j"); dst += strlen(dst); src += 5;
+            } else if (strncmp(src, "var d", 5) == 0) {
+                strcpy(dst, "unsigned int d"); dst += strlen(dst); src += 5;
+            } else if (strncmp(src, "var k", 5) == 0) {
+                strcpy(dst, "unsigned int k"); dst += strlen(dst); src += 5;
             } else if (strncmp(src, "var c", 5) == 0) {
                 strcpy(dst, "unsigned int c"); dst += strlen(dst); src += 5;
             } else if (strncmp(src, "var r", 5) == 0) {
