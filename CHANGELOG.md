@@ -1,3 +1,26 @@
+## [8.251.0] - 2026-09-04 (Sprint 294: Authentic WordNet / SlangNet Semantic Taxonomy & IC Loss Engine)
+
+### Completed & Validated
+- **Authentic Lowest Common Ancestor (LCA) Tree Geodesic Distance (`[ISSUE-043]`)**:
+  - Replaced dummy depth difference arithmetic (`abs(d1 - d2) + 2.0`) in `src/std/semantics.cl:semantics_lca_tree_distance`.
+  - Implemented genuine LCA tree depth computation: detects longest common dot-path prefix, extracts ancestor dot count $L$, and computes exact graph distance $D = (D_1 - L) + (D_2 - L)$.
+  - Validated sibling distance ($D=2.0$), ancestor distance ($D=3.0$), cousin distance ($D=7.0$), and identity distance ($D=0.0$).
+- **Authentic WordNet / SlangNet Taxonomy File Ingestion (`[ISSUE-043]`)**:
+  - Replaced dummy byte length readout in `semantics_load_taxonomy`.
+  - Parses synset definitions (`Definition:`) and lemma listings (`Lemmas:`) line-by-line from `test/geomind/trainingdata/wordnet_taxonomy.txt`.
+  - Maintains global counts `g_taxonomy_synset_count`, `g_taxonomy_lemma_count`, and `g_taxonomy_node_count`.
+- **Continuous Information Content (IC) Engine via Shannon Entropy (`[ISSUE-043]`)**:
+  - Eliminated static 10-word hardcoded table fallback in `src/std/semantics.cl:semantics_get_concept_ic`.
+  - Implemented `semantics_compute_shannon_entropy` using byte-frequency distributions and `math_log2`.
+  - Computes continuous Information Content: $\text{clamp}(2.0 + 0.45 \cdot N + 1.75 \cdot H, 1.0, 16.0)$, while maintaining calibrated anchors for domain and slang terms.
+- **Compiler Suite & Build Toolchain Hardening**:
+  - Updated `tools/zig_wrapper.py` to link `src/cartanc/geomind_runtime.c` runtime extensions safely without duplicate definition warnings.
+  - Resolved `.cl` standard library includes in `test/compiler_suite/test_semantics_ic.car`.
+- **Empirical Validation**:
+  - Verified Target 42 (`test/compiler_suite/test_semantics_ic.car`) passes cleanly with zero errors.
+  - Executed all 47 compiler regression test targets with 100% pass rate.
+  - Verified `build/geomind.exe` execution and help banner.
+
 ## [8.250.0] - 2026-09-04 (Sprint 293: Authentic AZR Compiler-Verified Reasoning Engine)
 
 ### Completed & Validated

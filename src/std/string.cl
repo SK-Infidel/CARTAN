@@ -22,6 +22,7 @@ extern fn cartan_float_to_string(val: float) -> string;
 extern fn cartan_string_starts_with(s: string, prefix: string) -> float;
 extern fn cartan_string_get_char(s: string, idx: float) -> float;
 extern fn cartan_string_replace(s: string, old_sub: string, new_sub: string) -> string;
+extern fn cartan_string_substring(s: string, start: float, end_idx: float) -> string;
 extern fn cartan_hash_string(s: string) -> float;
 
 fn string_len(s: string) -> float {
@@ -43,4 +44,9 @@ fn string_contains(s: string, target: string) -> float {
 fn string_replace(s: string, old_sub: string, new_sub: string) -> string {
     return cartan_string_replace(s, old_sub, new_sub);
 }
+
+fn string_substring(s: string, start: float, end_idx: float) -> string {
+    return cartan_string_substring(s, start, end_idx);
+}
+
 
