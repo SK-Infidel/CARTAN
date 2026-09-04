@@ -33,41 +33,6 @@ This file tracks technical debt and bugs identified during repository code revie
 - **Severity**: High (Logical Bug)
 - **Component**: `src/macro_pass.car` -> `expand_macros_stmt`
 - **Description**: The macro expansion pass recursively traverses and expands `stmt.body` but completely ignores `stmt.else_body`. Macros present in the `else` branch of an `if-else` statement will not be expanded.
-# Local Git Issues
-
-This file tracks technical debt and bugs identified during repository code reviews.
-
----
-
-## [ISSUE-001] [ARCHIVED] Redundant Cosine Calculations in E8 Phase Projection
-
-- **Severity**: Historical (Geomind Legacy Pass)
-- **Component**: `Geomind Archive/core`
-- **Status**: Archived. Pre-training calculations were replaced by native WebGPU WGSL compute shaders (`gpu_runtime/src/kernels.wgsl`).
-
----
-
-## [ISSUE-002] [ARCHIVED] Heap Allocations in Softmax Cross-Entropy Loss Gradient
-
-- **Severity**: Historical (Geomind Legacy Pass)
-- **Component**: `Geomind Archive/core`
-- **Status**: Archived. Replaced by zero-allocation GPU memory-mapped loss gradient calculation.
-
----
-
-## [ISSUE-003] [ARCHIVED] Sequential Weight Optimization Steps
-
-- **Severity**: Historical (Geomind Legacy Pass)
-- **Component**: `Geomind Archive/core`
-- **Status**: Archived. Replaced by parallelized WebGPU execution engine (`cartan_train_e8_gpu_full`).
-
----
-
-## [ISSUE-004] [FIXED] Missing AST Traversal of `else_body` in Macro Pass
-
-- **Severity**: High (Logical Bug)
-- **Component**: `src/macro_pass.car` -> `expand_macros_stmt`
-- **Description**: The macro expansion pass recursively traverses and expands `stmt.body` but completely ignores `stmt.else_body`. Macros present in the `else` branch of an `if-else` statement will not be expanded.
 - **Proposed Fix**: Add a loop to traverse and expand statements within `stmt.else_body` identical to how `stmt.body` is handled.
 
 ---
@@ -113,16 +78,6 @@ This file tracks technical debt and bugs identified during repository code revie
 - **Description**: Host memory allocates a full 256k vocabulary buffer (`CARTAN_FULL_VOCAB_SIZE = 262144`), while GPU VRAM and binary checkpoint files store the 65k active vocabulary (`CARTAN_LM_HEAD_VOCAB = 65536`). Resuming weights from 42-layer checkpoints performed flat `fread` into the start of the host buffer without strided row unpacking, causing upper rows ($r \ge 1$) to become scrambled and resetting next-token loss to ~14.
 - **Status**: Fixed. Integrated row-by-row strided unpacking between 262,144-stride host memory and 65,536-stride GPU VRAM across all load, sync, and save routines.
 
-# Active Issues
-
-## [ISSUE-010] Mock/Stubbed CLI Subcommand Handlers in `src/cartanc/main.car`
-
-- **Severity**: Medium (Technical Debt / Rule Violation)
-- **Component**: `src/cartanc/main.car` -> `main()` (`pkg`, `repl`, `lsp`, `doc`, `bindgen` CLI subcommands)
-- **Description**: The `pkg`, `repl`, `lsp`, `doc`, and `bindgen` subcommands in `main.car` currently print hardcoded output strings rather than performing genuine interactive input loops or live file transformations.
-- **Proposed Fix**: Replace static output strings with genuine interactive state loops or actual AST-driven transformations.
-
----
 
 # Completed Backlog Items (Sprints 2–11: Master Completion)
 
