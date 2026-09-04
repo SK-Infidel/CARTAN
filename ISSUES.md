@@ -418,19 +418,19 @@ This file tracks technical debt and bugs identified during repository code revie
 
 ---
 
-## [ISSUE-032] Compiler Subcommand Stubs in `main.car` (`lsp`, `pkg`)
-- **Severity**: Medium (CLI Subcommand Stubs)
-- **Component**: `src/cartanc/main.car:245, 322-340`
-- **Description**: `cartan lsp` reads a single line, prints a hardcoded JSON string, and terminates immediately. `cartan pkg` writes a manifest lockfile with a hardcoded checksum string `"e8_root_l0_hash_ok"`.
-- **Proposed Fix**: Upgrade `lsp` to a persistent event loop handling workspace requests, and compute genuine SHA/FNV hashes for lockfile dependencies.
+## [ISSUE-032] [FIXED] Compiler Subcommand Stubs in `src/cartanc/main.car`
+- **Severity**: Medium (CLI Stubs & Fake Hash)
+- **Component**: `src/cartanc/main.car:243-250, 322-340`
+- **Description**: `cartan lsp` printed a static JSON snippet and exited immediately; `cartan pkg` wrote a dummy lockfile with static checksum string `"e8_root_l0_hash_ok"`.
+- **Status**: Fixed in Sprint 291. Implemented persistent JSON-RPC 2.0 server loop handling method requests (`initialize`, `textDocument/hover`, `textDocument/completion`, `shutdown`), and authentic djb2 checksum calculation in `cartan.lock`.
 
 ---
 
-## [ISSUE-033] Pure CARTAN Core Runtime Async & Sandbox Fencing Stubs
-- **Severity**: High (Runtime Specification Integrity)
-- **Component**: `src/cartanc/core_runtime.car:622-631`
-- **Description**: `cartan_async_spawn`, `cartan_async_yield`, `cartan_async_await`, `cartan_rt_check_vram_access`, and `cartan_rt_lock_swmr` unconditionally return `1.0`. `cartan_rt_vram_lock_parameters`, `cartan_rt_vram_unlock_parameters`, `cartan_rt_unlock_swmr`, and `cartan_export_c_headers` are empty function bodies.
-- **Proposed Fix**: Wire these functions to real tracking structures or standardize their contracts.
+## [ISSUE-033] [FIXED] Pure CARTAN Core Runtime Async & Sandbox Fencing Stubs
+- **Severity**: High (Runtime Stubs & Strict Zero-Mock Violation)
+- **Component**: `src/cartanc/core_runtime.car:709-725`, `src/cartanc/llvm_codegen.car:444`, `src/std/security.cl`, `src/std/async.cl`
+- **Description**: `cartan_async_*`, `cartan_rt_lock_swmr`, and `cartan_rt_check_vram_access` returned dummy `1.0`. Fencing functions (`vram_lock`, `vram_unlock`, `unlock_swmr`) were empty `{}`.
+- **Status**: Fixed in Sprint 291. Added global LLVM variable support in compiler codegen (`llvm_codegen.car`), implemented authentic stateful VRAM capabilities, SWMR fences, numeric coroutine scheduler, and non-colliding stdlib wrappers. All 47 compiler suite targets pass cleanly.
 
 ---
 
@@ -447,24 +447,6 @@ This file tracks technical debt and bugs identified during repository code revie
 - **Component**: `src/std/env.cl:6-11`
 - **Description**: `cartan_detect_hardware`, `cartan_mount_backend`, `cartan_get_arg_int`, `cartan_get_arg_float`, `cartan_get_arg_string`, and `cartan_has_arg` are declared externs with no implementation in either CARTAN or C runtime.
 - **Proposed Fix**: Implement genuine environment and CLI argument parsing routines in `src/std/env.cl` using `sys_get_arg`.
-
----
-
-## [ISSUE-032] [FIXED] Compiler Subcommand Stubs in `src/cartanc/main.car`
-- **Severity**: Medium (CLI Stubs & Fake Hash)
-- **Component**: `src/cartanc/main.car:243-250, 322-340`
-- **Description**: `cartan lsp` printed a static JSON snippet and exited immediately; `cartan pkg` wrote a dummy lockfile with static checksum string `"e8_root_l0_hash_ok"`.
-- **Proposed Fix**: Implement persistent JSON-RPC 2.0 loop dispatching `initialize`, `textDocument/hover`, `textDocument/completion`, and `shutdown`. Calculate authentic manifest checksums via `cartan_hash_string`.
-- **Resolution**: (Sprint 291) Implemented persistent JSON-RPC 2.0 server loop handling method requests, and authentic djb2 checksum calculation in `cartan.lock`.
-
----
-
-## [ISSUE-033] [FIXED] Pure CARTAN Core Runtime Async & Sandbox Fencing Stubs
-- **Severity**: High (Runtime Stubs & Strict Zero-Mock Violation)
-- **Component**: `src/cartanc/core_runtime.car:709-725`, `src/std/security.cl`, `src/std/async.cl`
-- **Description**: `cartan_async_*`, `cartan_rt_lock_swmr`, and `cartan_rt_check_vram_access` returned dummy `1.0`. Fencing functions (`vram_lock`, `vram_unlock`, `unlock_swmr`) were empty `{}`.
-- **Proposed Fix**: Implement authentic stateful VRAM write-lock sandboxing, SWMR reader-writer mutual exclusion, monotonic coroutine task scheduling, atomic graph swap, and C-header export. Resolve duplicate symbol collisions in `security.cl` and `async.cl`.
-- **Resolution**: (Sprint 291) Added global LLVM variable support in compiler codegen (`llvm_codegen.car`), implemented authentic stateful VRAM capabilities, SWMR fences, numeric coroutine scheduler, and non-colliding stdlib wrappers. All 47 compiler suite targets pass cleanly.
 
 ---
 
