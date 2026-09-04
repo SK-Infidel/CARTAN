@@ -136,10 +136,11 @@ fn type_checker_init() -> TypeChecker {
     /// symbolic shape bounds and coordinate vectors are safe.
     fn typechecker_check(self_ptr: TypeChecker, ast: ptr) {
         var idx_stmt = 0.0;
-        while (idx_stmt < cartan_tree_len(ast)) {
+        let total = cartan_tree_len(ast);
+        while (idx_stmt < total) {
             var stmt = cartan_tree_get_f32(ast, idx_stmt);
-            idx_stmt = idx_stmt + 1.0;
             var disc = cartan_tree_get_f32(stmt, 0.0);
+            idx_stmt = idx_stmt + 1.0;
             if (disc == 7.0 || disc == 14.0 || disc == 8.0 || disc == 15.0) { // FunctionDecl or ExternFunctionDecl
                 let d_name = cartan_tree_get_f32(stmt, 1.0);
                 var decls = cartan_dict_get(self_ptr.functions, d_name);
@@ -159,6 +160,7 @@ fn type_checker_init() -> TypeChecker {
     }
 
     fn tc_visit_stmt(self_ptr: TypeChecker, stmt: ptr) {
+        if (stmt == 0.0) { return; }
         var disc = cartan_tree_get_f32(stmt, 0.0);
         
         if (disc == 1.0) { // ExprStmt
@@ -551,13 +553,17 @@ fn type_checker_init() -> TypeChecker {
             }
             var decls = cartan_dict_get(self_ptr.functions, name);
             if (decls != 0.0) {
-                printf("[DEBUG TypeCheck Call] Found decl for: %s\n", name);
                 let first_decl = cartan_tree_get_f32(decls, 0.0);
-                if (cartan_tree_get_f32(first_decl, 3.0) != 0.0) {
-                    return parse_type_annotation(self_ptr, cartan_tree_get_f32(first_decl, 3.0));
+                let d_first = cartan_tree_get_f32(first_decl, 0.0);
+                var rt_idx = 3.0;
+                if (d_first == 14.0 || d_first == 7.0) {
+                    rt_idx = 4.0;
+                }
+                let rt_ann = cartan_tree_get_f32(first_decl, rt_idx);
+                if (rt_ann != 0.0) {
+                    return parse_type_annotation(self_ptr, rt_ann);
                 }
             } else {
-                printf("[DEBUG TypeCheck Call] No decl found for: %s\n", name);
             }
             return CartanType::Unknown;
         } else if (disc == 18.0) { // MethodCall

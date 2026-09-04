@@ -46,3 +46,12 @@ fn central_difference_derivative(y_prev: float, y_next: float, dx: float) -> flo
     if (dx <= 0.0) { return 0.0; }
     return (y_next - y_prev) / (2.0 * dx);
 }
+
+fn cartan_rt_autograd_forward_grad(input_val: float, func: ptr) -> float {
+    if (func == 0.0) { return 0.0; }
+    let h = 0.00001;
+    let f_plus = func(input_val + h);
+    let f_minus = func(input_val - h);
+    return (f_plus - f_minus) / (2.0 * h);
+}
+

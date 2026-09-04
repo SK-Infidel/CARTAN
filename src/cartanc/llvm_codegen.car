@@ -1,9 +1,9 @@
 
-extern fn cartan_get_quote() -> string;
 extern fn cartan_float_to_string(f: float) -> string;
 extern fn cartan_int_to_string(f: float) -> string;
 extern fn cartan_llvm_format_string_literal(s: string, id: float) -> string;
 extern fn cartan_strip_prefix(s: string) -> string;
+
 
 fn is_uppercase(s: string) -> float {
     let first = cartan_string_substring(s, 0.0, 1.0);
@@ -97,12 +97,38 @@ fn llvm_codegen_init() -> LLVMGenerator {
     }
 
     fn as_float(self_ptr: LLVMGenerator, val: string) -> string {
+        var is_ptr = 0.0;
+        if (cartan_string_starts_with(val, "ptr:") != 0.0) { is_ptr = 1.0; }
+        if (cartan_string_starts_with(val, "string:") != 0.0) { is_ptr = 1.0; }
+        if (cartan_string_starts_with(val, "array:") != 0.0) { is_ptr = 1.0; }
+        if (cartan_string_starts_with(val, "struct:") != 0.0) { is_ptr = 1.0; }
+        if (cartan_string_starts_with(val, "tree<") != 0.0) { is_ptr = 1.0; }
+        if (is_ptr != 0.0) {
+            let clean_p = clean_reg(val);
+            let int_reg = next_reg(self_ptr);
+            let flt_reg = next_reg(self_ptr);
+            cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", int_reg), " = ptrtoint ptr "), clean_p), " to i64\n"));
+            cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", flt_reg), " = sitofp i64 "), int_reg), " to double\n"));
+            return flt_reg;
+        }
         let clean = cartan_strip_prefix(val);
         if (cartan_string_starts_with(clean, "%") != 0.0) { return clean; }
         if (cartan_string_starts_with(clean, "@") != 0.0) { return clean; }
         if (cartan_string_starts_with(clean, "0x") != 0.0) { return clean; }
         if (cartan_string_contains(clean, ".") != 0.0) { return clean; }
-        if (cartan_string_eq(clean, "null") != 0.0) { return clean; }
+        if (cartan_string_contains(clean, "e") != 0.0) {
+            if (cartan_string_contains(clean, ".") == 0.0) {
+                return cartan_string_replace(clean, "e", ".0e");
+            }
+            return clean;
+        }
+        if (cartan_string_contains(clean, "E") != 0.0) {
+            if (cartan_string_contains(clean, ".") == 0.0) {
+                return cartan_string_replace(clean, "E", ".0E");
+            }
+            return clean;
+        }
+        if (cartan_string_eq(clean, "null") != 0.0) { return "0.0"; }
         if (cartan_string_eq(clean, "undef") != 0.0) { return clean; }
         if (cartan_string_length(clean) == 0.0) { return "0.0"; }
         return cartan_string_concat(clean, ".0");
@@ -130,10 +156,18 @@ fn llvm_codegen_init() -> LLVMGenerator {
         return label;
     }
 
+    fn add_builtin_extern(self_ptr: LLVMGenerator, user_defined: ptr, name: string, decl_line: string) {
+        cartan_tree_push(self_ptr.declared_externs, name);
+        if (cartan_tree_has(user_defined, name) == 0.0) {
+            cartan_tree_push(self_ptr.decls, decl_line);
+        }
+    }
+
     fn generate(self_ptr: LLVMGenerator, ast: ptr) -> string {
         // Pass 1: Forward declarations
         var idx_stmt = 0.0;
-        while (idx_stmt < cartan_tree_len_f(ast)) {
+        let a_len = cartan_tree_len_f(ast);
+        while (idx_stmt < a_len) {
             var stmt = cartan_tree_get_f32(ast, idx_stmt);
             idx_stmt = idx_stmt + 1.0;
             let disc = cartan_tree_get_f32(stmt, 0.0);
@@ -226,7 +260,7 @@ fn llvm_codegen_init() -> LLVMGenerator {
             }
         }
         // Module header
-        let q = cartan_get_quote();
+        let q = "\"";
         cartan_tree_push(self_ptr.header, "; ModuleID = 'CartanModule'\n");
         let sf = cartan_string_concat(cartan_string_concat("source_filename = ", q), cartan_string_concat("cartan_source", cartan_string_concat(q, "\n")));
         cartan_tree_push(self_ptr.header, sf);
@@ -235,264 +269,187 @@ fn llvm_codegen_init() -> LLVMGenerator {
         let tt = cartan_string_concat(cartan_string_concat("target triple = ", q), cartan_string_concat("x86_64-pc-windows-msvc", cartan_string_concat(q, "\n\n")));
         cartan_tree_push(self_ptr.header, tt);
         
-        // Standard library declarations
-        cartan_tree_push(self_ptr.decls, "declare ptr @malloc(i64)\n");
-        cartan_tree_push(self_ptr.decls, "declare void @free(ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare i32 @strcmp(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_debug_break(ptr, double, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @c_sys_get_arg(double)\n");
-        cartan_tree_push(self_ptr.decls, "declare double @c_sys_get_arg_count()\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_crt_init(i32, ptr)\n");
-        
-        // Tensor Runtime declarations
-        let declared_externs = cartan_tree_create();
-        cartan_tree_push(declared_externs, "c_sys_get_arg");
-        cartan_tree_push(declared_externs, "c_sys_get_arg_count");
-        cartan_tree_push(declared_externs, "sys_get_arg");
-        cartan_tree_push(declared_externs, "sys_get_arg_count");
-        cartan_tree_push(declared_externs, "malloc");
-        cartan_tree_push(declared_externs, "free");
-        cartan_tree_push(declared_externs, "strcmp");
-        cartan_tree_push(declared_externs, "cartan_debug_break");
-        cartan_tree_push(declared_externs, "printf");
-        cartan_tree_push(declared_externs, "cartan_tensor_alloc");
-        cartan_tree_push(declared_externs, "cartan_tree_create");
-        cartan_tree_push(declared_externs, "cartan_tree_push");
-        cartan_tree_push(declared_externs, "cartan_tree_get_f32");
-        cartan_tree_push(declared_externs, "cartan_tree_len");
-        cartan_tree_push(declared_externs, "cartan_tree_remove");
-        cartan_tree_push(declared_externs, "cartan_dict_get");
-        cartan_tree_push(declared_externs, "cartan_dict_set");
-        cartan_tree_push(declared_externs, "cartan_string_replace");
-        cartan_tree_push(declared_externs, "cartan_string_contains");
-        cartan_tree_push(declared_externs, "cartan_string_starts_with");
-        cartan_tree_push(declared_externs, "cartan_string_eq");
-        cartan_tree_push(declared_externs, "cartan_string_to_lowercase");
-        cartan_tree_push(declared_externs, "cartan_float_to_string");
-        cartan_tree_push(declared_externs, "cartan_int_to_string");
-        cartan_tree_push(declared_externs, "cartan_string_substring");
-        cartan_tree_push(declared_externs, "cartan_string_length");
-        cartan_tree_push(declared_externs, "cartan_string_concat");
-        cartan_tree_push(declared_externs, "cartan_read_file");
-        cartan_tree_push(declared_externs, "cartan_file_exists");
-        cartan_tree_push(declared_externs, "cartan_string_char_at");
-        cartan_tree_push(declared_externs, "cartan_is_alpha");
-        cartan_tree_push(declared_externs, "cartan_is_alphanumeric");
-        cartan_tree_push(declared_externs, "cartan_panic");
-        cartan_tree_push(declared_externs, "cartan_tree_size");
-        cartan_tree_push(declared_externs, "cartan_tree_set");
-        cartan_tree_push(declared_externs, "cartan_tensor_alloc_nd");
-        cartan_tree_push(declared_externs, "cartan_tensor_linear_relu");
-        cartan_tree_push(declared_externs, "cartan_tensor_add");
-        cartan_tree_push(declared_externs, "cartan_tensor_sub");
-        cartan_tree_push(declared_externs, "cartan_tensor_mul");
-        cartan_tree_push(declared_externs, "cartan_tensor_matmul");
-        cartan_tree_push(declared_externs, "cartan_gpu_init");
-        cartan_tree_push(declared_externs, "cartan_gpu_create_buffer");
-        cartan_tree_push(declared_externs, "cartan_gpu_write_buffer");
-        cartan_tree_push(declared_externs, "cartan_gpu_read_buffer");
-        cartan_tree_push(declared_externs, "cartan_gpu_create_pipeline");
-        cartan_tree_push(declared_externs, "cartan_gpu_dispatch");
-        cartan_tree_push(declared_externs, "cartan_gpu_sync");
-        cartan_tree_push(declared_externs, "cartan_tensor_matmul_dynamic");
-        cartan_tree_push(declared_externs, "cartan_tensor_matmul_minkowski");
-        cartan_tree_push(declared_externs, "cartan_tensor_matmul_poincare");
-        cartan_tree_push(declared_externs, "cartan_tensor_backward");
-        cartan_tree_push(declared_externs, "cartan_tensor_print");
-        cartan_tree_push(declared_externs, "cartan_tensor_step");
-        cartan_tree_push(declared_externs, "cartan_file_read_tokens");
-        cartan_tree_push(declared_externs, "cartan_net_fetch_tokens");
-        cartan_tree_push(declared_externs, "cartan_file_read_batch");
-        cartan_tree_push(declared_externs, "cartan_tensor_mse_loss");
-        cartan_tree_push(declared_externs, "cartan_tensor_cross_entropy_loss");
-        cartan_tree_push(declared_externs, "cartan_tensor_spherical_cosine_loss");
-        cartan_tree_push(declared_externs, "cartan_tensor_finsler_randers_loss");
-        cartan_tree_push(declared_externs, "cartan_tensor_betti_homology_loss");
-        cartan_tree_push(declared_externs, "cartan_tensor_embed");
-        cartan_tree_push(declared_externs, "cartan_rt_parallel_transport");
-        cartan_tree_push(declared_externs, "cartan_emit_spike");
-        cartan_tree_push(declared_externs, "cartan_init_elastic_vocabulary");
-        cartan_tree_push(declared_externs, "cartan_init_sieving_cache");
-        cartan_tree_push(declared_externs, "cartan_init_fractal_attention");
-        cartan_tree_push(declared_externs, "cartan_stream_init");
-        cartan_tree_push(declared_externs, "cartan_init_spike");
-        cartan_tree_push(declared_externs, "cartan_init_neuron");
-        cartan_tree_push(declared_externs, "cartan_load_dma");
-        cartan_tree_push(declared_externs, "cartan_tensor_to_float");
-        cartan_tree_push(declared_externs, "cartan_rt_register_capability");
-        cartan_tree_push(declared_externs, "cartan_rt_load_ctb");
-        cartan_tree_push(declared_externs, "cartan_sandbox_hot_swap");
-        cartan_tree_push(declared_externs, "cartan_tensor_graft");
-        cartan_tree_push(declared_externs, "cartan_tensor_translation_barrier");
-        cartan_tree_push(declared_externs, "cartan_alloc_parameter_adam");
-        cartan_tree_push(declared_externs, "cartan_alloc_parameter_adam_nd");
-        cartan_tree_push(declared_externs, "cartan_alloc_sequence");
-        cartan_tree_push(declared_externs, "cartan_alloc_block");
-        cartan_tree_push(declared_externs, "cartan_rt_alloc_lattice");
-        cartan_tree_push(declared_externs, "cartan_rt_alloc_tree");
-        cartan_tree_push(declared_externs, "cartan_rt_tree_search_mcts");
-        cartan_tree_push(declared_externs, "cartan_rt_multimodal_sync_start");
-        cartan_tree_push(declared_externs, "cartan_rt_multimodal_sync_end");
-        cartan_tree_push(declared_externs, "cartan_rt_vmap_begin");
-        cartan_tree_push(declared_externs, "cartan_rt_vmap_end");
-        cartan_tree_push(declared_externs, "cartan_rt_doubt_begin");
-        cartan_tree_push(declared_externs, "cartan_rt_doubt_end");
-        cartan_tree_push(declared_externs, "cartan_rt_paged_attention");
-        cartan_tree_push(declared_externs, "cartan_train_e8_attention_gpu");
-        cartan_tree_push(declared_externs, "cartan_forward_e8_attention_gpu");
-        cartan_tree_push(declared_externs, "cartan_tokenize_prompt_string");
-        cartan_tree_push(declared_externs, "cartan_save_model_checkpoint");
-        cartan_tree_push(declared_externs, "cartan_load_model_checkpoint");
-        cartan_tree_push(declared_externs, "cartan_init_ising_embeddings");
-        cartan_tree_push(declared_externs, "cartan_sample_ising_attractor");
-        cartan_tree_push(declared_externs, "cartan_build_active_vocab_mapping");
-        cartan_tree_push(declared_externs, "cartan_load_active_vocab_mapping");
-        cartan_tree_push(declared_externs, "cartan_train_magic_square_moe_gpu");
-        cartan_tree_push(declared_externs, "cartan_train_sft_aligned_gpu");
-        cartan_tree_push(declared_externs, "cartan_flush_stdout");
-        cartan_tree_push(declared_externs, "cartan_alloc_parameter_adam_nd");
-        cartan_tree_push(declared_externs, "cartan_alloc_parameter_adam");
-        self_ptr.declared_externs = declared_externs;
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_init_ising_embeddings(ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare float @cartan_sample_ising_attractor(ptr, float, float)\n");
-        cartan_tree_push(self_ptr.decls, "declare float @cartan_build_active_vocab_mapping(ptr, ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare float @cartan_load_active_vocab_mapping(ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare float @cartan_train_e8_attention_gpu(ptr, ptr, ptr, ptr, ptr, ptr, float, float)\n");
-        cartan_tree_push(self_ptr.decls, "declare float @cartan_train_magic_square_moe_gpu(ptr, ptr, ptr, ptr, ptr, ptr, float, float)\n");
-        cartan_tree_push(self_ptr.decls, "declare float @cartan_train_sft_aligned_gpu(ptr, ptr, ptr, ptr, ptr, ptr, float, float)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_forward_e8_attention_gpu(ptr, ptr, ptr, ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_tokenize_prompt_string(ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare float @cartan_save_model_checkpoint(ptr, ptr, ptr, ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare float @cartan_load_model_checkpoint(ptr, ptr, ptr, ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare double @cartan_safetensors_header_length(ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_safetensors_read_header(ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare double @cartan_safetensors_find_offset(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_safetensors_load_tensor_f32(ptr, double, double, double)\n");
-        cartan_tree_push(self_ptr.decls, "declare double @cartan_safetensors_save_tensor_f32(ptr, ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_flush_stdout()\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_tensor_alloc(double)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_tensor_alloc_temporary(double)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_tree_create()\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_tree_push(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_tree_get_f32(ptr, double)\n");
-        cartan_tree_push(self_ptr.decls, "declare double @cartan_tree_len(ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_tree_remove(ptr, double)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_hash_dict_get(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_hash_dict_set(ptr, ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_string_replace(ptr, ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare double @cartan_string_contains(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare double @cartan_string_starts_with(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare double @cartan_string_eq(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_string_to_lowercase(ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_float_to_string(double)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_int_to_string(double)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_string_substring(ptr, double, double)\n");
-        cartan_tree_push(self_ptr.decls, "declare double @cartan_string_length(ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_string_concat(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_read_file(ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare double @cartan_file_exists(ptr)\n");
+        // Pre-scan all user-defined and method names from AST
+        let user_defined_names = cartan_tree_create();
+        var idx_u = 0.0;
+        let ast_len = cartan_tree_len_f(ast);
+        while (idx_u < ast_len) {
+            var s_u = cartan_tree_get_f32(ast, idx_u);
+            idx_u = idx_u + 1.0;
+            let d_u = cartan_tree_get_f32(s_u, 0.0);
+            if (d_u == 14.0 || d_u == 131.0) {
+                let name_u = cartan_tree_get_f32(s_u, 1.0);
+                cartan_tree_push(user_defined_names, name_u);
+            }
+            if (d_u == 5.0 || d_u == 10.0) {
+                let fields = cartan_tree_get_f32(s_u, 2.0);
+                var idx_f = 0.0;
+                while (idx_f < cartan_tree_len_f(fields)) {
+                    var f = cartan_tree_get_f32(fields, idx_f);
+                    idx_f = idx_f + 1.0;
+                    let fd = cartan_tree_get_f32(f, 0.0);
+                    if (fd == 14.0 || fd == 44.0 || fd == 131.0) {
+                        let fn_name = cartan_tree_get_f32(f, 1.0);
+                        cartan_tree_push(user_defined_names, fn_name);
+                    }
+                }
+            }
+            if (d_u == 88.0) {
+                let methods = cartan_tree_get_f32(s_u, 2.0);
+                var idx_im = 0.0;
+                while (idx_im < cartan_tree_len_f(methods)) {
+                    var m = cartan_tree_get_f32(methods, idx_im);
+                    idx_im = idx_im + 1.0;
+                    let md = cartan_tree_get_f32(m, 0.0);
+                    if (md == 14.0 || md == 131.0) {
+                        let fn_name = cartan_tree_get_f32(m, 1.0);
+                        cartan_tree_push(user_defined_names, fn_name);
+                    }
+                }
+            }
+        }
+        self_ptr.declared_externs = cartan_tree_create();
+        cartan_tree_push(self_ptr.declared_externs, "sys_get_arg");
+        cartan_tree_push(self_ptr.declared_externs, "sys_get_arg_count");
+        cartan_tree_push(self_ptr.declared_externs, "cartan_crt_init");
 
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_string_char_at(ptr, double)\n");
-        cartan_tree_push(self_ptr.decls, "declare double @cartan_is_alpha(ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare double @cartan_is_alphanumeric(ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_panic(ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare double @cartan_tree_size(ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_tree_set(ptr, double, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare i32 @printf(ptr, ...)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_tensor_alloc_nd(double, double, double, double, double, double)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_tensor_linear_relu(ptr, ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_tensor_add(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_tensor_sub(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_tensor_mul(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_tensor_div(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_tensor_matmul(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_tensor_matmul_dynamic(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_tensor_matmul_minkowski(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_tensor_matmul_poincare(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_tensor_backward(ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_tensor_print(ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_tensor_step(double)\n");
-        cartan_tree_push(self_ptr.decls, "declare float @cartan_file_read_tokens(ptr, float, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare float @cartan_net_fetch_tokens(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare float @cartan_file_read_batch(ptr, ptr, float, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare float @cartan_tensor_mse_loss(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare float @cartan_tensor_cross_entropy_loss(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare float @cartan_tensor_spherical_cosine_loss(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare float @cartan_tensor_finsler_randers_loss(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare float @cartan_tensor_betti_homology_loss(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_tensor_embed(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_rt_parallel_transport(ptr, ptr, ptr)\n");
-        
-        // Native WebGPU / WGSL Runtime externs
-        cartan_tree_push(self_ptr.decls, "declare double @cartan_gpu_init()\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_gpu_create_buffer(double, double)\n");
-        cartan_tree_push(self_ptr.decls, "declare double @cartan_gpu_write_buffer(ptr, double, ptr, double)\n");
-        cartan_tree_push(self_ptr.decls, "declare double @cartan_gpu_read_buffer(ptr, double, ptr, double)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_gpu_create_pipeline(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare double @cartan_gpu_dispatch(ptr, ptr, double, double, double, double)\n");
-        cartan_tree_push(self_ptr.decls, "declare double @cartan_gpu_sync()\n");
-        
-        // Cartan Native VM hooks
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_emit_spike(float)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_init_elastic_vocabulary()\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_init_sieving_cache()\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_init_fractal_attention()\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_stream_init(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_init_spike()\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_init_neuron()\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_load_dma()\n");
-        cartan_tree_push(self_ptr.decls, "declare float @cartan_tensor_to_float(ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_rt_register_capability(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_rt_load_ctb(ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_sandbox_hot_swap(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_tensor_graft(ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_tensor_translation_barrier(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_alloc_parameter_adam(float)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_alloc_parameter_adam_nd(i32, i32, i32, i32, i32)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_alloc_sequence(float)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_alloc_block(float)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_rt_alloc_lattice(float, float)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_rt_alloc_tree(float)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_rt_tree_search_mcts(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_rt_multimodal_sync_start()\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_rt_multimodal_sync_end()\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_rt_vmap_begin()\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_rt_vmap_end()\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_rt_doubt_begin()\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_rt_doubt_end()\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_rt_chain_begin()\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_rt_chain_end()\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_rt_route_begin()\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_rt_route_end()\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_rt_grok_begin()\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_rt_grok_end()\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_rt_override_begin()\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_rt_override_end()\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_rt_paged_attention(ptr, ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_tensor_transpose(ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_tensor_ones_like(ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_absorb_weights(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_project_vocab(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare float @cartan_pattern_match(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_rt_transform(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_tokenize_bpe(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_align_spans(ptr, ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_free_compute_graph()\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_fluid_precision_start(ptr, ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_fluid_precision_end()\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_sparsity_start(float, float)\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_sparsity_end()\n");
-        cartan_tree_push(self_ptr.decls, "declare void @cartan_prune_graph(float)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_tensor_quantize_int8(ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare ptr @cartan_internal_import_onnx(ptr)\n");
-        cartan_tree_push(self_ptr.decls, "declare float @cartan_print(ptr)\n");
-
+        add_builtin_extern(self_ptr, user_defined_names, "malloc", "declare ptr @malloc(i64)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "free", "declare void @free(ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "strcmp", "declare i32 @strcmp(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "SetConsoleCP", "declare i32 @SetConsoleCP(i32)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "SetConsoleOutputCP", "declare i32 @SetConsoleOutputCP(i32)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_init_ising_embeddings", "declare void @cartan_init_ising_embeddings(ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_sample_ising_attractor", "declare float @cartan_sample_ising_attractor(ptr, float, float)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_build_active_vocab_mapping", "declare float @cartan_build_active_vocab_mapping(ptr, ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_load_active_vocab_mapping", "declare float @cartan_load_active_vocab_mapping(ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_train_e8_attention_gpu", "declare float @cartan_train_e8_attention_gpu(ptr, ptr, ptr, ptr, ptr, ptr, float, float)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_train_magic_square_moe_gpu", "declare float @cartan_train_magic_square_moe_gpu(ptr, ptr, ptr, ptr, ptr, ptr, float, float)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_train_sft_aligned_gpu", "declare float @cartan_train_sft_aligned_gpu(ptr, ptr, ptr, ptr, ptr, ptr, float, float)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_forward_e8_attention_gpu", "declare ptr @cartan_forward_e8_attention_gpu(ptr, ptr, ptr, ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tokenize_prompt_string", "declare ptr @cartan_tokenize_prompt_string(ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_save_model_checkpoint", "declare float @cartan_save_model_checkpoint(ptr, ptr, ptr, ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_load_model_checkpoint", "declare float @cartan_load_model_checkpoint(ptr, ptr, ptr, ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_safetensors_header_length", "declare double @cartan_safetensors_header_length(ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_safetensors_read_header", "declare ptr @cartan_safetensors_read_header(ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_safetensors_find_offset", "declare double @cartan_safetensors_find_offset(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_safetensors_load_tensor_f32", "declare ptr @cartan_safetensors_load_tensor_f32(ptr, double, double, double)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_safetensors_save_tensor_f32", "declare double @cartan_safetensors_save_tensor_f32(ptr, ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_flush_stdout", "declare void @cartan_flush_stdout()\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_alloc", "declare ptr @cartan_tensor_alloc(double)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_alloc_temporary", "declare ptr @cartan_tensor_alloc_temporary(double)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tree_create", "declare ptr @cartan_tree_create()\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tree_push", "declare void @cartan_tree_push(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tree_push_f32", "declare double @cartan_tree_push_f32(ptr, double)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tree_get_f32", "declare ptr @cartan_tree_get_f32(ptr, double)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tree_len", "declare double @cartan_tree_len(ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tree_remove", "declare void @cartan_tree_remove(ptr, double)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_string_replace", "declare ptr @cartan_string_replace(ptr, ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_string_contains", "declare double @cartan_string_contains(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_string_starts_with", "declare double @cartan_string_starts_with(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_string_eq", "declare double @cartan_string_eq(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_float_to_string", "declare ptr @cartan_float_to_string(double)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_int_to_string", "declare ptr @cartan_int_to_string(double)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_string_substring", "declare ptr @cartan_string_substring(ptr, double, double)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_string_length", "declare double @cartan_string_length(ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_string_concat", "declare ptr @cartan_string_concat(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_read_file", "declare ptr @cartan_read_file(ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_file_exists", "declare double @cartan_file_exists(ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_string_char_at", "declare ptr @cartan_string_char_at(ptr, double)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_is_alpha", "declare double @cartan_is_alpha(ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_is_alphanumeric", "declare double @cartan_is_alphanumeric(ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_panic", "declare void @cartan_panic(ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tree_size", "declare double @cartan_tree_size(ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tree_set", "declare void @cartan_tree_set(ptr, double, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "printf", "declare i32 @printf(ptr, ...)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_alloc_nd", "declare ptr @cartan_tensor_alloc_nd(double, double, double, double, double, double)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_linear_relu", "declare ptr @cartan_tensor_linear_relu(ptr, ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_add", "declare ptr @cartan_tensor_add(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_sub", "declare ptr @cartan_tensor_sub(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_mul", "declare ptr @cartan_tensor_mul(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_div", "declare ptr @cartan_tensor_div(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_matmul", "declare ptr @cartan_tensor_matmul(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_matmul_dynamic", "declare ptr @cartan_tensor_matmul_dynamic(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_matmul_minkowski", "declare ptr @cartan_tensor_matmul_minkowski(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_matmul_poincare", "declare ptr @cartan_tensor_matmul_poincare(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_backward", "declare void @cartan_tensor_backward(ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_print", "declare void @cartan_tensor_print(ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_step", "declare void @cartan_tensor_step(double)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_file_read_tokens", "declare float @cartan_file_read_tokens(ptr, float, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_net_fetch_tokens", "declare float @cartan_net_fetch_tokens(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_file_read_batch", "declare float @cartan_file_read_batch(ptr, ptr, float, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_mse_loss", "declare float @cartan_tensor_mse_loss(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_cross_entropy_loss", "declare float @cartan_tensor_cross_entropy_loss(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_spherical_cosine_loss", "declare float @cartan_tensor_spherical_cosine_loss(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_finsler_randers_loss", "declare float @cartan_tensor_finsler_randers_loss(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_betti_homology_loss", "declare float @cartan_tensor_betti_homology_loss(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_embed", "declare ptr @cartan_tensor_embed(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_rt_parallel_transport", "declare ptr @cartan_rt_parallel_transport(ptr, ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_gpu_init", "declare double @cartan_gpu_init()\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_gpu_create_buffer", "declare ptr @cartan_gpu_create_buffer(double, double)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_gpu_write_buffer", "declare double @cartan_gpu_write_buffer(ptr, double, ptr, double)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_gpu_read_buffer", "declare double @cartan_gpu_read_buffer(ptr, double, ptr, double)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_gpu_create_pipeline", "declare ptr @cartan_gpu_create_pipeline(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_gpu_dispatch", "declare double @cartan_gpu_dispatch(ptr, ptr, double, double, double, double)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_gpu_sync", "declare double @cartan_gpu_sync()\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_emit_spike", "declare void @cartan_emit_spike(float)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_init_elastic_vocabulary", "declare ptr @cartan_init_elastic_vocabulary()\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_init_sieving_cache", "declare ptr @cartan_init_sieving_cache()\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_init_fractal_attention", "declare ptr @cartan_init_fractal_attention()\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_stream_init", "declare ptr @cartan_stream_init(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_init_spike", "declare ptr @cartan_init_spike()\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_init_neuron", "declare ptr @cartan_init_neuron()\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_load_dma", "declare ptr @cartan_load_dma()\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_to_float", "declare float @cartan_tensor_to_float(ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_rt_register_capability", "declare void @cartan_rt_register_capability(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_rt_load_ctb", "declare ptr @cartan_rt_load_ctb(ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_sandbox_hot_swap", "declare void @cartan_sandbox_hot_swap(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_graft", "declare ptr @cartan_tensor_graft(ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_translation_barrier", "declare ptr @cartan_tensor_translation_barrier(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_alloc_parameter_adam", "declare ptr @cartan_alloc_parameter_adam(float)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_alloc_parameter_adam_nd", "declare ptr @cartan_alloc_parameter_adam_nd(i32, i32, i32, i32, i32)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_alloc_sequence", "declare ptr @cartan_alloc_sequence(float)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_alloc_block", "declare ptr @cartan_alloc_block(float)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_rt_alloc_lattice", "declare ptr @cartan_rt_alloc_lattice(float, float)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_rt_alloc_tree", "declare ptr @cartan_rt_alloc_tree(float)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_rt_tree_search_mcts", "declare ptr @cartan_rt_tree_search_mcts(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_rt_multimodal_sync_start", "declare void @cartan_rt_multimodal_sync_start()\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_rt_multimodal_sync_end", "declare void @cartan_rt_multimodal_sync_end()\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_rt_vmap_begin", "declare void @cartan_rt_vmap_begin()\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_rt_vmap_end", "declare void @cartan_rt_vmap_end()\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_rt_doubt_begin", "declare void @cartan_rt_doubt_begin()\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_rt_doubt_end", "declare void @cartan_rt_doubt_end()\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_rt_chain_begin", "declare void @cartan_rt_chain_begin()\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_rt_chain_end", "declare void @cartan_rt_chain_end()\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_rt_route_begin", "declare void @cartan_rt_route_begin()\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_rt_route_end", "declare void @cartan_rt_route_end()\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_rt_grok_begin", "declare void @cartan_rt_grok_begin()\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_rt_grok_end", "declare void @cartan_rt_grok_end()\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_rt_override_begin", "declare void @cartan_rt_override_begin()\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_rt_override_end", "declare void @cartan_rt_override_end()\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_rt_paged_attention", "declare ptr @cartan_rt_paged_attention(ptr, ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_transpose", "declare ptr @cartan_tensor_transpose(ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_ones_like", "declare ptr @cartan_tensor_ones_like(ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_absorb_weights", "declare void @cartan_absorb_weights(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_project_vocab", "declare void @cartan_project_vocab(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_pattern_match", "declare float @cartan_pattern_match(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_rt_transform", "declare ptr @cartan_rt_transform(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tokenize_bpe", "declare ptr @cartan_tokenize_bpe(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_align_spans", "declare void @cartan_align_spans(ptr, ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_free_compute_graph", "declare void @cartan_free_compute_graph()\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_fluid_precision_start", "declare void @cartan_fluid_precision_start(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_fluid_precision_end", "declare void @cartan_fluid_precision_end()\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_sparsity_start", "declare void @cartan_sparsity_start(float, float)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_sparsity_end", "declare void @cartan_sparsity_end()\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_prune_graph", "declare void @cartan_prune_graph(float)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_quantize_int8", "declare ptr @cartan_tensor_quantize_int8(ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_internal_import_onnx", "declare ptr @cartan_internal_import_onnx(ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_print", "declare float @cartan_print(ptr)\n");
 
         // Pass 0: Collect structs
         var idx_stmt = 0.0;
-while (idx_stmt < cartan_tree_len_f(ast)) {
-    var stmt = cartan_tree_get_f32(ast, idx_stmt);
-    idx_stmt = idx_stmt + 1.0;
+        while (idx_stmt < cartan_tree_len_f(ast)) {
+            var stmt = cartan_tree_get_f32(ast, idx_stmt);
+            idx_stmt = idx_stmt + 1.0;
             let stmt_disc = cartan_tree_get_f32(stmt, 0.0);
             if (stmt_disc == 5.0 || stmt_disc == 10.0) {
                 let name = cartan_tree_get_f32(stmt, 1.0);
@@ -549,11 +506,12 @@ while (idx_stmt < cartan_tree_len_f(ast)) {
         }
         cartan_tree_push(self_ptr.header, "\n");
 
+        // user_defined_names already collected at start of generate
         // Pass 1: Collect globals and declare extern functions
         var idx_stmt = 0.0;
-while (idx_stmt < cartan_tree_len_f(ast)) {
-    var stmt = cartan_tree_get_f32(ast, idx_stmt);
-    idx_stmt = idx_stmt + 1.0;
+        while (idx_stmt < cartan_tree_len_f(ast)) {
+            var stmt = cartan_tree_get_f32(ast, idx_stmt);
+            idx_stmt = idx_stmt + 1.0;
             let disc = cartan_tree_get_f32(stmt, 0.0);
             if (disc == 0.0) {
 
@@ -561,7 +519,7 @@ while (idx_stmt < cartan_tree_len_f(ast)) {
                 let fn_name = cartan_tree_get_f32(stmt, 1.0);
                 let parameters = cartan_tree_get_f32(stmt, 2.0);
                 let rt = cartan_tree_get_f32(stmt, 3.0);
-                if (cartan_tree_has(self_ptr.declared_externs, fn_name) == 0.0) {
+                if (cartan_tree_has(user_defined_names, fn_name) == 0.0 && cartan_tree_has(self_ptr.declared_externs, fn_name) == 0.0) {
                     cartan_tree_push(self_ptr.declared_externs, fn_name);
                     let param_types = cartan_tree_create();
                     var idx_p = 0.0;
@@ -579,7 +537,8 @@ while (idx_stmt < cartan_tree_len_f(ast)) {
                     }
                     var logical_ret = "void";
                     if (rt != 0.0) {
-                        if (rt == "Tensor" || rt == "Vector") { logical_ret = "ptr"; }
+                        if (cartan_string_eq(rt, "void") != 0.0) { logical_ret = "void"; }
+                        else if (rt == "Tensor" || rt == "Vector") { logical_ret = "ptr"; }
                         else if (rt == "float" || rt == "int" || rt == "double") { logical_ret = "double"; }
                         else if (is_uppercase(rt) != 0.0) { logical_ret = cartan_string_concat("%", rt); }
                         else if (rt == "string") { logical_ret = "string"; }
@@ -604,8 +563,27 @@ while (idx_stmt < cartan_tree_len_f(ast)) {
                         if (cartan_string_length(params) == 0.0) { params = "..."; }
                         else { params = cartan_string_concat(params, ", ..."); }
                     } else {}
+                    if (fn_name == "sprintf") { params = "ptr, ptr, ..."; abi_ret = "i32"; } else {}
                     if (fn_name == "malloc") { params = "i64"; } else {}
-                    if (fn_name == "free") { params = "ptr"; } else {}
+                    if (fn_name == "calloc") { params = "i64, i64"; } else {}
+                    if (fn_name == "free") { params = "ptr"; abi_ret = "void"; } else {}
+                    if (fn_name == "strlen") { params = "ptr"; abi_ret = "i64"; } else {}
+                    if (fn_name == "strcmp") { params = "ptr, ptr"; abi_ret = "i32"; } else {}
+                    if (fn_name == "strncmp") { params = "ptr, ptr, i64"; abi_ret = "i32"; } else {}
+                    if (fn_name == "memcpy") { params = "ptr, ptr, i64"; abi_ret = "ptr"; } else {}
+                    if (fn_name == "fseek") { params = "ptr, i64, i32"; abi_ret = "i32"; } else {}
+                    if (fn_name == "ftell") { params = "ptr"; abi_ret = "i64"; } else {}
+                    if (fn_name == "fread") { params = "ptr, i64, i64, ptr"; abi_ret = "i64"; } else {}
+                    if (fn_name == "fwrite") { params = "ptr, i64, i64, ptr"; abi_ret = "i64"; } else {}
+                    if (fn_name == "fflush") { params = "ptr"; abi_ret = "i32"; } else {}
+                    if (fn_name == "fclose") { params = "ptr"; abi_ret = "i32"; } else {}
+                    if (fn_name == "fputs") { params = "ptr, ptr"; abi_ret = "i32"; } else {}
+                    if (fn_name == "fgets") { params = "ptr, i32, ptr"; abi_ret = "ptr"; } else {}
+                    if (fn_name == "system") { params = "ptr"; abi_ret = "i32"; } else {}
+                    if (fn_name == "remove") { params = "ptr"; abi_ret = "i32"; } else {}
+                    if (fn_name == "rename") { params = "ptr, ptr"; abi_ret = "i32"; } else {}
+                    if (fn_name == "exit") { params = "i32"; abi_ret = "void"; } else {}
+                    if (fn_name == "__acrt_iob_func") { params = "i32"; abi_ret = "ptr"; } else {}
                     cartan_dict_set(self_ptr.func_return_types, fn_name, logical_ret);
                     cartan_tree_push(self_ptr.decls, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("declare ", abi_ret), " @"), fn_name), "("), params), ")\n"));
                     cartan_dict_set(self_ptr.symbols, fn_name, cartan_string_concat("@", fn_name));
@@ -616,9 +594,9 @@ while (idx_stmt < cartan_tree_len_f(ast)) {
         // Pass 2: Process User-Defined Functions
         let all_funcs = cartan_tree_create();
         var idx_stmt = 0.0;
-while (idx_stmt < cartan_tree_len_f(ast)) {
-    var stmt = cartan_tree_get_f32(ast, idx_stmt);
-    idx_stmt = idx_stmt + 1.0;
+        while (idx_stmt < cartan_tree_len_f(ast)) {
+            var stmt = cartan_tree_get_f32(ast, idx_stmt);
+            idx_stmt = idx_stmt + 1.0;
             let stmt_disc = cartan_tree_get_f32(stmt, 0.0);
             if (stmt_disc == 14.0 || stmt_disc == 131.0) {
                 let tup = cartan_tree_create(); cartan_tree_push(tup, ""); cartan_tree_push(tup, stmt); cartan_tree_push(all_funcs, tup);
@@ -660,6 +638,8 @@ while (idx_method < cartan_tree_len_f(methods)) {
             self_ptr.var_types = cartan_tree_create();
             
             let fn_name = cartan_tree_get_f32(decl, 1.0);
+            printf("[DEBUG codegen fn] %s\n", fn_name);
+            cartan_flush(0.0);
             let parameters = cartan_tree_get_f32(decl, 3.0);
             let rt = cartan_tree_get_f32(decl, 4.0);
             let body = cartan_tree_get_f32(decl, 6.0);
@@ -687,7 +667,8 @@ while (idx_method < cartan_tree_len_f(methods)) {
             
             var logical_ret = "void";
             if (rt != 0.0) {
-                if (rt == "Tensor" || rt == "Vector") { logical_ret = "ptr"; }
+                if (cartan_string_eq(rt, "void") != 0.0) { logical_ret = "void"; }
+                else if (rt == "Tensor" || rt == "Vector") { logical_ret = "ptr"; }
                 else if (rt == "float" || rt == "int") { logical_ret = "double"; }
                 else if (is_uppercase(rt) != 0.0) { logical_ret = cartan_string_concat("%", rt); }
                 else if (rt == "string") { logical_ret = "string"; }
@@ -762,6 +743,8 @@ while (idx_method < cartan_tree_len_f(methods)) {
                                 type_to_insert = cartan_string_concat("%", p_type_name);
                             } else {}
                         } else {}
+                    } else if (cartan_string_eq(p_type_name, "string") != 0.0) {
+                        type_to_insert = "string";
                     } else {}
                 } else {}
                 cartan_dict_set(self_ptr.var_types, p_name, type_to_insert);
@@ -801,16 +784,35 @@ while (idx_method < cartan_tree_len_f(methods)) {
 
         // Pass 3: Main logic
         cartan_tree_push(self_ptr.globals, "@global_argc = global i32 0, align 4\n");
-        cartan_tree_push(self_ptr.globals, "@global_argv = global ptr null, align 8\n\n");
+        cartan_tree_push(self_ptr.globals, "@global_argv = global ptr null, align 8\n");
+        cartan_tree_push(self_ptr.globals, "@.str.empty_arg = private unnamed_addr constant [1 x i8] c\"\\00\", align 1\n\n");
         cartan_tree_push(self_ptr.output, "define ptr @sys_get_arg(double %index) {\n");
         cartan_tree_push(self_ptr.output, "entry:\n");
-        cartan_tree_push(self_ptr.output, "  %res = call ptr @c_sys_get_arg(double %index)\n");
-        cartan_tree_push(self_ptr.output, "  ret ptr %res\n");
+        cartan_tree_push(self_ptr.output, "  %idx_i32 = fptosi double %index to i32\n");
+        cartan_tree_push(self_ptr.output, "  %argc = load i32, ptr @global_argc, align 4\n");
+        cartan_tree_push(self_ptr.output, "  %in_bounds = icmp slt i32 %idx_i32, %argc\n");
+        cartan_tree_push(self_ptr.output, "  %non_neg = icmp sge i32 %idx_i32, 0\n");
+        cartan_tree_push(self_ptr.output, "  %valid = and i1 %in_bounds, %non_neg\n");
+        cartan_tree_push(self_ptr.output, "  br i1 %valid, label %load_arg, label %ret_empty\n\n");
+        cartan_tree_push(self_ptr.output, "load_arg:\n");
+        cartan_tree_push(self_ptr.output, "  %argv = load ptr, ptr @global_argv, align 8\n");
+        cartan_tree_push(self_ptr.output, "  %elem_ptr = getelementptr inbounds ptr, ptr %argv, i32 %idx_i32\n");
+        cartan_tree_push(self_ptr.output, "  %arg_str = load ptr, ptr %elem_ptr, align 8\n");
+        cartan_tree_push(self_ptr.output, "  ret ptr %arg_str\n\n");
+        cartan_tree_push(self_ptr.output, "ret_empty:\n");
+        cartan_tree_push(self_ptr.output, "  ret ptr @.str.empty_arg\n");
         cartan_tree_push(self_ptr.output, "}\n\n");
         cartan_tree_push(self_ptr.output, "define double @sys_get_arg_count() {\n");
         cartan_tree_push(self_ptr.output, "entry:\n");
-        cartan_tree_push(self_ptr.output, "  %res = call double @c_sys_get_arg_count()\n");
+        cartan_tree_push(self_ptr.output, "  %argc = load i32, ptr @global_argc, align 4\n");
+        cartan_tree_push(self_ptr.output, "  %res = sitofp i32 %argc to double\n");
         cartan_tree_push(self_ptr.output, "  ret double %res\n");
+        cartan_tree_push(self_ptr.output, "}\n\n");
+        cartan_tree_push(self_ptr.output, "define void @cartan_crt_init(i32 %argc, ptr %argv) {\n");
+        cartan_tree_push(self_ptr.output, "entry:\n");
+        cartan_tree_push(self_ptr.output, "  %call_cp = call i32 @SetConsoleCP(i32 65001)\n");
+        cartan_tree_push(self_ptr.output, "  %call_ocp = call i32 @SetConsoleOutputCP(i32 65001)\n");
+        cartan_tree_push(self_ptr.output, "  ret void\n");
         cartan_tree_push(self_ptr.output, "}\n\n");
         
         let has_main = 0.0;
@@ -919,14 +921,28 @@ while (idx_method < cartan_tree_len_f(methods)) {
             idx_o = idx_o + 1.0;
         }
         var idx_d = 0.0;
+        let emitted_decls = cartan_tree_create();
         while (idx_d < cartan_tree_len_f(self_ptr.decls)) {
-            cartan_tree_push(final_output, cartan_tree_get_f32(self_ptr.decls, idx_d));
+            let decl_str = cartan_tree_get_f32(self_ptr.decls, idx_d);
+            var already_emitted = 0.0;
+            var idx_ed = 0.0;
+            while (idx_ed < cartan_tree_len_f(emitted_decls)) {
+                let prev_decl = cartan_tree_get_f32(emitted_decls, idx_ed);
+                if (cartan_string_eq(prev_decl, decl_str) != 0.0) {
+                    already_emitted = 1.0;
+                }
+                idx_ed = idx_ed + 1.0;
+            }
+            if (already_emitted == 0.0) {
+                cartan_tree_push(emitted_decls, decl_str);
+                cartan_tree_push(final_output, decl_str);
+            }
             idx_d = idx_d + 1.0;
         }
-        var idx_m = 0.0;
-        while (idx_m < cartan_tree_len_f(self_ptr.loop_metadata)) {
-            cartan_tree_push(final_output, cartan_tree_get_f32(self_ptr.loop_metadata, idx_m));
-            idx_m = idx_m + 1.0;
+        var idx_meta = 0.0;
+        while (idx_meta < cartan_tree_len_f(self_ptr.loop_metadata)) {
+            cartan_tree_push(final_output, cartan_tree_get_f32(self_ptr.loop_metadata, idx_meta));
+            idx_meta = idx_meta + 1.0;
         }
 
         // DWARF Line Metadata Attachments (BACKLOG-005-B)
@@ -1143,6 +1159,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                         if (cond_ptr == 0.0) { if (cartan_string_starts_with(ret_val, "string:") != 0.0) { cond_ptr = 1.0; } }
                         if (cond_ptr == 0.0) { if (cartan_string_starts_with(ret_val, "array:") != 0.0) { cond_ptr = 1.0; } }
                         if (cond_ptr == 0.0) { if (cartan_string_starts_with(ret_val, "struct:") != 0.0) { cond_ptr = 1.0; } }
+                        if (cond_ptr == 0.0) { if (cartan_string_starts_with(ret_val, "tree<") != 0.0) { cond_ptr = 1.0; } }
                         if (cond_ptr != 0.0) {
                             let clean_r = clean_reg(ret_val);
                             cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat("  ret ptr ", clean_r), "\n"));
@@ -1195,12 +1212,15 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 let val_reg = llvm_visit_expr(self_ptr, value);
                 
                 var struct_override = "";
+                var is_explicit_ptr = 0.0;
                 if (type_annotation != 0.0) {
                     var ty_str = type_annotation;
                     var cond_ty = cartan_string_starts_with(ty_str, "ptr<");
                     if (cond_ty != 0.0) {
                         var inner = cartan_string_replace(cartan_string_replace(ty_str, "ptr<", ""), ">", "");
                         struct_override = cartan_string_concat("%", inner);
+                    } else if (cartan_string_eq(ty_str, "ptr") != 0.0 || cartan_string_starts_with(ty_str, "tree<") != 0.0 || cartan_string_eq(ty_str, "string") != 0.0) {
+                        is_explicit_ptr = 1.0;
                     }
                 }
                 
@@ -1212,6 +1232,17 @@ while (idx_method < cartan_tree_len_f(methods)) {
                     cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat("  ", ptr_reg), " = alloca ptr, align 8\n"));
                     cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  store ptr ", real_reg), ", ptr "), ptr_reg), ", align 8\n"));
                     cartan_dict_set(self_ptr.var_types, name, struct_name);
+                    cartan_dict_set(self_ptr.symbols, name, ptr_reg);
+                } else if (is_explicit_ptr != 0.0) {
+                    let raw_ptr = cartan_string_replace(cartan_string_replace(cartan_string_replace(cartan_string_replace(val_reg, "ptr:", ""), "struct:", ""), "array:", ""), "string:", "");
+                    var real_reg = raw_ptr;
+                    if (cartan_string_eq(real_reg, "0.0") != 0.0 || cartan_string_eq(real_reg, "0") != 0.0) {
+                        real_reg = "null";
+                    }
+                    let ptr_reg = next_reg(self_ptr);
+                    cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat("  ", ptr_reg), " = alloca ptr, align 8\n"));
+                    cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  store ptr ", real_reg), ", ptr "), ptr_reg), ", align 8\n"));
+                    cartan_dict_set(self_ptr.var_types, name, type_annotation);
                     cartan_dict_set(self_ptr.symbols, name, ptr_reg);
                 } else if (cartan_string_starts_with(val_reg, "struct:") != 0.0) {
                     var s_part = cartan_string_replace(val_reg, "struct:", "");
@@ -1246,6 +1277,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                     var inferred_type = "ptr";
                     if (cartan_string_eq(name, "expr") == 1.0) { inferred_type = "%Expr"; }
                     if (cartan_string_contains(name, "_expr") != 0.0) { inferred_type = "%Expr"; }
+                    if (cartan_string_contains(name, "_node") != 0.0) { inferred_type = "ptr"; }
                     if (cartan_string_eq(name, "bin_op") == 1.0) { inferred_type = "%Expr"; }
                     if (cartan_string_eq(name, "mul_op") == 1.0) { inferred_type = "%Expr"; }
                     if (cartan_string_eq(name, "inner") == 1.0) { inferred_type = "%Expr"; }
@@ -1940,7 +1972,14 @@ while (idx_method < cartan_tree_len_f(methods)) {
         }
         if (disc == 1.0) {
             let f_val = expr[1];
-            return cartan_float_to_string(f_val);
+            let raw_s = cartan_float_to_string(f_val);
+            if (cartan_string_contains(raw_s, "e") != 0.0 && cartan_string_contains(raw_s, ".") == 0.0) {
+                return cartan_string_replace(raw_s, "e", ".0e");
+            }
+            if (cartan_string_contains(raw_s, "E") != 0.0 && cartan_string_contains(raw_s, ".") == 0.0) {
+                return cartan_string_replace(raw_s, "E", ".0E");
+            }
+            return raw_s;
         }
         if (disc == 2.0) {
             let b_val = cartan_tree_get_f32(expr, 1.0);
@@ -2044,22 +2083,16 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 if (cartan_string_starts_with(field_reg_typed, "array:") != 0.0) { is_f_ptr = 1.0; }
                 if (cartan_string_starts_with(field_reg_typed, "struct:") != 0.0) { is_f_ptr = 1.0; }
                 
-                if (is_f_ptr != 0.0) {
-                    let i64_cast = next_reg(self_ptr);
-                    let flt_cast = next_reg(self_ptr);
-                    cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", i64_cast), " = ptrtoint ptr "), clean_f), " to i64\n"));
-                    cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", flt_cast), " = uitofp i64 "), i64_cast), " to double\n"));
-                    field_val = flt_cast;
-                } else if (cartan_string_eq(clean_f, "null") != 0.0) {
-                    field_val = "0.0";
-                } else {
-                    field_val = as_float(self_ptr, clean_f);
-                }
-                
                 let field_ptr_reg = next_reg(self_ptr);
                 let offset_str = cartan_int_to_string(idx_a + 1.0);
                 cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", field_ptr_reg), " = getelementptr inbounds [100 x double], ptr "), mem_reg), ", i32 0, i32 "), offset_str), "\n"));
-                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  store double ", field_val), ", ptr "), field_ptr_reg), ", align 8\n"));
+                if (is_f_ptr != 0.0) {
+                    cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  store ptr ", clean_f), ", ptr "), field_ptr_reg), ", align 8\n"));
+                } else if (cartan_string_eq(clean_f, "null") != 0.0) {
+                    cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat("  store ptr null, ptr "), field_ptr_reg), ", align 8\n");
+                } else {
+                    cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  store double ", as_float(self_ptr, clean_f)), ", ptr "), field_ptr_reg), ", align 8\n"));
+                }
                 idx_a = idx_a + 1.0;
             }
             return cartan_string_concat("ptr:", mem_reg);
@@ -2158,9 +2191,26 @@ while (idx_method < cartan_tree_len_f(methods)) {
                     if (cartan_string_starts_with(val_reg, "struct:") != 0.0) { is_val_ptr = 1.0; }
                     if (cartan_string_starts_with(val_reg, "array:") != 0.0) { is_val_ptr = 1.0; }
 
-                    if (is_val_ptr != 0.0) {
-                        let clean = clean_reg(val_reg);
-                        cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  store ptr ", clean), ", ptr "), ptr_reg), ", align 8\n"));
+                    let vt = cartan_dict_get(self_ptr.var_types, name);
+                    var is_target_ptr = 0.0;
+                    if (vt != 0.0) {
+                        if (cartan_string_eq(vt, "ptr") != 0.0) { is_target_ptr = 1.0; }
+                        if (cartan_string_eq(vt, "string") != 0.0) { is_target_ptr = 1.0; }
+                        if (cartan_string_starts_with(vt, "%") != 0.0) { is_target_ptr = 1.0; }
+                    }
+                    if (is_target_ptr != 0.0 || is_val_ptr != 0.0) {
+                        if (is_val_ptr != 0.0) {
+                            let clean = clean_reg(val_reg);
+                            cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  store ptr ", clean), ", ptr "), ptr_reg), ", align 8\n"));
+                            cartan_dict_set(self_ptr.var_types, name, "ptr");
+                        } else {
+                            let clean = clean_reg(val_reg);
+                            let i64_reg = next_reg(self_ptr);
+                            let p_reg = next_reg(self_ptr);
+                            cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", i64_reg), " = bitcast double "), as_float(self_ptr, clean)), " to i64\n"));
+                            cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", p_reg), " = inttoptr i64 "), i64_reg), " to ptr\n"));
+                            cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  store ptr ", p_reg), ", ptr "), ptr_reg), ", align 8\n"));
+                        }
                     } else {
                         cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  store double ", as_float(self_ptr, val_reg)), ", ptr "), ptr_reg), ", align 8\n"));
                     }
@@ -2211,6 +2261,43 @@ while (idx_method < cartan_tree_len_f(methods)) {
                     let clean = clean_reg(val_reg);
                     cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  store ptr ", clean), ", ptr "), elem_ptr), ", align 8\n"));
                 } else {
+                    cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  store double ", as_float(self_ptr, val_reg)), ", ptr "), elem_ptr), ", align 8\n"));
+                }
+            }
+            if (target_disc == 21.0 || target_disc == 36.0) {
+                let object = cartan_tree_get_f32(target, 1.0);
+                let index = cartan_tree_get_f32(target, 2.0);
+                let obj_reg_raw = llvm_visit_expr(self_ptr, object);
+                let clean_obj = clean_reg(obj_reg_raw);
+                let idx_reg = llvm_visit_expr(self_ptr, index);
+                
+                let int_idx = next_reg(self_ptr);
+                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", int_idx), " = fptosi double "), as_float(self_ptr, idx_reg)), " to i32\n"));
+                
+                var is_raw_ptr = 0.0;
+                if (cartan_string_starts_with(obj_reg_raw, "struct:") != 0.0) { is_raw_ptr = 1.0; }
+                if (cartan_string_starts_with(obj_reg_raw, "ptr:") != 0.0) { is_raw_ptr = 1.0; }
+                
+                var is_val_ptr = 0.0;
+                if (cartan_string_starts_with(val_reg, "ptr:") != 0.0) { is_val_ptr = 1.0; }
+                if (cartan_string_starts_with(val_reg, "string:") != 0.0) { is_val_ptr = 1.0; }
+                if (cartan_string_starts_with(val_reg, "struct:") != 0.0) { is_val_ptr = 1.0; }
+                if (cartan_string_starts_with(val_reg, "array:") != 0.0) { is_val_ptr = 1.0; }
+
+                if (is_raw_ptr != 0.0) {
+                    if (is_val_ptr != 0.0) {
+                        let elem_ptr = next_reg(self_ptr);
+                        cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", elem_ptr), " = getelementptr inbounds ptr, ptr "), clean_obj), ", i32 "), int_idx), "\n"));
+                        let clean_v = clean_reg(val_reg);
+                        cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  store ptr ", clean_v), ", ptr "), elem_ptr), ", align 8\n"));
+                    } else {
+                        let elem_ptr = next_reg(self_ptr);
+                        cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", elem_ptr), " = getelementptr inbounds double, ptr "), clean_obj), ", i32 "), int_idx), "\n"));
+                        cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  store double ", as_float(self_ptr, val_reg)), ", ptr "), elem_ptr), ", align 8\n"));
+                    }
+                } else {
+                    let elem_ptr = next_reg(self_ptr);
+                    cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", elem_ptr), " = getelementptr inbounds [100 x double], ptr "), clean_obj), ", i32 0, i32 "), int_idx), "\n"));
                     cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  store double ", as_float(self_ptr, val_reg)), ", ptr "), elem_ptr), ", align 8\n"));
                 }
             }
@@ -2537,12 +2624,20 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 if (is_arg_ptr != 0.0) {
                     let clean = clean_reg(arg_reg);
                     formatted_arg = cartan_string_concat("ptr ", clean);
-                } else if (cartan_string_eq(name, "cartan_tree_push") != 0.0 || (cartan_string_eq(name, "cartan_tree_set") != 0.0 && idx_a == 2.0)) {
+                } else if (cartan_string_eq(name, "cartan_tree_push") != 0.0 || (cartan_string_eq(name, "cartan_tree_set") != 0.0 && idx_a == 2.0) || ((cartan_string_eq(name, "sprintf") != 0.0 || cartan_string_eq(name, "memcpy") != 0.0 || cartan_string_eq(name, "strncmp") != 0.0 || cartan_string_eq(name, "strstr") != 0.0 || cartan_string_eq(name, "fflush") != 0.0 || cartan_string_eq(name, "free") != 0.0 || cartan_string_eq(name, "fclose") != 0.0 || cartan_string_eq(name, "ftell") != 0.0) && (idx_a == 0.0 || idx_a == 1.0)) || ((cartan_string_eq(name, "fread") != 0.0 || cartan_string_eq(name, "fwrite") != 0.0) && (idx_a == 0.0 || idx_a == 3.0)) || (cartan_string_eq(name, "fputs") != 0.0 && idx_a == 1.0) || (cartan_string_eq(name, "fgets") != 0.0 && (idx_a == 0.0 || idx_a == 2.0)) || (cartan_string_eq(name, "fseek") != 0.0 && idx_a == 0.0)) {
                     let int_cast = next_reg(self_ptr);
                     let ptr_cast = next_reg(self_ptr);
                     cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", int_cast), " = fptoui double "), as_float(self_ptr, arg_reg)), " to i64\n"));
                     cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", ptr_cast), " = inttoptr i64 "), int_cast), " to ptr\n"));
                     formatted_arg = cartan_string_concat("ptr ", ptr_cast);
+                } else if (cartan_string_eq(name, "malloc") != 0.0 || cartan_string_eq(name, "calloc") != 0.0 || (cartan_string_eq(name, "fseek") != 0.0 && idx_a == 1.0) || ((cartan_string_eq(name, "fread") != 0.0 || cartan_string_eq(name, "fwrite") != 0.0) && (idx_a == 1.0 || idx_a == 2.0)) || (cartan_string_eq(name, "strncmp") != 0.0 && idx_a == 2.0) || (cartan_string_eq(name, "memcpy") != 0.0 && idx_a == 2.0)) {
+                    let int_cast = next_reg(self_ptr);
+                    cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", int_cast), " = fptoui double "), as_float(self_ptr, arg_reg)), " to i64\n"));
+                    formatted_arg = cartan_string_concat("i64 ", int_cast);
+                } else if ((cartan_string_eq(name, "fseek") != 0.0 && idx_a == 2.0) || cartan_string_eq(name, "__acrt_iob_func") != 0.0 || cartan_string_eq(name, "exit") != 0.0 || (cartan_string_eq(name, "fgets") != 0.0 && idx_a == 1.0)) {
+                    let int_cast = next_reg(self_ptr);
+                    cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", int_cast), " = fptosi double "), as_float(self_ptr, arg_reg)), " to i32\n"));
+                    formatted_arg = cartan_string_concat("i32 ", int_cast);
                 } else {
                     formatted_arg = cartan_string_concat("double ", as_float(self_ptr, arg_reg));
                 }
@@ -2561,6 +2656,13 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 let i32_reg = next_reg(self_ptr);
                 let res_reg = next_reg(self_ptr);
                 cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", i32_reg), " = call i32 (ptr, ...) @printf("), arg_str), ")\n"));
+                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", res_reg), " = sitofp i32 "), i32_reg), " to double\n"));
+                return res_reg;
+            }
+            if (cartan_string_eq(name, "sprintf") != 0.0) {
+                let i32_reg = next_reg(self_ptr);
+                let res_reg = next_reg(self_ptr);
+                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", i32_reg), " = call i32 (ptr, ptr, ...) @sprintf("), arg_str), ")\n"));
                 cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", res_reg), " = sitofp i32 "), i32_reg), " to double\n"));
                 return res_reg;
             }
@@ -2598,6 +2700,20 @@ while (idx_method < cartan_tree_len_f(methods)) {
             } else if (cartan_string_eq(ret_type_str, "void") != 0.0) {
                 cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  call void @", name), "("), arg_str), ")\n"));
                 return "0.0";
+            } else if (cartan_string_eq(name, "strlen") != 0.0 || cartan_string_eq(name, "ftell") != 0.0 || cartan_string_eq(name, "fread") != 0.0 || cartan_string_eq(name, "fwrite") != 0.0) {
+                let call_prefix = cartan_string_concat("  ", cartan_string_concat(res_reg, cartan_string_concat(" = call i64 @", cartan_string_concat(name, "("))));
+                let call_full = cartan_string_concat(call_prefix, cartan_string_concat(arg_str, ")\n"));
+                cartan_tree_push(self_ptr.output, call_full);
+                let flt_reg = next_reg(self_ptr);
+                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", flt_reg), " = uitofp i64 "), res_reg), " to double\n"));
+                return flt_reg;
+            } else if (cartan_string_eq(name, "strcmp") != 0.0 || cartan_string_eq(name, "strncmp") != 0.0 || cartan_string_eq(name, "fseek") != 0.0 || cartan_string_eq(name, "fflush") != 0.0 || cartan_string_eq(name, "fclose") != 0.0 || cartan_string_eq(name, "system") != 0.0 || cartan_string_eq(name, "remove") != 0.0 || cartan_string_eq(name, "rename") != 0.0 || cartan_string_eq(name, "fputs") != 0.0) {
+                let call_prefix = cartan_string_concat("  ", cartan_string_concat(res_reg, cartan_string_concat(" = call i32 @", cartan_string_concat(name, "("))));
+                let call_full = cartan_string_concat(call_prefix, cartan_string_concat(arg_str, ")\n"));
+                cartan_tree_push(self_ptr.output, call_full);
+                let flt_reg = next_reg(self_ptr);
+                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", flt_reg), " = sitofp i32 "), res_reg), " to double\n"));
+                return flt_reg;
             } else {
                 cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(p1, " = call double @"), name), "("), arg_str), ")\n"));
                 return res_reg;
@@ -2719,7 +2835,18 @@ while (idx_method < cartan_tree_len_f(methods)) {
             if (cartan_string_starts_with(obj_reg_raw, "struct:") != 0.0) { is_raw_ptr = 1.0; }
             if (cartan_string_starts_with(obj_reg_raw, "ptr:") != 0.0) { is_raw_ptr = 1.0; }
             
-            if (is_raw_ptr != 0.0) {
+            var is_string = 0.0;
+            if (cartan_string_starts_with(obj_reg_raw, "string:") != 0.0) { is_string = 1.0; }
+
+            if (is_string != 0.0) {
+                let elem_ptr = next_reg(self_ptr);
+                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", elem_ptr), " = getelementptr inbounds i8, ptr "), clean_obj), ", i32 "), int_idx), "\n"));
+                let byte_reg = next_reg(self_ptr);
+                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", byte_reg), " = load i8, ptr "), elem_ptr), ", align 1\n"));
+                let val_reg = next_reg(self_ptr);
+                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", val_reg), " = uitofp i8 "), byte_reg), " to double\n"));
+                return val_reg;
+            } else if (is_raw_ptr != 0.0) {
                 let elem_ptr = next_reg(self_ptr);
                 cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", elem_ptr), " = getelementptr inbounds double, ptr "), clean_obj), ", i32 "), int_idx), "\n"));
                 let val_reg = next_reg(self_ptr);
@@ -2739,7 +2866,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
             let array_ptr = next_reg(self_ptr);
             let a1 = cartan_string_concat("  ", array_ptr);
             let a2 = cartan_string_concat(a1, " = alloca [");
-            let a3 = cartan_string_concat(a2, len);
+            let a3 = cartan_string_concat(a2, cartan_int_to_string(len));
             let a4 = cartan_string_concat(a3, " x float], align 4\n");
             cartan_tree_push(self_ptr.output, a4);
 
@@ -2750,15 +2877,15 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 let elem_ptr = next_reg(self_ptr);
                 let g1 = cartan_string_concat("  ", elem_ptr);
                 let g2 = cartan_string_concat(g1, " = getelementptr inbounds [");
-                let g3 = cartan_string_concat(g2, len);
+                let g3 = cartan_string_concat(g2, cartan_int_to_string(len));
                 let g4 = cartan_string_concat(g3, " x float], ptr ");
                 let g5 = cartan_string_concat(g4, array_ptr);
                 let g6 = cartan_string_concat(g5, ", i32 0, i32 ");
-                let g7 = cartan_string_concat(g6, idx_e);
+                let g7 = cartan_string_concat(g6, cartan_int_to_string(idx_e));
                 let g8 = cartan_string_concat(g7, "\n");
                 cartan_tree_push(self_ptr.output, g8);
 
-                let s1 = cartan_string_concat("  store float ", val_reg);
+                let s1 = cartan_string_concat("  store float ", as_float(self_ptr, val_reg));
                 let s2 = cartan_string_concat(s1, ", ptr ");
                 let s3 = cartan_string_concat(s2, elem_ptr);
                 let s4 = cartan_string_concat(s3, ", align 4\n");

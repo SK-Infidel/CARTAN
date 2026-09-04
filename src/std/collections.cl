@@ -4,6 +4,9 @@
 extern fn malloc(size: float) -> ptr;
 extern fn free(p: ptr);
 extern fn cartan_tree_create() -> ptr;
+extern fn cartan_tree_len_f(t: ptr) -> float;
+extern fn cartan_tree_push(t: ptr, item: ptr) -> void;
+extern fn cartan_tree_get_f32(t: ptr, idx: float) -> ptr;
 
 fn create_list() -> ptr {
     var list = malloc(16384.0);
@@ -92,38 +95,4 @@ fn queue_dequeue(q: ptr) -> float {
     return val;
 }
 
-fn cartan_vec_create() -> ptr {
-    return create_list();
-}
-
-fn cartan_vec_push_f32(v_ptr: ptr, val: float) -> float {
-    return list_push(v_ptr, val);
-}
-
-fn cartan_vec_get_f32(v_ptr: ptr, idx: float) -> float {
-    return list_get(v_ptr, idx);
-}
-
-fn cartan_vec_len(v_ptr: ptr) -> float {
-    return list_len(v_ptr);
-}
-
-fn cartan_vec_set_f32(v_ptr: ptr, idx: float, val: float) -> float {
-    if (v_ptr == 0.0) { return 0.0; }
-    let len = v_ptr[0];
-    if (idx < 0.0 || idx >= len) { return 0.0; }
-    v_ptr[2.0 + idx] = val;
-    return val;
-}
-
-fn cartan_vec_scale(v_ptr: ptr, scale: float) -> ptr {
-    let len = cartan_vec_len(v_ptr);
-    var i = 0.0;
-    while (i < len) {
-        let v = cartan_vec_get_f32(v_ptr, i);
-        cartan_vec_set_f32(v_ptr, i, v * scale);
-        i = i + 1.0;
-    }
-    return v_ptr;
-}
 

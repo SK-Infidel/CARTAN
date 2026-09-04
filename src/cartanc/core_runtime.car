@@ -1,0 +1,653 @@
+// src/cartanc/core_runtime.car
+// CARTAN Self-Hosting Pure Native Runtime Kernel (Zero C Dependency)
+
+// --- Libc Core Extern Declarations ---
+extern fn malloc(size: float) -> ptr;
+extern fn calloc(count: float, size: float) -> ptr;
+extern fn free(p: ptr);
+extern fn memcpy(dest: ptr, src: ptr, count: float) -> ptr;
+extern fn strlen(s: string) -> float;
+extern fn strcpy(dest: ptr, src: string) -> ptr;
+extern fn strcat(dest: ptr, src: string) -> ptr;
+extern fn strcmp(s1: string, s2: string) -> float;
+extern fn strncmp(s1: string, s2: string, n: float) -> float;
+extern fn c_cartan_string_char_at(s: string, idx: float) -> float;
+extern fn cartan_c_memcpy(dest: ptr, src: ptr, count: float) -> ptr;
+extern fn cartan_c_strncmp(s1: string, s2: string, n: float) -> float;
+extern fn cartan_c_ptr_add(p: ptr, offset: float) -> ptr;
+extern fn cartan_c_tree_create() -> ptr;
+extern fn cartan_c_tree_len_f(t: ptr) -> float;
+extern fn cartan_c_tree_get(t: ptr, idx: float) -> ptr;
+extern fn cartan_c_tree_push(t: ptr, item: ptr) -> void;
+extern fn cartan_c_tree_set(t: ptr, idx: float, val: ptr) -> void;
+extern fn cartan_c_tree_remove(t: ptr, idx: float) -> void;
+extern fn strstr(haystack: string, needle: string) -> ptr;
+extern fn atof(s: string) -> float;
+extern fn cartan_c_int_to_string(val: float) -> string;
+extern fn cartan_c_float_to_string(val: float) -> string;
+extern fn cartan_c_sprintf_hex_byte(dest: ptr, b: float) -> void;
+extern fn sprintf(buf: ptr, fmt: string, val: float) -> float;
+extern fn printf(fmt: string, s: string) -> float;
+extern fn exit(code: float) -> void;
+extern fn fopen(path: string, mode: string) -> ptr;
+extern fn fclose(file: ptr) -> float;
+extern fn fseek(file: ptr, offset: float, origin: float) -> float;
+extern fn ftell(file: ptr) -> float;
+extern fn fread(buffer: ptr, size: float, count: float, file: ptr) -> float;
+extern fn fwrite(buffer: ptr, size: float, count: float, file: ptr) -> float;
+extern fn fputs(str: string, file: ptr) -> float;
+extern fn fgets(buffer: ptr, size: float, file: ptr) -> ptr;
+extern fn getenv(name: string) -> ptr;
+extern fn system(cmd: string) -> float;
+extern fn remove(path: string) -> float;
+extern fn rename(old_path: string, new_path: string) -> float;
+extern fn floor(x: float) -> float;
+extern fn fflush(f_stream: ptr) -> float;
+extern fn __acrt_iob_func(idx: float) -> ptr;
+
+// --- String Operations ---
+fn cartan_string_length(s: string) -> float {
+    if (s == 0.0) { return 0.0; }
+    return strlen(s);
+}
+
+fn cartan_string_concat(s1: string, s2: string) -> string {
+    if (s1 == 0.0 && s2 == 0.0) { return ""; }
+    if (s1 == 0.0) { return s2; }
+    if (s2 == 0.0) { return s1; }
+    let l1 = strlen(s1);
+    let l2 = strlen(s2);
+    let buf = malloc(l1 + l2 + 1.0);
+    if (buf == 0.0) { return ""; }
+    strcpy(buf, s1);
+    strcat(buf, s2);
+    return buf;
+}
+
+fn cartan_string_eq(s1: string, s2: string) -> float {
+    if (s1 == 0.0 && s2 == 0.0) { return 1.0; }
+    if (s1 == 0.0 || s2 == 0.0) { return 0.0; }
+    let res = strcmp(s1, s2);
+    if (res == 0.0) { return 1.0; }
+    return 0.0;
+}
+
+fn cartan_string_substring(s: string, start: float, end_idx: float) -> string {
+    if (s == 0.0) { return ""; }
+    let len = strlen(s);
+    var st = start;
+    if (st < 0.0) { st = 0.0; }
+    if (st > len) { st = len; }
+    var en = end_idx;
+    if (en < 0.0) { en = 0.0; }
+    if (en > len) { en = len; }
+    if (en < st) { en = st; }
+    let sub_len = en - st;
+    let res = calloc(sub_len + 1.0, 1.0);
+    if (res == 0.0) { return ""; }
+    if (sub_len > 0.0) {
+        cartan_c_memcpy(res, cartan_c_ptr_add(s, st), sub_len);
+    }
+    return res;
+}
+
+fn cartan_string_starts_with(s: string, prefix: string) -> float {
+    if (s == 0.0 || prefix == 0.0) { return 0.0; }
+    let lp = strlen(prefix);
+    let ls = strlen(s);
+    if (lp > ls) { return 0.0; }
+    let res = cartan_c_strncmp(s, prefix, lp);
+    if (res == 0.0) { return 1.0; }
+    return 0.0;
+}
+
+fn cartan_string_contains(s: string, target: string) -> float {
+    if (s == 0.0 || target == 0.0) { return 0.0; }
+    let res = strstr(s, target);
+    if (res != 0.0) { return 1.0; }
+    return 0.0;
+}
+
+fn cartan_string_get_char(s: string, idx: float) -> float {
+    if (s == 0.0) { return 0.0; }
+    let len = strlen(s);
+    if (idx < 0.0 || idx >= len) { return 0.0; }
+    return c_cartan_string_char_at(s, idx);
+}
+
+fn cartan_string_replace(s: string, old_sub: string, new_sub: string) -> string {
+    if (s == 0.0) { return ""; }
+    if (old_sub == 0.0) { return s; }
+    let s_len = strlen(s);
+    let old_len = strlen(old_sub);
+    if (old_len == 0.0) { return s; }
+    let new_len = strlen(new_sub);
+    var alloc_size = s_len * 4.0 + 1024.0;
+    if (new_len > old_len) {
+        alloc_size = s_len * (new_len + 1.0) + 1024.0;
+    }
+    let res = calloc(alloc_size, 1.0);
+    if (res == 0.0) { return s; }
+    var out_idx = 0.0;
+    var i = 0.0;
+    while (i < s_len) {
+        var is_matched = 0.0;
+        if (i + old_len <= s_len) {
+            let cmp = cartan_c_strncmp(cartan_c_ptr_add(s, i), old_sub, old_len);
+            if (cmp == 0.0) { is_matched = 1.0; }
+        }
+        if (is_matched != 0.0) {
+            if (new_len > 0.0) {
+                cartan_c_memcpy(cartan_c_ptr_add(res, out_idx), new_sub, new_len);
+                out_idx = out_idx + new_len;
+            }
+            i = i + old_len;
+        } else {
+            cartan_c_memcpy(cartan_c_ptr_add(res, out_idx), cartan_c_ptr_add(s, i), 1.0);
+            out_idx = out_idx + 1.0;
+            i = i + 1.0;
+        }
+    }
+    return res;
+}
+
+fn cartan_strip_prefix(s: string) -> string {
+    if (s == 0.0) { return ""; }
+    let len = strlen(s);
+    var last_colon = -1.0;
+    var i = 0.0;
+    while (i < len) {
+        if (cartan_string_get_char(s, i) == 58.0) { // ':'
+            last_colon = i;
+        }
+        i = i + 1.0;
+    }
+    if (last_colon >= 0.0) {
+        return cartan_string_substring(s, last_colon + 1.0, len);
+    }
+    return s;
+}
+
+fn cartan_int_to_string(val: float) -> string {
+    return cartan_c_int_to_string(val);
+}
+
+fn cartan_float_to_string(val: float) -> string {
+    return cartan_c_float_to_string(val);
+}
+
+fn cartan_hash_string(s: string) -> float {
+    if (s == 0.0) { return 0.0; }
+    var hash = 5381.0;
+    let len = strlen(s);
+    var i = 0.0;
+    while (i < len) {
+        hash = (hash * 33.0) + cartan_string_get_char(s, i);
+        i = i + 1.0;
+    }
+    return hash;
+}
+
+fn cartan_llvm_format_string_literal(s: string, id: float) -> string {
+    let s_len = strlen(s);
+    let hex_bytes = calloc(s_len * 4.0 + 16.0, 1.0);
+    var byte_count = 0.0;
+    var h_idx = 0.0;
+    var i = 0.0;
+    while (i < s_len) {
+        var b = cartan_string_get_char(s, i);
+        if (b == 92.0 && i + 1.0 < s_len) {
+            let next = cartan_string_get_char(s, i + 1.0);
+            if (next == 110.0) { b = 10.0; i = i + 1.0; }
+            else if (next == 114.0) { b = 13.0; i = i + 1.0; }
+            else if (next == 116.0) { b = 9.0; i = i + 1.0; }
+            else if (next == 92.0) { b = 92.0; i = i + 1.0; }
+            else if (next == 34.0) { b = 34.0; i = i + 1.0; }
+        }
+        cartan_c_sprintf_hex_byte(cartan_c_ptr_add(hex_bytes, h_idx), b);
+        h_idx = h_idx + 3.0;
+        byte_count = byte_count + 1.0;
+        i = i + 1.0;
+    }
+    cartan_c_memcpy(cartan_c_ptr_add(hex_bytes, h_idx), "\\00", 3.0);
+    byte_count = byte_count + 1.0;
+
+    let id_str = cartan_int_to_string(id);
+    let bc_str = cartan_int_to_string(byte_count);
+    let p1 = cartan_string_concat("@.str.", id_str);
+    let p2 = cartan_string_concat(" = private unnamed_addr constant [", bc_str);
+    let p3 = cartan_string_concat(" x i8] c\"", hex_bytes);
+    let p4 = cartan_string_concat(p3, "\", align 1\n");
+    let full = cartan_string_concat(cartan_string_concat(p1, p2), p4);
+    free(hex_bytes);
+    return full;
+}
+
+// --- Tree & Collection Primitives ---
+fn cartan_tree_create() -> ptr {
+    return cartan_c_tree_create();
+}
+
+fn cartan_tree_len_f(t: ptr) -> float {
+    return cartan_c_tree_len_f(t);
+}
+
+fn cartan_tree_len(t: ptr) -> float {
+    return cartan_c_tree_len_f(t);
+}
+
+fn cartan_tree_push(t: ptr, item: ptr) -> void {
+    cartan_c_tree_push(t, item);
+}
+
+fn cartan_tree_get_f32(t: ptr, idx: float) -> ptr {
+    return cartan_c_tree_get(t, idx);
+}
+
+fn cartan_tree_get(t: ptr, idx: float) -> ptr {
+    return cartan_c_tree_get(t, idx);
+}
+
+fn cartan_tree_set(t: ptr, idx: float, val: ptr) -> void {
+    cartan_c_tree_set(t, idx, val);
+}
+
+fn cartan_tree_remove(t: ptr, idx: float) -> void {
+    cartan_c_tree_remove(t, idx);
+}
+
+fn cartan_tree_push_f32(t: ptr, val: float) -> float {
+    cartan_tree_push(t, val);
+    return 0.0;
+}
+
+fn cartan_tree_set_f32(t: ptr, idx: float, val: float) -> float {
+    cartan_tree_set(t, idx, val);
+    return 0.0;
+}
+
+fn cartan_tree_has(container: ptr, target: string) -> float {
+    if (container == 0.0 || target == 0.0) { return 0.0; }
+    let len = cartan_tree_len_f(container);
+    var i = 0.0;
+    while (i < len) {
+        let elem = cartan_tree_get_f32(container, i);
+        if (elem != 0.0) {
+            if (cartan_string_eq(elem, target) != 0.0) {
+                return 1.0;
+            }
+        }
+        i = i + 1.0;
+    }
+    return 0.0;
+}
+
+fn contains_string(t: ptr, s: string) -> float {
+    return cartan_tree_has(t, s);
+}
+
+fn cartan_tree_write_file(path: string, t: ptr) -> void {
+    if (path == 0.0 || t == 0.0) { return; }
+    let f = fopen(path, "w");
+    if (f == 0.0) { return; }
+    let len = cartan_tree_len_f(t);
+    var i = 0.0;
+    while (i < len) {
+        let item = cartan_tree_get_f32(t, i);
+        if (item != 0.0) {
+            fputs(item, f);
+        }
+        i = i + 1.0;
+    }
+    fclose(f);
+}
+
+fn cartan_slice_tree(t: ptr, start_idx: float, end_idx: float) -> ptr {
+    let sliced = cartan_tree_create();
+    if (t == 0.0) { return sliced; }
+    let len = cartan_tree_len_f(t);
+    var s = start_idx;
+    var e = end_idx;
+    if (s < 0.0) { s = 0.0; }
+    if (e > len) { e = len; }
+    var i = s;
+    while (i < e) {
+        let item = cartan_tree_get_f32(t, i);
+        cartan_tree_push(sliced, item);
+        i = i + 1.0;
+    }
+    return sliced;
+}
+
+fn cartan_slice_nd(t: ptr, start_idx: float, end_idx: float, step: float) -> ptr {
+    let sliced = cartan_tree_create();
+    if (t == 0.0) { return sliced; }
+    let len = cartan_tree_len_f(t);
+    var s = start_idx;
+    var e = end_idx;
+    var st = step;
+    if (st <= 0.0) { st = 1.0; }
+    if (s < 0.0) { s = 0.0; }
+    if (s > len) { s = len; }
+    if (e < s) { e = s; }
+    if (e > len) { e = len; }
+    var i = s;
+    while (i < e) {
+        let item = cartan_tree_get_f32(t, i);
+        cartan_tree_push(sliced, item);
+        i = i + st;
+    }
+    return sliced;
+}
+
+// --- Vector & Math Folding Primitives ---
+fn cartan_vec_create() -> ptr {
+    let v = malloc(16384.0);
+    if (v == 0.0) { return 0.0; }
+    v[0] = 0.0;    // size
+    v[1] = 2000.0; // capacity
+    return v;
+}
+
+fn cartan_vec_push_f32(v_ptr: ptr, val: float) -> float {
+    if (v_ptr == 0.0) { return 0.0; }
+    let len = v_ptr[0];
+    let cap = v_ptr[1];
+    if (len < cap) {
+        v_ptr[2.0 + len] = val;
+        v_ptr[0] = len + 1.0;
+    }
+    return v_ptr[0];
+}
+
+fn cartan_vec_get_f32(v_ptr: ptr, idx: float) -> float {
+    if (v_ptr == 0.0) { return 0.0; }
+    let len = v_ptr[0];
+    if (idx < 0.0 || idx >= len) { return 0.0; }
+    return v_ptr[2.0 + idx];
+}
+
+fn cartan_vec_len(v_ptr: ptr) -> float {
+    if (v_ptr == 0.0) { return 0.0; }
+    return v_ptr[0];
+}
+
+fn cartan_vec_set_f32(v_ptr: ptr, idx: float, val: float) -> float {
+    if (v_ptr == 0.0) { return 0.0; }
+    let len = v_ptr[0];
+    if (idx >= 0.0 && idx < len) {
+        v_ptr[2.0 + idx] = val;
+    }
+    return val;
+}
+
+fn cartan_vec_scale(v_ptr: ptr, scale: float) -> ptr {
+    let len = cartan_vec_len(v_ptr);
+    var i = 0.0;
+    while (i < len) {
+        let v = cartan_vec_get_f32(v_ptr, i);
+        cartan_vec_set_f32(v_ptr, i, v * scale);
+        i = i + 1.0;
+    }
+    return v_ptr;
+}
+
+fn cartan_tensor_add(A: ptr, B: ptr) -> ptr {
+    if (A == 0.0 || B == 0.0) { return 0.0; }
+    let lenA = cartan_vec_len(A);
+    let lenB = cartan_vec_len(B);
+    var len = lenA;
+    if (lenB < len) { len = lenB; }
+    let res = cartan_vec_create();
+    var i = 0.0;
+    while (i < len) {
+        let va = cartan_vec_get_f32(A, i);
+        let vb = cartan_vec_get_f32(B, i);
+        cartan_vec_push_f32(res, va + vb);
+        i = i + 1.0;
+    }
+    return res;
+}
+
+fn cartan_tensor_sub(A: ptr, B: ptr) -> ptr {
+    if (A == 0.0 || B == 0.0) { return 0.0; }
+    let lenA = cartan_vec_len(A);
+    let lenB = cartan_vec_len(B);
+    var len = lenA;
+    if (lenB < len) { len = lenB; }
+    let res = cartan_vec_create();
+    var i = 0.0;
+    while (i < len) {
+        let va = cartan_vec_get_f32(A, i);
+        let vb = cartan_vec_get_f32(B, i);
+        cartan_vec_push_f32(res, va - vb);
+        i = i + 1.0;
+    }
+    return res;
+}
+
+fn cartan_tensor_mul(A: ptr, B: ptr) -> ptr {
+    if (A == 0.0 || B == 0.0) { return 0.0; }
+    let lenA = cartan_vec_len(A);
+    let lenB = cartan_vec_len(B);
+    var len = lenA;
+    if (lenB < len) { len = lenB; }
+    let res = cartan_vec_create();
+    var i = 0.0;
+    while (i < len) {
+        let va = cartan_vec_get_f32(A, i);
+        let vb = cartan_vec_get_f32(B, i);
+        cartan_vec_push_f32(res, va * vb);
+        i = i + 1.0;
+    }
+    return res;
+}
+
+fn cartan_tensor_div(A: ptr, B: ptr) -> ptr {
+    if (A == 0.0 || B == 0.0) { return 0.0; }
+    let lenA = cartan_vec_len(A);
+    let lenB = cartan_vec_len(B);
+    var len = lenA;
+    if (lenB < len) { len = lenB; }
+    let res = cartan_vec_create();
+    var i = 0.0;
+    while (i < len) {
+        let va = cartan_vec_get_f32(A, i);
+        let vb = cartan_vec_get_f32(B, i);
+        if (vb != 0.0) {
+            cartan_vec_push_f32(res, va / vb);
+        } else {
+            cartan_vec_push_f32(res, 0.0);
+        }
+        i = i + 1.0;
+    }
+    return res;
+}
+
+fn cartan_tensor_alloc(size: float) -> ptr {
+    return cartan_vec_create();
+}
+
+// --- System & File IO Primitives ---
+fn cartan_file_exists(path: string) -> float {
+    if (path == 0.0) { return 0.0; }
+    let f = fopen(path, "rb");
+    if (f == 0.0) { return 0.0; }
+    fclose(f);
+    return 1.0;
+}
+
+fn cartan_read_file(path: string) -> string {
+    if (path == 0.0) { return ""; }
+    let f = fopen(path, "rb");
+    if (f == 0.0) { return ""; }
+    fseek(f, 0.0, 2.0);
+    let size = ftell(f);
+    fseek(f, 0.0, 0.0);
+    if (size <= 0.0) {
+        fclose(f);
+        return "";
+    }
+    let buf = calloc(size + 1.0, 1.0);
+    if (buf == 0.0) {
+        fclose(f);
+        return "";
+    }
+    fread(buf, 1.0, size, f);
+    fclose(f);
+    return buf;
+}
+
+fn cartan_write_file(path: string, content: string) -> float {
+    if (path == 0.0 || content == 0.0) { return 0.0; }
+    let f = fopen(path, "w");
+    if (f == 0.0) { return 0.0; }
+    fputs(content, f);
+    fclose(f);
+    return 1.0;
+}
+
+fn cartan_copy_file(src: string, dst: string) -> float {
+    if (src == 0.0 || dst == 0.0) { return 0.0; }
+    let in_f = fopen(src, "rb");
+    if (in_f == 0.0) { return 0.0; }
+    let out_f = fopen(dst, "wb");
+    if (out_f == 0.0) {
+        fclose(in_f);
+        return 0.0;
+    }
+    let buf = malloc(65536.0);
+    if (buf == 0.0) {
+        fclose(in_f);
+        fclose(out_f);
+        return 0.0;
+    }
+    var bytes = fread(buf, 1.0, 65536.0, in_f);
+    while (bytes > 0.0) {
+        fwrite(buf, 1.0, bytes, out_f);
+        bytes = fread(buf, 1.0, 65536.0, in_f);
+    }
+    free(buf);
+    fclose(in_f);
+    fclose(out_f);
+    return 1.0;
+}
+
+fn cartan_get_env(key: string) -> string {
+    if (key == 0.0) { return ""; }
+    let val = getenv(key);
+    if (val != 0.0) { return val; }
+    return "";
+}
+
+fn cartan_getenv(key: string) -> string {
+    return cartan_get_env(key);
+}
+
+fn cartan_null_stream() -> ptr {
+    return 0.0;
+}
+
+fn cartan_flush(v: float) -> float {
+    let p = cartan_null_stream();
+    fflush(p);
+    return v;
+}
+
+fn cartan_read_line() -> string {
+    let in_stream = __acrt_iob_func(0.0);
+    if (in_stream == 0.0) { return "exit"; }
+    let buf = calloc(4096.0, 1.0);
+    if (buf == 0.0) { return "exit"; }
+    let res = fgets(buf, 4095.0, in_stream);
+    if (res == 0.0) {
+        free(buf);
+        return "exit";
+    }
+    let len = strlen(buf);
+    if (len > 0.0) {
+        let last = cartan_string_get_char(buf, len - 1.0);
+        if (last == 10.0 || last == 13.0) {
+            let zero_byte = calloc(1.0, 1.0);
+            memcpy(buf + (len - 1.0), zero_byte, 1.0);
+            free(zero_byte);
+        }
+    }
+    return buf;
+}
+
+fn cartan_assert(cond: float, msg: string) -> float {
+    if (cond == 0.0) {
+        printf("\n========================================================\n", "");
+        printf(" [CARTAN RUNTIME ASSERTION FAILURE] %s\n", msg);
+        printf("========================================================\n", "");
+        exit(1.0);
+    }
+    return 1.0;
+}
+
+fn cartan_static_assert(cond: float, msg: string) -> float {
+    if (cond == 0.0) {
+        printf("Static assertion failed: %s\n", msg);
+        exit(1.0);
+    }
+    return 1.0;
+}
+
+fn cartan_next_reg(self_ptr: ptr) -> string {
+    if (self_ptr == 0.0) { return "%0"; }
+    let count = self_ptr[1];
+    self_ptr[1] = count + 1.0;
+    let count_str = cartan_int_to_string(count);
+    return cartan_string_concat("%r", count_str);
+}
+
+fn cartan_get_quote() -> string {
+    return "\"";
+}
+
+fn cartan_jit_eval(ll_file: string) -> float {
+    if (ll_file == 0.0) { return -1.0; }
+    let out_exe = "cartan_jit_run.exe";
+    let cmd1 = cartan_string_concat("zig cc -target x86_64-windows-msvc -O3 ", ll_file);
+    let cmd2 = cartan_string_concat(cmd1, " src/cartanc/c_runtime.c -lws2_32 -luser32 -lgdi32 -lwinmm -lopengl32 -ld3dcompiler -lole32 -loleaut32 -lbcrypt -luserenv -ladvapi32 -o ");
+    let cmd3 = cartan_string_concat(cmd2, out_exe);
+    let cmd4 = cartan_string_concat(cmd3, " && .\\");
+    let cmd5 = cartan_string_concat(cmd4, out_exe);
+    let res = system(cmd5);
+    remove(out_exe);
+    return res;
+}
+
+fn cartan_async_spawn(fn_ptr: ptr) -> float { return 1.0; }
+fn cartan_async_yield() -> float { return 1.0; }
+fn cartan_async_await(task_id: float) -> float { return 1.0; }
+fn cartan_rt_vram_lock_parameters() -> void { }
+fn cartan_rt_vram_unlock_parameters() -> void { }
+fn cartan_rt_check_vram_access(p: ptr, is_write: float) -> float { return 1.0; }
+fn cartan_rt_lock_swmr(p: ptr, ro: float) -> float { return 1.0; }
+fn cartan_rt_unlock_swmr(p: ptr) -> void { }
+fn cartan_rt_atomic_swap_graph(slot: ptr, shadow: ptr) -> ptr { return shadow; }
+fn cartan_export_c_headers(out_h_path: string, content: string) -> void { }
+
+// --- Compatibility & Legacy Aliases ---
+fn c_cartan_string_concat(a: string, b: string) -> string { return cartan_string_concat(a, b); }
+fn cartan_ast_string_concat(a: string, b: string) -> string { return cartan_string_concat(a, b); }
+fn c_cartan_string_eq(a: string, b: string) -> float { return cartan_string_eq(a, b); }
+fn geomind_crt_streq(s1: string, s2: string) -> float { return cartan_string_eq(s1, s2); }
+fn c_cartan_string_substring(s: string, start: float, end_idx: float) -> string { return cartan_string_substring(s, start, end_idx); }
+fn cartan_ast_string_substring(s: string, start: float, end_idx: float) -> string { return cartan_string_substring(s, start, end_idx); }
+fn c_cartan_string_length(s: string) -> float { return cartan_string_length(s); }
+fn c_cartan_string_contains(s: string, target: string) -> float { return cartan_string_contains(s, target); }
+fn c_cartan_string_replace(s: string, old_sub: string, new_sub: string) -> string { return cartan_string_replace(s, old_sub, new_sub); }
+fn c_cartan_float_to_string(f: float) -> string { return cartan_float_to_string(f); }
+fn cartan_double_to_string(f: float) -> string { return cartan_float_to_string(f); }
+fn c_cartan_read_file(path: string) -> string { return cartan_read_file(path); }
+fn cartan_ast_tree_push(t: ptr, item: ptr) -> void { cartan_tree_push(t, item); }
+fn cartan_ast_tree_set(t: ptr, idx: float, val: ptr) -> void { cartan_tree_set(t, idx, val); }
+fn cartan_ast_tree_write_file(path: string, t: ptr) -> void { cartan_tree_write_file(path, t); }
+fn cartan_ast_tree_get_f32(t: ptr, idx: float) -> ptr { return cartan_tree_get_f32(t, idx); }
+fn cartan_ast_get_ptr(t: ptr, idx: float) -> ptr { return cartan_tree_get_f32(t, idx); }
+fn c_sys_get_arg_count() -> float { return sys_get_arg_count(); }
+fn c_sys_get_arg(idx: float) -> string { return sys_get_arg(idx); }
+

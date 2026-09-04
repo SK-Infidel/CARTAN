@@ -1,6 +1,5 @@
 // src/cartanc/lexer.car
 
-extern fn cartan_arena_alloc(size: float) -> ptr;
 extern fn free(p: ptr);
 extern fn cartan_string_eq(s1: string, s2: string) -> float;
 extern fn c_cartan_string_char_at(s: string, idx: float) -> float;

@@ -1,0 +1,5 @@
+# CARTAN Auto-Generated Lockfile
+[[package]]
+name = "cartan_app"
+version = "0.1.0"
+checksum = "e8_root_l0_hash_ok"

@@ -209,9 +209,9 @@ struct BlockStmt {
     statements: tree<ptr>;
 }
 
-extern fn cartan_read_config(path: ptr, key: ptr) -> ptr;
 extern fn cartan_tree_create() -> ptr;
 extern fn cartan_tree_push(t: ptr, val: ptr) -> void;
+extern fn cartan_tree_push_f32(t: ptr, val: float) -> float;
 extern fn cartan_tree_len(t: ptr) -> float;
 extern fn cartan_tree_len_f(t: ptr) -> float;
 extern fn cartan_tree_len_f32(t: ptr) -> float;

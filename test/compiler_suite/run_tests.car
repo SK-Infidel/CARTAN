@@ -170,7 +170,7 @@ fn main(argc: float, argv: ptr) -> float {
     system(t26_cmd);
 
     // [27/28] Positive test: test_repl
-    let t27_cmd = "cartanc.exe repl";
+    let t27_cmd = "echo exit | cartanc.exe repl";
     printf("[27/28] [// run-pass] Executing Interactive REPL Test: %s\n", t27_cmd);
     cartan_flush(0.0);
     system(t27_cmd);

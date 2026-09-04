@@ -1,6 +1,7 @@
 // src/cartanc/main.car
 // Entrypoint for Cartan Self-Hosted Compiler (cartanc2)
 
+include "core_runtime.car";
 include "ast.ch";
 include "lexer.car";
 include "parser.car";
@@ -9,9 +10,7 @@ include "optimizer.car";
 include "llvm_codegen.car";
 
 extern fn cartan_float_to_string(f: float) -> string;
-extern fn cartan_copy_file(src: string, dst: string) -> float;
-extern fn cartan_get_env(key: string) -> string;
-extern fn cartan_jit_eval(ll_file: string) -> float;
+extern fn remove(filename: string) -> float;
 extern fn cartan_ast_tree_len(t: ptr) -> float;
 extern fn cartan_ast_tree_set(t: ptr, i: float, item: ptr) -> void;
 extern fn cartan_ast_tree_get(t: ptr, i: float) -> ptr;
@@ -23,46 +22,68 @@ extern fn cartan_tree_write_file(path: string, t: ptr) -> void;
 extern fn cartan_string_replace(s: string, f: string, r: string) -> string;
 extern fn cartan_flush(f: float) -> float;
 extern fn cartan_read_line() -> string;
-extern fn cartan_file_exists(path: string) -> float;
 extern fn atof(s: string) -> float;
-extern fn cartan_tree_has(container: ptr, target: string) -> float;
 extern fn cartan_tree_remove(t: ptr, idx: float) -> void;
 extern fn cartan_tree_set(t: ptr, idx: float, val: ptr) -> void;
 extern fn printf(format: string) -> i32;
 extern fn strcmp(s1: string, s2: string) -> i32;
 extern fn system(cmd: string) -> i32;
-extern fn cartan_read_file(path: string) -> string;
 extern fn cartan_tree_create() -> ptr;
 extern fn cartan_tree_push(t: ptr, item: ptr) -> void;
 extern fn cartan_tree_get_f32(t: ptr, idx: float) -> ptr;
-extern fn cartan_tree_len(t: ptr) -> float;
 extern fn cartan_string_length(s: string) -> float;
 extern fn sys_get_arg(idx: float) -> string;
 extern fn sys_get_arg_count() -> float;
 extern fn cartan_string_concat(a: string, b: string) -> string;
 extern fn cartan_string_eq(s1: string, s2: string) -> float;
-extern fn cartan_string_starts_with(s: string, prefix: string) -> float;
+extern fn fopen(path: string, mode: string) -> ptr;
+extern fn fclose(file: ptr) -> float;
+extern fn fseek(file: ptr, offset: float, origin: float) -> float;
+extern fn ftell(file: ptr) -> float;
+extern fn fread(buffer: ptr, size: float, count: float, file: ptr) -> float;
+extern fn fwrite(buffer: ptr, size: float, count: float, file: ptr) -> float;
+extern fn malloc(size: float) -> ptr;
+extern fn calloc(count: float, size: float) -> ptr;
+extern fn free(p: ptr);
+extern fn getenv(name: string) -> string;
 
 fn print_usage() {
     printf("Cartan Compiler (Self-Hosted) v2.0\n");
     printf("Usage: cartanc build <file.car> -o <out.exe>\n");
 }
 
-fn contains_string(t: ptr, s: string) -> float {
-    let len = cartan_tree_len_f(t);
-    var i = 0.0;
-    while (i < len) {
-        let item = cartan_tree_get_f32(t, i);
-        if (cartan_string_eq(item, s) != 0.0) {
-            return 1.0;
-        }
-        i = i + 1.0;
-    }
-    return 0.0;
-}
-
 fn ast_expansion_pass(ast: ptr, visited_files: ptr) -> ptr {
     let new_ast = cartan_tree_create();
+    let has_rt1 = contains_string(visited_files, "src/cartanc/core_runtime.car");
+    let has_rt2 = contains_string(visited_files, "core_runtime.car");
+    if (has_rt1 == 0.0 && has_rt2 == 0.0) {
+        cartan_tree_push(visited_files, "src/cartanc/core_runtime.car");
+        var rt_path = "src/cartanc/core_runtime.car";
+        if (cartan_file_exists(rt_path) == 0.0) {
+            rt_path = "core_runtime.car";
+        }
+        if (cartan_file_exists(rt_path) != 0.0) {
+            let rt_source = cartan_read_file(rt_path);
+            let rt_len = cartan_string_length(rt_source);
+            if (rt_len > 0.0) {
+                let rt_lexer = lexer_init(rt_source, rt_len);
+                let rt_tokens = cartan_tree_create();
+                while (1.0) {
+                    let tok = lexer_next_token(rt_lexer);
+                    cartan_tree_push(rt_tokens, tok);
+                    if (tok.token_type[0] == 168.0) { break; }
+                }
+                let rt_parser = parser_init(rt_tokens);
+                let rt_ast = parse(rt_parser);
+                var k = 0.0;
+                let rt_ast_len = cartan_tree_len_f(rt_ast);
+                while (k < rt_ast_len) {
+                    cartan_tree_push(new_ast, cartan_tree_get_f32(rt_ast, k));
+                    k = k + 1.0;
+                }
+            }
+        }
+    }
     let len = cartan_tree_len_f(ast);
     var i = 0.0;
     
@@ -72,6 +93,8 @@ fn ast_expansion_pass(ast: ptr, visited_files: ptr) -> ptr {
             let disc = stmt[0];
             if (disc == 63.0) { // Stmt::Include (Index 63)
                 var path = cartan_tree_get_f32(stmt, 1.0);
+                printf("[DEBUG include] raw_path=%s\n", path);
+                cartan_flush(0.0);
                 if (cartan_string_starts_with(path, "../../") != 0.0) {
                     path = cartan_string_substring(path, 6.0, cartan_string_length(path));
                 }
@@ -92,26 +115,36 @@ fn ast_expansion_pass(ast: ptr, visited_files: ptr) -> ptr {
                     }
                 }
 
+                printf("[DEBUG include] resolved_path=%s\n", path);
+                cartan_flush(0.0);
                 if (contains_string(visited_files, path) == 0.0 && cartan_file_exists(path) != 0.0) {
                     cartan_tree_push(visited_files, path);
                     let source = cartan_read_file(path);
                     let length = cartan_string_length(source);
+                    printf("[DEBUG include] read len: %f\n", length);
+                    cartan_flush(0.0);
                     if (length > 0.0) {
                         let lexer = lexer_init(source, length);
                         let tokens = cartan_tree_create();
+                        var tok_count = 0.0;
                         while (1.0) {
                             let tok = lexer_next_token(lexer);
-                            cartan_tree_push(tokens, tok);
-                            if (tok.token_type == 0.0) {
-                                break;
+                            tok_count = tok_count + 1.0;
+                            if (tok_count == 1000.0 || tok_count == 5000.0 || tok_count == 10000.0 || tok_count == 15000.0 || tok_count == 20000.0 || tok_count == 25000.0) {
+                                printf("[DEBUG lex] tok_count: %f\n", tok_count);
+                                cartan_flush(0.0);
                             }
-                            let first_elem = tok.token_type[0];
-                            if (first_elem == 168.0) {
+                            cartan_tree_push(tokens, tok);
+                            if (tok.token_type[0] == 168.0) {
                                 break;
                             }
                         }
+                        printf("[DEBUG include] lexed tokens: %f\n", cartan_tree_len_f(tokens));
+                        cartan_flush(0.0);
                         let parser = parser_init(tokens);
                         let sub_ast = parse(parser);
+                        printf("[DEBUG include] parsed sub_ast: %f\n", cartan_tree_len_f(sub_ast));
+                        cartan_flush(0.0);
                         let expanded_sub_ast = ast_expansion_pass(sub_ast, visited_files);
                         let sub_len = cartan_tree_len_f(expanded_sub_ast);
                         var j = 0.0;
@@ -387,17 +420,21 @@ fn main() -> float {
         cartan_tree_push(visited_files, input_file);
         let expanded_ast = ast_expansion_pass(ast, visited_files);
         printf("Expanded AST len: %f\n", cartan_tree_len_f(expanded_ast));
+        cartan_flush(0.0);
         
         let type_checker = type_checker_init();
         typechecker_check(type_checker, expanded_ast);
         printf("Type checker finished!\n");
+        cartan_flush(0.0);
         
         let opt_ast = optimize_ast(expanded_ast);
         printf("Opt AST len: %f\n", cartan_tree_len_f(opt_ast));
+        cartan_flush(0.0);
         
         let codegen = llvm_codegen_init();
         let ir = generate(codegen, opt_ast);
         printf("Codegen finished! IR len: %f\n", cartan_tree_len_f(ir));
+        cartan_flush(0.0);
         
         let out_ll = cartan_string_replace(output_file, ".exe", ".ll");
         cartan_tree_write_file(out_ll, ir);

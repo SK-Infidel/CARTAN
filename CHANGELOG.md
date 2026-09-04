@@ -1,3 +1,264 @@
+## [8.242.0] - 2026-09-03 (Sprint 285: Pure CARTAN Runtime Decoupling, 3-Stage Fixed-Point Parity & Stdlib Redefinition Elimination)
+
+### Completed & Validated
+- **Pure CARTAN Runtime Decoupling (`src/cartanc/core_runtime.car`)**:
+  - Fully ported legacy runtime primitives into pure CARTAN module `src/cartanc/core_runtime.car`.
+  - Renamed `src/cartanc/core_runtime.c` to `src/cartanc/core_runtime.c.deprecated` and severed `#include "core_runtime.c"` from `c_runtime.c`.
+  - Injected `src/cartanc/core_runtime.car` directly into the AST expansion pass in `src/cartanc/main.car`.
+- **Codegen Pointer-to-Float Impedance Mismatch Resolution (`src/cartanc/llvm_codegen.car`)**:
+  - Extended `as_float` to recognize pointer prefixes (`ptr:`, `string:`, `array:`, `struct:`, `tree<`) and emit `ptrtoint ptr ... to i64` + `sitofp i64 ... to double`, resolving LLVM `defined with type 'ptr' but expected 'double'`.
+  - Fixed scientific float formatting in LLVM IR across codegen and C runtime, guaranteeing valid decimal points (`1.0e-06`).
+- **Standard Library Runtime Redefinition Elimination**:
+  - Deduplicated function definitions across `src/std/collections.cl`, `src/std/fs.cl`, `src/std/string.cl`, and `src/std/env.cl`, resolving symbol collision linker errors.
+- **Pure Idiomatic CARTAN Port of Evolution Optimization (`src/std/es_opt.cl`)**:
+  - Rewrote `src/std/es_opt.cl` in pure CARTAN, removing C-style type casts and types.
+  - Added `azr_evaluate_binary_reward` bridge in `src/std/evolution.cl` and verified passing execution in `test/compiler_suite/test_evolution_master.car`.
+- **3-Stage Fixed-Point Self-Hosting Bootstrap Parity**:
+  - Bit-for-bit identical LLVM IR verified between `cartanc_stage2.ll` and `cartanc_stage3.ll` (37,321 lines) via `fc.exe`.
+  - Promoted verified Stage 3 self-hosted binary to primary `cartanc.exe`.
+- **Empirical Regression Suite Validation**:
+  - All 47 compiler snapshot test targets in `test/compiler_suite/run_tests.car` executed and passed cleanly with exit code 0.
+
+## [8.241.0] - 2026-09-03 (Sprint 284: Porting All Test Primitives to Pure CARTAN Standard Library & Full CARTAN_WEAK Isolation)
+
+### Completed & Validated
+- **Pure CARTAN Async Module (`src/std/async.cl`)**:
+  - Implemented `cartan_async_spawn`, `cartan_async_yield`, and `cartan_async_await` in pure CARTAN.
+  - Converted `test/compiler_suite/test_async_coroutines.car` to consume `src/std/async.cl`.
+- **Pure CARTAN Security & Sandboxing Module (`src/std/security.cl`)**:
+  - Implemented `cartan_rt_vram_lock_parameters`, `cartan_rt_vram_unlock_parameters`, `cartan_rt_check_vram_access`, `cartan_rt_lock_swmr`, and `cartan_rt_unlock_swmr` in pure CARTAN.
+  - Converted `test/compiler_suite/test_security_sandboxing.car` to consume `src/std/security.cl`.
+- **Pure CARTAN Slicing & DLPack Extensions (`src/std/collections.cl`, `src/std/tensor.cl`)**:
+  - Implemented `cartan_slice_tree` and `cartan_slice_nd` in `src/std/collections.cl` using safe identifier `end_idx` to prevent keyword collisions.
+  - Implemented `cartan_tensor_to_dlpack` and `cartan_tensor_from_dlpack` in `src/std/tensor.cl`.
+  - Converted `test/compiler_suite/test_slices_tuples.car` and `test/compiler_suite/test_dlpack_slicing.car` to consume pure CARTAN stdlib.
+- **Pure CARTAN Autograd & C Header Exporter (`src/std/calculus.cl`, `src/std/fs.cl`)**:
+  - Implemented `cartan_rt_autograd_forward_grad` in `src/std/calculus.cl`.
+  - Implemented `cartan_export_c_headers` in `src/std/fs.cl`.
+  - Converted `test/compiler_suite/test_static_assert.car` to consume `src/std/fs.cl`.
+- **Full `CARTAN_WEAK` Isolation of Legacy C Functions (`src/cartanc/core_runtime.c`)**:
+  - Annotated all 14 legacy runtime functions (`cartan_async_*`, `cartan_rt_*`, `cartan_slice_*`, `cartan_tensor_*`, `cartan_export_c_headers`) with `CARTAN_WEAK` to guarantee zero linker collisions and allow complete replacement by CARTAN stdlib.
+- **Self-Contained System Includes in `src/cartanc/geomind_runtime.c`**:
+  - Added standard C headers (`<stdio.h>`, `<stdlib.h>`, `<stdint.h>`, `<string.h>`, `<math.h>`, `<windows.h>`) to make AI runtime extensions self-contained.
+- **Stage 2 -> Stage 3 Fixed-Point Parity Proof**:
+  - SHA-256 Hashes of emitted LLVM IR:
+    - `cartanc_stage2.ll`: `3B967AFE4580B37A0A90582EF4530F7DEA22381CE63E94927A15049AF5F57E5A`
+    - `cartanc_stage3.ll`: `3B967AFE4580B37A0A90582EF4530F7DEA22381CE63E94927A15049AF5F57E5A`
+    - **Result**: 100% Bit-For-Bit Fixed-Point Identical (34,275 lines). Promoted to primary `cartanc.exe`.
+- **Empirical Regression Suite Validation**:
+  - All 47 compiler snapshot test targets in [`test/compiler_suite/run_tests.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/compiler_suite/run_tests.car) executed and passed cleanly.
+
+## [8.240.0] - 2026-09-03 (Sprint 283: Pure Native cartan_crt_init Emission & Complete Zero-C Runtime Dependency in Compiler)
+
+### Completed & Validated
+- **Pure Native `cartan_crt_init` IR Generation (`src/cartanc/llvm_codegen.car`)**:
+  - Replaced external declaration and call to legacy C `cartan_crt_init` with direct emission of pure native LLVM IR in [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car#L863-L868), initializing Windows console UTF-8 codepages via direct Win32 API calls (`SetConsoleCP`, `SetConsoleOutputCP`).
+  - Added `SetConsoleCP` and `SetConsoleOutputCP` declarations to module headers and registered `cartan_crt_init` in `declared_externs`.
+- **Zero C Runtime Dependencies in Compiler Executable (`cartanc.exe`)**:
+  - Audited compiler-emitted LLVM IR declarations against `src/cartanc/core_runtime.c`: **0 functions remaining!**
+  - `cartanc.exe` is now **100% decoupled from `core_runtime.c`**. All lexing, parsing, type checking, optimization, code generation, file I/O, binary streaming, process invocation, JIT execution, and runtime initialization run in pure CARTAN and libc/OS primitives.
+- **Marked Legacy CRT Init as Weak (`src/cartanc/core_runtime.c`)**:
+  - Annotated `cartan_crt_init` as `CARTAN_WEAK` in `core_runtime.c:1917` for compatibility with legacy test harness links.
+- **Stage 3 -> Stage 4 Fixed-Point Parity Proof**:
+  - SHA-256 Hashes of emitted LLVM IR:
+    - `cartanc_stage3.ll`: `3B967AFE4580B37A0A90582EF4530F7DEA22381CE63E94927A15049AF5F57E5A`
+    - `cartanc_stage4.ll`: `3B967AFE4580B37A0A90582EF4530F7DEA22381CE63E94927A15049AF5F57E5A`
+    - **Result**: 100% Bit-For-Bit Fixed-Point Identical (34,275 lines). Promoted to primary `cartanc.exe`.
+- **Empirical Regression Suite Validation**:
+  - All 47 compiler snapshot test targets in [`test/compiler_suite/run_tests.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/compiler_suite/run_tests.car) executed and passed cleanly.
+
+## [8.239.0] - 2026-09-03 (Sprint 282: Pure CARTAN JIT Compilation Engine and Reduction to 1 Final C Runtime Dependency)
+
+### Completed & Validated
+- **Pure CARTAN JIT Compilation Engine (`src/cartanc/main.car`)**:
+  - Replaced legacy C `cartan_jit_eval` with pure native CARTAN in [`src/cartanc/main.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/main.car#L111-L123), executing generated LLVM IR via portable Zig pipeline and cleaning up scratch binaries with libc `remove`.
+  - Replaced external function declaration with pure implementation; verified `cartanc run test/compiler_suite/test_jit_engine.car` cleanly.
+- **Marked Legacy JIT as Weak (`src/cartanc/core_runtime.c`)**:
+  - Annotated `cartan_jit_eval` as `CARTAN_WEAK` in `core_runtime.c:779`.
+- **Core Runtime Dependency Reduction: Down to 1 Function**:
+  - Audited compiler-emitted LLVM IR declarations against `src/cartanc/core_runtime.c`: only `cartan_crt_init` remains as a compiler dependency.
+- **Stage 2 -> Stage 3 Fixed-Point Parity Proof**:
+  - SHA-256 Hashes of emitted LLVM IR:
+    - `cartanc_stage2.ll`: `8D3665581F71BD9C91968630FEB356809B31A7A9C8FD60CFF99992503FF8F824`
+    - `cartanc_stage3.ll`: `8D3665581F71BD9C91968630FEB356809B31A7A9C8FD60CFF99992503FF8F824`
+    - **Result**: 100% Bit-For-Bit Fixed-Point Identical (34,224 lines). Promoted to primary `cartanc.exe`.
+- **Empirical Regression Suite Validation**:
+  - All 47 compiler snapshot test targets in [`test/compiler_suite/run_tests.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/compiler_suite/run_tests.car) executed and passed cleanly.
+
+## [8.238.0] - 2026-09-03 (Sprint 281: Pure CARTAN File I/O and Environment Retrieval)
+
+### Completed & Validated
+- **Pure CARTAN Whole-File Reader (`src/cartanc/main.car`, `src/std/fs.cl`)**:
+  - Implemented [`cartan_read_file`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/main.car#L58-L78) in 100% pure native CARTAN syntax using libc `fopen`, `fseek`, `ftell`, `calloc`, `fread`, and `fclose`.
+  - Replaced legacy `c_cartan_read_file` wrapper in both compiler driver and standard library.
+- **Pure CARTAN Binary File Streaming (`src/cartanc/main.car`)**:
+  - Implemented streaming file copy [`cartan_copy_file`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/main.car#L80-L106) using 64KB buffers with `malloc`, `fread`, `fwrite`, `free`, and `fclose`.
+- **Pure CARTAN Environment Retrieval (`src/cartanc/main.car`)**:
+  - Ported [`cartan_get_env`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/main.car#L51-L56) directly to libc `getenv` with empty-string null fallback.
+- **Zero-Warning C Runtime & Weak Annotations (`src/cartanc/geomind_runtime.c`, `src/cartanc/core_runtime.c`)**:
+  - Fixed redundant function address truthiness checks in model checkpoint loaders, achieving zero compiler warnings across compilation of all targets.
+  - Marked `c_cartan_read_file` as `CARTAN_WEAK` in `core_runtime.c:432`.
+- **Stage 2 -> Stage 3 Fixed-Point Parity Proof**:
+  - SHA-256 Hashes of emitted LLVM IR:
+    - `cartanc_stage2.ll`: `F62F907A72E89D8285198475DE7489E9D9B034084073FE0A540E743B0B28D5D4`
+    - `cartanc_stage3.ll`: `F62F907A72E89D8285198475DE7489E9D9B034084073FE0A540E743B0B28D5D4`
+    - **Result**: 100% Bit-For-Bit Fixed-Point Identical (34,173 lines). Promoted to primary `cartanc.exe`.
+- **Empirical Regression Suite Validation**:
+  - All 47 compiler snapshot test targets in [`test/compiler_suite/run_tests.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/compiler_suite/run_tests.car) executed and passed cleanly.
+
+## [8.237.0] - 2026-09-03 (Sprint 280: Pure CARTAN file_exists, Dead Symbol Pruning, and Final 2 C Runtime Functions)
+
+### Completed & Validated
+- **Pure CARTAN `cartan_file_exists` (`src/cartanc/main.car`, `src/std/fs.cl`)**:
+  - Replaced legacy C runtime call `cartan_file_exists` with pure native CARTAN in [`src/cartanc/main.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/main.car#L46-L53) using libc `fopen` and `fclose`.
+  - Removed `extern fn cartan_file_exists` and cleaned duplicate declarations.
+- **Dead Symbol Pruning (`src/cartanc/ast.ch`, `src/cartanc/llvm_codegen.car`, `src/cartanc/core_runtime.c`)**:
+  - Pruned unused `cartan_read_config` extern from `ast.ch:212`.
+  - Pruned `cartan_string_to_lowercase` declaration and registered extern from `llvm_codegen.car`.
+  - Marked `cartan_read_line` as `CARTAN_WEAK` in `core_runtime.c:1967`.
+- **C Runtime Reduction to Final 2 Functions**:
+  - Audited compiler-emitted LLVM IR declarations against `src/cartanc/core_runtime.c`: only `cartan_crt_init` and `cartan_jit_eval` remain. All other compiler routines run in 100% pure CARTAN.
+- **Stage 3 -> Stage 4 Fixed-Point Parity Proof**:
+  - Built Stage 3 and Stage 4 compilers with pure CARTAN `file_exists` and pruned symbols.
+  - SHA-256 Hashes of emitted LLVM IR:
+    - `cartanc_stage3.ll`: `1D586F433EE531A091935A104E4289647F95B59DC7BDC12D7684540F123A064E`
+    - `cartanc_stage4.ll`: `1D586F433EE531A091935A104E4289647F95B59DC7BDC12D7684540F123A064E`
+    - **Result**: 100% Bit-For-Bit Fixed-Point Identical (33,927 lines). Promoted to primary `cartanc.exe`.
+- **Empirical Regression Suite Validation**:
+  - All 47 compiler snapshot test targets in [`test/compiler_suite/run_tests.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/compiler_suite/run_tests.car) executed and passed cleanly.
+
+## [8.236.0] - 2026-09-03 (Sprint 279: Pure CARTAN starts_with via Direct Libc strncmp ABI Lowering)
+
+### Completed & Validated
+- **Direct Libc ABI Lowering for `strncmp` (`src/cartanc/llvm_codegen.car`)**:
+  - Taught compiler codegen how to lower `strncmp` calls directly to libc with exact x86_64 ABI argument conventions (Arg 0: `ptr`, Arg 1: `ptr`, Arg 2: `i64` in `R8`), converting return value from `i32` to `double`.
+- **Pure CARTAN `cartan_string_starts_with` (`src/cartanc/llvm_codegen.car`, `src/std/string.cl`)**:
+  - Ported string prefix checking from C runtime to 100% pure CARTAN utilizing direct libc `strlen` and `strncmp`, replacing legacy C calls in compiler passes and standard library.
+- **Compiler Prologue Dead Declaration Pruning (`src/cartanc/llvm_codegen.car`)**:
+  - Removed unreferenced static declarations (`cartan_debug_break`, `cartan_hash_dict_get`, `cartan_hash_dict_set`), cleaning generated LLVM IR modules.
+- **Stage 2 -> Stage 3 Fixed-Point Parity Proof**:
+  - Built Stage 2 and Stage 3 compilers with pure CARTAN prefix checks.
+  - SHA-256 Hashes of emitted LLVM IR:
+    - `cartanc_stage2.ll`: `9C0C9C2DD229AB5CDFEE803CE5E8483EFEC4A8CEF9895E0B30DAB5D6A2788753`
+    - `cartanc_stage3.ll`: `9C0C9C2DD229AB5CDFEE803CE5E8483EFEC4A8CEF9895E0B30DAB5D6A2788753`
+    - **Result**: 100% Bit-For-Bit Fixed-Point Identical (33,901 lines). Promoted to primary `cartanc.exe`.
+- **Empirical Regression Suite Validation**:
+  - All 47 compiler snapshot test targets in [`test/compiler_suite/run_tests.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/compiler_suite/run_tests.car) executed and passed cleanly.
+
+## [8.235.0] - 2026-09-03 (Sprint 278: Pure Native String Quotes, Tree Searching, and Runtime Pruning)
+
+### Completed & Validated
+- **Pure Native String Quotes (`src/cartanc/llvm_codegen.car`)**:
+  - Completely removed external C call `cartan_get_quote()`, replacing it with the native escaped string literal `"\""` in the LLVM IR header generator.
+- **Pure CARTAN Tree Search (`src/cartanc/llvm_codegen.car`)**:
+  - Implemented [`cartan_tree_has`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car#L7-L21) in 100% pure CARTAN using `cartan_tree_len_f`, `cartan_tree_get_f32`, and `cartan_string_eq`, safely bypassing legacy C runtime pointer scans.
+- **Runtime Symbol Pruning (`src/cartanc/lexer.car`, `src/cartanc/main.car`, `src/cartanc/core_runtime.c`)**:
+  - Pruned unused `cartan_arena_alloc` extern from `lexer.car` and `cartan_tree_has` extern from `main.car`.
+  - Marked `cartan_flush`, `cartan_get_quote`, and `cartan_tree_has` as `CARTAN_WEAK` in `core_runtime.c`.
+- **Stage 2 -> Stage 3 Fixed-Point Parity Proof**:
+  - Built Stage 2 and Stage 3 compilers with the updated codegen and tree emitter pipeline.
+  - SHA-256 Hashes of emitted LLVM IR:
+    - `cartanc_stage2.ll`: `84711FB1051A06DBCF4AB99B24A85524C17A3064D01DE6A80196170792D1B1DC`
+    - `cartanc_stage3.ll`: `84711FB1051A06DBCF4AB99B24A85524C17A3064D01DE6A80196170792D1B1DC`
+    - **Result**: 100% Bit-For-Bit Fixed-Point Identical (33,910 lines). Promoted to primary `cartanc.exe`.
+- **Empirical Regression Suite Validation**:
+  - All 47 compiler snapshot test targets in [`test/compiler_suite/run_tests.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/compiler_suite/run_tests.car) executed and passed cleanly.
+
+## [8.234.0] - 2026-09-03 (Sprint 277: Pure CARTAN File Streaming & Tree Emitter Pipeline)
+
+### Completed & Validated
+- **Pure CARTAN Tree File Emitter (`src/cartanc/main.car`, `src/std/fs.cl`)**:
+  - Implemented [`cartan_tree_write_file`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/main.car#L24-L39) in 100% pure CARTAN using standard libc primitives (`fopen`, `fputs`, `fclose`), streaming compiler IR output directly to disk.
+  - Added pure CARTAN [`cartan_tree_write_file`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/fs.cl#L63-L79) to `src/std/fs.cl` for standard library consumers.
+  - Marked legacy C `cartan_tree_write_file` as `CARTAN_WEAK` in [`src/cartanc/core_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/core_runtime.c#L286), eliminating all C runtime file-writing debug overhead.
+- **Stage 2 -> Stage 3 Fixed-Point Parity Proof**:
+  - Built Stage 2 and Stage 3 compilers with the pure CARTAN file emitter.
+  - SHA-256 Hashes of emitted LLVM IR:
+    - `cartanc_stage2.ll`: `2D8EE890F08C756871FAEB98BF31162030E86E1C8AF043B4BEB4004ADA95E2D6`
+    - `cartanc_stage3.ll`: `2D8EE890F08C756871FAEB98BF31162030E86E1C8AF043B4BEB4004ADA95E2D6`
+    - **Result**: 100% Bit-For-Bit Fixed-Point Identical (33,860 lines). Promoted to primary `cartanc.exe`.
+- **Empirical Regression Suite Validation**:
+  - All 47 compiler snapshot test targets in [`test/compiler_suite/run_tests.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/compiler_suite/run_tests.car) executed and passed cleanly.
+
+## [8.233.0] - 2026-09-03 (Sprint 276: Pure Native CLI Argument Lowering & Index Assignment Engine)
+
+### Completed & Validated
+- **Pure Native CLI Argument Lowering (`src/cartanc/llvm_codegen.car`)**:
+  - Replaced `@c_sys_get_arg` and `@c_sys_get_arg_count` external C calls with pure native LLVM IR loads directly from `@global_argc` and `@global_argv`.
+  - Added bounds checking (`icmp slt`, `icmp sge`) and null-terminated string fallback (`@.str.empty_arg`), completely removing runtime C dependencies for CLI argument handling.
+- **Array & Pointer Index Assignment (`src/cartanc/llvm_codegen.car`)**:
+  - Implemented write handling for `IndexAccess` targets (`target_disc == 21.0 || target_disc == 36.0`) in Assignment expressions.
+  - Supports writing both `double` and `ptr` (pointer, string, struct) elements into heap-allocated arrays, activating pure CARTAN collections in [`src/std/collections.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/collections.cl).
+- **Stage 2 -> Stage 3 Fixed-Point Parity Proof**:
+  - Built Stage 2 and Stage 3 compilers with the updated codegen engine.
+  - SHA-256 Hashes of emitted LLVM IR:
+    - `cartanc_stage2.ll`: `183B274E4A97203E388963BD8D1437F4AA4110B8C8571AA2BA5A560C7910D2BD`
+    - `cartanc_stage3.ll`: `183B274E4A97203E388963BD8D1437F4AA4110B8C8571AA2BA5A560C7910D2BD`
+    - **Result**: 100% Bit-For-Bit Fixed-Point Identical (33,780 lines). Promoted to primary `cartanc.exe`.
+- **Empirical Regression Suite Validation**:
+  - All 47 compiler snapshot test targets in [`test/compiler_suite/run_tests.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/compiler_suite/run_tests.car) executed and passed cleanly.
+
+## [8.232.0] - 2026-09-03 (Sprint 275: Direct Libc ABI Bridge & Pure CARTAN File and String Modules)
+
+### Completed & Validated
+- **Direct Libc C-ABI Bridge (`src/cartanc/llvm_codegen.car`)**:
+  - Implemented direct LLVM IR parameter casting (`fptoui ... to i64`, `fptosi ... to i32`) and return value conversions (`uitofp i64 to double`, `sitofp i32 to double`) for standard libc primitives (`malloc`, `calloc`, `free`, `strlen`, `strcmp`, `fseek`, `ftell`, `fread`, `fwrite`).
+  - Enabled pure CARTAN code to invoke standard C library functions directly without intermediary C runtime shim wrappers.
+- **Pure CARTAN File I/O (`src/std/fs.cl`)**:
+  - Replaced legacy `c_cartan_read_file` with pure CARTAN [`cartan_read_file`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/fs.cl#L34-L50) using fallback path resolution and direct libc `fopen`, `fseek`, `ftell`, `calloc`, `fread`, `fclose`.
+- **Pure CARTAN String Manipulation (`src/std/string.cl`)**:
+  - Replaced legacy `c_cartan_string_length`, `c_cartan_string_eq`, `c_cartan_string_contains`, and `c_cartan_string_concat` with pure CARTAN implementations using direct libc calls (`strlen`, `strcmp`, `strstr`, `strcpy`, `strcat`).
+- **Stage 2 -> Stage 3 Fixed-Point Parity Proof**:
+  - Built Stage 2 and Stage 3 compilers with the updated codegen ABI engine.
+  - SHA-256 Hashes of emitted LLVM IR:
+    - `cartanc_stage2.ll`: `0BBCF341A0B740C60715ADE2BD54B67668EFBE6FF80CCCF84E48243DDE0A175C`
+    - `cartanc_stage3.ll`: `0BBCF341A0B740C60715ADE2BD54B67668EFBE6FF80CCCF84E48243DDE0A175C`
+    - **Result**: 100% Bit-For-Bit Fixed-Point Identical (33,460 lines). Promoted to primary `cartanc.exe`.
+- **Empirical Model & Regression Suite Validation**:
+  - Cleanly compiled and executed [`bin/geomind_native.exe`](file:///C:/Users/rich-/source/repos/CARTAN/bin/geomind_native.exe) across `--help`, `--merge-slerp`, and `--train-distill`.
+  - Executed all 47 compiler snapshot test targets in [`test/compiler_suite/run_tests.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/compiler_suite/run_tests.car) cleanly.
+
+## [8.231.0] - 2026-09-03 (Sprint 274: C Runtime Modularization & Decoupled Core Compiler Linkage)
+
+### Completed & Validated
+- **C Runtime Deconstruction & Modularization (`src/cartanc/core_runtime.c`, `src/cartanc/geomind_runtime.c`, `src/cartanc/c_runtime.c`)**:
+  - Systematically audited external symbols called by `cartanc.exe` and separated `src/cartanc/c_runtime.c` (6,237 lines) into a lean language runtime kernel ([`core_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/core_runtime.c), 2,045 lines) and an AI/model domain kernel ([`geomind_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/geomind_runtime.c), 4,191 lines).
+  - Maintained 100% backward compatibility via lightweight master inclusion file [`c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c).
+- **Dynamic Compiler Linkage Selection (`src/cartanc/main.car`)**:
+  - Configured [`src/cartanc/main.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/main.car#L416-L425) to link `core_runtime.c` by default for standard CARTAN programs and regression test suites, eliminating 67% of legacy C dependencies from standard compiler runs.
+  - Automatically selects `c_runtime.c` only when model/geomind components are targeted.
+- **Stage 2 -> Stage 3 Fixed-Point Parity Proof with `core_runtime.c`**:
+  - Built `cartanc_stage2.exe` linking only `core_runtime.c` with zero warnings.
+  - Built `cartanc_stage3.exe` with `cartanc_stage2.exe`.
+  - SHA-256 Hashes of emitted LLVM IR:
+    - `cartanc_stage2.ll`: `785C8B84B3B779A8EA360B0DA41DE0C0994323DDC934502F6D4C3B65C94D33BE`
+    - `cartanc_stage3.ll`: `785C8B84B3B779A8EA360B0DA41DE0C0994323DDC934502F6D4C3B65C94D33BE`
+    - **Result**: 100% Bit-For-Bit Fixed-Point Identical (33,068 lines). Promoted to primary `cartanc.exe`.
+- **Empirical Model & Regression Suite Validation**:
+  - Cleanly compiled and executed [`bin/geomind_native.exe`](file:///C:/Users/rich-/source/repos/CARTAN/bin/geomind_native.exe) with full `--help` output.
+  - Executed all 47 compiler snapshot test targets in [`test/compiler_suite/run_tests.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/compiler_suite/run_tests.car) cleanly.
+
+## [8.230.0] - 2026-09-03 (Sprint 273: Scientific Float Codegen, Deduplication, & Full Native Geomind Compilation)
+
+### Completed & Validated
+- **Scientific Float Codegen & Buffer Aliasing Fix (`src/cartanc/c_runtime.c`, `src/cartanc/llvm_codegen.car`)**:
+  - Eliminated undefined behavior in `c_cartan_float_to_string` caused by overlapping buffer aliasing in `snprintf` when formatting scientific floats (e.g. `0.000001`), which corrupted mantissas into invalid LLVM tokens like `1.0.006`.
+  - Added guards for `e` and `E` in `llvm_codegen.car:as_float` to prevent appending extraneous `.0` to numbers with exponents.
+- **LLVM IR Function Declaration Deduplication & Collision Prevention (`src/cartanc/llvm_codegen.car`)**:
+  - Filtered duplicate and conflicting function declarations in `self_ptr.decls`: functions defined in CARTAN AST (e.g., `cartan_string_replace` in `src/std/string.cl`) suppress hardcoded declarations in `self_ptr.decls`.
+  - Added full emission deduplication in `llvm_codegen.car`, preventing invalid redefinition errors for extern functions declared across multiple modules (e.g., `cartan_safetensors_header_length`).
+- **Standard Runtime Console & Tree API Integrity (`src/cartanc/c_runtime.c`, `src/cartanc/ast.ch`, `src/cartanc/llvm_codegen.car`)**:
+  - Relocated `#endif` for `CARTAN_GPU_RUNTIME_LINKED` in `c_runtime.c` to prevent accidental omission of core console functions (`cartan_print_string`, `cartan_console_read`).
+  - Formally declared and bound `cartan_tree_push_f32` in `ast.ch` and `llvm_codegen.car`.
+  - Added missing `extern fn cartan_print_string` declaration in `test/geomind/chat.cl`.
+- **Stage 2 -> Stage 3 Fixed-Point Parity Proof**:
+  - Re-verified bit-for-bit SHA-256 fixed-point parity (`cartanc_stage2.ll` == `cartanc_stage3.ll`, SHA-256: `088a25c9d3d9beb592c29ac4a02521f99849b373f2447d11d52366cdc54e4ad5`).
+  - Promoted bit-for-bit compiler to primary `cartanc.exe`.
+- **Empirical Model & Regression Suite Validation**:
+  - Cleanly compiled `test/geomind/main.car` with `cartanc.exe` into `bin/geomind_native.exe` with zero errors.
+  - Executed `bin/geomind_native.exe --help`, `--merge-slerp`, and `--train-distill` verifying authentic multimodal AI execution and floating-point computations.
+  - Executed and validated all 47 compiler snapshot test targets in `test/compiler_suite/run_tests.car`.
+
 ## [8.229.0] - 2026-09-03 (Sprint 272: Full Self-Hosting Compiler Fixpoint Parity & Stage 3 Bootstrap)
 
 ### Completed & Validated

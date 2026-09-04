@@ -322,7 +322,39 @@ This file tracks technical debt and bugs identified during repository code revie
 
 # Active Issues
 
-*(No open critical blockers. All current issues resolved; rolling forward to Sprint 272).*
+## [ISSUE-021] [FIXED] Decoupling of `core_runtime.c` & Compiler C Dependency Elimination
+
+- **Severity**: Critical (Compiler Architecture & Language Self-Hosting)
+- **Component**: `src/cartanc/c_runtime.c`, `src/cartanc/core_runtime.c`, `src/cartanc/core_runtime.car`, `src/cartanc/llvm_codegen.car`, `src/std/`
+- **Description**: The compiler previously depended on `core_runtime.c` for runtime primitives (string manipulation, tree operations, constant folding math, file I/O, assertions).
+- **Status**: Fixed in Sprint 285. Ported all core runtime functions into pure CARTAN module `src/cartanc/core_runtime.car`, removed `#include "core_runtime.c"` from `c_runtime.c`, renamed to `core_runtime.c.deprecated`, unified AST expansion pass to inject `core_runtime.car`, and verified bit-for-bit self-hosting fixed-point bootstrap parity (`stage2.ll` == `stage3.ll`).
+
+---
+
+## [ISSUE-022] [FIXED] Pointer-to-Float Impedance Mismatch in Codegen (`as_float`)
+
+- **Severity**: High (Codegen LLVM IR Validation Failure)
+- **Component**: `src/cartanc/llvm_codegen.car` -> `as_float`, return statements, `c_runtime.c`
+- **Description**: Returning or using pointer-typed expressions in double/float contexts emitted raw pointer registers into LLVM instructions without bitcast/ptrtoint conversion, triggering LLVM type verification failures (`defined with type 'ptr' but expected 'double'`). Additionally, `%g` float formatting emitted scientific floats without dots (`1e-06`), which LLVM rejected.
+- **Status**: Fixed in Sprint 285. Extended `as_float` to automatically emit `ptrtoint ptr ... to i64` and `sitofp i64 ... to double` for all pointer representation types (`ptr:`, `string:`, `array:`, `struct:`, `tree<`), and guaranteed decimal points in scientific notation (`1.0e-06`).
+
+---
+
+## [ISSUE-023] [FIXED] Standard Library Runtime Redefinition Collisions
+
+- **Severity**: Medium (Standard Library Cleanliness)
+- **Component**: `src/std/collections.cl`, `src/std/fs.cl`, `src/std/string.cl`, `src/std/env.cl`
+- **Description**: Standard library modules contained duplicate definitions of functions already canonically implemented in `src/cartanc/core_runtime.car`, causing duplicate symbol linker errors.
+- **Status**: Fixed in Sprint 285. Removed redundant function implementations across standard library modules, cleanly delegating to canonical `core_runtime.car` runtime primitives.
+
+---
+
+## [ISSUE-024] [FIXED] Non-CARTAN C-Style Syntax in `src/std/es_opt.cl`
+
+- **Severity**: High (Standard Library Syntax Error)
+- **Component**: `src/std/es_opt.cl`, `src/std/evolution.cl`, `test/compiler_suite/test_evolution_master.car`
+- **Description**: `src/std/es_opt.cl` contained C-style type casts and types (`(int)`, `(float)`, `(size_t)`, `NULL`), causing parser syntax errors.
+- **Status**: Fixed in Sprint 285. Rewrote `es_opt.cl` in pure idiomatic CARTAN, added missing `azr_evaluate_binary_reward` bridge in `src/std/evolution.cl`, and verified passing execution in `test_evolution_master.car`.
 
 
 

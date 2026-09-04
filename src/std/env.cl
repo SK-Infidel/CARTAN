@@ -20,10 +20,6 @@ fn env_get(var_name: string) -> string {
     return val;
 }
 
-fn cartan_get_env(key: string) -> string {
-    return env_get(key);
-}
-
 fn cartan_read_config(filepath: string, key: string) -> string {
     if (cartan_file_exists(filepath) == 0.0) { return ""; }
     let content = cartan_read_file(filepath);

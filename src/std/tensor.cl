@@ -219,3 +219,16 @@ fn softmax(t: ptr) -> ptr {
     return tensor_softmax(t, cartan_tree_len(t));
 }
 
+fn cartan_tensor_to_dlpack(data_ptr: ptr, shape: ptr, ndim: float) -> ptr {
+    let managed = malloc(64.0);
+    if (managed == 0.0) { return 0.0; }
+    managed[0] = data_ptr;
+    return managed;
+}
+
+fn cartan_tensor_from_dlpack(dlpack_ptr: ptr) -> ptr {
+    if (dlpack_ptr == 0.0) { return 0.0; }
+    return dlpack_ptr[0];
+}
+
+

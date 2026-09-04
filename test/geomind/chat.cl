@@ -19,6 +19,7 @@ include "e8_attention_engine.cl";
 include "../../src/std/string.cl";
 include "../../src/std/collections.cl";
 
+extern fn cartan_print_string(s: string);
 extern fn c_cartan_print_token(tok: float) -> float;
 extern fn cartan_tokenizer_is_valid_bigram(tok1: float, tok2: float) -> float;
 
