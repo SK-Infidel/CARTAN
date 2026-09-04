@@ -519,11 +519,12 @@ This file tracks technical debt and bugs identified during repository code revie
 
 ---
 
-## [ISSUE-044] Mock XML Parser and Data Ingestion Line Validators
+## [ISSUE-044] [FIXED] Mock XML Parser and Data Ingestion Line Validators
 - **Severity**: High (Strict Zero-Mock Violation)
-- **Component**: `src/std/xml.cl:9-27`, `src/std/ingest.cl:11-21`
+- **Component**: `src/std/xml.cl:9-27`, `src/std/ingest.cl:11-21`, `src/cartanc/parser.car`, `src/std/collections.cl`
 - **Description**: `xml_parse` returns string length in a tree; `xml_get_element` returns `<tag/>`. `ingest_parse_csv_line` and `ingest_parse_json_lines` merely check `len > 0` and return `1.0`.
 - **Proposed Fix**: Implement authentic tag/attribute scanning in `xml.cl` and CSV/JSON token extraction in `ingest.cl`.
+- **Status**: Fixed in Sprint 295. Implemented authentic recursive XML DOM parser with tag extraction, attribute extraction (`xml_get_attribute`), inner text query (`xml_get_text`), element isolation (`xml_get_element`), and DOM serialization (`xml_stringify`). Implemented genuine CSV token scanning with quote escaping, column counting (`ingest_csv_column_count`), and index-based extraction (`ingest_csv_get_column`). Implemented authentic multi-line JSONL validator (`ingest_parse_json_lines`), record counter (`ingest_json_lines_count`), and key-value string extractor (`ingest_json_get_field`). Fixed parser to resolve lowercase `module::func()` syntax to `Expr::FunctionCall`, enabling clean invocation of standard library modules. Added Target 48 (`test_xml_ingest_pipeline.car`) with 100% test pass across all 48 test targets.
 
 ---
 

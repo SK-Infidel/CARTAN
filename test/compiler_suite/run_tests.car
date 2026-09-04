@@ -289,13 +289,19 @@ fn main(argc: float, argv: ptr) -> float {
     cartan_flush(0.0);
     system(t46_cmd);
 
-    // [47/47] Positive test: run_heavy_production_training
+    // [47/48] Positive test: run_heavy_production_training
     let t47_cmd = "cartanc.exe build test/geomind/run_heavy_production_training.car -o build/run_heavy_production_training.exe";
-    printf("[47/47] [// run-pass] Building GeoMind Heavy Production Training & Evolutionary Self-Play Engine Test: %s\n", t47_cmd);
+    printf("[47/48] [// run-pass] Building GeoMind Heavy Production Training & Evolutionary Self-Play Engine Test: %s\n", t47_cmd);
     cartan_flush(0.0);
     system(t47_cmd);
 
-    printf("\nAll 47 compiler snapshot test targets executed!\n", "");
+    // [48/48] Positive test: test_xml_ingest_pipeline
+    let t48_cmd = "cartanc.exe build test/compiler_suite/test_xml_ingest_pipeline.car -o build/test_xml_ingest_pipeline.exe && build\\test_xml_ingest_pipeline.exe";
+    printf("[48/48] [// run-pass] Building and Executing Authentic XML & Ingest Pipeline Verification: %s\n", t48_cmd);
+    cartan_flush(0.0);
+    system(t48_cmd);
+
+    printf("\nAll 48 compiler snapshot test targets executed!\n", "");
     return 0.0;
 }
 

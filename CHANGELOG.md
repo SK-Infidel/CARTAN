@@ -1,3 +1,32 @@
+## [8.252.0] - 2026-09-04 (Sprint 295: Authentic XML Parser, Data Ingestion Pipeline & Module Scope Resolution)
+
+### Completed & Validated
+- **Authentic Recursive XML DOM Parser & Serializer (`[ISSUE-044]`)**:
+  - Replaced mock string-length tree allocator and static `<tag/>` serializer in `src/std/xml.cl`.
+  - Implemented full XML DOM node structure (`xml_create_node`, `xml_node_tag`, `xml_node_text`, `xml_node_raw`, `xml_node_children`, `xml_node_attrs`).
+  - Implemented authentic recursive child element scanner (`xml_parse_children`) supporting tags, comments, processing instructions, nested tags, and self-closing tags.
+  - Implemented attribute extraction (`xml_get_attribute`), recursive element search (`xml_find_element_node`), text extraction (`xml_get_text`), and raw element extraction (`xml_get_element`).
+  - Implemented DOM hierarchy serialization (`xml_stringify`).
+- **Authentic CSV & JSON Lines Ingestion Pipeline (`[ISSUE-044]`)**:
+  - Replaced dummy `len > 0` checks returning `1.0` in `src/std/ingest.cl`.
+  - Implemented CSV token scanner (`ingest_parse_csv_tokens`) with quote escaping and quoted-comma preservation.
+  - Implemented CSV syntax validator (`ingest_parse_csv_line`), column counter (`ingest_csv_column_count`), and index-based column extractor (`ingest_csv_get_column`).
+  - Implemented JSON object structural validator (`ingest_validate_json_object`) checking bracket/brace nesting and balanced quotes.
+  - Implemented multi-line JSONL validator (`ingest_parse_json_lines`), record counter (`ingest_json_lines_count`), and key-value string extractor (`ingest_json_get_field`).
+- **Compiler Module Scope Resolution (`src/cartanc/parser.car`)**:
+  - Fixed `primary()` in `src/cartanc/parser.car` to distinguish between uppercase enum variants (`Enum::Variant` -> `Expr::EnumInit`) and lowercase standard library module qualifiers (`module::func` -> `Expr::FunctionCall` / `Expr::Identifier`).
+  - Added module prefix wrappers and helpers in `src/std/collections.cl`, `src/std/tokenizer.cl`, and `src/std/ingest.cl`.
+- **Compiler Bidirectional File Extension Fallback (`src/cartanc/main.car`)**:
+  - Added bidirectional `.car` <-> `.cl` include resolution fallback in compiler front-end, allowing modules to be included cleanly regardless of extension convention.
+- **Core Runtime Collections Hardening (`src/cartanc/core_runtime.car`)**:
+  - Added `cartan_vec_pop_f32`, `cartan_queue_create`, `cartan_queue_enqueue`, and `cartan_queue_dequeue` to `core_runtime.car`.
+- **Empirical Validation & Test Suite Expansion**:
+  - Created Target 48: `test/compiler_suite/test_xml_ingest_pipeline.car`.
+  - Bootstrapped candidate compiler and replaced `cartanc.exe`.
+  - Verified Target 25 (`test_collections_ingest_env.car`) passes with 100% assertions.
+  - Verified Target 48 (`test_xml_ingest_pipeline.car`) passes with 100% assertions (`TEST_XML_INGEST_PIPELINE_SUCCESS`).
+  - Executed all 48 compiler regression test targets via `scratch/run_tests.exe` with 100% pass rate.
+
 ## [8.251.0] - 2026-09-04 (Sprint 294: Authentic WordNet / SlangNet Semantic Taxonomy & IC Loss Engine)
 
 ### Completed & Validated

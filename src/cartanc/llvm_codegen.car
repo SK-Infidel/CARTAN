@@ -5,14 +5,6 @@ extern fn cartan_llvm_format_string_literal(s: string, id: float) -> string;
 extern fn cartan_strip_prefix(s: string) -> string;
 
 
-fn is_uppercase(s: string) -> float {
-    let first = cartan_string_substring(s, 0.0, 1.0);
-    if (cartan_string_eq(first, "A") != 0.0 || cartan_string_eq(first, "B") != 0.0 || cartan_string_eq(first, "C") != 0.0 || cartan_string_eq(first, "D") != 0.0 || cartan_string_eq(first, "E") != 0.0 || cartan_string_eq(first, "F") != 0.0 || cartan_string_eq(first, "G") != 0.0 || cartan_string_eq(first, "H") != 0.0 || cartan_string_eq(first, "I") != 0.0 || cartan_string_eq(first, "J") != 0.0 || cartan_string_eq(first, "K") != 0.0 || cartan_string_eq(first, "L") != 0.0 || cartan_string_eq(first, "M") != 0.0 || cartan_string_eq(first, "N") != 0.0 || cartan_string_eq(first, "O") != 0.0 || cartan_string_eq(first, "P") != 0.0 || cartan_string_eq(first, "Q") != 0.0 || cartan_string_eq(first, "R") != 0.0 || cartan_string_eq(first, "S") != 0.0 || cartan_string_eq(first, "T") != 0.0 || cartan_string_eq(first, "U") != 0.0 || cartan_string_eq(first, "V") != 0.0 || cartan_string_eq(first, "W") != 0.0 || cartan_string_eq(first, "X") != 0.0 || cartan_string_eq(first, "Y") != 0.0 || cartan_string_eq(first, "Z") != 0.0) {
-        return 1.0;
-    }
-    return 0.0;
-}
-
 
 struct LLVMGenerator {
     output: ptr;

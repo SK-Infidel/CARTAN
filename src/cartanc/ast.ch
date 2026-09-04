@@ -220,3 +220,13 @@ extern fn cartan_tree_set(t: ptr, idx: float, val: ptr) -> void;
 extern fn cartan_tree_remove(t: ptr, idx: float) -> void;
 extern fn cartan_string_concat(s1: string, s2: string) -> string;
 extern fn cartan_string_replace(s: string, old_s: string, new_s: string) -> string;
+
+fn is_uppercase(s: string) -> float {
+    if (cartan_string_length(s) <= 0.0) { return 0.0; }
+    let ch = cartan_string_get_char(s, 0.0);
+    if (ch >= 65.0 && ch <= 90.0) {
+        return 1.0;
+    }
+    return 0.0;
+}
+

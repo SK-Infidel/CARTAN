@@ -93,3 +93,13 @@ fn bpe_decode_token(token_id: float) -> string {
     return cartan_hub_decode_json_token("cache_google_gemma-4-E4B-it_tokenizer.json", token_id);
 }
 
+// Module prefixed aliases
+fn tokenizer_bpe_get_rank(tok1: float, tok2: float) -> float { return bpe_get_rank(tok1, tok2); }
+fn tokenizer_bpe_encode(text: string) -> ptr { return bpe_encode(text); }
+fn tokenizer_sp_space_symbol() -> string { return sp_space_symbol(); }
+fn tokenizer_sp_bos_token_id() -> float { return sp_bos_token_id(); }
+fn tokenizer_sp_eos_token_id() -> float { return sp_eos_token_id(); }
+fn tokenizer_sentencepiece_encode(text: string) -> ptr { return sentencepiece_encode(text); }
+fn tokenizer_wordpiece_encode(text: string) -> ptr { return wordpiece_encode(text); }
+fn tokenizer_bpe_decode_token(token_id: float) -> string { return bpe_decode_token(token_id); }
+

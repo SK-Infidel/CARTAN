@@ -99,6 +99,19 @@ fn ast_expansion_pass(ast: ptr, visited_files: ptr) -> ptr {
                     path = cartan_string_substring(path, 6.0, cartan_string_length(path));
                 }
                 if (cartan_file_exists(path) == 0.0) {
+                    if (cartan_string_contains(path, ".car") != 0.0) {
+                        let alt_cl = cartan_string_replace(path, ".car", ".cl");
+                        if (cartan_file_exists(alt_cl) != 0.0) {
+                            path = alt_cl;
+                        }
+                    } else if (cartan_string_contains(path, ".cl") != 0.0) {
+                        let alt_car = cartan_string_replace(path, ".cl", ".car");
+                        if (cartan_file_exists(alt_car) != 0.0) {
+                            path = alt_car;
+                        }
+                    }
+                }
+                if (cartan_file_exists(path) == 0.0) {
                     let try_cartanc = cartan_string_concat("src/cartanc/", path);
                     if (cartan_file_exists(try_cartanc) != 0.0) {
                         path = try_cartanc;
@@ -111,6 +124,19 @@ fn ast_expansion_pass(ast: ptr, visited_files: ptr) -> ptr {
                             if (cartan_file_exists(try_geomind) != 0.0) {
                                 path = try_geomind;
                             }
+                        }
+                    }
+                }
+                if (cartan_file_exists(path) == 0.0) {
+                    if (cartan_string_contains(path, ".car") != 0.0) {
+                        let alt_cl = cartan_string_replace(path, ".car", ".cl");
+                        if (cartan_file_exists(alt_cl) != 0.0) {
+                            path = alt_cl;
+                        }
+                    } else if (cartan_string_contains(path, ".cl") != 0.0) {
+                        let alt_car = cartan_string_replace(path, ".cl", ".car");
+                        if (cartan_file_exists(alt_car) != 0.0) {
+                            path = alt_car;
                         }
                     }
                 }

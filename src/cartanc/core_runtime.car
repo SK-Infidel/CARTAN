@@ -406,6 +406,44 @@ fn cartan_vec_set_f32(v_ptr: ptr, idx: float, val: float) -> float {
     return val;
 }
 
+fn cartan_vec_pop_f32(v_ptr: ptr) -> float {
+    if (v_ptr == 0.0) { return 0.0; }
+    let len = v_ptr[0];
+    if (len <= 0.0) { return 0.0; }
+    let val = v_ptr[2.0 + len - 1.0];
+    v_ptr[0] = len - 1.0;
+    return val;
+}
+
+fn cartan_queue_create() -> ptr {
+    let q = malloc(16384.0);
+    if (q == 0.0) { return 0.0; }
+    q[0] = 0.0;    // head
+    q[1] = 0.0;    // tail
+    q[2] = 2000.0; // capacity
+    return q;
+}
+
+fn cartan_queue_enqueue(q: ptr, val: float) -> float {
+    if (q == 0.0) { return 0.0; }
+    let tail = q[1];
+    let cap = q[2];
+    if (tail >= cap) { return tail - q[0]; }
+    q[3.0 + tail] = val;
+    q[1] = tail + 1.0;
+    return q[1] - q[0];
+}
+
+fn cartan_queue_dequeue(q: ptr) -> float {
+    if (q == 0.0) { return 0.0; }
+    let head = q[0];
+    let tail = q[1];
+    if (head >= tail) { return 0.0; }
+    let val = q[3.0 + head];
+    q[0] = head + 1.0;
+    return val;
+}
+
 fn cartan_vec_scale(v_ptr: ptr, scale: float) -> ptr {
     let len = cartan_vec_len(v_ptr);
     var i = 0.0;

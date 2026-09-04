@@ -312,6 +312,22 @@
 - **Type**: Verified TypeChecker Symbol Table Export
 - **Status**: Production-Grade Native Implementation
 
+### `cartan_vec_pop_f32()`
+- **Type**: Verified TypeChecker Symbol Table Export
+- **Status**: Production-Grade Native Implementation
+
+### `cartan_queue_create()`
+- **Type**: Verified TypeChecker Symbol Table Export
+- **Status**: Production-Grade Native Implementation
+
+### `cartan_queue_enqueue()`
+- **Type**: Verified TypeChecker Symbol Table Export
+- **Status**: Production-Grade Native Implementation
+
+### `cartan_queue_dequeue()`
+- **Type**: Verified TypeChecker Symbol Table Export
+- **Status**: Production-Grade Native Implementation
+
 ### `cartan_vec_scale()`
 - **Type**: Verified TypeChecker Symbol Table Export
 - **Status**: Production-Grade Native Implementation

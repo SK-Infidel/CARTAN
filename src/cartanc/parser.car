@@ -1979,7 +1979,9 @@ extern fn printf(fmt: string) -> i32;
                     let variant_name = cartan_tree_get_f32(_tok.token_type, 1.0);
                     
                     let args = cartan_tree_create();
+                    var has_args = 0.0;
                     if (match_token(self_ptr, 150.0) != 0.0) {
+                        has_args = 1.0;
                         if (parser_check(self_ptr, 151.0) == 0.0) {
                             while (1.0) {
                                 cartan_tree_push(args, expression(self_ptr));
@@ -1991,7 +1993,16 @@ extern fn printf(fmt: string) -> i32;
                         consume(self_ptr, 151.0, "Expected  )  after enum initialization arguments");
                     }
                     
-                    return Expr::EnumInit(  s, variant_name, args );
+                    if (is_uppercase(s) != 0.0) {
+                        return Expr::EnumInit(  s, variant_name, args );
+                    } else {
+                        let mod_fn = cartan_string_concat(s, cartan_string_concat("_", variant_name));
+                        if (has_args != 0.0) {
+                            return Expr::FunctionCall(mod_fn, args);
+                        } else {
+                            return Expr::Identifier(mod_fn);
+                        }
+                    }
                 } else if (self_ptr.allow_struct_init != 0.0) {
                     if (match_token(self_ptr, 152.0) != 0.0) {
                         let fields = cartan_tree_create();
