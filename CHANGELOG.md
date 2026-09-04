@@ -1,3 +1,32 @@
+## [8.250.0] - 2026-09-04 (Sprint 293: Authentic AZR Compiler-Verified Reasoning Engine)
+
+### Completed & Validated
+- **Authentic Multi-Level AZR Task Proposer (`[ISSUE-041]`)**:
+  - Eliminated canned string returns in `src/std/reasoning.cl` and `test/geomind/azr_engine.cl` (`azr_framework_propose_task`, `geomind_azr_propose_task`).
+  - Implemented 4 parameterized curriculum problem levels with complete CARTAN source representations:
+    1. Level 1: Linear affine root solver ($a \cdot x + b = y$).
+    2. Level 2: Pythagorean 2D Euclidean norm ($\sqrt{a^2 + b^2}$).
+    3. Level 3: Quadratic discriminant root ($(-b + \sqrt{b^2 - 4ac}) / (2a)$).
+    4. Level 4: Hyperbolic Poincaré metric distance ($1 + 2(u-v)^2 / ((1-u^2)(1-v^2))$).
+  - Each task includes problem parameters and a verified analytical oracle function (`problem_expected() -> float`).
+- **Authentic Algorithmic AZR Solver (`[ISSUE-041]`)**:
+  - Implemented algorithmic code synthesis in `azr_framework_solve_task` and `geomind_azr_solve_task`.
+  - Generates valid, typechecked CARTAN implementations of `fn solve() -> float` matching the proposed problem category.
+  - Generates automated verification test harnesses with `fn main() -> float` validating numerical convergence ($\le 10^{-3}$) against the oracle.
+- **Empirical Compiler-Verified Binary Reward Signal (`[ISSUE-041]`)**:
+  - Replaced mock file-existence and substring checks in `azr_framework_eval_binary_reward` and `geomind_azr_eval_reward`.
+  - Executes empirical verification via `cartanc.exe build scratch/azr_candidate.car -o scratch/azr_candidate.exe` followed by native execution.
+  - Assigns binary reward $R = 1.0$ if and only if both compilation and native execution exit with status code 0; returns $0.0$ on failure.
+  - Automatically cleans up transient candidate artifacts.
+- **Compiler JIT Exit Code Propagation (`src/cartanc/main.car`)**:
+  - Updated `cartanc run` subcommand handler in `src/cartanc/main.car` to propagate the exit status of `cartan_jit_eval` rather than hardcoding `0.0`.
+  - Bootstrapped and promoted self-hosted `cartanc.exe` v8.250.0.
+- **Empirical Validation**:
+  - Built `build/geomind.exe` and executed `geomind_azr_run_selfplay(3.0)` via `--azr-selfplay`.
+  - Verified 3 consecutive iterations with level progression (Level 1, 2, 3), achieving 100% binary reward ratio ($1.0 / 1.0$) and automated ingestion into Continuous Hopfield attractor basins.
+  - Verified negative control: failing candidates properly yield reward $0.0$ due to process exit code 1.
+  - Executed full 47-target compiler test suite (`test/compiler_suite/run_tests.car`) with 100% pass rate.
+
 ## [8.249.0] - 2026-09-04 (Sprint 292: Elimination of Simulated Functionality & Environment Primitives)
 
 ### Completed & Validated

@@ -456,8 +456,8 @@ fn main() -> float {
         if (is_jit == 1.0) {
             printf("Executing in-memory CARTAN JIT Engine...\n");
             cartan_flush(0.0);
-            cartan_jit_eval(out_ll);
-            return 0.0;
+            let jit_res = cartan_jit_eval(out_ll);
+            return jit_res;
         }
 
         printf("Compiling LLVM IR to native executable via Zig (-O3 LTO Vectorized Pass Pipeline)...\n");
