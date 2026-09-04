@@ -389,3 +389,170 @@ This file tracks technical debt and bugs identified during repository code revie
 - **Component**: `src/cartanc/geomind_runtime.c`, `tools/zig_wrapper.py`, `src/cartanc/main.car`
 - **Description**: Following 100% C runtime elimination in Sprint 287, `geomind` test models failed to link due to missing AI extensions (Safetensors, WebGPU/OpenCL, Hugging Face downloader, sockets). `geomind_runtime.c` was missing its own C standard library headers, and `main.car` ignored `system(cmd)` exit codes, masking linker errors.
 - **Status**: Fixed in Sprint 288. Made `geomind_runtime.c` self-contained with standard headers, OpenCL definitions, and runtime helpers. Configured `tools/zig_wrapper.py` to automatically link `geomind_runtime.c` when compiling `geomind` targets while keeping `cartanc.exe` 100% zero-C. Added strict return code validation in `main.car`. Successfully compiled and verified native `geomind.exe --help` with exit code 0.
+
+---
+
+# Active Issues (Sprint 289 Line-by-Line Code Review Audit)
+
+## [ISSUE-029] Lexer Logical NOT `!` Drops Operator Token to EOF
+- **Severity**: High (Compiler Lexer Bug)
+- **Component**: `src/cartanc/lexer.car:276-280`
+- **Description**: In character scanning for `!` (`c == 33.0`), if the next character is not `=`, `ttype_op` is not assigned and defaults to `TokenType::EOF`. This prevents logical negation expressions (`!x`) from lexing into `TokenType::Not` (token ID 137.0).
+- **Proposed Fix**: Add `else { ttype_op = TokenType::Not; }` to the `c == 33.0` match block.
+
+---
+
+## [ISSUE-030] TypeChecker Scope Stack & `resolve_var` Linkage Disconnection
+- **Severity**: Critical (Compiler Type Checker Bug)
+- **Component**: `src/cartanc/type_checker.car:65-88`
+- **Description**: `push_scope` appends newly created scopes to `self_ptr.symbol_table`, but `resolve_var` traverses `self_ptr.current_scope` which is initialized to null (`0.0`) and never linked. Furthermore, `pop_scope` attempts to traverse null links without popping `symbol_table`. As a result, `resolve_var` never resolves local variables.
+- **Proposed Fix**: Standardize `push_scope`, `pop_scope`, and `resolve_var` to operate consistently on the `symbol_table` stack or maintain `current_scope` parent links.
+
+---
+
+## [ISSUE-031] AST Optimizer Constant Folding Serializes Float as String
+- **Severity**: Medium (AST Invariant Violation)
+- **Component**: `src/cartanc/optimizer.car:26, 32, 38, 44`
+- **Description**: `optimize_expr` constructs `Expr::Float` (discriminant 1.0) using `cartan_float_to_string(val_l + val_r)` instead of raw numerical float values, violating the AST invariant that variant 1.0 contains float data.
+- **Proposed Fix**: Push raw numerical float results directly into the folded AST node.
+
+---
+
+## [ISSUE-032] Compiler Subcommand Stubs in `main.car` (`lsp`, `pkg`)
+- **Severity**: Medium (CLI Subcommand Stubs)
+- **Component**: `src/cartanc/main.car:245, 322-340`
+- **Description**: `cartan lsp` reads a single line, prints a hardcoded JSON string, and terminates immediately. `cartan pkg` writes a manifest lockfile with a hardcoded checksum string `"e8_root_l0_hash_ok"`.
+- **Proposed Fix**: Upgrade `lsp` to a persistent event loop handling workspace requests, and compute genuine SHA/FNV hashes for lockfile dependencies.
+
+---
+
+## [ISSUE-033] Pure CARTAN Core Runtime Async & Sandbox Fencing Stubs
+- **Severity**: High (Runtime Specification Integrity)
+- **Component**: `src/cartanc/core_runtime.car:622-631`
+- **Description**: `cartan_async_spawn`, `cartan_async_yield`, `cartan_async_await`, `cartan_rt_check_vram_access`, and `cartan_rt_lock_swmr` unconditionally return `1.0`. `cartan_rt_vram_lock_parameters`, `cartan_rt_vram_unlock_parameters`, `cartan_rt_unlock_swmr`, and `cartan_export_c_headers` are empty function bodies.
+- **Proposed Fix**: Wire these functions to real tracking structures or standardize their contracts.
+
+---
+
+## [ISSUE-034] Missing System Command Wrapper `cartan_system` in Core Runtime
+- **Severity**: Medium (Standard Library Link Error)
+- **Component**: `src/std/io.cl:6`, `src/cartanc/core_runtime.car:41`
+- **Description**: `src/std/io.cl:io_exec` binds to `extern fn cartan_system(cmd: string) -> float`, but `core_runtime.car` only defines `system(cmd: string) -> float`.
+- **Proposed Fix**: Add `fn cartan_system(cmd: string) -> float { return system(cmd); }` to `src/cartanc/core_runtime.car`.
+
+---
+
+## [ISSUE-035] Missing Hardware & Backend Environment Primitives
+- **Severity**: Medium (Unimplemented Extern Declarations)
+- **Component**: `src/std/env.cl:6-11`
+- **Description**: `cartan_detect_hardware`, `cartan_mount_backend`, `cartan_get_arg_int`, `cartan_get_arg_float`, `cartan_get_arg_string`, and `cartan_has_arg` are declared externs with no implementation in either CARTAN or C runtime.
+- **Proposed Fix**: Implement genuine environment and CLI argument parsing routines in `src/std/env.cl` using `sys_get_arg`.
+
+---
+
+## [ISSUE-036] Simulated Distillation Student Logit Loop in GeoMind Main
+- **Severity**: High (Strict Zero-Mock Violation)
+- **Component**: `test/geomind/main.car:249-275`
+- **Description**: `--train-distill` initializes logits to static constants and increments `current_student_val = current_student_val + 0.04` in a 50-step loop to simulate loss reduction without training.
+- **Proposed Fix**: Wire `--train-distill` to genuine teacher-student forward passes and actual logit outputs.
+
+---
+
+## [ISSUE-037] Simulated Loss Multipliers in SFT & CE Pre-Training
+- **Severity**: High (Strict Zero-Mock Violation)
+- **Component**: `test/geomind/sft_train.cl:80, 149-150`
+- **Description**: `current_loss = current_loss * 0.9968` and `ce_loss = ce_loss * 0.9965` simulate training convergence via artificial geometric decay instead of executing tensor backpropagation.
+- **Proposed Fix**: Wire `geomind_sft_train_run` and `geomind_pretrain_ce_run` directly to the streaming GPU training engine (`geomind_train_streaming_steady_state`).
+
+---
+
+## [ISSUE-038] Simulated WebGPU Cross-Entropy Loss & Fake Sasaki MoE Telemetry
+- **Severity**: High (Strict Zero-Mock Violation)
+- **Component**: `test/geomind/webgpu_causal_engine.cl:132, 307-310`
+- **Description**: `causal_loss_fwd` computes token loss via linear formula `(12.0f - l_val * 0.1f) * ic` instead of real cross-entropy. Biological telemetry generates synthetic MoE loads using trigonometric functions (`q0 = 30.0 + sin(step * 0.1) * 5.0`).
+- **Proposed Fix**: Implement true log-softmax cross-entropy in `causal_loss_fwd` and extract genuine quadrant router loads from expert gating activations.
+
+---
+
+## [ISSUE-039] Hardcoded Dummy Matrix Multiplication in `autotune_matmul_tiled`
+- **Severity**: Critical (Strict Zero-Mock Violation & Math Flaw)
+- **Component**: `src/std/autotune.cl:46-53`
+- **Description**: `autotune_matmul_tiled` ignores input matrices `A` and `B` and returns a hardcoded 4-element tree `[0.5, 0.2, 0.8, 0.1]`, breaking all callers.
+- **Proposed Fix**: Implement authentic 2D tiled GEMM with outer product accumulation loops.
+
+---
+
+## [ISSUE-040] Sliding Window Attention Identity Copy Dummy
+- **Severity**: High (Strict Zero-Mock Violation)
+- **Component**: `test/geomind/e8_attention_engine.cl:25-35`
+- **Description**: `e8_multihead_sliding_window_attention` copies `h_vec` element-by-element into `out_vec`, performing no attention calculations.
+- **Proposed Fix**: Implement authentic sliding window multi-head attention with scaled dot-product and causal window masking.
+
+---
+
+## [ISSUE-041] Simulated AZR Proposer, Solver & Reward Verifier
+- **Severity**: High (Strict Zero-Mock Violation)
+- **Component**: `src/std/reasoning.cl:7-24`, `test/geomind/azr_engine.cl:21-50`
+- **Description**: Proposer generates a canned string `fn solve() -> float { return ...; }`. Solver prepends an include header. Verifier checks file existence or simple substring matches rather than running AST validation or compiler execution.
+- **Proposed Fix**: Implement genuine AST mutation/generation and verify solutions using `cartanc.exe` exit status.
+
+---
+
+## [ISSUE-042] DARE Model Fusion Fixed Modulo 2 Dummy Dropout Mask
+- **Severity**: Medium (Mathematical Inaccuracy)
+- **Component**: `src/std/fusion.cl:99`
+- **Description**: `fusion_dare_rescale` drops every even index (`math_mod_val(i, 2.0) == 0.0`) rather than executing Bernoulli random drop sampling parameterized by `drop_p`.
+- **Proposed Fix**: Integrate pseudo-random Bernoulli thresholding based on `drop_p`.
+
+---
+
+## [ISSUE-043] Hardcoded WordNet / SlangNet Keyword Table & Unused Taxonomy Ingest
+- **Severity**: High (Strict Zero-Mock Violation)
+- **Component**: `src/std/semantics.cl:41-64`
+- **Description**: `semantics_get_concept_ic` hardcodes a 10-word keyword match list returning static floats. `semantics_load_taxonomy` reads the file and discards it without building a graph. `semantics_lca_tree_distance` counts dot characters instead of traversing taxonomy paths.
+- **Proposed Fix**: Parse dot-path taxonomy files into an in-memory prefix tree and compute lowest common ancestor depth from tree nodes.
+
+---
+
+## [ISSUE-044] Mock XML Parser and Data Ingestion Line Validators
+- **Severity**: High (Strict Zero-Mock Violation)
+- **Component**: `src/std/xml.cl:9-27`, `src/std/ingest.cl:11-21`
+- **Description**: `xml_parse` returns string length in a tree; `xml_get_element` returns `<tag/>`. `ingest_parse_csv_line` and `ingest_parse_json_lines` merely check `len > 0` and return `1.0`.
+- **Proposed Fix**: Implement authentic tag/attribute scanning in `xml.cl` and CSV/JSON token extraction in `ingest.cl`.
+
+---
+
+## [ISSUE-045] Untrained Network Inductive Biases (DIP, WANN, ELM, ESN) Pseudo-Implementations
+- **Severity**: High (Strict Zero-Mock Violation)
+- **Component**: `src/std/wann.cl`, `src/std/dip.cl`, `src/std/elm.cl`, `src/std/esn.cl`
+- **Description**:
+  - `wann_evaluate_shared_weight`: ignores DAG edges, applying scalar `tanh(input[0] * w)` to outputs.
+  - `dip_reconstruct_signal`: applies 3-tap moving average filter instead of network optimization.
+  - `elm_fit_zero_shot`: computes scalar elementwise division instead of matrix pseudo-inverse.
+  - `esn_step_forward`: applies diagonal scalar recurrence ignoring reservoir matrix and non-zero inputs.
+- **Proposed Fix**: Implement authentic graph traversal for WANN, real reservoir matrix multiplication for ESN, and linear algebra pseudo-inverse for ELM.
+
+---
+
+## [ISSUE-046] Undefined Functions in `merge_model_weights.cl` Causing Linker Failure
+- **Severity**: High (Compilation Failure)
+- **Component**: `test/geomind/merge_model_weights.cl:38, 41, 44, 47, 50, 53`
+- **Description**: Calls non-existent functions `fusion_dare_merge`, `fusion_task_arithmetic`, `fusion_knots_orthogonal_merge`, `fusion_m2n2_dynamic_split`, `fusion_m2n2_attraction_pair`, and `fusion_m2n2_map_elites_crossover`.
+- **Proposed Fix**: Implement missing fusion functions in `src/std/fusion.cl` or adjust callers.
+
+---
+
+## [ISSUE-047] Network Socket Stubs in C Runtime
+- **Severity**: Medium (Runtime Stubs)
+- **Component**: `src/cartanc/geomind_runtime.c:104-116`
+- **Description**: `cartan_socket_create`, `cartan_socket_connect`, `cartan_socket_send` unconditionally return `1.0` or string length without creating Berkeley/Winsock sockets.
+- **Proposed Fix**: Implement authentic OS socket bindings in `geomind_runtime.c` or provide pure LLVM socket calls.
+
+---
+
+## [ISSUE-048] Ignored Telemetry Parameters in Metric Logger
+- **Severity**: Low (Dead Parameters)
+- **Component**: `test/geomind/logger.cl:12-15`
+- **Description**: `geomind_log_step` accepts 5 telemetry metrics (`step`, `total_steps`, `loss`, `tokens_per_sec`, `phase_coherence`) and ignores all 5, printing a static string.
+- **Proposed Fix**: Format and print all 5 metrics to the log stream.
+
