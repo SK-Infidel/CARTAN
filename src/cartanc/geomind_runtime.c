@@ -1,4 +1,195 @@
 // src/cartanc/geomind_runtime.c - Model & AI Runtime Extensions
+#ifndef _CRT_SECURE_NO_WARNINGS
+#define _CRT_SECURE_NO_WARNINGS 1
+#endif
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
+#include <math.h>
+
+#if defined(_WIN32) || defined(_WIN64)
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <windows.h>
+#include <shellapi.h>
+#endif
+
+#if defined(__has_include)
+#if __has_include(<CL/cl.h>)
+#define CL_TARGET_OPENCL_VERSION 300
+#include <CL/cl.h>
+#define CARTAN_HAVE_OPENCL 1
+#endif
+#elif defined(OPENCL_AVAILABLE)
+#define CL_TARGET_OPENCL_VERSION 300
+#include <CL/cl.h>
+#define CARTAN_HAVE_OPENCL 1
+#endif
+
+#ifndef CARTAN_HAVE_OPENCL
+typedef void* cl_context;
+typedef void* cl_command_queue;
+typedef void* cl_program;
+typedef void* cl_kernel;
+typedef void* cl_mem;
+typedef void* cl_device_id;
+typedef void* cl_platform_id;
+typedef int cl_int;
+typedef unsigned int cl_uint;
+#define CL_SUCCESS 0
+#define CL_DEVICE_TYPE_GPU (1 << 2)
+#define CL_DEVICE_NAME 0x102B
+#define CL_MEM_READ_WRITE (1 << 0)
+#define CL_MEM_WRITE_ONLY (1 << 1)
+#define CL_MEM_READ_ONLY (1 << 2)
+#define CL_TRUE 1
+#define CL_FALSE 0
+#define CL_PROGRAM_BUILD_LOG 0x1183
+#endif
+
+#ifndef CARTAN_WEAK
+#if defined(__clang__) || defined(__GNUC__)
+#define CARTAN_WEAK __attribute__((weak))
+#else
+#define CARTAN_WEAK
+#endif
+#endif
+
+int g_argc = 0;
+char** g_argv = NULL;
+
+typedef struct CartanVector {
+    double size;
+    double capacity;
+    double data[];
+} CartanVector;
+
+extern void* cartan_tree_create(void);
+extern void* cartan_tree_get(void* t, double idx);
+extern void* cartan_vec_create(void);
+extern double cartan_vec_push_f32(void* v_ptr, double val);
+extern double cartan_vec_get_f32(void* v_ptr, double idx);
+extern double cartan_vec_len(void* v_ptr);
+extern double cartan_file_exists(const char* path);
+extern double cartan_string_eq(const char* s1, const char* s2);
+
+static char* cartan_strdup(const char* s) {
+    if (!s) {
+        char* empty = (char*)malloc(1);
+        if (empty) empty[0] = '\0';
+        return empty;
+    }
+    size_t len = strlen(s);
+    char* copy = (char*)malloc(len + 1);
+    if (copy) {
+        memcpy(copy, s, len + 1);
+    }
+    return copy;
+}
+
+CARTAN_WEAK void cartan_print_string(const char* text) {
+    if (text) {
+        fputs(text, stdout);
+        fflush(stdout);
+    }
+}
+
+double cartan_system(const char* cmd) {
+    if (!cmd) return -1.0;
+    int res = system(cmd);
+    return (double)res;
+}
+
+double cartan_socket_create() {
+    return 1.0;
+}
+
+double cartan_socket_connect(double sock, const char* host, double port) {
+    if (!host) return 0.0;
+    return 1.0;
+}
+
+double cartan_socket_send(double sock, const char* data) {
+    if (!data) return 0.0;
+    return (double)strlen(data);
+}
+
+char* cartan_socket_recv(double sock) {
+    int s = (int)sock;
+    char* buf = (char*)malloc(4096);
+    if (!buf) return cartan_strdup("");
+    memset(buf, 0, 4096);
+#if defined(_WIN32) || defined(_WIN64)
+    int bytes = recv((SOCKET)s, buf, 4095, 0);
+#else
+    ssize_t bytes = recv(s, buf, 4095, 0);
+#endif
+    if (bytes <= 0) {
+        buf[0] = '\0';
+    } else {
+        buf[bytes] = '\0';
+    }
+    return buf;
+}
+
+double cartan_socket_close(double sock) {
+    int s = (int)sock;
+#if defined(_WIN32) || defined(_WIN64)
+    closesocket((SOCKET)s);
+#else
+    close(s);
+#endif
+    return 1.0;
+}
+
+double cartan_http_download_file(const char* url, const char* out_path) {
+    if (!url || !out_path) return 0.0;
+    
+    char token_buf[512] = {0};
+    const char* hf_token = getenv("HF_TOKEN");
+    if (!hf_token) hf_token = getenv("HUGGING_FACE_HUB_TOKEN");
+    if (!hf_token) hf_token = getenv("HUGGINGFACE_TOKEN");
+    
+    if (!hf_token) {
+#if defined(_WIN32) || defined(_WIN64)
+        const char* user_profile = getenv("USERPROFILE");
+        if (user_profile) {
+            char tok_file[1024];
+            snprintf(tok_file, sizeof(tok_file), "%s\\.cache\\huggingface\\token", user_profile);
+            FILE* tf = fopen(tok_file, "r");
+            if (tf) {
+                if (fgets(token_buf, sizeof(token_buf), tf)) {
+                    size_t len = strlen(token_buf);
+                    while (len > 0 && (token_buf[len-1] == '\r' || token_buf[len-1] == '\n' || token_buf[len-1] == ' ')) {
+                        token_buf[--len] = '\0';
+                    }
+                    if (len > 0) hf_token = token_buf;
+                }
+                fclose(tf);
+            }
+        }
+#endif
+    }
+
+    char cmd[4096];
+    if (hf_token && strlen(hf_token) > 0) {
+#if defined(_WIN32) || defined(_WIN64)
+        snprintf(cmd, sizeof(cmd), "curl.exe -s -L -H \"Authorization: Bearer %s\" \"%s\" -o \"%s\"", hf_token, url, out_path);
+#else
+        snprintf(cmd, sizeof(cmd), "curl -s -L -H 'Authorization: Bearer %s' '%s' -o '%s'", hf_token, url, out_path);
+#endif
+    } else {
+#if defined(_WIN32) || defined(_WIN64)
+        snprintf(cmd, sizeof(cmd), "curl.exe -s -L \"%s\" -o \"%s\"", url, out_path);
+#else
+        snprintf(cmd, sizeof(cmd), "curl -s -L '%s' -o '%s'", url, out_path);
+#endif
+    }
+    int res = system(cmd);
+    return (double)res;
+}
+
 // --- Safetensors Binary Loader Runtime Functions ---
 double cartan_safetensors_header_length(const char* path) {
     if (!path) return 0.0;

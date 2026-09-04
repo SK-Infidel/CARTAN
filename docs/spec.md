@@ -6,8 +6,7 @@ Cartan is a statically typed, self-hosting, natively tensor-first programming la
 Cartan compiles via a 100% self-hosted LLVM compiler toolchain (`cartanc` written in native CARTAN):
 - **Self-Hosted Frontend (`src/cartanc/`)**: Lexer, Parser, Type Checker, and AST expansion passes written in native CARTAN (`ast.ch`, `lexer.car`, `parser.car`, `type_checker.car`).
 - **Pure CARTAN Core Runtime (`src/cartanc/core_runtime.car`)**: Canonical runtime module auto-injected during compiler AST expansion. Provides memory-safe string manipulation, dynamic hierarchical trees (`tree<T>`), memory assertions, file I/O, and OS process execution directly in pure CARTAN.
-- **LLVM IR Emission (`llvm_codegen.car`)**: Native LLVM IR generator emitting optimized `.ll` textual representation with DWARF line tagging (`!dbg`), C-ABI variadic float-to-double promotion (`fpext`), pointer-to-float impedance conversion (`as_float`), and exact AST variant discriminator resolution.
-- **Bare-Metal Hardware Runtime (`c_runtime.c` & `gpu_runtime/`)**: Zero-allocation C runtime kernel exposing $O(1)$ open-addressing symbol hash tables, bump arena allocators, SWMR memory fences, DLPack zero-copy FFI interop, capabilities-based VRAM sandboxing, continuous Hopfield memory banks, and native WebGPU compute shaders.
+- **Pure Freestanding Hardware Runtime (`gpu_runtime/` & Native LLVM IR Emitted Runtime)**: Pure freestanding runtime architecture with all primitive tree, string, memory, and formatting operations emitted directly as pure LLVM IR (`llvm_codegen.car`), zero linked C runtime source files, SWMR memory fences, DLPack zero-copy FFI interop, capabilities-based VRAM sandboxing, continuous Hopfield memory banks, and native WebGPU compute shaders.
 
 ## 2. Keywords
 - `fn` : Function declaration
@@ -145,7 +144,7 @@ CARTAN compiles directly from source AST to native machine code via textual LLVM
 2. **Semantic Verification (`src/cartanc/type_checker.car`)**: Validates tensor dimensions, method calls, and symbol scopes.
 3. **AST Optimization Pass (`src/cartanc/optimizer.car`)**: Folds constant scalar arithmetic and simplifies control graphs.
 4. **LLVM IR Code Generation (`src/cartanc/llvm_codegen.car`)**: Emits structured, type-checked LLVM IR (`.ll`) featuring automatic pointer-to-float conversions (`as_float`), scientific float stabilization (`1.0e-06`), and DWARF debugging metadata (`!dbg`).
-5. **Native Linking & Vectorized Pass Pipeline (`tools/zig_wrapper.py`)**: Compiles `.ll` with `src/cartanc/c_runtime.c` using Zig (`-O3 -flto`) into standalone, zero-dependency native `.exe` executables.
+5. **Native Linking & Vectorized Pass Pipeline (`tools/zig_wrapper.py`)**: Compiles `.ll` directly (with zero C source files linked) into standalone, zero-dependency native `.exe` executables.
 6. **In-Memory JIT Engine (`cartan_jit_eval`)**: Compiles and executes code on-the-fly for `cartanc run <file.car>` and the interactive REPL.
 
 *(Historical Note: The early `.aer` stack-based bytecode format served as an initial Phase 1 prototype and has been entirely superseded by direct native LLVM IR emission).*
@@ -163,7 +162,7 @@ When dynamic data structures (`ptr:`, `string:`, `tree<T>`, `struct:`) are retur
 This eliminates LLVM type verification failures (`defined with type 'ptr' but expected 'double'`) while allowing seamless scalar manipulation of opaque pointers.
 
 ### 8.2 Strict Scientific Float Stabilization
-LLVM IR syntax mandates an explicit decimal point in floating-point literals with exponents (e.g. `1.0e-06`). The codegen and C runtime formatters enforce decimal point inclusion on all `%g` float formatting, preventing parser rejections in mathematical operations.
+LLVM IR syntax mandates an explicit decimal point in floating-point literals with exponents (e.g. `1.0e-06`). The LLVM IR emitter and native runtime formatters enforce decimal point inclusion on all `%g` float formatting, preventing parser rejections in mathematical operations.
 
 ### 8.3 Static Monomorphization & Direct GPU Target Backends (NVPTX / SPIR-V / WGSL)
 1. **Static Generic Monomorphization**: Multiple method dispatch based on generic dimensions (e.g. `B: int`) or precision specifiers (`under fp16`) is resolved at compile time.

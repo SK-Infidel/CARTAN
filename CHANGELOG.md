@@ -1,3 +1,44 @@
+## [8.245.0] - 2026-09-04 (Sprint 288: GeoMind Compilation, Indirect Function Calls & Self-Contained AI Runtime)
+
+### Completed & Validated
+- **Indirect Function Pointer Calls in Pure LLVM Codegen (`src/cartanc/llvm_codegen.car`)**:
+  - Implemented indirect call support in `llvm_visit_expr` (`CallExpr`) for function pointer variables and parameters (e.g. `func: ptr` in `src/std/calculus.cl`).
+  - Added resolution checking `is_declared_fn == 0.0`: if the callee is not a declared global function and exists as a local variable/parameter in `symbols`, emits `load ptr` and calls indirectly through the register `%fn_reg(...)`.
+  - Enforced strictly monotonic register allocation ordering (`fn_reg` allocated prior to `res_reg`).
+- **Identifier Shadowing Elimination (`src/cartanc/llvm_codegen.car`)**:
+  - Renamed local match statement branch label `next_label` to `next_arm_label` in `MatchStmt`, preventing accidental shadowing of the compiler's global `next_label` function.
+- **Self-Contained GeoMind AI Runtime Kernel (`src/cartanc/geomind_runtime.c`)**:
+  - Encapsulated `src/cartanc/geomind_runtime.c` with top-level standard C library headers (`<stdio.h>`, `<stdlib.h>`, `<string.h>`, `<stdint.h>`, `<math.h>`, Windows headers, `<CL/cl.h>`).
+  - Added `CartanVector`, `g_argc`/`g_argv`, and core console/socket/http runtime helper primitives (`cartan_strdup`, `cartan_print_string`, `cartan_system`, `cartan_socket_*`, `cartan_http_download_file`).
+- **Targeted Model Runtime Linkage (`tools/zig_wrapper.py`)**:
+  - Configured `tools/zig_wrapper.py` to automatically link `src/cartanc/geomind_runtime.c` when compiling `geomind` targets, keeping `cartanc.exe` 100% zero-C while supporting the model domain runtime.
+- **Native Linker Diagnostics (`src/cartanc/main.car`)**:
+  - Added return code verification on `system(cmd)` to immediately halt with exit code 1 if Clang or Zig compilation fails, preventing silent failure masking.
+- **Bit-for-Bit 3-Stage Self-Hosting Parity & GeoMind Verification**:
+  - Bootstrapped compiler through 3 stages with zero regressions (`cartanc_stage2.ll` == `cartanc_stage3.ll`, 37,909 lines identical via `fc.exe`).
+  - Promoted Stage 3 compiler to primary `cartanc.exe`.
+  - Compiled native `geomind.exe` with zero errors (`cartanc.exe build test/geomind/main.car -o geomind.exe`) and empirically verified `.\geomind.exe --help` (exit code 0).
+  - Executed full 47-target compiler snapshot regression suite (`test/compiler_suite/run_tests.car`) with 100% pass rate.
+
+## [8.244.0] - 2026-09-04 (Sprint 287: 100% Zero-C Runtime Decoupling & Freestanding Self-Hosting Parity)
+
+### Completed & Validated
+- **100% Zero-C Runtime Decoupling (`src/cartanc/llvm_codegen.car`)**:
+  - Emitted all 13 primitive runtime functions directly as optimized LLVM IR (`@cartan_c_tree_create`, `@cartan_c_tree_len_f`, `@cartan_c_tree_push`, `@cartan_c_tree_get`, `@cartan_c_tree_set`, `@cartan_c_tree_remove`, `@c_cartan_string_char_at`, `@cartan_c_memcpy`, `@cartan_c_strncmp`, `@cartan_c_ptr_add`, `@cartan_c_int_to_string`, `@cartan_c_float_to_string`, `@cartan_c_sprintf_hex_byte`).
+  - Completely severed `src/cartanc/c_runtime.c` from the linker command line in `src/cartanc/main.car` and `src/cartanc/core_runtime.car` (`cartan_jit_eval`).
+  - Renamed `src/cartanc/c_runtime.c` to `src/cartanc/c_runtime.c.deprecated`.
+- **AST Function Return Type Normalization & Large File Stack Limit**:
+  - Normalized primitive return types (`void`, `float`, `int`, `i32`, `i64`, `bool`, `double`) in AST Pass 1 to prevent false struct type tagging (`%i32`) on standard C-ABI functions like `strcmp` and `system`.
+  - Added `-Wl,/STACK:67108864` (64MB) linker stack allocation to `tools/zig_wrapper.py` to prevent stack overflow during deep recursive descent parsing of 28,000+ token compiler files.
+- **Bit-for-Bit Self-Hosting Fixed-Point Bootstrap Parity**:
+  - Re-bootstrapped compiler through 3 stages with zero C code linked.
+  - Verified exact bit-for-bit identity between `scratch/cartanc_stage2.ll` and `scratch/cartanc_stage3.ll` (37,832 lines) via `fc.exe` (`FC: no differences encountered`).
+  - Promoted verified Stage 3 binary to primary `cartanc.exe`.
+- **47-Target Regression Test Suite Empirical Validation**:
+  - All 47 compiler snapshot test targets in `test/compiler_suite/run_tests.car` compiled and executed cleanly with exit code 0.
+- **Documentation Synchronization**:
+  - Synchronized `docs/spec.md`, `docs/LANGUAGE_REFERENCE.md`, `README.md`, `docs/ROADMAP.md` (Phase 60), and `ISSUES.md` (`[ISSUE-025]`, `[ISSUE-026]`).
+
 ## [8.243.0] - 2026-09-03 (Sprint 286: Canonical Documentation Synchronization: spec.md, LANGUAGE_REFERENCE.md, and README.md)
 
 ### Completed & Validated

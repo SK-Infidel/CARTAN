@@ -179,6 +179,20 @@ This roadmap tracks the implementation of the advanced AI optimizations and nati
 - [ ] **5. Autonomous Metacognitive Sleep Daemon**: Re-implement background replay loop (`sleep.ctn`) consolidating episodic attractors into slow cortical weights during system idle.
 - [x] **6. Biological State Telemetry & Manifold Verification**: Implement real-time telemetry tracking for Hopfield attractor basin energy/resonance drops, 8 Lie cortical stream norms/dispersion, and Sasaki MoE quadrant routing distributions during training and inference. (Completed in Sprint 271 via Pure Native CARTAN WebGPU Causal Engine).
 
+## Phase 60: 100% Zero-C Runtime Decoupling & Freestanding Self-Hosting Parity (Completed - Sprint 287)
+- [x] **Native LLVM IR Runtime Emission (`src/cartanc/llvm_codegen.car`)**: Implemented all 13 primitive runtime functions directly in LLVM IR (`@cartan_c_tree_*`, `@c_cartan_string_char_at`, `@cartan_c_memcpy`, `@cartan_c_strncmp`, `@cartan_c_ptr_add`, `@cartan_c_int_to_string`, `@cartan_c_float_to_string`, `@cartan_c_sprintf_hex_byte`).
+- [x] **Sever Linker C Dependencies**: Completely severed `c_runtime.c` from linker command invocations in `main.car` and `core_runtime.car` (`cartan_jit_eval`).
+- [x] **C Runtime Deprecation**: Renamed `src/cartanc/c_runtime.c` to `src/cartanc/c_runtime.c.deprecated`.
+- [x] **3-Stage Bit-for-Bit Bootstrap Parity**: Reached exact fixed-point convergence (`cartanc_stage2.ll` == `cartanc_stage3.ll`) with zero C code linked into the toolchain.
+- [x] **47-Target Regression Suite**: All 47 compiler snapshot tests building and passing cleanly with exit code 0.
+
+## Phase 61: GeoMind Native Verification & Pure LLVM Indirect Function Calls (Completed - Sprint 288)
+- [x] **Indirect Function Pointer Calls in Pure LLVM Codegen (`src/cartanc/llvm_codegen.car`)**: Support calling function pointer variables and parameters (`func: ptr`) via register loads and indirect LLVM call instructions.
+- [x] **Self-Contained GeoMind AI Model Runtime (`src/cartanc/geomind_runtime.c`)**: Standalone header encapsulation, OpenCL definitions, and runtime helpers for Safetensors, WebGPU/OpenCL, and socket extensions.
+- [x] **Targeted Linker Driver Pipeline (`tools/zig_wrapper.py`)**: Automatic linking of `geomind_runtime.c` for GeoMind targets while keeping `cartanc.exe` 100% zero-C.
+- [x] **Native Linker Diagnostics (`src/cartanc/main.car`)**: Strict error status propagation from clang/zig compilation.
+- [x] **Bit-for-Bit Self-Hosting Parity & Full Test Suite**: Re-bootstrapped compiler to 3-stage parity and verified `geomind.exe --help` (exit 0) and 47/47 regression suite tests.
+
 
 
 

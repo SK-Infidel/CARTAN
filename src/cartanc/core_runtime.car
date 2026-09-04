@@ -609,8 +609,8 @@ fn cartan_get_quote() -> string {
 fn cartan_jit_eval(ll_file: string) -> float {
     if (ll_file == 0.0) { return -1.0; }
     let out_exe = "cartan_jit_run.exe";
-    let cmd1 = cartan_string_concat("zig cc -target x86_64-windows-msvc -O3 ", ll_file);
-    let cmd2 = cartan_string_concat(cmd1, " src/cartanc/c_runtime.c -lws2_32 -luser32 -lgdi32 -lwinmm -lopengl32 -ld3dcompiler -lole32 -loleaut32 -lbcrypt -luserenv -ladvapi32 -o ");
+    let cmd1 = cartan_string_concat("python tools/zig_wrapper.py ", ll_file);
+    let cmd2 = cartan_string_concat(cmd1, " -o ");
     let cmd3 = cartan_string_concat(cmd2, out_exe);
     let cmd4 = cartan_string_concat(cmd3, " && .\\");
     let cmd5 = cartan_string_concat(cmd4, out_exe);

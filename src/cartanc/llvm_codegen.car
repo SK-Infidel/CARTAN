@@ -66,9 +66,9 @@ fn llvm_codegen_init() -> LLVMGenerator {
     };
     cartan_dict_set(l.func_return_types, "cartan_tree_create", "ptr");
     cartan_dict_set(l.func_return_types, "cartan_tree_get_f32", "ptr");
-    cartan_dict_set(l.func_return_types, "cartan_tree_len", "float");
-    cartan_dict_set(l.func_return_types, "cartan_tree_len_f", "float");
-    cartan_dict_set(l.func_return_types, "cartan_tree_len_f32", "float");
+    cartan_dict_set(l.func_return_types, "cartan_tree_len", "double");
+    cartan_dict_set(l.func_return_types, "cartan_tree_len_f", "double");
+    cartan_dict_set(l.func_return_types, "cartan_tree_len_f32", "double");
     cartan_dict_set(l.func_return_types, "cartan_string_concat", "string");
     cartan_dict_set(l.func_return_types, "cartan_float_to_string", "string");
     cartan_dict_set(l.func_return_types, "cartan_int_to_string", "string");
@@ -78,8 +78,24 @@ fn llvm_codegen_init() -> LLVMGenerator {
     cartan_dict_set(l.func_return_types, "cartan_read_file", "string");
     cartan_dict_set(l.func_return_types, "cartan_read_line", "string");
     cartan_dict_set(l.func_return_types, "sys_get_arg", "string");
-    cartan_dict_set(l.func_return_types, "cartan_string_starts_with", "float");
+    cartan_dict_set(l.func_return_types, "cartan_string_starts_with", "double");
     cartan_dict_set(l.func_return_types, "malloc", "ptr");
+    cartan_dict_set(l.func_return_types, "cartan_c_tree_create", "ptr");
+    cartan_dict_set(l.func_return_types, "cartan_c_tree_get", "ptr");
+    cartan_dict_set(l.func_return_types, "cartan_c_memcpy", "ptr");
+    cartan_dict_set(l.func_return_types, "cartan_c_ptr_add", "ptr");
+    cartan_dict_set(l.func_return_types, "cartan_c_int_to_string", "string");
+    cartan_dict_set(l.func_return_types, "cartan_c_float_to_string", "string");
+    cartan_dict_set(l.func_return_types, "cartan_c_sprintf_hex_byte", "void");
+    cartan_dict_set(l.func_return_types, "cartan_c_tree_push", "void");
+    cartan_dict_set(l.func_return_types, "cartan_c_tree_set", "void");
+    cartan_dict_set(l.func_return_types, "cartan_c_tree_remove", "void");
+    cartan_dict_set(l.func_return_types, "cartan_c_tree_len_f", "double");
+    cartan_dict_set(l.func_return_types, "c_cartan_string_char_at", "double");
+    cartan_dict_set(l.func_return_types, "cartan_c_strncmp", "double");
+    cartan_dict_set(l.func_return_types, "strcmp", "double");
+    cartan_dict_set(l.func_return_types, "strncmp", "double");
+    cartan_dict_set(l.func_return_types, "system", "double");
     return l;
 }
 
@@ -252,9 +268,24 @@ fn llvm_codegen_init() -> LLVMGenerator {
                 let rt = cartan_tree_get_f32(stmt, 4.0);
                 var logical_ret_type = "void";
                 if (rt != 0.0) {
-                    if (rt == "float" || rt == "int") { logical_ret_type = "double"; }
+                    if (rt == "void") { logical_ret_type = "void"; }
+                    else if (rt == "float" || rt == "int" || rt == "i32" || rt == "i64" || rt == "bool" || rt == "double") { logical_ret_type = "double"; }
                     else if (rt == "ptr" || rt == "string" || (cartan_string_starts_with(rt, "tree<") != 0.0)) { logical_ret_type = rt; }
-                    else { logical_ret_type = cartan_string_concat("%", rt); }
+                    else if (is_uppercase(rt) != 0.0) { logical_ret_type = cartan_string_concat("%", rt); }
+                    else { logical_ret_type = "double"; }
+                } else {}
+                cartan_dict_set(self_ptr.func_return_types, fn_name, logical_ret_type);
+            }
+            if (disc == 15.0) {
+                let fn_name = cartan_tree_get_f32(stmt, 1.0);
+                let rt = cartan_tree_get_f32(stmt, 3.0);
+                var logical_ret_type = "void";
+                if (rt != 0.0) {
+                    if (rt == "void") { logical_ret_type = "void"; }
+                    else if (rt == "float" || rt == "int" || rt == "i32" || rt == "i64" || rt == "bool" || rt == "double") { logical_ret_type = "double"; }
+                    else if (rt == "ptr" || rt == "string" || (cartan_string_starts_with(rt, "tree<") != 0.0)) { logical_ret_type = rt; }
+                    else if (is_uppercase(rt) != 0.0) { logical_ret_type = cartan_string_concat("%", rt); }
+                    else { logical_ret_type = "double"; }
                 } else {}
                 cartan_dict_set(self_ptr.func_return_types, fn_name, logical_ret_type);
             }
@@ -312,9 +343,30 @@ fn llvm_codegen_init() -> LLVMGenerator {
         cartan_tree_push(self_ptr.declared_externs, "sys_get_arg");
         cartan_tree_push(self_ptr.declared_externs, "sys_get_arg_count");
         cartan_tree_push(self_ptr.declared_externs, "cartan_crt_init");
+        cartan_tree_push(self_ptr.declared_externs, "c_cartan_string_char_at");
+        cartan_tree_push(self_ptr.declared_externs, "cartan_c_memcpy");
+        cartan_tree_push(self_ptr.declared_externs, "cartan_c_strncmp");
+        cartan_tree_push(self_ptr.declared_externs, "cartan_c_ptr_add");
+        cartan_tree_push(self_ptr.declared_externs, "cartan_c_int_to_string");
+        cartan_tree_push(self_ptr.declared_externs, "cartan_c_float_to_string");
+        cartan_tree_push(self_ptr.declared_externs, "cartan_c_sprintf_hex_byte");
+        cartan_tree_push(self_ptr.declared_externs, "cartan_c_tree_create");
+        cartan_tree_push(self_ptr.declared_externs, "cartan_c_tree_len_f");
+        cartan_tree_push(self_ptr.declared_externs, "cartan_c_tree_push");
+        cartan_tree_push(self_ptr.declared_externs, "cartan_c_tree_get");
+        cartan_tree_push(self_ptr.declared_externs, "cartan_c_tree_set");
+        cartan_tree_push(self_ptr.declared_externs, "cartan_c_tree_remove");
 
         add_builtin_extern(self_ptr, user_defined_names, "malloc", "declare ptr @malloc(i64)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "realloc", "declare ptr @realloc(ptr, i64)\n");
         add_builtin_extern(self_ptr, user_defined_names, "free", "declare void @free(ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "strlen", "declare i64 @strlen(ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "memcpy", "declare ptr @memcpy(ptr, ptr, i64)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "strncmp", "declare i32 @strncmp(ptr, ptr, i64)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "snprintf", "declare i32 @snprintf(ptr, i64, ptr, ...)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "strchr", "declare ptr @strchr(ptr, i32)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "strncpy", "declare ptr @strncpy(ptr, ptr, i64)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "llvm.floor.f64", "declare double @llvm.floor.f64(double)\n");
         add_builtin_extern(self_ptr, user_defined_names, "strcmp", "declare i32 @strcmp(ptr, ptr)\n");
         add_builtin_extern(self_ptr, user_defined_names, "SetConsoleCP", "declare i32 @SetConsoleCP(i32)\n");
         add_builtin_extern(self_ptr, user_defined_names, "SetConsoleOutputCP", "declare i32 @SetConsoleOutputCP(i32)\n");
@@ -785,7 +837,12 @@ while (idx_method < cartan_tree_len_f(methods)) {
         // Pass 3: Main logic
         cartan_tree_push(self_ptr.globals, "@global_argc = global i32 0, align 4\n");
         cartan_tree_push(self_ptr.globals, "@global_argv = global ptr null, align 8\n");
-        cartan_tree_push(self_ptr.globals, "@.str.empty_arg = private unnamed_addr constant [1 x i8] c\"\\00\", align 1\n\n");
+        cartan_tree_push(self_ptr.globals, "@.str.empty_arg = private unnamed_addr constant [1 x i8] c\"\\00\", align 1\n");
+        cartan_tree_push(self_ptr.globals, "@.str.fmt_int = private unnamed_addr constant [5 x i8] c\"%.0f\\00\", align 1\n");
+        cartan_tree_push(self_ptr.globals, "@.str.fmt_flt_one = private unnamed_addr constant [5 x i8] c\"%.1f\\00\", align 1\n");
+        cartan_tree_push(self_ptr.globals, "@.str.fmt_flt_g = private unnamed_addr constant [3 x i8] c\"%g\\00\", align 1\n");
+        cartan_tree_push(self_ptr.globals, "@.str.fmt_sci_fix = private unnamed_addr constant [9 x i8] c\"%.*s.0%s\\00\", align 1\n");
+        cartan_tree_push(self_ptr.globals, "@.str.fmt_hex_byte = private unnamed_addr constant [6 x i8] c\"\\5C%02x\\00\", align 1\n\n");
         cartan_tree_push(self_ptr.output, "define ptr @sys_get_arg(double %index) {\n");
         cartan_tree_push(self_ptr.output, "entry:\n");
         cartan_tree_push(self_ptr.output, "  %idx_i32 = fptosi double %index to i32\n");
@@ -814,6 +871,20 @@ while (idx_method < cartan_tree_len_f(methods)) {
         cartan_tree_push(self_ptr.output, "  %call_ocp = call i32 @SetConsoleOutputCP(i32 65001)\n");
         cartan_tree_push(self_ptr.output, "  ret void\n");
         cartan_tree_push(self_ptr.output, "}\n\n");
+
+        cartan_tree_push(self_ptr.output, "define double @c_cartan_string_char_at(ptr %s, double %idx) {\nentry:\n  %is_null = icmp eq ptr %s, null\n  br i1 %is_null, label %ret_zero, label %check_bounds\ncheck_bounds:\n  %len = call i64 @strlen(ptr %s)\n  %i = fptosi double %idx to i64\n  %neg = icmp slt i64 %i, 0\n  %over = icmp uge i64 %i, %len\n  %bad = or i1 %neg, %over\n  br i1 %bad, label %ret_zero, label %load_char\nload_char:\n  %char_ptr = getelementptr inbounds i8, ptr %s, i64 %i\n  %ch = load i8, ptr %char_ptr, align 1\n  %ch_u32 = zext i8 %ch to i32\n  %res = uitofp i32 %ch_u32 to double\n  ret double %res\nret_zero:\n  ret double 0.0\n}\n\n");
+        cartan_tree_push(self_ptr.output, "define ptr @cartan_c_memcpy(ptr %dest, ptr %src, double %count) {\nentry:\n  %dest_null = icmp eq ptr %dest, null\n  %src_null = icmp eq ptr %src, null\n  %either_null = or i1 %dest_null, %src_null\n  %le_zero = fcmp ole double %count, 0.0\n  %skip = or i1 %either_null, %le_zero\n  br i1 %skip, label %ret_dest, label %do_copy\ndo_copy:\n  %n = fptoui double %count to i64\n  %res = call ptr @memcpy(ptr %dest, ptr %src, i64 %n)\n  ret ptr %res\nret_dest:\n  ret ptr %dest\n}\n\n");
+        cartan_tree_push(self_ptr.output, "define double @cartan_c_strncmp(ptr %s1, ptr %s2, double %n) {\nentry:\n  %s1_null = icmp eq ptr %s1, null\n  %s2_null = icmp eq ptr %s2, null\n  %either_null = or i1 %s1_null, %s2_null\n  %le_zero = fcmp ole double %n, 0.0\n  %skip = or i1 %either_null, %le_zero\n  br i1 %skip, label %ret_zero, label %do_cmp\ndo_cmp:\n  %count = fptoui double %n to i64\n  %res_i32 = call i32 @strncmp(ptr %s1, ptr %s2, i64 %count)\n  %res = sitofp i32 %res_i32 to double\n  ret double %res\nret_zero:\n  ret double 0.0\n}\n\n");
+        cartan_tree_push(self_ptr.output, "define ptr @cartan_c_ptr_add(ptr %p, double %offset) {\nentry:\n  %is_null = icmp eq ptr %p, null\n  br i1 %is_null, label %ret_null, label %do_add\ndo_add:\n  %off_i64 = fptosi double %offset to i64\n  %res = getelementptr inbounds i8, ptr %p, i64 %off_i64\n  ret ptr %res\nret_null:\n  ret ptr null\n}\n\n");
+        cartan_tree_push(self_ptr.output, "define ptr @cartan_c_int_to_string(double %val) {\nentry:\n  %buf = call ptr @malloc(i64 64)\n  %is_null = icmp eq ptr %buf, null\n  br i1 %is_null, label %ret_empty, label %do_fmt\ndo_fmt:\n  call i32 (ptr, i64, ptr, ...) @snprintf(ptr %buf, i64 64, ptr @.str.fmt_int, double %val)\n  ret ptr %buf\nret_empty:\n  ret ptr @.str.empty_arg\n}\n\n");
+        cartan_tree_push(self_ptr.output, "define ptr @cartan_c_float_to_string(double %val) {\nentry:\n  %buf = call ptr @malloc(i64 64)\n  %is_null = icmp eq ptr %buf, null\n  br i1 %is_null, label %ret_empty, label %check_int\ncheck_int:\n  %fl = call double @llvm.floor.f64(double %val)\n  %is_int = fcmp oeq double %val, %fl\n  br i1 %is_int, label %fmt_point_one, label %fmt_g\nfmt_point_one:\n  call i32 (ptr, i64, ptr, ...) @snprintf(ptr %buf, i64 64, ptr @.str.fmt_flt_one, double %val)\n  ret ptr %buf\nfmt_g:\n  call i32 (ptr, i64, ptr, ...) @snprintf(ptr %buf, i64 64, ptr @.str.fmt_flt_g, double %val)\n  %dot = call ptr @strchr(ptr %buf, i32 46)\n  %has_dot = icmp ne ptr %dot, null\n  br i1 %has_dot, label %ret_buf, label %check_e\ncheck_e:\n  %ep_lower = call ptr @strchr(ptr %buf, i32 101)\n  %has_lower = icmp ne ptr %ep_lower, null\n  br i1 %has_lower, label %fix_sci, label %check_upper_e\ncheck_upper_e:\n  %ep_upper = call ptr @strchr(ptr %buf, i32 69)\n  %has_upper = icmp ne ptr %ep_upper, null\n  br i1 %has_upper, label %fix_sci_upper, label %ret_buf\nfix_sci_upper:\n  br label %fix_sci_common\nfix_sci:\n  br label %fix_sci_common\nfix_sci_common:\n  %ep = phi ptr [ %ep_lower, %fix_sci ], [ %ep_upper, %fix_sci_upper ]\n  %buf_int = ptrtoint ptr %buf to i64\n  %ep_int = ptrtoint ptr %ep to i64\n  %diff = sub i64 %ep_int, %buf_int\n  %prefix_len = trunc i64 %diff to i32\n  %temp = alloca [64 x i8], align 1\n  call i32 (ptr, i64, ptr, ...) @snprintf(ptr %temp, i64 64, ptr @.str.fmt_sci_fix, i32 %prefix_len, ptr %buf, ptr %ep)\n  call ptr @strncpy(ptr %buf, ptr %temp, i64 64)\n  ret ptr %buf\nret_buf:\n  ret ptr %buf\nret_empty:\n  ret ptr @.str.empty_arg\n}\n\n");
+        cartan_tree_push(self_ptr.output, "define void @cartan_c_sprintf_hex_byte(ptr %dest, double %b) {\nentry:\n  %is_null = icmp eq ptr %dest, null\n  br i1 %is_null, label %done, label %do_fmt\ndo_fmt:\n  %b_u32 = fptoui double %b to i32\n  call i32 (ptr, i64, ptr, ...) @snprintf(ptr %dest, i64 4, ptr @.str.fmt_hex_byte, i32 %b_u32)\n  br label %done\ndone:\n  ret void\n}\n\n");
+        cartan_tree_push(self_ptr.output, "define ptr @cartan_c_tree_create() {\nentry:\n  %tree = call ptr @malloc(i64 32)\n  store i32 212167239, ptr %tree, align 4\n  %ref_ptr = getelementptr inbounds i8, ptr %tree, i64 4\n  store i32 1, ptr %ref_ptr, align 4\n  %size_ptr = getelementptr inbounds i8, ptr %tree, i64 8\n  store i64 0, ptr %size_ptr, align 8\n  %cap_ptr = getelementptr inbounds i8, ptr %tree, i64 16\n  store i64 16, ptr %cap_ptr, align 8\n  %data = call ptr @malloc(i64 128)\n  %data_field = getelementptr inbounds i8, ptr %tree, i64 24\n  store ptr %data, ptr %data_field, align 8\n  ret ptr %tree\n}\n\n");
+        cartan_tree_push(self_ptr.output, "define double @cartan_c_tree_len_f(ptr %t) {\nentry:\n  %is_null = icmp eq ptr %t, null\n  br i1 %is_null, label %ret_zero, label %check_magic\ncheck_magic:\n  %magic = load i32, ptr %t, align 4\n  %is_tree = icmp eq i32 %magic, 212167239\n  br i1 %is_tree, label %load_len, label %ret_zero\nload_len:\n  %size_ptr = getelementptr inbounds i8, ptr %t, i64 8\n  %sz = load i64, ptr %size_ptr, align 8\n  %res = uitofp i64 %sz to double\n  ret double %res\nret_zero:\n  ret double 0.0\n}\n\n");
+        cartan_tree_push(self_ptr.output, "define void @cartan_c_tree_push(ptr %t, ptr %item) {\nentry:\n  %is_null = icmp eq ptr %t, null\n  br i1 %is_null, label %done, label %check_magic\ncheck_magic:\n  %magic = load i32, ptr %t, align 4\n  %is_tree = icmp eq i32 %magic, 212167239\n  br i1 %is_tree, label %check_cap, label %done\ncheck_cap:\n  %sz_ptr = getelementptr inbounds i8, ptr %t, i64 8\n  %sz = load i64, ptr %sz_ptr, align 8\n  %cap_ptr = getelementptr inbounds i8, ptr %t, i64 16\n  %cap = load i64, ptr %cap_ptr, align 8\n  %need_grow = icmp uge i64 %sz, %cap\n  br i1 %need_grow, label %grow, label %do_push\ngrow:\n  %new_cap = mul i64 %cap, 2\n  store i64 %new_cap, ptr %cap_ptr, align 8\n  %data_field_g = getelementptr inbounds i8, ptr %t, i64 24\n  %old_data = load ptr, ptr %data_field_g, align 8\n  %new_bytes = mul i64 %new_cap, 8\n  %new_data = call ptr @realloc(ptr %old_data, i64 %new_bytes)\n  store ptr %new_data, ptr %data_field_g, align 8\n  br label %do_push\ndo_push:\n  %data_field_p = getelementptr inbounds i8, ptr %t, i64 24\n  %cur_data = load ptr, ptr %data_field_p, align 8\n  %slot = getelementptr inbounds ptr, ptr %cur_data, i64 %sz\n  store ptr %item, ptr %slot, align 8\n  %new_sz = add i64 %sz, 1\n  store i64 %new_sz, ptr %sz_ptr, align 8\n  br label %done\ndone:\n  ret void\n}\n\n");
+        cartan_tree_push(self_ptr.output, "define ptr @cartan_c_tree_get(ptr %t, double %idx) {\nentry:\n  %is_null = icmp eq ptr %t, null\n  br i1 %is_null, label %ret_null, label %check_magic\nret_null:\n  ret ptr null\ncheck_magic:\n  %i64_idx = fptosi double %idx to i64\n  %magic = load i32, ptr %t, align 4\n  %is_tree = icmp eq i32 %magic, 212167239\n  br i1 %is_tree, label %tree_lookup, label %flat_lookup\ntree_lookup:\n  %size_ptr = getelementptr inbounds i8, ptr %t, i64 8\n  %size = load i64, ptr %size_ptr, align 8\n  %non_neg = icmp sge i64 %i64_idx, 0\n  %in_bounds = icmp slt i64 %i64_idx, %size\n  %valid = and i1 %non_neg, %in_bounds\n  br i1 %valid, label %tree_load, label %ret_null\ntree_load:\n  %data_ptr_ptr = getelementptr inbounds i8, ptr %t, i64 24\n  %data_ptr = load ptr, ptr %data_ptr_ptr, align 8\n  %data_is_null = icmp eq ptr %data_ptr, null\n  br i1 %data_is_null, label %ret_null, label %tree_do_load\ntree_do_load:\n  %slot = getelementptr inbounds ptr, ptr %data_ptr, i64 %i64_idx\n  %val = load ptr, ptr %slot, align 8\n  ret ptr %val\nflat_lookup:\n  %elem_slot = getelementptr inbounds i64, ptr %t, i64 %i64_idx\n  %raw_i = load i64, ptr %elem_slot, align 8\n  %is_zero_idx = icmp eq i64 %i64_idx, 0\n  br i1 %is_zero_idx, label %check_zero_disc, label %check_float_or_ptr\ncheck_zero_disc:\n  %is_raw0_zero = icmp eq i64 %raw_i, 0\n  br i1 %is_raw0_zero, label %ret_null, label %check_disc_range\ncheck_disc_range:\n  %d0 = bitcast i64 %raw_i to double\n  %ge_min = icmp uge i64 %raw_i, 4607182418800017408\n  %le_max = icmp ule i64 %raw_i, 4643176046757085184\n  %in_disc_range = and i1 %ge_min, %le_max\n  br i1 %in_disc_range, label %check_disc_int, label %check_float_or_ptr\ncheck_disc_int:\n  %d0_as_i64 = fptosi double %d0 to i64\n  %d0_recast = sitofp i64 %d0_as_i64 to double\n  %is_exact_int = fcmp oeq double %d0, %d0_recast\n  br i1 %is_exact_int, label %ret_disc_int, label %check_float_or_ptr\nret_disc_int:\n  %disc_ptr = inttoptr i64 %d0_as_i64 to ptr\n  ret ptr %disc_ptr\ncheck_float_or_ptr:\n  %shr = lshr i64 %raw_i, 48\n  %exp_i = and i64 %shr, 65535\n  %exp_ge = icmp uge i64 %exp_i, 16368\n  %exp_le = icmp ule i64 %exp_i, 17376\n  %is_dbl = and i1 %exp_ge, %exp_le\n  br i1 %is_dbl, label %ret_dbl_as_intptr, label %ret_raw_ptr\nret_dbl_as_intptr:\n  %dbl_val = bitcast i64 %raw_i to double\n  %dbl_to_i64 = fptoui double %dbl_val to i64\n  %res_ptr_from_dbl = inttoptr i64 %dbl_to_i64 to ptr\n  ret ptr %res_ptr_from_dbl\nret_raw_ptr:\n  %res_raw_ptr = inttoptr i64 %raw_i to ptr\n  ret ptr %res_raw_ptr\n}\n\n");
+        cartan_tree_push(self_ptr.output, "define void @cartan_c_tree_set(ptr %t, double %idx, ptr %val) {\nentry:\n  %is_null = icmp eq ptr %t, null\n  br i1 %is_null, label %done, label %check_magic\ncheck_magic:\n  %magic = load i32, ptr %t, align 4\n  %is_tree = icmp eq i32 %magic, 212167239\n  br i1 %is_tree, label %check_cap, label %done\ncheck_cap:\n  %i = fptoui double %idx to i64\n  %cap_ptr = getelementptr inbounds i8, ptr %t, i64 16\n  %cap = load i64, ptr %cap_ptr, align 8\n  %need_grow = icmp uge i64 %i, %cap\n  br i1 %need_grow, label %grow, label %store_elem\ngrow:\n  %i_plus_1 = add i64 %i, 1\n  %new_cap = mul i64 %i_plus_1, 2\n  store i64 %new_cap, ptr %cap_ptr, align 8\n  %data_field_g = getelementptr inbounds i8, ptr %t, i64 24\n  %old_data = load ptr, ptr %data_field_g, align 8\n  %new_bytes = mul i64 %new_cap, 8\n  %new_data = call ptr @realloc(ptr %old_data, i64 %new_bytes)\n  store ptr %new_data, ptr %data_field_g, align 8\n  br label %store_elem\nstore_elem:\n  %data_field_s = getelementptr inbounds i8, ptr %t, i64 24\n  %cur_data = load ptr, ptr %data_field_s, align 8\n  %slot = getelementptr inbounds ptr, ptr %cur_data, i64 %i\n  store ptr %val, ptr %slot, align 8\n  %sz_ptr = getelementptr inbounds i8, ptr %t, i64 8\n  %sz = load i64, ptr %sz_ptr, align 8\n  %i_plus_1_sz = add i64 %i, 1\n  %need_sz_up = icmp uge i64 %i, %sz\n  br i1 %need_sz_up, label %update_sz, label %done\nupdate_sz:\n  store i64 %i_plus_1_sz, ptr %sz_ptr, align 8\n  br label %done\ndone:\n  ret void\n}\n\n");
+        cartan_tree_push(self_ptr.output, "define void @cartan_c_tree_remove(ptr %t, double %idx) {\nentry:\n  %is_null = icmp eq ptr %t, null\n  br i1 %is_null, label %done, label %check_magic\ncheck_magic:\n  %magic = load i32, ptr %t, align 4\n  %is_tree = icmp eq i32 %magic, 212167239\n  br i1 %is_tree, label %check_bounds, label %done\ncheck_bounds:\n  %i = fptoui double %idx to i64\n  %sz_ptr = getelementptr inbounds i8, ptr %t, i64 8\n  %sz = load i64, ptr %sz_ptr, align 8\n  %out_of_bounds = icmp uge i64 %i, %sz\n  br i1 %out_of_bounds, label %done, label %shift_loop_init\nshift_loop_init:\n  %data_field = getelementptr inbounds i8, ptr %t, i64 24\n  %data = load ptr, ptr %data_field, align 8\n  %sz_minus_1 = sub i64 %sz, 1\n  br label %shift_loop_cond\nshift_loop_cond:\n  %j = phi i64 [ %i, %shift_loop_init ], [ %j_next, %shift_loop_body ]\n  %cmp = icmp ult i64 %j, %sz_minus_1\n  br i1 %cmp, label %shift_loop_body, label %shift_loop_done\nshift_loop_body:\n  %j_plus_1 = add i64 %j, 1\n  %src_slot = getelementptr inbounds ptr, ptr %data, i64 %j_plus_1\n  %val_to_move = load ptr, ptr %src_slot, align 8\n  %dst_slot = getelementptr inbounds ptr, ptr %data, i64 %j\n  store ptr %val_to_move, ptr %dst_slot, align 8\n  %j_next = add i64 %j, 1\n  br label %shift_loop_cond\nshift_loop_done:\n  store i64 %sz_minus_1, ptr %sz_ptr, align 8\n  br label %done\ndone:\n  ret void\n}\n\n");
         
         let has_main = 0.0;
         var main_params_count = 0.0;
@@ -981,7 +1052,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                     let pat_val = cartan_tree_get_f32(arm, 1.0);
                     let body = cartan_tree_get_f32(arm, 2.0);
                     let arm_label = next_label(self_ptr, "match_arm_");
-                    let next_label = next_label(self_ptr, "match_next_");
+                    let next_arm_label = next_label(self_ptr, "match_next_");
                     
                     if (pat_val != 0.0) {
                         let pat_reg = llvm_visit_expr(self_ptr, pat_val);
@@ -1006,7 +1077,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                               } else {
                                   cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", cond_bool), " = icmp eq float "), cmp_res), ", 0\n"));
                               }
-                              cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  br i1 ", cond_bool), ", label %"), arm_label), ", label %"), next_label), "\n"));
+                              cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  br i1 ", cond_bool), ", label %"), arm_label), ", label %"), next_arm_label), "\n"));
                           } else {
                               // Float comparison
                               var cond_f = "";
@@ -1033,7 +1104,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                               
                               let cond_bool = next_reg(self_ptr);
                               cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", cond_bool), " = fcmp oeq float "), cond_f), ", "), pat_f), "\n"));
-                              cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  br i1 ", cond_bool), ", label %"), arm_label), ", label %"), next_label), "\n"));
+                              cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  br i1 ", cond_bool), ", label %"), arm_label), ", label %"), next_arm_label), "\n"));
                           }
                     } else {
                         // Wildcard fallback
@@ -1044,7 +1115,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                     llvm_visit_stmt(self_ptr, body);
                     cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat("  br label %", end_label), "\n"));
                     
-                    cartan_tree_push(self_ptr.output, cartan_string_concat(next_label, ":\n"));
+                    cartan_tree_push(self_ptr.output, cartan_string_concat(next_arm_label, ":\n"));
                 }
                 
                 cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat("  br label %", end_label), "\n"));
@@ -2667,6 +2738,18 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 return res_reg;
             }
 
+            // Support indirect calls when callee is a local function pointer variable or parameter
+            var is_declared_fn = cartan_dict_get(self_ptr.func_return_types, name);
+            let local_sym = cartan_dict_get(self_ptr.symbols, name);
+            var callee_target = cartan_string_concat("@", name);
+            if (is_declared_fn == 0.0 && local_sym != 0.0) {
+                if (cartan_string_starts_with(local_sym, "%") != 0.0) {
+                    let fn_reg = next_reg(self_ptr);
+                    cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", fn_reg), " = load ptr, ptr "), local_sym), ", align 8\n"));
+                    callee_target = fn_reg;
+                }
+            }
+
             let res_reg = next_reg(self_ptr);
             let p1 = cartan_string_concat("  ", res_reg);
 
@@ -2686,7 +2769,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
             }
 
             if (is_ptr_ret != 0.0) {
-                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(p1, " = call ptr @"), name), "("), arg_str), ")\n"));
+                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(p1, " = call ptr "), callee_target), "("), arg_str), ")\n"));
                 if (ret_type != 0.0) {
                     if (cartan_string_eq(ret_type, "string") != 0.0) {
                         return cartan_string_concat("string:", res_reg);
@@ -2698,7 +2781,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 }
                 return cartan_string_concat("ptr:", res_reg);
             } else if (cartan_string_eq(ret_type_str, "void") != 0.0) {
-                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  call void @", name), "("), arg_str), ")\n"));
+                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  call void ", callee_target), "("), arg_str), ")\n"));
                 return "0.0";
             } else if (cartan_string_eq(name, "strlen") != 0.0 || cartan_string_eq(name, "ftell") != 0.0 || cartan_string_eq(name, "fread") != 0.0 || cartan_string_eq(name, "fwrite") != 0.0) {
                 let call_prefix = cartan_string_concat("  ", cartan_string_concat(res_reg, cartan_string_concat(" = call i64 @", cartan_string_concat(name, "("))));
@@ -2715,7 +2798,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", flt_reg), " = sitofp i32 "), res_reg), " to double\n"));
                 return flt_reg;
             } else {
-                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(p1, " = call double @"), name), "("), arg_str), ")\n"));
+                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(p1, " = call double "), callee_target), "("), arg_str), ")\n"));
                 return res_reg;
             }
         }

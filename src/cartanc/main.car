@@ -387,11 +387,6 @@ fn main() -> float {
                 output_file = sys_get_arg(4.0);
             }
         }
-        
-        // Auto-sync c_runtime.c to ~/.cartan/c_runtime.c [BACKLOG-SYNC-01]
-        let user_profile = cartan_get_env("USERPROFILE");
-        let target_sync_path = cartan_string_concat(user_profile, "\\.cartan\\c_runtime.c");
-        cartan_copy_file("src/cartanc/c_runtime.c", target_sync_path);
 
         let source = cartan_read_file(input_file);
         let length = cartan_string_length(source);
@@ -452,9 +447,12 @@ fn main() -> float {
 
         printf("Compiling LLVM IR to native executable via Zig (-O3 LTO Vectorized Pass Pipeline)...\n");
         let zig_cmd = cartan_string_concat("python tools/zig_wrapper.py ", out_ll);
-        let cmd = cartan_string_concat(zig_cmd, " src/cartanc/c_runtime.c -o ");
-        cmd = cartan_string_concat(cmd, output_file);
-        system(cmd);
+        let cmd = cartan_string_concat(cartan_string_concat(zig_cmd, " -o "), output_file);
+        let compile_res = system(cmd);
+        if (compile_res != 0.0) {
+            printf("Error: native compiler failed with status %f\n", compile_res);
+            return 1.0;
+        }
 
         printf("Successfully built native optimized executable: ");
         printf(output_file);

@@ -354,8 +354,38 @@ This file tracks technical debt and bugs identified during repository code revie
 - **Severity**: High (Standard Library Syntax Error)
 - **Component**: `src/std/es_opt.cl`, `src/std/evolution.cl`, `test/compiler_suite/test_evolution_master.car`
 - **Description**: `src/std/es_opt.cl` contained C-style type casts and types (`(int)`, `(float)`, `(size_t)`, `NULL`), causing parser syntax errors.
-- **Status**: Fixed in Sprint 285. Rewrote `es_opt.cl` in pure idiomatic CARTAN, added missing `azr_evaluate_binary_reward` bridge in `src/std/evolution.cl`, and verified passing execution in `test_evolution_master.car`.
+---
 
+## [ISSUE-025] [FIXED] 100% C Runtime Elimination & Pure LLVM IR Runtime Emission
 
+- **Severity**: Critical (Compiler Architecture & Freestanding Self-Hosting)
+- **Component**: `src/cartanc/c_runtime.c`, `src/cartanc/llvm_codegen.car`, `src/cartanc/core_runtime.car`, `src/cartanc/main.car`, `tools/zig_wrapper.py`
+- **Description**: The compiler previously linked `src/cartanc/c_runtime.c` into every native binary via `main.car:455`, keeping 13 C functions active (`cartan_c_tree_*`, `c_cartan_string_char_at`, `cartan_c_memcpy`, `cartan_c_strncmp`, `cartan_c_ptr_add`, `cartan_c_int_to_string`, `cartan_c_float_to_string`, `cartan_c_sprintf_hex_byte`).
+- **Status**: Fixed in Sprint 287. All 13 runtime functions emitted directly as pure, optimized LLVM IR inside `src/cartanc/llvm_codegen.car`. Severed `c_runtime.c` from the linker command line in `main.car` and `core_runtime.car`, renamed `src/cartanc/c_runtime.c` to `src/cartanc/c_runtime.c.deprecated`, and re-bootstrapped the compiler to bit-for-bit 3-stage fixed-point parity (`cartanc_stage2.ll` == `cartanc_stage3.ll`) with zero C source files linked. All 47 compiler snapshot tests passing cleanly.
 
+---
 
+## [ISSUE-026] [FIXED] AST Function Return Type Normalization and Compiler Stack Limit
+
+- **Severity**: High (Codegen Robustness & Linker Configuration)
+- **Component**: `src/cartanc/llvm_codegen.car`, `tools/zig_wrapper.py`
+- **Description**: Primitive integer and boolean return types (e.g. `i32`, `i64`, `bool`) declared in `extern fn` signatures were previously converted to struct identifiers (`%i32`) by `llvm_codegen.car`, causing C-ABI functions like `strcmp` and `system` to emit mismatched pointer calls. Additionally, recursive descent parsing of 28,000+ tokens in large compiler files overflowed the default 1MB Windows stack.
+- **Status**: Fixed in Sprint 287. Normalized primitive return types (`void`, `float`, `int`, `i32`, `i64`, `bool`, `double`) in AST Pass 1 to prevent false struct type tagging, and added `-Wl,/STACK:67108864` (64MB) to the native linking pipeline in `tools/zig_wrapper.py`. Tested and verified across all compiler stages.
+
+---
+
+## [ISSUE-027] [FIXED] Indirect Function Pointer Calls & Variable Shadowing in LLVM Codegen
+
+- **Severity**: Critical (Language Feature & Compiler Correctness)
+- **Component**: `src/cartanc/llvm_codegen.car` -> `llvm_visit_expr` (CallExpr), `llvm_visit_stmt` (MatchStmt)
+- **Description**: Calling function pointer variables or parameters (e.g. `func(x)` in `src/std/calculus.cl`) unconditionally emitted global symbol calls `@func`, triggering Clang undefined symbol errors. Furthermore, a local variable in `MatchStmt` named `next_label` shadowed the global `next_label` function, polluting `symbols` and causing dom-tree verification errors (`Instruction does not dominate all uses`).
+- **Status**: Fixed in Sprint 288. Implemented indirect function call codegen by checking if the callee name is not a declared function; if it is a local pointer in `symbols`, loads the function pointer (`load ptr, ptr %...`) and calls through the register. Renamed shadowed label to `next_arm_label`. Re-bootstrapped compiler to bit-for-bit parity (`stage2.ll` == `stage3.ll`).
+
+---
+
+## [ISSUE-028] [FIXED] GeoMind Standalone AI Runtime Decoupling & Linker Diagnostics
+
+- **Severity**: High (Model Toolchain & Linker Diagnostics)
+- **Component**: `src/cartanc/geomind_runtime.c`, `tools/zig_wrapper.py`, `src/cartanc/main.car`
+- **Description**: Following 100% C runtime elimination in Sprint 287, `geomind` test models failed to link due to missing AI extensions (Safetensors, WebGPU/OpenCL, Hugging Face downloader, sockets). `geomind_runtime.c` was missing its own C standard library headers, and `main.car` ignored `system(cmd)` exit codes, masking linker errors.
+- **Status**: Fixed in Sprint 288. Made `geomind_runtime.c` self-contained with standard headers, OpenCL definitions, and runtime helpers. Configured `tools/zig_wrapper.py` to automatically link `geomind_runtime.c` when compiling `geomind` targets while keeping `cartanc.exe` 100% zero-C. Added strict return code validation in `main.car`. Successfully compiled and verified native `geomind.exe --help` with exit code 0.

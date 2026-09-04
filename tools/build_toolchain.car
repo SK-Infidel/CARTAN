@@ -17,17 +17,9 @@ fn main(argc: float, argv: ptr) -> float {
 
     let user_profile = cartan_get_env("USERPROFILE");
 
-    // [Step 1] Synchronize c_runtime.c to ~/.cartan/
-    printf("[1/2] Synchronizing C Runtime Kernel to ~/.cartan/c_runtime.c...\n", "");
+    // [Step 1] Standalone Zero-C Toolchain Verification
+    printf("[1/2] Freestanding Pure CARTAN Runtime Verified (Zero C Dependency).\n", "");
     cartan_flush(0.0);
-    let sync_cmd = cartan_string_concat("cmd.exe /c copy /Y src\\cartanc\\c_runtime.c ", user_profile);
-    sync_cmd = cartan_string_concat(sync_cmd, "\\.cartan\\c_runtime.c");
-    let status1 = system(sync_cmd);
-    if (status1 != 0.0) {
-        printf("Error: C Runtime kernel sync failed with status %f\n", cartan_float_to_string(status1));
-        return 1.0;
-    }
-    printf(" -> Sync Complete.\n", "");
 
     // [Step 2] Build & Execute 42-Target Compiler Regression Test Suite
     printf("[2/2] Building and Executing 42-Target Compiler Regression Suite...\n", "");

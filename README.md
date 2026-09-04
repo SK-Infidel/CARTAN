@@ -34,7 +34,7 @@ By bringing Riemannian geometry, automatic differentiation, and zero-copy memory
 Cartan compiles via a 100% self-hosted systems pipeline:
 1. **Self-Hosted Compiler (`cartanc`)**: Written entirely in native CARTAN (`src/cartanc/`), comprising a modular Lexer (`lexer.car`), Parser (`parser.car`), Semantic Type Checker (`type_checker.car`), AST Optimizer (`optimizer.car`), and LLVM IR Generator (`llvm_codegen.car`).
 2. **Pure CARTAN Runtime & Standard Library (`src/cartanc/core_runtime.car`, `src/std/`)**: Canonical runtime operations, async task dispatch, tensor calculus, and neural architectures written natively in CARTAN.
-3. **Bare-Metal Hardware Runtime**: Decoupled C hardware kernel (`src/cartanc/c_runtime.c`) providing zero-allocation arena allocators, continuous Hopfield memory banks, and WebGPU compute shaders (`gpu_runtime/`).
+3. **Pure Freestanding Hardware Runtime**: Pure LLVM IR emitted runtime (100% decoupled from C source files) providing zero-allocation dynamic trees, continuous Hopfield memory banks, and WebGPU compute shaders (`gpu_runtime/`).
 
 ## Quick Start
 
