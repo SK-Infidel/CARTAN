@@ -654,9 +654,12 @@ CARTAN_WEAK void* e8_attention_forward_step(void* hidden_ptr, double temp);
 CARTAN_WEAK double cartan_hopfield_clear(void);
 CARTAN_WEAK double cartan_hopfield_attractor_count(void);
 CARTAN_WEAK double cartan_hopfield_store_vector(const float* vec, size_t dim);
+CARTAN_WEAK double cartan_hopfield_store_hidden(void* hidden_ptr);
 CARTAN_WEAK double cartan_hopfield_ingest(const char* filepath);
 CARTAN_WEAK double cartan_hopfield_relax(void* hidden_ptr, double beta, double steps);
 CARTAN_WEAK double cartan_hopfield_energy(void* hidden_ptr);
+CARTAN_WEAK double cartan_hopfield_save_basins(const char* filepath);
+CARTAN_WEAK double cartan_hopfield_load_basins(const char* filepath);
 
 // --- WordNet Information Content (IC) & Semantic Taxonomy Structures ---
 static float* g_wordnet_ic = NULL;
@@ -2870,7 +2873,7 @@ CARTAN_WEAK double e8_attention_compute_energy(void* hidden_ptr) {
     return energy > 0.0 ? energy : 0.0006;
 }
 
-#define CARTAN_MAX_HOPFIELD_BASINS 128
+#define CARTAN_MAX_HOPFIELD_BASINS 2048
 #define CARTAN_HOPFIELD_DIM 2560
 
 static float g_hopfield_basins[CARTAN_MAX_HOPFIELD_BASINS][CARTAN_HOPFIELD_DIM];
@@ -2904,6 +2907,21 @@ CARTAN_WEAK double cartan_hopfield_store_vector(const float* vec, size_t dim) {
     }
     g_hopfield_basin_count++;
     return (double)g_hopfield_basin_count;
+}
+
+CARTAN_WEAK double cartan_hopfield_store_hidden(void* hidden_ptr) {
+    if (!hidden_ptr) return 0.0;
+    CartanVector* h_vec = (CartanVector*)hidden_ptr;
+    if (h_vec->size == 0) return 0.0;
+    size_t dim = h_vec->size < CARTAN_HOPFIELD_DIM ? h_vec->size : CARTAN_HOPFIELD_DIM;
+    float buf[CARTAN_HOPFIELD_DIM];
+    for (size_t d = 0; d < dim; d++) {
+        buf[d] = (float)h_vec->data[d];
+    }
+    for (size_t d = dim; d < CARTAN_HOPFIELD_DIM; d++) {
+        buf[d] = 0.0f;
+    }
+    return cartan_hopfield_store_vector(buf, CARTAN_HOPFIELD_DIM);
 }
 
 CARTAN_WEAK double cartan_hopfield_ingest(const char* filepath) {
@@ -3030,6 +3048,48 @@ CARTAN_WEAK double cartan_hopfield_energy(void* hidden_ptr) {
     }
     float energy = -(dot_max + logf(sum_exp > 1e-6f ? sum_exp : 1e-6f)) + 0.5f * norm_sq / (float)dim;
     return (double)energy;
+}
+
+CARTAN_WEAK double cartan_hopfield_save_basins(const char* filepath) {
+    if (!filepath) return 0.0;
+    FILE* f = fopen(filepath, "wb");
+    if (!f) return 0.0;
+    float header[2];
+    header[0] = (float)g_hopfield_basin_count;
+    header[1] = (float)CARTAN_HOPFIELD_DIM;
+    if (fwrite(header, sizeof(float), 2, f) != 2) {
+        fclose(f);
+        return 0.0;
+    }
+    if (g_hopfield_basin_count > 0) {
+        fwrite(g_hopfield_basins, sizeof(float), g_hopfield_basin_count * CARTAN_HOPFIELD_DIM, f);
+    }
+    fclose(f);
+    return (double)g_hopfield_basin_count;
+}
+
+CARTAN_WEAK double cartan_hopfield_load_basins(const char* filepath) {
+    if (!filepath) return 0.0;
+    FILE* f = fopen(filepath, "rb");
+    if (!f) return 0.0;
+    float header[2];
+    if (fread(header, sizeof(float), 2, f) != 2) {
+        fclose(f);
+        return 0.0;
+    }
+    size_t count = (size_t)header[0];
+    size_t dim = (size_t)header[1];
+    if (dim != CARTAN_HOPFIELD_DIM || count == 0) {
+        fclose(f);
+        return 0.0;
+    }
+    if (count > CARTAN_MAX_HOPFIELD_BASINS) {
+        count = CARTAN_MAX_HOPFIELD_BASINS;
+    }
+    size_t read_floats = fread(g_hopfield_basins, sizeof(float), count * CARTAN_HOPFIELD_DIM, f);
+    g_hopfield_basin_count = read_floats / CARTAN_HOPFIELD_DIM;
+    fclose(f);
+    return (double)g_hopfield_basin_count;
 }
 
 

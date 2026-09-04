@@ -28,6 +28,8 @@ extern fn cartan_hopfield_ingest(path: string) -> float;
 extern fn cartan_hopfield_attractor_count() -> float;
 extern fn cartan_hopfield_relax(h: ptr, beta: float, steps: float) -> float;
 extern fn cartan_hopfield_energy(h: ptr) -> float;
+extern fn cartan_hopfield_save_basins(path: string) -> float;
+extern fn cartan_hopfield_load_basins(path: string) -> float;
 
 
 fn print_help_dialogue() -> float {
@@ -215,8 +217,10 @@ fn main() -> float {
             if (cartan_file_exists(target_path) == 1.0) {
                 let attractors = cartan_hopfield_ingest(target_path);
                 let total_count = cartan_hopfield_attractor_count();
+                let basins_path = "test/geomind/trainingdata/hopfield_basins.bin";
+                cartan_hopfield_save_basins(basins_path);
                 printf("[GeoMind Hopfield Ingestion] Stored %s new attractor basins into Continuous Hopfield Resonator memory.\n", cartan_float_to_string(attractors));
-                printf("[GeoMind Hopfield Ingestion] Total Active Hopfield Basins: %s. Zero backprop / Zero epoch learning complete.\n", cartan_float_to_string(total_count));
+                printf("[GeoMind Hopfield Ingestion] Total Active Hopfield Basins: %s. Saved to %s. Zero backprop / Zero epoch learning complete.\n", cartan_float_to_string(total_count), basins_path);
             } else {
                 printf("[GeoMind Hopfield Ingestion] File not found: %s\n", target_path);
             }

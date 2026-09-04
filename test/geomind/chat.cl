@@ -31,6 +31,16 @@ extern fn cartan_tensor_update_autoregressive_state(h: ptr, tok: float) -> float
 extern fn e8_attention_forward_step(h: ptr, temp: float) -> ptr;
 extern fn e8_attention_compute_energy(h: ptr) -> float;
 
+extern fn cartan_hopfield_clear() -> float;
+extern fn cartan_hopfield_attractor_count() -> float;
+extern fn cartan_hopfield_store_vector(vec: ptr, dim: float) -> float;
+extern fn cartan_hopfield_store_hidden(h: ptr) -> float;
+extern fn cartan_hopfield_ingest(path: string) -> float;
+extern fn cartan_hopfield_relax(h: ptr, beta: float, steps: float) -> float;
+extern fn cartan_hopfield_energy(h: ptr) -> float;
+extern fn cartan_hopfield_save_basins(path: string) -> float;
+extern fn cartan_hopfield_load_basins(path: string) -> float;
+
 fn geomind_chat_start() -> float {
     printf("================================================================================\n");
     printf("  GEOMIND GOOGLE GEMMA-4 E4B E8 CHAT ENGINE (chat.car)\n");
@@ -46,6 +56,15 @@ fn geomind_chat_start() -> float {
     printf("[GeoMind Chat] Google Gemma safetensors checkpoint active: ");
     cartan_print_string(weight_path);
     printf("\n");
+
+    let basins_path = "test/geomind/trainingdata/hopfield_basins.bin";
+    if (cartan_file_exists(basins_path) == 1.0) {
+        let loaded_count = cartan_hopfield_load_basins(basins_path);
+        printf("[GeoMind Chat] Continuous Hopfield Memory: %s active basins loaded from %s\n",
+            cartan_float_to_string(loaded_count), basins_path);
+    } else {
+        printf("[GeoMind Chat] Continuous Hopfield Memory: Initialized empty attractor bank.\n");
+    }
     cartan_flush(0.0);
     return 0.0;
 }
@@ -77,9 +96,12 @@ fn geomind_chat_generate_reply(prompt: string, max_tokens: float, temp: float) -
     // 1. Compute genuine prompt hidden state by averaging Safetensors embedding matrix rows
     let hidden_state = cartan_tensor_compute_hidden_state_from_tokens(prompt_tokens);
 
-    // 2. Relax hidden state through Continuous Hopfield Attractor Basin E(h)
+    // 2. Relax hidden state through Continuous Hopfield Attractor Basin Memory (O(1) Associative Recall)
+    if (cartan_hopfield_attractor_count() > 0.0) {
+        cartan_hopfield_relax(hidden_state, 1.0, 2.0);
+    }
     let relaxed_h = e8_attention_forward_step(hidden_state, temp);
-    let hopfield_energy = e8_attention_compute_energy(relaxed_h);
+    let hopfield_energy = cartan_hopfield_energy(relaxed_h);
 
     printf("[GeoMind Chat] GeoMind Neural Output:\n");
     cartan_flush(0.0);
@@ -99,6 +121,10 @@ fn geomind_chat_generate_reply(prompt: string, max_tokens: float, temp: float) -
     }
 
     printf(" [Hopfield Energy Minimum: %s]\n", cartan_float_to_string(hopfield_energy));
+
+    // 3. O(1) One-Shot Attractor Basin Insertion: Ingest conversational context into persistent memory
+    cartan_hopfield_store_hidden(hidden_state);
+    cartan_hopfield_save_basins("test/geomind/trainingdata/hopfield_basins.bin");
     cartan_flush(0.0);
 
     return 1.0;
@@ -108,7 +134,7 @@ fn geomind_chat_generate_reasoning_pass(prompt: string, temp: float) -> float {
     let prompt_toks = cartan_hub_encode_text_to_tokens(prompt);
     let plen = cartan_vec_len(prompt_toks);
     let h_vec = cartan_tensor_compute_hidden_state_from_tokens(prompt_toks);
-    let energy = e8_attention_compute_energy(h_vec);
+    let energy = cartan_hopfield_energy(h_vec);
     let concept_ic = semantics_get_concept_ic(prompt);
     let entity_node = "entity.physical_entity.object";
     let lca_dist = semantics_lca_tree_distance(prompt, entity_node);

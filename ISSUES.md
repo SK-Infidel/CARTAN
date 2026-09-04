@@ -518,3 +518,17 @@ This file tracks technical debt and bugs identified during repository code revie
 - **Description**: `geomind_log_step` accepted 5 telemetry metrics (`step`, `total_steps`, `loss`, `tokens_per_sec`, `phase_coherence`) and ignored all 5, printing a static string.
 - **Status**: Fixed in Sprint 298. Implemented authentic telemetry metric formatting in `test/geomind/logger.cl` via `geomind_format_metrics`, serializing `step`, `total_steps`, `loss`, `tokens_per_sec`, and `phase_coherence` into formatted strings and logging to both standard output and persistent training logs (`scratch/training.log`). Added full static assertion coverage in Target 50 (`test_net_and_logger.car`). All 50 compiler suite tests passing 100%.
 
+---
+
+## [ISSUE-049] [FIXED] Continuous Hopfield Episodic Memory Buffer Persistence & Inference Integration Gap
+- **Severity**: High (Architectural Gap & Memory Volatility)
+- **Component**: `src/cartanc/geomind_runtime.c`, `test/geomind/chat.cl`, `test/geomind/main.car`, `src/std/resonator.cl`
+- **Description**:
+  1. In `src/cartanc/geomind_runtime.c`: `cartan_hopfield_save_basins` and `cartan_hopfield_load_basins` were missing. `g_hopfield_basins` capacity was artificially limited to 128 attractors.
+  2. In `test/geomind/main.car`: `--ingest` read text and created attractor basins in RAM, but never serialized them to disk (`hopfield_basins.bin`), causing ingested knowledge to be discarded when the process exited.
+  3. In `test/geomind/chat.cl`: `geomind_chat_start` did not load persistent basins. `geomind_chat_generate_reply` bypassed `cartan_hopfield_relax` and evaluated dummy/flat $L_2$ norm energy via `e8_attention_compute_energy` instead of `cartan_hopfield_energy`. In conversational inference, user prompts and generated responses were not stored into persistent Hopfield basins for $\mathcal{O}(1)$ one-shot learning.
+  4. In `src/std/resonator.cl`: `resonator_save_basins` and `resonator_load_basins` assumed 4-byte indexing instead of CARTAN's 64-bit double (8-byte) pointer indexing, causing header reads to corrupt.
+- **Status**: Fixed in Sprint 299. Implemented `cartan_hopfield_save_basins`, `cartan_hopfield_load_basins`, and `cartan_hopfield_store_hidden` in `geomind_runtime.c`, expanding attractor capacity to 2048. Connected persistent binary basin serialization (`test/geomind/trainingdata/hopfield_basins.bin`) to `--ingest` in `test/geomind/main.car`. Integrated basin loading into `geomind_chat_start`, continuous Hopfield hidden state relaxation and Demircigil-Krotov-Hopfield log-sum-exp energy computation into `geomind_chat_generate_reply` and `geomind_chat_generate_reasoning_pass`, and connected $\mathcal{O}(1)$ one-shot attractor insertion (`cartan_hopfield_store_hidden`) to conversation inference. Fixed 8-byte pointer buffer serialization in `src/std/resonator.cl`. Added Target 51 (`test_hopfield_buffer.car`) to compiler test suite with 100% pass across all 51 test targets.
+
+
+

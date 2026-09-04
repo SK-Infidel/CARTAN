@@ -172,7 +172,7 @@ This roadmap tracks the implementation of the advanced AI optimizations and nati
 - [x] **Model Checkpoint Exporter**: Implemented grokked checkpoint binary export to `test/geomind/geomind_ce_pretrained_weights.bin`.
 
 ## Phase 59: Biological Inference Learning & Multimodal Attractor Integration (Roadmap Active)
-- [ ] **1. Continuous Hopfield Episodic Memory Buffer**: Connect persistent associative memory matrix in VRAM to `--ingest` and conversational inference, replacing backprop with $\mathcal{O}(1)$ one-shot attractor basin insertion.
+- [x] **1. Continuous Hopfield Episodic Memory Buffer**: Connect persistent associative memory matrix in VRAM to `--ingest` and conversational inference, replacing backprop with $\mathcal{O}(1)$ one-shot attractor basin insertion. (Completed in Sprint 299).
 - [ ] **2. 8 Lie Subgroup Cortical Streams Integration**: Wire `streams.cl` (`SpectralStream`, `EikonalStream`, `PoincareStream`, `SSMStream`, etc.) directly into the 42-layer manifold forward pass.
 - [ ] **3. Three-Factor Hebbian Plasticity**: Implement local neuromodulated synaptic update operator ($\Delta W = \eta \cdot \text{Pre} \cdot \text{Post} \cdot M$) for learning by reading/observing/listening directly during inference.
 - [ ] **4. Multimodal Cross-Modal Grounding**: Connect SigLIP vision patch projections to `EikonalStream` and audio spectrogram features to `SpectralStream`, mapping sight, sound, and text into shared $E_8$ coordinates.
@@ -192,6 +192,14 @@ This roadmap tracks the implementation of the advanced AI optimizations and nati
 - [x] **Targeted Linker Driver Pipeline (`tools/zig_wrapper.py`)**: Automatic linking of `geomind_runtime.c` for GeoMind targets while keeping `cartanc.exe` 100% zero-C.
 - [x] **Native Linker Diagnostics (`src/cartanc/main.car`)**: Strict error status propagation from clang/zig compilation.
 - [x] **Bit-for-Bit Self-Hosting Parity & Full Test Suite**: Re-bootstrapped compiler to 3-stage parity and verified `geomind.exe --help` (exit 0) and 47/47 regression suite tests.
+
+## Phase 62: Staged Language Acquisition & Attention-Trigger Cloze Architecture (`docs/Research/Idea.txt`)
+- [ ] **1. High-Frequency Noun-Noun Bigrams Taxonomy**: Ingest and register the 100 most statistically common noun-noun pairs (`Health care`, `Cell phone`, `Data base`, `Ice cream`, etc.) as prioritized lexical units.
+- [ ] **2. Binomial Non-Reversible Structural Pairs**: Integrate non-reversible grammatical pairs across Noun+Noun (`Law and order`, `Bread and butter`), Adj+Adj (`Black and white`, `Safe and sound`), Verb+Verb (`Give and take`, `Live and learn`), and Adverbial (`Back and forth`, `Up and down`).
+- [ ] **3. Functional Discourse Markers & Social Rituals**: Ingest the 100 most common short conversational triggers (`In other words`, `By the way`, `At the end of the day`, `Long story short`, `On the other hand`).
+- [ ] **4. Narrative Progression & Structural Transition Bridges**: Ingest the 100 narrative transition bridges (`As previously mentioned`, `In contrast to`, `Consequently`, `More specifically`, `All things considered`).
+- [ ] **5. Full-Scale Anchored Cloze Curriculum Engine (`--train-cloze`)**: Upgrade `test/geomind/cloze_engine.cl` to stream through the 240,000+ mined cloze pairs (`mined_expanded_corpus_cloze_part01..06.jsonl`), driving bridge transition loss to near-zero before prose pre-training.
+
 
 
 

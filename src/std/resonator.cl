@@ -264,13 +264,13 @@ fn resonator_save_basins(bank: ptr, path: string, dim: float) -> float {
     let f = fopen(path, "wb");
     if (f == 0.0) { return 0.0; }
 
-    let header = malloc(8.0);
+    let header = malloc(16.0);
     header[0] = num_basins;
     header[1] = dim;
-    fwrite(header, 4.0, 2.0, f);
+    fwrite(header, 8.0, 2.0, f);
     free(header);
 
-    let v_buf = malloc(dim * 4.0);
+    let v_buf = malloc(dim * 8.0);
     var k = 0.0;
     while (k < num_basins) {
         let basin = cartan_tree_get(bank, k);
@@ -280,7 +280,7 @@ fn resonator_save_basins(bank: ptr, path: string, dim: float) -> float {
             v_buf[d] = v;
             d = d + 1.0;
         }
-        fwrite(v_buf, 4.0, dim, f);
+        fwrite(v_buf, 8.0, dim, f);
         k = k + 1.0;
     }
     free(v_buf);
@@ -292,8 +292,8 @@ fn resonator_load_basins(path: string, dim: float) -> ptr {
     let f = fopen(path, "rb");
     if (f == 0.0) { return 0.0; }
 
-    let header = malloc(8.0);
-    let read_hdr = fread(header, 4.0, 2.0, f);
+    let header = malloc(16.0);
+    let read_hdr = fread(header, 8.0, 2.0, f);
     if (read_hdr < 2.0) {
         free(header);
         fclose(f);
@@ -309,10 +309,10 @@ fn resonator_load_basins(path: string, dim: float) -> ptr {
     }
 
     let bank = cartan_tree_create();
-    let v_buf = malloc(dim * 4.0);
+    let v_buf = malloc(dim * 8.0);
     var k = 0.0;
     while (k < num_basins) {
-        let n_read = fread(v_buf, 4.0, dim, f);
+        let n_read = fread(v_buf, 8.0, dim, f);
         if (n_read < dim) { break; }
         let basin = cartan_vec_create();
         var d = 0.0;
