@@ -301,13 +301,19 @@ fn main(argc: float, argv: ptr) -> float {
     cartan_flush(0.0);
     system(t48_cmd);
 
-    // [49/49] Positive test: test_inductive_biases
+    // [49/50] Positive test: test_inductive_biases
     let t49_cmd = "cartanc.exe build test/compiler_suite/test_inductive_biases.car -o build/test_inductive_biases.exe && build\\test_inductive_biases.exe";
-    printf("[49/49] [// run-pass] Building and Executing Untrained Network Inductive Biases (WANN, DIP, ELM, ESN) Verification: %s\n", t49_cmd);
+    printf("[49/50] [// run-pass] Building and Executing Untrained Network Inductive Biases (WANN, DIP, ELM, ESN) Verification: %s\n", t49_cmd);
     cartan_flush(0.0);
     system(t49_cmd);
 
-    printf("\nAll 49 compiler snapshot test targets executed!\n", "");
+    // [50/50] Positive test: test_net_and_logger
+    let t50_cmd = "cartanc.exe build test/compiler_suite/test_net_and_logger.car -o build/test_net_and_logger.exe && build\\test_net_and_logger.exe";
+    printf("[50/50] [// run-pass] Building and Executing Authentic Network Sockets & GeoMind Telemetry Logger Verification: %s\n", t50_cmd);
+    cartan_flush(0.0);
+    system(t50_cmd);
+
+    printf("\nAll 50 compiler snapshot test targets executed!\n", "");
     return 0.0;
 }
 

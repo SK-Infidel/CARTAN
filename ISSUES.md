@@ -549,17 +549,17 @@ This file tracks technical debt and bugs identified during repository code revie
 
 ---
 
-## [ISSUE-047] Network Socket Stubs in C Runtime
+## [ISSUE-047] [FIXED] Network Socket Stubs in C Runtime
 - **Severity**: Medium (Runtime Stubs)
-- **Component**: `src/cartanc/geomind_runtime.c:104-116`
-- **Description**: `cartan_socket_create`, `cartan_socket_connect`, `cartan_socket_send` unconditionally return `1.0` or string length without creating Berkeley/Winsock sockets.
-- **Proposed Fix**: Implement authentic OS socket bindings in `geomind_runtime.c` or provide pure LLVM socket calls.
+- **Component**: `src/cartanc/geomind_runtime.c:104-160`, `src/std/net.cl:1-40`
+- **Description**: `cartan_socket_create`, `cartan_socket_connect`, `cartan_socket_send` unconditionally returned `1.0` or string length without creating Berkeley/Winsock sockets.
+- **Status**: Fixed in Sprint 298. Implemented authentic Berkeley / Winsock2 OS sockets in `src/cartanc/geomind_runtime.c` with automatic WSA startup initialization, POSIX fallback headers, TCP stream socket creation with `SO_REUSEADDR`, DNS/IP address resolution via `getaddrinfo`, client connection (`connect`), local address binding (`bind`), server listening (`listen`), client connection acceptance (`accept`), timeout configuration (`setsockopt` with `SO_RCVTIMEO`/`SO_SNDTIMEO`), buffer transmission (`send`), buffer reception (`recv`), and socket closure (`closesocket`/`close`). Exported `net_bind`, `net_listen`, `net_accept`, and `net_set_timeout` in `src/std/net.cl`. Verified via authentic loopback TCP bidirectional communication test (Target 50).
 
 ---
 
-## [ISSUE-048] Ignored Telemetry Parameters in Metric Logger
+## [ISSUE-048] [FIXED] Ignored Telemetry Parameters in Metric Logger
 - **Severity**: Low (Dead Parameters)
-- **Component**: `test/geomind/logger.cl:12-15`
-- **Description**: `geomind_log_step` accepts 5 telemetry metrics (`step`, `total_steps`, `loss`, `tokens_per_sec`, `phase_coherence`) and ignores all 5, printing a static string.
-- **Proposed Fix**: Format and print all 5 metrics to the log stream.
+- **Component**: `test/geomind/logger.cl:1-35`
+- **Description**: `geomind_log_step` accepted 5 telemetry metrics (`step`, `total_steps`, `loss`, `tokens_per_sec`, `phase_coherence`) and ignored all 5, printing a static string.
+- **Status**: Fixed in Sprint 298. Implemented authentic telemetry metric formatting in `test/geomind/logger.cl` via `geomind_format_metrics`, serializing `step`, `total_steps`, `loss`, `tokens_per_sec`, and `phase_coherence` into formatted strings and logging to both standard output and persistent training logs (`scratch/training.log`). Added full static assertion coverage in Target 50 (`test_net_and_logger.car`). All 50 compiler suite tests passing 100%.
 

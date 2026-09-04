@@ -1,3 +1,29 @@
+## [8.255.0] - 2026-09-04 (Sprint 298: Authentic Berkeley/Winsock OS Sockets & Real-Time Telemetry Logging)
+
+### Completed & Validated
+- **Authentic Operating System Sockets Engine (`src/cartanc/geomind_runtime.c`) (`[ISSUE-047]`)**:
+  - Replaced unconditional dummy return floats with authentic Berkeley and Winsock2 socket primitives.
+  - Implemented automatic Winsock2 initialization on Windows (`WSAStartup(MAKEWORD(2, 2))`) and added POSIX fallback includes (`<sys/socket.h>`, `<netinet/in.h>`, `<netdb.h>`, etc.).
+  - Implemented `cartan_socket_create`: creates authentic IPv4 TCP stream sockets (`AF_INET, SOCK_STREAM, IPPROTO_TCP`) with `SO_REUSEADDR` enabled.
+  - Implemented `cartan_socket_connect`: performs DNS/IP address resolution via `getaddrinfo` and establishes TCP connection.
+  - Implemented `cartan_socket_bind`: binds sockets to specified host and port (e.g., `127.0.0.1:31415`).
+  - Implemented `cartan_socket_listen`: configures listening queue backlog.
+  - Implemented `cartan_socket_accept`: accepts inbound TCP client connections and returns connected peer socket descriptors.
+  - Implemented `cartan_socket_set_timeout`: sets socket send and receive timeouts via `SO_RCVTIMEO` and `SO_SNDTIMEO`.
+  - Implemented `cartan_socket_send`: authentic chunked transmission loop sending bytes over TCP stream.
+  - Implemented `cartan_socket_recv`: authentic buffer reception reading bytes into allocated buffer with null terminator.
+  - Implemented `cartan_socket_close`: socket destruction via `closesocket()` on Windows and `close()` on POSIX.
+- **Networking Standard Library Expansion (`src/std/net.cl`)**:
+  - Exported `net_bind(sock, host, port)`, `net_listen(sock, backlog)`, `net_accept(sock)`, and `net_set_timeout(sock, timeout_ms)` alongside `net_socket`, `net_connect`, `net_send`, `net_recv`, and `net_close`.
+- **Authentic Telemetry Metric Formatter & Logger (`test/geomind/logger.cl`) (`[ISSUE-048]`)**:
+  - Replaced dead parameter ignoring stub with authentic metric formatting via `geomind_format_metrics` and `geomind_log_step`.
+  - Formats all 5 telemetry metrics: `step`, `total_steps`, `loss`, `tokens_per_sec`, and `phase_coherence`.
+  - Added training log file persistence in `scratch/training.log`.
+- **Regression Test Suite Expansion (Target 50)**:
+  - Created `test/compiler_suite/test_net_and_logger.car` verifying loopback TCP client-server exchange (`CARTAN_TCP_SYN` <-> `CARTAN_TCP_ACK`) and metric formatting under static assertions.
+  - Added Target 50 to `test/compiler_suite/run_tests.car` and compiled `scratch/run_tests.exe`.
+  - Executed all 50 compiler regression targets with 100% pass rate.
+
 ## [8.254.0] - 2026-09-04 (Sprint 297: Authentic Model Fusion & Evolutionary Weight Merging Engine)
 
 ### Completed & Validated

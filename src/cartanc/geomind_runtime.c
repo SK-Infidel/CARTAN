@@ -13,6 +13,13 @@
 #include <ws2tcpip.h>
 #include <windows.h>
 #include <shellapi.h>
+#else
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <unistd.h>
 #endif
 
 #if defined(__has_include)
@@ -101,27 +108,171 @@ CARTAN_WEAK double cartan_system(const char* cmd) {
     return (double)res;
 }
 
-double cartan_socket_create() {
-    return 1.0;
+#if defined(_WIN32) || defined(_WIN64)
+static int g_cartan_winsock_initialized = 0;
+static void cartan_ensure_winsock(void) {
+    if (!g_cartan_winsock_initialized) {
+        WSADATA wsa;
+        if (WSAStartup(MAKEWORD(2, 2), &wsa) == 0) {
+            g_cartan_winsock_initialized = 1;
+        }
+    }
+}
+#endif
+
+CARTAN_WEAK double cartan_socket_create(void) {
+#if defined(_WIN32) || defined(_WIN64)
+    cartan_ensure_winsock();
+    SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (s == INVALID_SOCKET) {
+        return -1.0;
+    }
+    int opt = 1;
+    setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (const char*)&opt, sizeof(opt));
+    return (double)((uintptr_t)s);
+#else
+    int s = socket(AF_INET, SOCK_STREAM, 0);
+    if (s < 0) {
+        return -1.0;
+    }
+    int opt = 1;
+    setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    return (double)s;
+#endif
 }
 
-double cartan_socket_connect(double sock, const char* host, double port) {
-    if (!host) return 0.0;
-    return 1.0;
-}
-
-double cartan_socket_send(double sock, const char* data) {
-    if (!data) return 0.0;
-    return (double)strlen(data);
-}
-
-char* cartan_socket_recv(double sock) {
+CARTAN_WEAK double cartan_socket_connect(double sock, const char* host, double port) {
+    if (!host || sock < 0.0) return 0.0;
+#if defined(_WIN32) || defined(_WIN64)
+    cartan_ensure_winsock();
+    SOCKET s = (SOCKET)(uintptr_t)(uint64_t)sock;
+#else
     int s = (int)sock;
+#endif
+    char port_str[16];
+    snprintf(port_str, sizeof(port_str), "%d", (int)port);
+
+    struct addrinfo hints, *res = NULL;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = IPPROTO_TCP;
+
+    if (getaddrinfo(host, port_str, &hints, &res) != 0 || !res) {
+        return 0.0;
+    }
+
+    int rc = connect(s, res->ai_addr, (int)res->ai_addrlen);
+    freeaddrinfo(res);
+    return (rc == 0) ? 1.0 : 0.0;
+}
+
+CARTAN_WEAK double cartan_socket_bind(double sock, const char* host, double port) {
+    if (sock < 0.0) return 0.0;
+#if defined(_WIN32) || defined(_WIN64)
+    cartan_ensure_winsock();
+    SOCKET s = (SOCKET)(uintptr_t)(uint64_t)sock;
+#else
+    int s = (int)sock;
+#endif
+    char port_str[16];
+    snprintf(port_str, sizeof(port_str), "%d", (int)port);
+
+    struct addrinfo hints, *res = NULL;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE;
+
+    const char* bind_host = (host && strlen(host) > 0) ? host : NULL;
+    if (getaddrinfo(bind_host, port_str, &hints, &res) != 0 || !res) {
+        return 0.0;
+    }
+
+    int rc = bind(s, res->ai_addr, (int)res->ai_addrlen);
+    freeaddrinfo(res);
+    return (rc == 0) ? 1.0 : 0.0;
+}
+
+CARTAN_WEAK double cartan_socket_listen(double sock, double backlog) {
+    if (sock < 0.0) return 0.0;
+    int b = (backlog <= 0.0) ? 5 : (int)backlog;
+#if defined(_WIN32) || defined(_WIN64)
+    SOCKET s = (SOCKET)(uintptr_t)(uint64_t)sock;
+    int rc = listen(s, b);
+#else
+    int s = (int)sock;
+    int rc = listen(s, b);
+#endif
+    return (rc == 0) ? 1.0 : 0.0;
+}
+
+CARTAN_WEAK double cartan_socket_accept(double sock) {
+    if (sock < 0.0) return -1.0;
+#if defined(_WIN32) || defined(_WIN64)
+    SOCKET s = (SOCKET)(uintptr_t)(uint64_t)sock;
+    SOCKET client = accept(s, NULL, NULL);
+    if (client == INVALID_SOCKET) {
+        return -1.0;
+    }
+    return (double)((uintptr_t)client);
+#else
+    int s = (int)sock;
+    int client = accept(s, NULL, NULL);
+    if (client < 0) {
+        return -1.0;
+    }
+    return (double)client;
+#endif
+}
+
+CARTAN_WEAK double cartan_socket_set_timeout(double sock, double timeout_ms) {
+    if (sock < 0.0) return 0.0;
+#if defined(_WIN32) || defined(_WIN64)
+    SOCKET s = (SOCKET)(uintptr_t)(uint64_t)sock;
+    DWORD tv = (DWORD)timeout_ms;
+    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(tv));
+    setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, (const char*)&tv, sizeof(tv));
+#else
+    int s = (int)sock;
+    struct timeval tv;
+    tv.tv_sec = (long)(timeout_ms / 1000.0);
+    tv.tv_usec = (long)(((long)timeout_ms % 1000) * 1000);
+    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+#endif
+    return 1.0;
+}
+
+CARTAN_WEAK double cartan_socket_send(double sock, const char* data) {
+    if (!data || sock < 0.0) return 0.0;
+#if defined(_WIN32) || defined(_WIN64)
+    SOCKET s = (SOCKET)(uintptr_t)(uint64_t)sock;
+#else
+    int s = (int)sock;
+#endif
+    int len = (int)strlen(data);
+    int total = 0;
+    while (total < len) {
+        int bytes = send(s, data + total, len - total, 0);
+        if (bytes <= 0) break;
+        total += bytes;
+    }
+    return (double)total;
+}
+
+CARTAN_WEAK char* cartan_socket_recv(double sock) {
+    if (sock < 0.0) return cartan_strdup("");
+#if defined(_WIN32) || defined(_WIN64)
+    SOCKET s = (SOCKET)(uintptr_t)(uint64_t)sock;
+#else
+    int s = (int)sock;
+#endif
     char* buf = (char*)malloc(4096);
     if (!buf) return cartan_strdup("");
     memset(buf, 0, 4096);
 #if defined(_WIN32) || defined(_WIN64)
-    int bytes = recv((SOCKET)s, buf, 4095, 0);
+    int bytes = recv(s, buf, 4095, 0);
 #else
     ssize_t bytes = recv(s, buf, 4095, 0);
 #endif
@@ -133,11 +284,13 @@ char* cartan_socket_recv(double sock) {
     return buf;
 }
 
-double cartan_socket_close(double sock) {
-    int s = (int)sock;
+CARTAN_WEAK double cartan_socket_close(double sock) {
+    if (sock < 0.0) return 0.0;
 #if defined(_WIN32) || defined(_WIN64)
-    closesocket((SOCKET)s);
+    SOCKET s = (SOCKET)(uintptr_t)(uint64_t)sock;
+    closesocket(s);
 #else
+    int s = (int)sock;
     close(s);
 #endif
     return 1.0;
