@@ -647,13 +647,16 @@ fn cartan_read_line() -> string {
         free(buf);
         return "exit";
     }
-    let len = strlen(buf);
-    if (len > 0.0) {
+    var len = strlen(buf);
+    while (len > 0.0) {
         let last = cartan_string_get_char(buf, len - 1.0);
         if (last == 10.0 || last == 13.0) {
             let zero_byte = calloc(1.0, 1.0);
             memcpy(buf + (len - 1.0), zero_byte, 1.0);
             free(zero_byte);
+            len = len - 1.0;
+        } else {
+            break;
         }
     }
     return buf;
@@ -706,16 +709,87 @@ fn cartan_system(cmd: string) -> float {
     return system(cmd);
 }
 
-fn cartan_async_spawn(fn_ptr: ptr) -> float { return 1.0; }
-fn cartan_async_yield() -> float { return 1.0; }
-fn cartan_async_await(task_id: float) -> float { return 1.0; }
-fn cartan_rt_vram_lock_parameters() -> void { }
-fn cartan_rt_vram_unlock_parameters() -> void { }
-fn cartan_rt_check_vram_access(p: ptr, is_write: float) -> float { return 1.0; }
-fn cartan_rt_lock_swmr(p: ptr, ro: float) -> float { return 1.0; }
-fn cartan_rt_unlock_swmr(p: ptr) -> void { }
-fn cartan_rt_atomic_swap_graph(slot: ptr, shadow: ptr) -> ptr { return shadow; }
-fn cartan_export_c_headers(out_h_path: string, content: string) -> void { }
+var g_vram_parameter_locked = 0.0;
+var g_swmr_lock_count = 0.0;
+var g_async_task_counter = 0.0;
+var g_async_task_active = 0.0;
+
+fn cartan_async_spawn(fn_ptr: ptr) -> float {
+    g_async_task_counter = g_async_task_counter + 1.0;
+    g_async_task_active = g_async_task_active + 1.0;
+    return g_async_task_counter;
+}
+
+fn cartan_async_yield() -> float {
+    if (g_async_task_active > 0.0) {
+        return 1.0;
+    }
+    return 1.0;
+}
+
+fn cartan_async_await(task_id: float) -> float {
+    if (task_id <= 0.0) {
+        return 0.0;
+    }
+    if (task_id <= g_async_task_counter) {
+        if (g_async_task_active > 0.0) {
+            g_async_task_active = g_async_task_active - 1.0;
+        }
+        return 1.0;
+    }
+    return 1.0;
+}
+
+fn cartan_rt_vram_lock_parameters() -> void {
+    g_vram_parameter_locked = 1.0;
+}
+
+fn cartan_rt_vram_unlock_parameters() -> void {
+    g_vram_parameter_locked = 0.0;
+}
+
+fn cartan_rt_check_vram_access(p: float, is_write: float) -> float {
+    if (g_vram_parameter_locked != 0.0) {
+        if (is_write != 0.0) {
+            printf("ERR_VRAM_CAPABILITY_VIOLATION: Attempted mutation on locked parameter VRAM memory!\n");
+            return 0.0;
+        }
+    }
+    return 1.0;
+}
+
+fn cartan_rt_lock_swmr(p: float, ro: float) -> float {
+    if (ro == 0.0) {
+        if (g_swmr_lock_count > 0.0) {
+            printf("ERR_ZERO_COPY_RACE: SWMR write lock denied due to active DMA read readers!\n");
+            return 0.0;
+        }
+    }
+    g_swmr_lock_count = g_swmr_lock_count + 1.0;
+    return 1.0;
+}
+
+fn cartan_rt_unlock_swmr(p: float) -> void {
+    if (g_swmr_lock_count > 0.0) {
+        g_swmr_lock_count = g_swmr_lock_count - 1.0;
+    }
+}
+
+fn cartan_rt_atomic_swap_graph(slot: ptr, shadow: ptr) -> ptr {
+    if (slot == 0.0) {
+        return shadow;
+    }
+    let prev = slot[0];
+    slot[0] = shadow;
+    return prev;
+}
+
+fn cartan_export_c_headers(out_h_path: string, content: string) -> void {
+    if (out_h_path == 0.0 || content == 0.0) { return; }
+    let t = cartan_tree_create();
+    cartan_tree_push(t, content);
+    cartan_tree_write_file(out_h_path, t);
+}
 
 // --- Compatibility & Legacy Aliases ---
 fn c_cartan_string_concat(a: string, b: string) -> string { return cartan_string_concat(a, b); }

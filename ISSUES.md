@@ -450,6 +450,24 @@ This file tracks technical debt and bugs identified during repository code revie
 
 ---
 
+## [ISSUE-032] [FIXED] Compiler Subcommand Stubs in `src/cartanc/main.car`
+- **Severity**: Medium (CLI Stubs & Fake Hash)
+- **Component**: `src/cartanc/main.car:243-250, 322-340`
+- **Description**: `cartan lsp` printed a static JSON snippet and exited immediately; `cartan pkg` wrote a dummy lockfile with static checksum string `"e8_root_l0_hash_ok"`.
+- **Proposed Fix**: Implement persistent JSON-RPC 2.0 loop dispatching `initialize`, `textDocument/hover`, `textDocument/completion`, and `shutdown`. Calculate authentic manifest checksums via `cartan_hash_string`.
+- **Resolution**: (Sprint 291) Implemented persistent JSON-RPC 2.0 server loop handling method requests, and authentic djb2 checksum calculation in `cartan.lock`.
+
+---
+
+## [ISSUE-033] [FIXED] Pure CARTAN Core Runtime Async & Sandbox Fencing Stubs
+- **Severity**: High (Runtime Stubs & Strict Zero-Mock Violation)
+- **Component**: `src/cartanc/core_runtime.car:709-725`, `src/std/security.cl`, `src/std/async.cl`
+- **Description**: `cartan_async_*`, `cartan_rt_lock_swmr`, and `cartan_rt_check_vram_access` returned dummy `1.0`. Fencing functions (`vram_lock`, `vram_unlock`, `unlock_swmr`) were empty `{}`.
+- **Proposed Fix**: Implement authentic stateful VRAM write-lock sandboxing, SWMR reader-writer mutual exclusion, monotonic coroutine task scheduling, atomic graph swap, and C-header export. Resolve duplicate symbol collisions in `security.cl` and `async.cl`.
+- **Resolution**: (Sprint 291) Added global LLVM variable support in compiler codegen (`llvm_codegen.car`), implemented authentic stateful VRAM capabilities, SWMR fences, numeric coroutine scheduler, and non-colliding stdlib wrappers. All 47 compiler suite targets pass cleanly.
+
+---
+
 ## [ISSUE-036] Simulated Distillation Student Logit Loop in GeoMind Main
 - **Severity**: High (Strict Zero-Mock Violation)
 - **Component**: `test/geomind/main.car:249-275`

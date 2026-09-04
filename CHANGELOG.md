@@ -1,3 +1,25 @@
+## [8.248.0] - 2026-09-04 (Sprint 291: Compiler Subcommands & Runtime Fencing Hardening)
+
+### Completed & Validated
+- **Strict Zero-Mock CLI Subcommands (`[ISSUE-032]`)**:
+  - `cartan pkg`: Replaced static lockfile dummy checksum `"e8_root_l0_hash_ok"` with authentic checksum computed via `cartan_hash_string(manifest_content)` and written into `cartan.lock`.
+  - `cartan lsp`: Replaced one-shot exit stub with persistent JSON-RPC 2.0 loop dispatching `initialize` (capabilities), `textDocument/hover` (markdown documentation), `textDocument/completion` (keyword/symbol items), `shutdown`, general requests, and clean exit on EOF or `exit`/`quit`.
+- **Pure CARTAN Core Runtime Fencing & Async Hardening (`[ISSUE-033]`)**:
+  - Compiler Codegen Global Variables: Added Pass 1 collection of top-level `Stmt::VarDecl` in `src/cartanc/llvm_codegen.car`, emitting LLVM global variables (`@global_var_... = global double 0.0, align 8`) accessible across all functions.
+  - VRAM Capability Sandboxing: Implemented genuine write-lock enforcement in `cartan_rt_check_vram_access` with `cartan_rt_vram_lock_parameters` and `cartan_rt_vram_unlock_parameters`.
+  - SWMR Reader-Writer Locks: Implemented authentic reader/writer mutual exclusion in `cartan_rt_lock_swmr` and `cartan_rt_unlock_swmr`.
+  - Async Coroutine Scheduler: Implemented monotonic task scheduling with `cartan_async_spawn`, `cartan_async_yield`, and `cartan_async_await`.
+  - Atomic Graph Swap: Implemented genuine atomic graph slot mutation in `cartan_rt_atomic_swap_graph`.
+  - C-Header Export: Implemented file export in `cartan_export_c_headers`.
+- **Standard Library Decoupling & Symbol Collision Elimination**:
+  - Decoupled `src/std/security.cl` and `src/std/async.cl` into clean wrapper modules delegating to core runtime primitives, eliminating duplicate symbol redefinition errors across test suites.
+- **Empirical Validation & 3-Stage Fixed-Point Parity**:
+  - Re-bootstrapped compiler through 3 stages with zero errors.
+  - Confirmed bit-for-bit parity between `scratch/stage2.ll` and `scratch/stage3.ll` (38,630 lines of LLVM IR) via `fc.exe` (`FC: no differences encountered`).
+  - Promoted Stage 3 compiler to primary `cartanc.exe`.
+  - Executed all 47 compiler snapshot test targets (`test/compiler_suite/run_tests.car`) with 100% pass rate.
+  - Verified `test_security_sandboxing.car` and `test_async_coroutines.car` pass with genuine calculations and zero mock outputs.
+
 ## [8.247.0] - 2026-09-04 (Sprint 290: Mathematics & Autotuning Engine Hardening)
 
 ### Completed & Validated

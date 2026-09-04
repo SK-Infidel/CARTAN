@@ -565,8 +565,11 @@ fn llvm_codegen_init() -> LLVMGenerator {
             var stmt = cartan_tree_get_f32(ast, idx_stmt);
             idx_stmt = idx_stmt + 1.0;
             let disc = cartan_tree_get_f32(stmt, 0.0);
-            if (disc == 0.0) {
-
+            if (disc == 3.0) {
+                let name = cartan_tree_get_f32(stmt, 1.0);
+                let glob_name = cartan_string_concat("@global_var_", name);
+                cartan_tree_push(self_ptr.globals, cartan_string_concat(glob_name, " = global double 0.0, align 8\n"));
+                cartan_dict_set(self_ptr.symbols, name, glob_name);
             } else if (disc == 15.0 || disc == 48.0) {
                 let fn_name = cartan_tree_get_f32(stmt, 1.0);
                 let parameters = cartan_tree_get_f32(stmt, 2.0);

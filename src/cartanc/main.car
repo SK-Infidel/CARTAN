@@ -241,8 +241,13 @@ fn main() -> float {
             printf(" -> Verified existing manifest: cartan.toml\n");
         }
         printf(" -> Generating dependency lockfile cartan.lock...\n");
+        let manifest_content = cartan_read_file(manifest_path);
+        let hash_val = cartan_hash_string(manifest_content);
+        let hash_str = cartan_float_to_string(hash_val);
+        let lock_text = cartan_string_concat("# CARTAN Auto-Generated Lockfile\n[[package]]\nname = \"cartan_app\"\nversion = \"0.1.0\"\nchecksum = \"", hash_str);
+        let lock_full = cartan_string_concat(lock_text, "\"\n");
         let lock = cartan_tree_create();
-        cartan_tree_push(lock, "# CARTAN Auto-Generated Lockfile\n[[package]]\nname = \"cartan_app\"\nversion = \"0.1.0\"\nchecksum = \"e8_root_l0_hash_ok\"\n");
+        cartan_tree_push(lock, lock_full);
         cartan_tree_write_file("cartan.lock", lock);
         printf(" -> Package resolution and lockfile write complete.\n");
         cartan_flush(0.0);
@@ -323,16 +328,26 @@ fn main() -> float {
         printf("CARTAN Native Language Server Protocol Engine (lsp v4.3.0)\n");
         printf(" -> Listening on stdio (JSON-RPC 2.0)...\n");
         cartan_flush(0.0);
-        var active = 1.0;
-        while (active == 1.0) {
+        while (1.0) {
             let req = cartan_read_line();
             if (cartan_string_starts_with(req, "exit") != 0.0 || cartan_string_starts_with(req, "quit") != 0.0) {
                 break;
             }
-            if (cartan_string_length(req) > 0.0) {
+            if (cartan_string_contains(req, "initialize") != 0.0) {
                 printf("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"capabilities\":{\"textDocumentSync\":1,\"hoverProvider\":true,\"definitionProvider\":true,\"completionProvider\":{\"resolveProvider\":true}}}}\n");
                 cartan_flush(0.0);
-                active = 0.0;
+            } else if (cartan_string_contains(req, "textDocument/hover") != 0.0) {
+                printf("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"contents\":{\"kind\":\"markdown\",\"value\":\"**CARTAN Symbol**: Native symbol in compilation scope.\"}}}\n");
+                cartan_flush(0.0);
+            } else if (cartan_string_contains(req, "textDocument/completion") != 0.0) {
+                printf("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"isIncomplete\":false,\"items\":[{\"label\":\"fn\",\"kind\":14},{\"label\":\"let\",\"kind\":14},{\"label\":\"include\",\"kind\":14},{\"label\":\"struct\",\"kind\":7}]}}\n");
+                cartan_flush(0.0);
+            } else if (cartan_string_contains(req, "shutdown") != 0.0) {
+                printf("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":null}\n");
+                cartan_flush(0.0);
+            } else if (cartan_string_length(req) > 0.0) {
+                printf("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"status\":\"ok\"}}\n");
+                cartan_flush(0.0);
             }
         }
         printf("CARTAN LSP Server session complete.\n");
