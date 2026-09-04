@@ -2675,9 +2675,6 @@ while (idx_method < cartan_tree_len_f(methods)) {
         }
         if (disc == 17.0 || disc == 27.0) {
             var name = cartan_tree_get_f32(expr, 1.0);
-            if (cartan_string_eq(name, "cartan_tree_len") != 0.0) {
-                name = "cartan_tree_len_f";
-            }
             if (cartan_string_contains(name, "static_assert") != 0.0) {
                 return "0.0";
             }
@@ -2760,16 +2757,16 @@ while (idx_method < cartan_tree_len_f(methods)) {
             var ret_type = cartan_dict_get(self_ptr.func_return_types, name);
             var ret_type_str = "double";
             var is_ptr_ret = 0.0;
-            if (cartan_string_eq(name, "cartan_tree_create") != 0.0 || cartan_string_starts_with(name, "cartan_tensor_") != 0.0 || cartan_string_eq(name, "malloc") != 0.0) {
-                ret_type_str = "ptr";
-                is_ptr_ret = 1.0;
-            } else if (ret_type != 0.0) {
+            if (ret_type != 0.0) {
                 if (cartan_string_eq(ret_type, "ptr") != 0.0 || cartan_string_eq(ret_type, "string") != 0.0 || cartan_string_starts_with(ret_type, "%") != 0.0) {
                     ret_type_str = "ptr";
                     is_ptr_ret = 1.0;
                 } else if (cartan_string_eq(ret_type, "void") != 0.0) {
                     ret_type_str = "void";
                 }
+            } else if (cartan_string_eq(name, "cartan_tree_create") != 0.0 || cartan_string_eq(name, "malloc") != 0.0 || cartan_string_eq(name, "calloc") != 0.0 || cartan_string_eq(name, "cartan_tensor_alloc") != 0.0) {
+                ret_type_str = "ptr";
+                is_ptr_ret = 1.0;
             }
 
             if (is_ptr_ret != 0.0) {
@@ -2834,9 +2831,11 @@ while (idx_method < cartan_tree_len_f(methods)) {
             } else {}
             if (method_name == "len") {
                 let res_reg = next_reg(self_ptr);
-                let i32_len = next_reg(self_ptr);
-                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", i32_len), " = call i32 @cartan_tree_len(ptr "), clean_obj), ")\n"));
-                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", res_reg), " = sitofp i32 "), i32_len), " to float\n"));
+                let p1 = cartan_string_concat("  ", res_reg);
+                let p2 = cartan_string_concat(p1, " = call double @cartan_tree_len(ptr ");
+                let p3 = cartan_string_concat(p2, clean_obj);
+                let p4 = cartan_string_concat(p3, ")\n");
+                cartan_tree_push(self_ptr.output, p4);
                 return res_reg;
             } else {}
 

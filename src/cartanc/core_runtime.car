@@ -42,6 +42,7 @@ extern fn system(cmd: string) -> float;
 extern fn remove(path: string) -> float;
 extern fn rename(old_path: string, new_path: string) -> float;
 extern fn floor(x: float) -> float;
+extern fn exp(x: float) -> float;
 extern fn fflush(f_stream: ptr) -> float;
 extern fn __acrt_iob_func(idx: float) -> ptr;
 
@@ -228,12 +229,25 @@ fn cartan_tree_create() -> ptr {
     return cartan_c_tree_create();
 }
 
+fn cartan_c_is_tree(t: ptr) -> float {
+    if (t == 0.0) { return 0.0; }
+    let v0 = t[0];
+    if (v0 > 0.0 && v0 < 0.000000001) {
+        return 1.0;
+    }
+    return 0.0;
+}
+
 fn cartan_tree_len_f(t: ptr) -> float {
     return cartan_c_tree_len_f(t);
 }
 
 fn cartan_tree_len(t: ptr) -> float {
-    return cartan_c_tree_len_f(t);
+    if (t == 0.0) { return 0.0; }
+    if (cartan_c_is_tree(t) != 0.0) {
+        return cartan_c_tree_len_f(t);
+    }
+    return t[0];
 }
 
 fn cartan_tree_push(t: ptr, item: ptr) -> void {
@@ -351,6 +365,10 @@ fn cartan_vec_create() -> ptr {
 
 fn cartan_vec_push_f32(v_ptr: ptr, val: float) -> float {
     if (v_ptr == 0.0) { return 0.0; }
+    if (cartan_c_is_tree(v_ptr) != 0.0) {
+        cartan_tree_push(v_ptr, val);
+        return cartan_c_tree_len_f(v_ptr);
+    }
     let len = v_ptr[0];
     let cap = v_ptr[1];
     if (len < cap) {
@@ -362,6 +380,9 @@ fn cartan_vec_push_f32(v_ptr: ptr, val: float) -> float {
 
 fn cartan_vec_get_f32(v_ptr: ptr, idx: float) -> float {
     if (v_ptr == 0.0) { return 0.0; }
+    if (cartan_c_is_tree(v_ptr) != 0.0) {
+        return cartan_c_tree_get(v_ptr, idx);
+    }
     let len = v_ptr[0];
     if (idx < 0.0 || idx >= len) { return 0.0; }
     return v_ptr[2.0 + idx];
@@ -369,11 +390,15 @@ fn cartan_vec_get_f32(v_ptr: ptr, idx: float) -> float {
 
 fn cartan_vec_len(v_ptr: ptr) -> float {
     if (v_ptr == 0.0) { return 0.0; }
-    return v_ptr[0];
+    return cartan_tree_len(v_ptr);
 }
 
 fn cartan_vec_set_f32(v_ptr: ptr, idx: float, val: float) -> float {
     if (v_ptr == 0.0) { return 0.0; }
+    if (cartan_c_is_tree(v_ptr) != 0.0) {
+        cartan_c_tree_set(v_ptr, idx, val);
+        return val;
+    }
     let len = v_ptr[0];
     if (idx >= 0.0 && idx < len) {
         v_ptr[2.0 + idx] = val;
@@ -465,7 +490,65 @@ fn cartan_tensor_div(A: ptr, B: ptr) -> ptr {
 }
 
 fn cartan_tensor_alloc(size: float) -> ptr {
-    return cartan_vec_create();
+    if (size <= 0.0) { return cartan_vec_create(); }
+    let v = calloc(size + 2.0, 8.0);
+    if (v == 0.0) { return 0.0; }
+    v[0] = size;
+    v[1] = size;
+    return v;
+}
+
+fn cartan_tensor_sum(arr: ptr, size: float) -> float {
+    if (arr == 0.0 || size <= 0.0) { return 0.0; }
+    var s = 0.0;
+    var i = 0.0;
+    while (i < size) {
+        s = s + arr[i];
+        i = i + 1.0;
+    }
+    return s;
+}
+
+fn cartan_tensor_mean(arr: ptr, size: float) -> float {
+    if (arr == 0.0 || size <= 0.0) { return 0.0; }
+    return cartan_tensor_sum(arr, size) / size;
+}
+
+fn cartan_tensor_max(arr: ptr, size: float) -> float {
+    if (arr == 0.0 || size <= 0.0) { return 0.0; }
+    var mx = arr[0.0];
+    var i = 1.0;
+    while (i < size) {
+        let v = arr[i];
+        if (v > mx) { mx = v; }
+        i = i + 1.0;
+    }
+    return mx;
+}
+
+fn cartan_tensor_min(arr: ptr, size: float) -> float {
+    if (arr == 0.0 || size <= 0.0) { return 0.0; }
+    var mn = arr[0.0];
+    var i = 1.0;
+    while (i < size) {
+        let v = arr[i];
+        if (v < mn) { mn = v; }
+        i = i + 1.0;
+    }
+    return mn;
+}
+
+fn cartan_tensor_sigmoid(arr: ptr, size: float) -> ptr {
+    if (arr == 0.0 || size <= 0.0) { return 0.0; }
+    let out = malloc(size * 8.0);
+    if (out == 0.0) { return 0.0; }
+    var i = 0.0;
+    while (i < size) {
+        let v = arr[i];
+        out[i] = 1.0 / (1.0 + exp(-v));
+        i = i + 1.0;
+    }
+    return out;
 }
 
 // --- System & File IO Primitives ---

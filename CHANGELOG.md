@@ -1,3 +1,27 @@
+## [8.247.0] - 2026-09-04 (Sprint 290: Mathematics & Autotuning Engine Hardening)
+
+### Completed & Validated
+- **Strict Zero-Mock Mathematical Repairs (`[ISSUE-039]` & `[ISSUE-042]`)**:
+  - **`[ISSUE-039]` Authentic 2D Tiled GEMM (`src/std/autotune.cl`)**:
+    - Replaced hardcoded dummy matrix with authentic 2D tiled matrix multiplication ($i_0, j_0, k_0$ tile blocks over inner $i, k, j$ compute loops calculating $C_{i, j} = \sum_k A_{i, k} B_{k, j}$).
+    - Verified exact dot-product calculation $24.0$ on $4 \times 4$ matrices and hardware cache tile probing in `test/compiler_suite/test_autotune.car`.
+  - **`[ISSUE-042]` Bernoulli Dropout Sampling (`src/std/fusion.cl`)**:
+    - Replaced modulo-2 drop heuristic with authentic pseudo-random Bernoulli trial dropout sampling parameterized by `drop_p` with rescaling.
+- **Core Runtime Tensor Allocator Expansion & Native Reductions (`src/cartanc/core_runtime.car`)**:
+  - `cartan_tensor_alloc`: Expanded capacity to `(size + 2.0) * 8.0` bytes via `calloc` with initialized length and capacity headers `v[0] = size`, `v[1] = size`.
+  - Implemented authentic native tensor reduction primitives: `cartan_tensor_sum`, `cartan_tensor_mean`, `cartan_tensor_max`, `cartan_tensor_min`, and `cartan_tensor_sigmoid`.
+  - Polymorphic Tree & Vector Operations: implemented `cartan_c_is_tree` subnormal magic detection; updated `cartan_tree_len` and `cartan_vec_len` to dispatch polymorphically for both AST trees and flat vectors/tensors.
+- **Compiler LLVM Codegen Return Type Resolution Hardening (`src/cartanc/llvm_codegen.car`)**:
+  - Removed forced rewrite of `cartan_tree_len` to `cartan_tree_len_f`, allowing user and stdlib code to call the polymorphic CARTAN `cartan_tree_len`.
+  - Updated method call `.len()` codegen to invoke `double @cartan_tree_len(ptr)`.
+  - Fixed function call return type resolution to strictly prioritize declared `ret_type` from symbol table over blind `cartan_tensor_` pointer heuristics.
+- **Bit-for-Bit 3-Stage Bootstrap Parity & Comprehensive Test Suite Validation**:
+  - Re-bootstrapped compiler through 3 stages with zero errors.
+  - Verified fixed-point parity between `scratch/stage2.ll` and `scratch/stage3.ll` (38,356 lines) via `fc.exe` (`FC: no differences encountered`).
+  - Promoted verified Stage 3 compiler to primary `cartanc.exe`.
+  - Executed all 47 compiler snapshot test targets (`test/compiler_suite/run_tests.car`) with 100% pass rate.
+  - Verified `test_autotune.car` and `test_tensor_opt.car` pass with zero regressions.
+
 ## [8.246.0] - 2026-09-04 (Sprint 289: Full Codebase Audit & Compiler Core Hardening)
 
 ### Completed & Validated

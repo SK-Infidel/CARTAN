@@ -91,12 +91,18 @@ fn fusion_ties_merge(t1: ptr, t2: ptr, t3: ptr, threshold: float) -> ptr {
 fn fusion_dare_rescale(t1: ptr, drop_p: float) -> ptr {
     let len = cartan_vec_len(t1);
     let out = cartan_vec_create();
-    let scale = 1.0 / (1.0 - drop_p);
+    var scale = 1.0;
+    if (drop_p < 1.0) {
+        scale = 1.0 / (1.0 - drop_p);
+    }
     var i = 0.0;
     while (i < len) {
         let val = cartan_vec_get_f32(t1, i);
         var rescaled = val * scale;
-        if (math_mod_val(i, 2.0) == 0.0) { rescaled = 0.0; }
+        let rand_sample = math_mod_val(i * 1103515245.0 + 12345.0, 2147483648.0) / 2147483648.0;
+        if (rand_sample < drop_p) {
+            rescaled = 0.0;
+        }
         cartan_vec_push_f32(out, rescaled);
         i = i + 1.0;
     }

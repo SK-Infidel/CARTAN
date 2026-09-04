@@ -474,11 +474,12 @@ This file tracks technical debt and bugs identified during repository code revie
 
 ---
 
-## [ISSUE-039] Hardcoded Dummy Matrix Multiplication in `autotune_matmul_tiled`
+## [ISSUE-039] [FIXED] Hardcoded Dummy Matrix Multiplication in `autotune_matmul_tiled`
 - **Severity**: Critical (Strict Zero-Mock Violation & Math Flaw)
 - **Component**: `src/std/autotune.cl:46-53`
 - **Description**: `autotune_matmul_tiled` ignores input matrices `A` and `B` and returns a hardcoded 4-element tree `[0.5, 0.2, 0.8, 0.1]`, breaking all callers.
 - **Proposed Fix**: Implement authentic 2D tiled GEMM with outer product accumulation loops.
+- **Resolution**: (Sprint 290) Implemented authentic 2D tiled GEMM nested matrix multiplication over $i_0, j_0, k_0$ tile blocks. Validated via `test_autotune.car`.
 
 ---
 
@@ -498,11 +499,12 @@ This file tracks technical debt and bugs identified during repository code revie
 
 ---
 
-## [ISSUE-042] DARE Model Fusion Fixed Modulo 2 Dummy Dropout Mask
+## [ISSUE-042] [FIXED] DARE Model Fusion Fixed Modulo 2 Dummy Dropout Mask
 - **Severity**: Medium (Mathematical Inaccuracy)
 - **Component**: `src/std/fusion.cl:99`
 - **Description**: `fusion_dare_rescale` drops every even index (`math_mod_val(i, 2.0) == 0.0`) rather than executing Bernoulli random drop sampling parameterized by `drop_p`.
 - **Proposed Fix**: Integrate pseudo-random Bernoulli thresholding based on `drop_p`.
+- **Resolution**: (Sprint 290) Implemented authentic pseudo-random Bernoulli dropout trials parameterized by `drop_p` with probability scaling.
 
 ---
 
