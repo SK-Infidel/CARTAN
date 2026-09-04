@@ -146,35 +146,51 @@ fn main() -> float {
         }
         if (strcmp(flag, "--train-distill") == 0) {
             printf("[GeoMind Distill] Initializing Teacher vs GeoMind Student Logit Buffers...\n");
-            let teacher_logits = cartan_tensor_alloc(100.0);
-            let student_logits = cartan_tensor_alloc(100.0);
+            let teacher_logits = cartan_vec_create();
+            let student_logits = cartan_vec_create();
             var i = 0.0;
             while (i < 100.0) {
-                cartan_tree_push(teacher_logits, 2.5);
-                cartan_tree_push(student_logits, 0.5);
+                let t_val = 2.0 + sin((i + 1.0) * 0.1) * 0.5;
+                let s_val = 0.5 + cos((i + 1.0) * 0.1) * 0.3;
+                cartan_vec_push_f32(teacher_logits, t_val);
+                cartan_vec_push_f32(student_logits, s_val);
                 i = i + 1.0;
             }
             let initial_loss = distill_kl_divergence_loss(teacher_logits, student_logits, 2.0);
-            printf("[GeoMind Distill] Step 0 Initial KL Divergence Loss: ");
-            printf(cartan_float_to_string(initial_loss));
-            printf("\n");
+            printf("[GeoMind Distill] Step 0 Initial KL Divergence Loss: %s\n", cartan_float_to_string(initial_loss));
             var step = 1.0;
-            var current_student_val = 0.5;
+            let temp = 2.0;
+            let lr = 0.35;
             while (step <= 50.0) {
-                current_student_val = current_student_val + 0.04;
+                // Compute softmax partition functions for teacher and student
+                var sum_p = 0.0;
+                var sum_q = 0.0;
                 i = 0.0;
                 while (i < 100.0) {
-                    cartan_tree_set_f32(student_logits, i, current_student_val);
+                    sum_p = sum_p + exp(cartan_vec_get_f32(teacher_logits, i) / temp);
+                    sum_q = sum_q + exp(cartan_vec_get_f32(student_logits, i) / temp);
+                    i = i + 1.0;
+                }
+                if (sum_p <= 0.0) { sum_p = 1.0; }
+                if (sum_q <= 0.0) { sum_q = 1.0; }
+
+                // Apply analytical KL gradient updates: dz_s = temp * (p_i - q_i)
+                i = 0.0;
+                while (i < 100.0) {
+                    let z_t = cartan_vec_get_f32(teacher_logits, i);
+                    let z_s = cartan_vec_get_f32(student_logits, i);
+                    let p_i = exp(z_t / temp) / sum_p;
+                    let q_i = exp(z_s / temp) / sum_q;
+                    let grad = temp * (p_i - q_i);
+                    let updated_z = z_s + (lr * grad);
+                    cartan_vec_set_f32(student_logits, i, updated_z);
                     i = i + 1.0;
                 }
                 step = step + 1.0;
             }
             let final_loss = distill_kl_divergence_loss(teacher_logits, student_logits, 2.0);
-            printf("[GeoMind Distill] Step 50 Final KL Divergence Loss: ");
-            printf(cartan_float_to_string(final_loss));
-            printf(" (Loss Reduction: ");
-            printf(cartan_float_to_string(initial_loss - final_loss));
-            printf(")\n");
+            printf("[GeoMind Distill] Step 50 Final KL Divergence Loss: %s (Loss Reduction: %s)\n",
+                cartan_float_to_string(final_loss), cartan_float_to_string(initial_loss - final_loss));
             cartan_flush(0.0);
             return 0.0;
         }

@@ -10,15 +10,18 @@ include "../../src/std/string.cl";
 include "../../src/std/fs.cl";
 include "../../src/std/resonator.cl";
 include "../../src/std/semantics.cl";
+include "../../src/std/tokenizer.cl";
 include "geometry.cl";
 include "streams.cl";
 
 extern fn printf(fmt: string, val: float) -> float;
+extern fn cartan_flush(v: float) -> float;
 extern fn cartan_tree_create() -> ptr;
 extern fn cartan_tree_push(t: ptr, item: ptr) -> void;
 extern fn cartan_tree_len_f(t: ptr) -> float;
 extern fn cartan_tree_get(t: ptr, idx: float) -> ptr;
 extern fn cartan_assert(cond: float, msg: string) -> void;
+extern fn geomind_sasaki_route(position: ptr, momentum: ptr, expert_idx: float) -> float;
 
 struct BiologicalTelemetry {
     hopfield_basins: float;
@@ -124,13 +127,15 @@ fn webgpu_get_causal_loss_shader() -> string {
     let s4 = "@group(0) @binding(3) var<storage, read_write> loss_out: array<f32>;\n\n";
     let s5 = "@compute @workgroup_size(64, 1, 1)\n";
     let s6 = "fn causal_loss_fwd(@builtin(global_invocation_id) gid: vec3<u32>) {\n";
-    let s7 = "    let t_idx = gid.x;\n    let T = 31u;\n";
-    let s8 = "    if (t_idx >= T) { return; }\n";
-    let s9 = "    let tgt = u32(targets[t_idx]);\n";
-    let s10 = "    let ic = ic_weights[t_idx];\n";
-    let s11 = "    let l_val = logits[t_idx];\n";
-    let s12 = "    let token_loss = (12.0f - l_val * 0.1f) * ic;\n";
-    let s13 = "    loss_out[t_idx] = max(token_loss, 0.1f);\n}\n";
+    let s7 = "    let t_idx = gid.x;\n    let T = 31u;\n    if (t_idx >= T) { return; }\n";
+    let s8 = "    let base = t_idx * 64u;\n    var k: u32 = u32(targets[t_idx]) & 63u;\n    let ic = ic_weights[t_idx];\n";
+    let s9 = "    var max_l: f32 = -10000.0f;\n    for (var d: u32 = 0u; d < 64u; d = d + 1u) {\n";
+    let s10 = "        let l_val = logits[base + d];\n        if (l_val > max_l) { max_l = l_val; }\n    }\n";
+    let s11 = "    var sum_exp: f32 = 0.0f;\n    for (var d: u32 = 0u; d < 64u; d = d + 1u) {\n";
+    let s12 = "        sum_exp = sum_exp + exp(logits[base + d] - max_l);\n    }\n";
+    let s13 = "    if (sum_exp < 0.00001f) { sum_exp = 0.00001f; }\n    let log_z = max_l + log(sum_exp);\n";
+    let s14 = "    let tgt_l = logits[base + k];\n    var token_loss: f32 = (log_z - tgt_l) * ic;\n";
+    let s15 = "    if (token_loss < 0.01f) { token_loss = 0.01f; }\n    loss_out[t_idx] = token_loss;\n}\n";
 
     let a = cartan_string_concat(s1, s2);
     let b = cartan_string_concat(s3, s4);
@@ -138,10 +143,14 @@ fn webgpu_get_causal_loss_shader() -> string {
     let d = cartan_string_concat(s7, s8);
     let e = cartan_string_concat(s9, s10);
     let f = cartan_string_concat(s11, s12);
+    let g = cartan_string_concat(s13, s14);
     let p1 = cartan_string_concat(a, b);
     let p2 = cartan_string_concat(c, d);
     let p3 = cartan_string_concat(e, f);
-    return cartan_string_concat(cartan_string_concat(p1, p2), cartan_string_concat(p3, s13));
+    let p4 = cartan_string_concat(g, s15);
+    let r1 = cartan_string_concat(p1, p2);
+    let r2 = cartan_string_concat(p3, p4);
+    return cartan_string_concat(r1, r2);
 }
 
 // Biological State Verification & Telemetry Logger
@@ -158,6 +167,7 @@ fn webgpu_log_biological_telemetry(step: float, total_steps: float, basins: floa
         cartan_float_to_string(q0), cartan_float_to_string(q1),
         cartan_float_to_string(q2), cartan_float_to_string(q3));
     printf("--------------------------------------------------------------------------------\n\n");
+    cartan_flush(0.0);
 }
 
 // Full Native WebGPU Causal Training Pipeline
@@ -255,7 +265,7 @@ fn webgpu_run_causal_training_pipeline(dataset_path: string, num_steps: float) -
             if (t_idx < T - 1.0) {
                 let next_tok = (step * 7.0 + (t_idx + 1.0) * 13.0);
                 cartan_f32_buffer_set(host_targets, t_idx, next_tok);
-                let ic = semantics_get_concept_ic(next_tok);
+                let ic = tokenizer_get_ic_weight(next_tok);
                 cartan_f32_buffer_set(host_ic, t_idx, ic);
             }
             t_idx = t_idx + 1.0;
@@ -302,12 +312,35 @@ fn webgpu_run_causal_training_pipeline(dataset_path: string, num_steps: float) -
         let step_loss = seq_loss_sum / (T - 1.0);
         running_loss = running_loss * 0.9 + step_loss * 0.1;
 
-        // Telemetry logging
+        // Telemetry logging: evaluate authentic Sasaki MoE quadrant distributions
         let basins_cnt = cartan_tree_len_f(memory_bank);
-        let q0 = 30.0 + sin(step * 0.1) * 5.0;
-        let q1 = 25.0 + cos(step * 0.1) * 3.0;
-        let q2 = 25.0 - sin(step * 0.1) * 4.0;
-        let q3 = 100.0 - (q0 + q1 + q2);
+        var load_q0 = 0.0;
+        var exp_i = 0.0;
+        while (exp_i < 4.0) {
+            load_q0 = load_q0 + geomind_sasaki_route(sample_vec, sample_vec, exp_i);
+            exp_i = exp_i + 1.0;
+        }
+        var load_q1 = 0.0;
+        while (exp_i < 8.0) {
+            load_q1 = load_q1 + geomind_sasaki_route(sample_vec, sample_vec, exp_i);
+            exp_i = exp_i + 1.0;
+        }
+        var load_q2 = 0.0;
+        while (exp_i < 12.0) {
+            load_q2 = load_q2 + geomind_sasaki_route(sample_vec, sample_vec, exp_i);
+            exp_i = exp_i + 1.0;
+        }
+        var load_q3 = 0.0;
+        while (exp_i < 16.0) {
+            load_q3 = load_q3 + geomind_sasaki_route(sample_vec, sample_vec, exp_i);
+            exp_i = exp_i + 1.0;
+        }
+        var total_load = load_q0 + load_q1 + load_q2 + load_q3;
+        if (total_load <= 0.0) { total_load = 1.0; }
+        let q0 = (load_q0 / total_load) * 100.0;
+        let q1 = (load_q1 / total_load) * 100.0;
+        let q2 = (load_q2 / total_load) * 100.0;
+        let q3 = (load_q3 / total_load) * 100.0;
 
         webgpu_log_biological_telemetry(step, num_steps, basins_cnt, e_pre, e_post, q0, q1, q2, q3);
         step = step + 1.0;
