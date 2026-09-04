@@ -12,6 +12,7 @@ By bringing Riemannian geometry, automatic differentiation, and zero-copy memory
 - **Standard Library Modules (`src/std/`)**:
   - Implementation files carry the `.cl` extension while header files carry `.ch`.
   - `std::math` / `std::string` / `std::collections` / `std::io` / `std::fs` / `std::net` / `std::http` / `std::xml` / `std::env`
+  - `std::async` (Pure CARTAN Coroutines: `spawn`, `yield`, `await`) & `std::security` (VRAM Write-Locks & SWMR Sandboxing)
   - `std::geom` / `std::calculus` / `std::physics` / `std::tokenizer` / `std::semantics` / `std::ingest` / `std::dist` / `std::autotune`
   - `std::evolution` (Master Evolutionary Suite: ES + WANN + AZR + M2N2) & `std::es_opt` (Mirrored Evolution Strategies)
   - `std::elm` (Extreme Learning Machines & Closed-Form Zero-Shot LM-Head Readout Solves: $W_{\text{head}}^* = (H^T H + \lambda I)^{-1} H^T Y$)
@@ -25,72 +26,100 @@ By bringing Riemannian geometry, automatic differentiation, and zero-copy memory
 - **Shape-Safe Compile Time Verification**: Matrix multiplication shapes ($N \times K \cdot K \times M$) are mathematically proven at compile-time. Shape mismatch crashes are caught during compilation, not hours into training.
 - **Riemannian Geometry Types**: Tensors can inhabit specific topological spaces (`in Minkowski`, `in PoincareDisk`). The compiler automatically overrides algebraic operators (like `@`) and applies the inverse metric tensor $g^{-1}$ during reverse-mode autograd to warp gradients back into curved spaces.
 - **Zero-Copy Memory**: Cartan enforces absolute zero-allocation runtime mutations. Data paths flow seamlessly from disk/network directly to the GPU/NPU memory controller.
+- **Pure CARTAN Core Runtime**: Core language runtime primitives are written directly in pure CARTAN (`src/cartanc/core_runtime.car`), auto-injected during compilation for maximum self-hosting autonomy.
 - **Native LLVM Backend**: Cartan emits textual `.ll` (LLVM IR) without external dependencies, allowing your AI models to be compiled directly into standalone `.exe` binaries or linked via standard LLVM tools.
 
 ## The Architecture
 
-Cartan compiles via a highly specialized systems pipeline:
-1. **Frontend (`cartanc`)**: A Rust-based compiler that parses Cartan source (`.car`), verifies symbolic geometric constraints, calculates static tensor memory offsets (Liveness Analysis), and emits optimized LLVM IR (`.ll`).
-2. **Standard Library (`aether`)**: Pre-built AI workflows and primitives such as `run_causal_pretrain`, `run_sft_train`, and `run_generate`.
-3. **Hardware Runtime**: A fast C/Rust-based `tensor_runtime` that implements memory allocation, C-FFI interconnects, and reverse-mode automatic differentiation.
+Cartan compiles via a 100% self-hosted systems pipeline:
+1. **Self-Hosted Compiler (`cartanc`)**: Written entirely in native CARTAN (`src/cartanc/`), comprising a modular Lexer (`lexer.car`), Parser (`parser.car`), Semantic Type Checker (`type_checker.car`), AST Optimizer (`optimizer.car`), and LLVM IR Generator (`llvm_codegen.car`).
+2. **Pure CARTAN Runtime & Standard Library (`src/cartanc/core_runtime.car`, `src/std/`)**: Canonical runtime operations, async task dispatch, tensor calculus, and neural architectures written natively in CARTAN.
+3. **Bare-Metal Hardware Runtime**: Decoupled C hardware kernel (`src/cartanc/c_runtime.c`) providing zero-allocation arena allocators, continuous Hopfield memory banks, and WebGPU compute shaders (`gpu_runtime/`).
 
 ## Quick Start
 
-### 1. Build the Compiler
-Ensure you have Rust and Cargo installed, as well as a C compiler (or Zig, which is included in the recommended setup).
+### 1. Self-Hosted Compiler Rebuild
+CARTAN is completely self-hosting. To rebuild the compiler from source:
 
 ```bash
-cd compiler
-cargo build --release
+.\cartanc.exe build src/cartanc/main.car -o cartanc.exe
 ```
 
-### 2. Compile an AI Workflow
-You can compile Cartan `.car` files into standalone executables. The entry point of the AI operating system is `aether/geomind.car`.
+### 2. CLI Toolchain Commands
+The `cartanc.exe` CLI provides built-in tools for compilation, execution, analysis, and packaging:
+
+- **Build to Native Executable**:
+  ```bash
+  cartanc.exe build my_model.car -o my_model.exe
+  ```
+- **In-Memory JIT Execution**:
+  ```bash
+  cartanc.exe run my_model.car
+  ```
+- **Interactive REPL**:
+  ```bash
+  cartanc.exe repl
+  ```
+- **Package Manager**:
+  ```bash
+  cartanc.exe pkg
+  ```
+- **Automated C/C++ FFI Header Generation**:
+  ```bash
+  cartanc.exe bindgen my_module.car
+  ```
+- **Language Server Protocol (JSON-RPC 2.0)**:
+  ```bash
+  cartanc.exe lsp
+  ```
+- **API Documentation Generator**:
+  ```bash
+  cartanc.exe doc my_module.car
+  ```
+
+### 3. Compile an AI Workflow
+You can compile Cartan `.car` files into standalone executables. The test suite and reference AI model engine reside in `test/geomind/`.
 
 ```bash
-cartanc build-exe aether/geomind.car
+cartanc.exe build test/geomind/chat.car -o build/geomind.exe
 ```
 
-This will produce a fast, standalone native binary `release/geomind.exe`.
+This produces a fast, standalone native binary `build/geomind.exe`.
 
-### 3. Run GeoMind
+### 4. Run GeoMind
 GeoMind acts as the universal entry point for training and interacting with neural networks in Cartan.
 
 ```bash
-- **GeoMind AI Neural Model (`test/geomind/`)**:
-  - `geomind.exe --chat`: Interactive Lie Group E8 Hopfield Multimodal REPL chat interface with Stochastic Top-K ($T = 0.70$) sampling.
-  - `geomind.exe --ingest <file.txt>`: Instant real-time Hopfield memory loading ($<0.001\text{ ms}$) without backpropagation.
-  - `geomind.exe --train-sft`: E8 WordNet & SlangNet taxonomy-aligned Supervised Fine-Tuning pass.
-  - Curated Project Gutenberg Classical Corpus (`gutenberg_classics.txt`): Plato, Aristotle, Marcus Aurelius, Descartes, Kant, Newton, Darwin, Maxwell, Einstein, Homer, Dante, Shakespeare, Goethe, Dostoevsky.
-#   --chat           Start interactive chat session
-#   --generate       Generate text from a prompt
-#   --debug          Show internal states and tokens
-```
+# Interactive Lie Group E8 Hopfield Multimodal REPL chat interface:
+./build/geomind.exe --chat
 
-Example: Train a causal model with debug output:
-```bash
-./release/geomind.exe --train-causal --debug
+# Instant real-time Hopfield memory loading (<0.001 ms) without backpropagation:
+./build/geomind.exe --ingest test/geomind/trainingdata/gutenberg_classics.txt
+
+# E8 WordNet & SlangNet taxonomy-aligned Supervised Fine-Tuning pass:
+./build/geomind.exe --train-sft
 ```
 
 ## Language Overview
-A quick look at the Cartan syntax:
+A quick look at modern Cartan syntax:
 
 ```cartan
-import "std/io.car"
+include "src/std/io.cl";
+include "src/std/collections.cl";
 
 // Standard main entry point
-fn main() -> f32 {
-    var console = ConsoleStream();
+fn main() -> float {
+    printf("Initialized Cartan AI model.\n");
     
-    // Primitive hardware tensors
-    parameter[Adam] weights [16, 16] in Minkowski;
+    // Dynamic tree data structures and memory collections
+    let tree = cartan_tree_create();
+    cartan_tree_push(tree, "tensor_node_0");
     
     // Statically sized sequences and blocks
     sequence CausalSeq [ 256 ];
     block AgentBlock [ 16 ];
     
-    console.print("Initialized Cartan AI model.\n");
-    return 0;
+    return 0.0;
 }
 ```
 

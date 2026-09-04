@@ -1,3 +1,26 @@
+## [8.243.0] - 2026-09-03 (Sprint 286: Canonical Documentation Synchronization: spec.md, LANGUAGE_REFERENCE.md, and README.md)
+
+### Completed & Validated
+- **Comprehensive Proofread and Synchronization of Master Documentation**:
+  - **`README.md`**:
+    - Removed obsolete references to Rust-based compiler and `cargo build`.
+    - Documented 100% self-hosted CARTAN compiler architecture (`src/cartanc/`).
+    - Added full CLI command documentation (`build`, `run`, `repl`, `pkg`, `bindgen`, `lsp`, `doc`).
+    - Updated standard library paths to canonical `src/std/` (`.cl` and `.ch`), including `std::async` and `std::security`.
+    - Modernized code examples to use valid syntax (`include "src/std/io.cl";`, `let`, `float`).
+  - **`docs/LANGUAGE_REFERENCE.md`**:
+    - Corrected primitive types to reflect unified `float` representation (64-bit double in LLVM codegen for numerical stability; 32/16-bit in tensors) and C-ABI FFI types.
+    - Updated all standard library file references in Section 12 from obsolete `.car` to canonical `.cl` (`src/std/tensor.cl`, `src/std/fs.cl`, `src/std/collections.cl`, etc.).
+    - Added documentation for `src/std/async.cl` (pure CARTAN coroutines: spawn, yield, await) and `src/std/security.cl` (VRAM write-locks and SWMR fences).
+    - Added Section 13 detailing all `cartanc.exe` CLI toolchain subcommands.
+  - **`docs/spec.md`**:
+    - Corrected Section 4.3 reference from "Rust Semantic Type Checker" to "Self-Hosted CARTAN Semantic Type Checker (`src/cartanc/type_checker.car`)".
+    - Documented pure CARTAN core runtime (`src/cartanc/core_runtime.car`) auto-injection in AST expansion pass.
+    - Clarified that `.aer` bytecode was an early Phase 1 VM prototype, fully documenting the active LLVM IR (`.ll`) emission and Zig linking pipeline.
+    - Added `include`, `async`, `yield`, `await` to language keywords.
+- **Archived Documentation**:
+  - Authored implementation plan and retrospective in `docs/archive/sprint_286_documentation_sync_plan.md` and `docs/archive/sprint_286_documentation_sync_retro.md`.
+
 ## [8.242.0] - 2026-09-03 (Sprint 285: Pure CARTAN Runtime Decoupling, 3-Stage Fixed-Point Parity & Stdlib Redefinition Elimination)
 
 ### Completed & Validated

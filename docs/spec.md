@@ -5,19 +5,21 @@ Cartan is a statically typed, self-hosting, natively tensor-first programming la
 ## 1. Compiler Architecture
 Cartan compiles via a 100% self-hosted LLVM compiler toolchain (`cartanc` written in native CARTAN):
 - **Self-Hosted Frontend (`src/cartanc/`)**: Lexer, Parser, Type Checker, and AST expansion passes written in native CARTAN (`ast.ch`, `lexer.car`, `parser.car`, `type_checker.car`).
-- **LLVM IR Emission (`llvm_codegen.car`)**: Native LLVM IR generator emitting optimized `.ll` textual representation with DWARF line tagging (`!dbg`), C-ABI variadic float-to-double promotion (`fpext`), and exact AST variant discriminator resolution (`FunctionDecl = 14.0`). See [LESSONS_LEARNED.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/LESSONS_LEARNED.md) for architectural post-mortem.
-- **Bare-Metal Runtime (`c_runtime.c` & `gpu_runtime.lib`)**: Zero-allocation C runtime kernel exposing $O(1)$ open-addressing symbol hash tables, 1MB region bump arena allocators, SWMR memory fences, DLPack zero-copy FFI interop, capabilities-based VRAM sandboxing, compile-time `static_assert!`, and static autograd.
+- **Pure CARTAN Core Runtime (`src/cartanc/core_runtime.car`)**: Canonical runtime module auto-injected during compiler AST expansion. Provides memory-safe string manipulation, dynamic hierarchical trees (`tree<T>`), memory assertions, file I/O, and OS process execution directly in pure CARTAN.
+- **LLVM IR Emission (`llvm_codegen.car`)**: Native LLVM IR generator emitting optimized `.ll` textual representation with DWARF line tagging (`!dbg`), C-ABI variadic float-to-double promotion (`fpext`), pointer-to-float impedance conversion (`as_float`), and exact AST variant discriminator resolution.
+- **Bare-Metal Hardware Runtime (`c_runtime.c` & `gpu_runtime/`)**: Zero-allocation C runtime kernel exposing $O(1)$ open-addressing symbol hash tables, bump arena allocators, SWMR memory fences, DLPack zero-copy FFI interop, capabilities-based VRAM sandboxing, continuous Hopfield memory banks, and native WebGPU compute shaders.
 
 ## 2. Keywords
 - `fn` : Function declaration
 - `let`, `var`, `const` : Variable declarations
 - `return` : Return statement
+- `include` : Module evaluation and inclusion (`include "path"`)
 - `tensor` : Primitive tensor type declaration
 - `struct` : Data structure definition
-- **Standard Library Ecosystem (`src/std/`)**: Native implementation files carry the `.cl` extension (CARTAN Library) while public declaration header files carry the `.ch` extension (CARTAN Header). Includes `evolution.cl`/`evolution.ch` (Master Evolutionary Suite: ES + WANN + AZR + M2N2), `es_opt.cl`/`es_opt.ch` (Mirrored Evolution Strategies), `elm.cl`/`elm.ch` (Extreme Learning Machines zero-shot readout solve), `wann.cl`/`wann.ch` (Weight-Agnostic Neural Networks), `esn.cl`/`esn.ch` (Reservoir Computing), `dip.cl`/`dip.ch` (Deep Image Prior), `reasoning.cl`/`reasoning.ch` (Absolute Zero Reasoning compiler self-play), `optim.cl`/`optim.ch` (Finsler-Randers Riemannian natural gradients), `resonator.cl`/`resonator.ch` (Continuous Hopfield energy basins), `fusion.cl`/`fusion.ch` (M2N2 niche crossover, KnOTS SVD, SLERP, TIES, DARE), `distill.cl` (KL distillation), `hub.cl` (HuggingFace Hub), `tokenizer.cl` (Dynamic Gutenberg BPE tokenizer), and `vision.cl` (Computer Vision).
+- `async`, `yield`, `await` : Asynchronous coroutine execution primitives (`src/std/async.cl`)
+- **Standard Library Ecosystem (`src/std/`)**: Native implementation files carry the `.cl` extension (CARTAN Library) while public declaration header files carry the `.ch` extension (CARTAN Header). Includes `async.cl`/`async.ch` (Pure CARTAN Coroutines), `security.cl`/`security.ch` (VRAM write-locks and SWMR fences), `evolution.cl`/`evolution.ch` (Master Evolutionary Suite: ES + WANN + AZR + M2N2), `es_opt.cl`/`es_opt.ch` (Mirrored Evolution Strategies), `elm.cl`/`elm.ch` (Extreme Learning Machines zero-shot readout solve), `wann.cl`/`wann.ch` (Weight-Agnostic Neural Networks), `esn.cl`/`esn.ch` (Reservoir Computing), `dip.cl`/`dip.ch` (Deep Image Prior), `reasoning.cl`/`reasoning.ch` (Absolute Zero Reasoning compiler self-play), `optim.cl`/`optim.ch` (Finsler-Randers Riemannian natural gradients), `resonator.cl`/`resonator.ch` (Continuous Hopfield energy basins), `fusion.cl`/`fusion.ch` (M2N2 niche crossover, KnOTS SVD, SLERP, TIES, DARE), `distill.cl` (KL distillation), `hub.cl` (HuggingFace Hub), `tokenizer.cl` (Dynamic Gutenberg BPE tokenizer), and `vision.cl` (Computer Vision).
 
 - `backward(loss)` : Initiates static backward graph generation & autograd
-- `import` : Module evaluation and inclusion
 - `in` : Geometric manifold space declaration
 - `under` : Precision specifier assignment
 - `static_assert!` : Compile-time invariant evaluation
@@ -62,7 +64,7 @@ fn forward<B: int>(x: tensor[B, 512], w: tensor[512, 128]) -> tensor[B, 128] {
     return x @ w; 
 }
 ```
-If dimensions clash mathematically, the Rust Semantic Type Checker emits a precise `Diagnostic` and instantly halts the build (or highlights it in real-time via the integrated Language Server). 
+If dimensions clash mathematically, the Self-Hosted CARTAN Semantic Type Checker (`src/cartanc/type_checker.car`) emits a precise `Diagnostic` and instantly halts the build (or highlights it in real-time via the integrated Language Server). 
 
 ### 4.4 Geometric Manifolds
 A tensor exists within a specific mathematical space, which dictates how operations like `@` (geodesic inner product) behave.
@@ -136,31 +138,36 @@ fn runtime_entry(input_channel: stream) {
 }
 ```
 
-## 7. The Tier 2 `.aer` Executable Format
-When source code compiles in `.aer` mode, it produces an Cartan Executable binary. This serves as the foundational microkernel executable for CartanOS.
-The packed format features:
-- **Magic Number**: `AER0`
-- **Metadata Header**: Version (32-bit), Instruction Count (32-bit), Allocation Count (32-bit).
-- **Instruction Stream**: Packed Opcodes (e.g., `0x10` for `AllocTensor`, `0x11` for `PushTensor`, `0x12` for `StoreElement`, `0x20` for `MatMul`) followed by their raw integer parameters.
+## 7. Native Compilation & Execution Pipeline
 
-### 7.1 Virtual Machine Execution Model
-The Tier 2 Zig Runtime interprets the `.aer` file using a stack-based microkernel architecture:
-1. **MemoryBus Bump Allocator**: During `AllocTensor`, the VM calculates `total_elements = width * height` and allocates a contiguous raw `[]f32` slice directly from simulated hardware pools (SRAM, HBM, DRAM).
-2. **Tensor Registry**: The VM tracks tensors by ID using an internal hash map, linking the opaque IDs in the `.aer` bytecode to their physical memory offsets, shapes, and ranks.
-3. **Execution Stack**: The compiler emits `PushTensor(ID)` to push operands onto an execution stack.
-4. **Mathematical Execution**: Operations like `MatMul (0x20)` pop operand IDs from the stack, fetch their physical matrices from the Tensor Registry, perform the raw mathematical loops, and push the newly allocated Result ID back to the stack.
+CARTAN compiles directly from source AST to native machine code via textual LLVM Intermediate Representation (`.ll`):
+1. **AST Expansion Pass (`src/cartanc/main.car`)**: Recursively resolves all `include` statements and injects the pure CARTAN runtime kernel (`src/cartanc/core_runtime.car`).
+2. **Semantic Verification (`src/cartanc/type_checker.car`)**: Validates tensor dimensions, method calls, and symbol scopes.
+3. **AST Optimization Pass (`src/cartanc/optimizer.car`)**: Folds constant scalar arithmetic and simplifies control graphs.
+4. **LLVM IR Code Generation (`src/cartanc/llvm_codegen.car`)**: Emits structured, type-checked LLVM IR (`.ll`) featuring automatic pointer-to-float conversions (`as_float`), scientific float stabilization (`1.0e-06`), and DWARF debugging metadata (`!dbg`).
+5. **Native Linking & Vectorized Pass Pipeline (`tools/zig_wrapper.py`)**: Compiles `.ll` with `src/cartanc/c_runtime.c` using Zig (`-O3 -flto`) into standalone, zero-dependency native `.exe` executables.
+6. **In-Memory JIT Engine (`cartan_jit_eval`)**: Compiles and executes code on-the-fly for `cartanc run <file.car>` and the interactive REPL.
 
-### 7.2 The Autograd Register Plane
-The Tier 2 VM maintains a fixed-size, stack-allocated Autograd Tape Arena. When a tensor in a non-Euclidean manifold executes an operation, the VM stores a compact 16-byte record tracking the input IDs, output ID, and a pointer to the manifold's inverse metric function, ensuring OOM-free reverse-mode updates without dynamic memory tracking.
+*(Historical Note: The early `.aer` stack-based bytecode format served as an initial Phase 1 prototype and has been entirely superseded by direct native LLVM IR emission).*
 
-## 8. The Tier 3 LLVM Native Backend
-Cartan can bypass the Tier 2 VM entirely by running `cartanc build-llvm`. This command natively generates zero-dependency LLVM Intermediate Representation (`.ll`) files.
-This Tier 3 pipeline enables variables and tensors to be directly compiled into natively allocated memory addresses via `alloca`, enabling high-performance optimizations using standard toolchains (e.g., `clang output.ll -O3`).
+## 8. Codegen Optimizations & Hardware Target Backends
 
-### 8.1 Static Monomorphization & Direct GPU Target Backends (NVPTX / SPIR-V)
-To preserve the zero-overhead, bare-metal design, Cartan employs compile-time generic monomorphization and native GPU shader target compilation:
-1. **Static Generic Monomorphization**: Multiple method dispatch based on generic dimensions (e.g. `B: int`) or precision specifiers (`under fp16`) is resolved at compile time. The parser duplicates and specializes function signatures for each unique call pattern, compiling directly to monomorphized LLVM IR.
-2. **Direct GPU Backends (NVPTX/SPIR-V)**: Rather than relying on separate shader files, functions marked with the `@gpu_kernel` modifier compile directly to PTX (Nvidia GPUs) or SPIR-V (Vulkan/DirectX runtimes) via the LLVM compiler toolchain. The compiler resolves host-device buffer synchronizations transparently at the boundary of `@location("gpu")` allocations.
+To preserve zero-overhead execution and numerical precision, CARTAN incorporates specialized codegen passes:
+
+### 8.1 Pointer-to-Float Impedance Conversion (`as_float`)
+When dynamic data structures (`ptr:`, `string:`, `tree<T>`, `struct:`) are returned from functions or evaluated in floating-point operations, `llvm_codegen.car` automatically emits:
+```llvm
+%val_i64 = ptrtoint ptr %ptr to i64
+%val_dbl = sitofp i64 %val_i64 to double
+```
+This eliminates LLVM type verification failures (`defined with type 'ptr' but expected 'double'`) while allowing seamless scalar manipulation of opaque pointers.
+
+### 8.2 Strict Scientific Float Stabilization
+LLVM IR syntax mandates an explicit decimal point in floating-point literals with exponents (e.g. `1.0e-06`). The codegen and C runtime formatters enforce decimal point inclusion on all `%g` float formatting, preventing parser rejections in mathematical operations.
+
+### 8.3 Static Monomorphization & Direct GPU Target Backends (NVPTX / SPIR-V / WGSL)
+1. **Static Generic Monomorphization**: Multiple method dispatch based on generic dimensions (e.g. `B: int`) or precision specifiers (`under fp16`) is resolved at compile time.
+2. **Direct GPU Backends (WGSL / OpenCL)**: Functions marked with compute directives compile directly to native WebGPU compute shaders (`gpu_runtime/src/kernels.wgsl`) and OpenCL kernels, binding to persistent VRAM buffers with zero PCIe host-device latency.
 
 ## 9. Differential Geometry & Riemannian Math
 Cartan rejects the concept of treating Non-Euclidean math as a software-level hack. The `@` operator natively reads the geometric manifold of the tensor and alters its mathematical contraction at the compiler level.

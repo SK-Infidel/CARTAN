@@ -8,26 +8,27 @@ This document serves as the canonical reference for Cartan's syntax, types, and 
 
 Cartan operates natively on a few carefully constructed primitive types:
 
-- `f32` / `float`: 32-bit floating point number. (All standard math resolves to this).
-- `i32` / `int`: 32-bit integer.
+- `float`: Unified scalar numeric value (compiled to 64-bit IEEE-754 double in LLVM codegen for numerical stability in autograd and differential geometry; 32-bit/16-bit inside tensor buffers).
 - `bool`: Boolean logic (`true`, `false`).
-- `ptr`: A raw memory pointer (often used for C-FFI interfacing).
+- `ptr`: A raw memory pointer (used for C-ABI interoperability and low-level buffers).
+- `void`: Empty return type for statements and functions.
 - `string`: Immutable string literals (`"hello"`).
-- `tensor`: N-dimensional contiguous arrays, compiled natively.
+- `tree<T>`: Hierarchical dynamic tree structure (`cartan_tree_create`, `cartan_tree_push`, `cartan_tree_get`, etc.).
+- `tensor`: N-dimensional contiguous arrays, compiled natively to targeted precision.
 - `stream`: Asynchronous, non-blocking hardware data pipelines.
 - `vector[N]`: Standard Euclidean ambient or intrinsic tangent vector.
   - **Syntax**: `vector[N] at anchor_tensor` (Tangent vector anchored at target manifold coordinates).
 - `lattice[L]`: An algebraic lattice (e.g. `lattice[E8] l`).
-- `tree<T>`: A hierarchical heap-allocated search tree holding instances of `T` (e.g. `tree<tensor> t`).
 - `dataframe`: A typed database-like table structure.
 
 ---
 
 ## 2. Variables & Constants
 
-Variables are declared with `var`. Constants are declared with `const`.
+Variables are declared with `let` (scoped/immutable assignment) or `var` (mutable assignment). Constants are declared with `const`.
 
 ```cartan
+let message = "Hello CARTAN";
 var my_variable = 42.0;
 const PI = 3.14159;
 ```
@@ -49,15 +50,15 @@ if (my_variable == 42.0) {
 
 ### While Loops
 ```cartan
-var i = 0;
-while (i < 10) {
-    i = i + 1;
+var i = 0.0;
+while (i < 10.0) {
+    i = i + 1.0;
 }
 ```
 
 ### For Loops
 ```cartan
-for (var i = 0; i < 10; i = i + 1) {
+for (var i = 0.0; i < 10.0; i = i + 1.0) {
     // Loop body
 }
 ```
@@ -69,7 +70,7 @@ for (var i = 0; i < 10; i = i + 1) {
 Functions are declared with `fn`, followed by parameters and the return type.
 
 ```cartan
-fn add_numbers(a: f32, b: f32) -> f32 {
+fn add_numbers(a: float, b: float) -> float {
     return a + b;
 }
 ```
@@ -78,8 +79,9 @@ fn add_numbers(a: f32, b: f32) -> f32 {
 Cartan can natively link against C functions using the `extern fn` keyword.
 
 ```cartan
-extern fn printf(format: ptr) -> f32;
-extern fn malloc(size: f32) -> ptr;
+extern fn printf(format: string) -> i32;
+extern fn malloc(size: float) -> ptr;
+extern fn free(p: ptr);
 ```
 
 ---
@@ -119,9 +121,12 @@ block AgentBlock [ 16 ];
 The standard library is located in `src/std/`. Implementations use the `.cl` extension and public declarations use `.ch`.
 
 ### 7.1 Core & Infrastructure Modules
+- `src/cartanc/core_runtime.car`: Pure CARTAN Core Runtime kernel auto-injected during compiler AST expansion for zero-dependency portability.
 - `src/std/math.cl` / `src/std/constants.ch`: Standard math & physical constants.
-- `src/std/string.cl` / `src/std/collections.cl`: High-performance strings, dynamic trees, vectors, and memory pools.
-- `src/std/io.cl` / `src/std/fs.cl` / `src/std/net.cl` / `src/std/http.cl` / `src/std/xml.cl`: Systems I/O, networking, HTTP clients, and XML parsing.
+- `src/std/string.cl` / `src/std/collections.cl`: High-performance strings, dynamic trees, vectors, slices, and memory pools.
+- `src/std/async.cl` / `src/std/async.ch`: Native asynchronous coroutines (`cartan_async_spawn`, `cartan_async_yield`, `cartan_async_await`).
+- `src/std/security.cl` / `src/std/security.ch`: Capabilities-based VRAM parameter write-locking and SWMR thread-safe memory fences.
+- `src/std/io.cl` / `src/std/fs.cl` / `src/std/net.cl` / `src/std/http.cl` / `src/std/xml.cl`: Systems I/O, file streaming, networking, HTTP clients, and XML parsing.
 - `src/std/env.cl`: Command-line environment argument parsing.
 
 ### 7.2 AI & Machine Learning Breakthrough Modules
@@ -234,22 +239,24 @@ Cartan features a rich suite of built-in operators and compiler functions:
 
 ## 12. Standard Libraries (`src/std/`)
 
-Cartan provides standard library modules written in native CARTAN:
+Cartan provides standard library modules written in native CARTAN (`.cl` implementation, `.ch` header):
 
-### 12.1 `std/tensor.car`
-- `zeros(size)`: Allocates zeroed contiguous tensor memory.
-- `ones(size)`: Allocates initialized tensor memory.
-- `relu(tensor)`: In-place ReLU activation function.
-- `add(a, b)` / `sub(a, b)` / `mul(a, b)`: Element-wise tensor operations.
+### 12.1 `src/std/tensor.cl`
+- `cartan_tensor_alloc(rows, cols)`: Allocates contiguous tensor memory on the memory bus.
+- `cartan_tensor_add(a, b)` / `cartan_tensor_sub(a, b)`: Element-wise tensor operations.
+- `cartan_tensor_mul(a, b)` / `cartan_tensor_div(a, b)`: Element-wise arithmetic.
+- `cartan_tensor_to_dlpack(t)` / `cartan_tensor_from_dlpack(ptr)`: Zero-copy DLPack FFI tensor bridges.
 
-### 12.2 `std/fs.car`
-- `read_file_to_string(path)`: Reads text file into heap string.
-- `write_string_to_file(path, content)`: Writes string to target path.
-- `file_exists(path)`: Returns `1.0` if file exists, else `0.0`.
+### 12.2 `src/std/fs.cl`
+- `cartan_read_file(path)`: Reads full file content into string.
+- `cartan_write_file(path, content)`: Writes text string directly to file.
+- `cartan_file_exists(path)`: Returns `1.0` if file exists, else `0.0`.
+- `cartan_copy_file(src, dst)`: Copies file from source path to destination path.
+- `cartan_export_c_headers(src, dst)`: Generates and writes C header files from symbol definitions.
 
-### 12.3 `std/semantics.car`
+### 12.3 `src/std/semantics.cl`
 ```cartan
-include "src/std/semantics.car";
+include "src/std/semantics.cl";
 
 let path = "entity.physical_entity.object.organism.canine.dog";
 let depth = semantics_dot_path_depth(path); // returns 6.0
@@ -258,18 +265,49 @@ let distance = semantics_lca_tree_distance(path, "entity.physical_entity.object.
 
 ---
 
-## 12.4 Information Content & Tokenizer Scaling (`std/tokenizer`)
+## 12.4 Information Content & Tokenizer Scaling (`src/std/tokenizer.cl`)
 
 ```cartan
-include "src/std/tokenizer.car";
+include "src/std/tokenizer.cl";
 
 let scaled_loss = tokenizer_scale_ic_loss(1.5, 35.0); // scales cross-entropy loss by IC weight
 ```
 
-### 12.5 `std/collections.car`
-- `list_create()` / `list_push(l, item)` / `list_get(l, idx)` / `list_len(l)`: Dynamic heap-allocated tree lists.
-- `map_create()` / `map_set(m, key, val)` / `map_get(m, key)`: $O(1)$ open-addressing hash dictionaries.
+### 12.5 `src/std/collections.cl`
+- `cartan_tree_create()`: Instantiates dynamic heap tree container.
+- `cartan_tree_push(t, item)` / `cartan_tree_push_f32(t, val)`: Appends element to tree.
+- `cartan_tree_get_f32(t, idx)` / `cartan_tree_get(t, idx)`: Retrieves element at index.
+- `cartan_tree_len_f(t)` / `cartan_tree_len(t)`: Returns total element count.
+- `cartan_slice_tree(t, start, end)`: Extracts sub-tree slice.
+- `cartan_slice_nd(t, dims, indices)`: Performs N-dimensional multidimensional slicing.
 
-### 12.6 `std/math.car` & `std/io.car`
-- `sin(x)`, `cos(x)`, `tan(x)`, `exp(x)`, `log(x)`, `sqrt(x)`, `pow(x, y)`: Scalar math wrappers.
-- `println(text)` / `eprintln(text)`: Formatted stdout and stderr printing helpers.
+### 12.6 `src/std/async.cl`
+- `cartan_async_spawn(fn_ptr, arg)`: Spawns cooperative coroutine.
+- `cartan_async_yield(task_id)`: Yields active execution slice back to scheduler.
+- `cartan_async_await(task_id)`: Awaits coroutine completion and returns final result.
+
+### 12.7 `src/std/security.cl`
+- `cartan_rt_vram_lock_parameters(arena, bytes)`: Sets write-lock on model weights in VRAM.
+- `cartan_rt_vram_unlock_parameters(arena)`: Unlocks model weight arena.
+- `cartan_rt_check_vram_access(addr, bytes)`: Verifies capability bounds before access.
+- `cartan_rt_lock_swmr()` / `cartan_rt_unlock_swmr()`: Single-Writer Multi-Reader synchronization fences.
+
+### 12.8 `src/std/math.cl` & `src/std/io.cl`
+- `sin(x)`, `cos(x)`, `tan(x)`, `exp(x)`, `log(x)`, `sqrt(x)`, `pow(x, y)`: Standard scalar math intrinsics.
+- `printf(format, ...)`: Formatted console output via libc ABI.
+- `cartan_read_line()`: Reads single line from standard input.
+- `cartan_flush(handle)`: Flushes standard I/O buffer.
+
+---
+
+## 13. Compiler CLI Toolchain (`cartanc.exe`)
+
+The self-hosted compiler provides native subcommands:
+
+- `cartanc build <file.car> -o <out.exe>`: Compiles CARTAN source to optimized LLVM IR (`.ll`) and links to native executable via Zig.
+- `cartanc run <file.car>`: Compiles and runs the program in-memory via Just-In-Time (JIT) execution.
+- `cartanc repl`: Launches interactive REPL prompt for live expression evaluation.
+- `cartanc pkg`: Generates package manifests (`cartan.toml`) and dependency lockfiles (`cartan.lock`).
+- `cartanc bindgen <file.car>`: Automatically exports C/C++ FFI header files (`.h`) from SymbolTable definitions.
+- `cartanc lsp`: Runs JSON-RPC 2.0 Language Server for IDE editor integration.
+- `cartanc doc <file.car>`: Emits Markdown API documentation directly from docstrings and symbols.
