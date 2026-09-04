@@ -104,6 +104,7 @@ double cartan_export_cartan_static_assert(double* args);
 double cartan_export_cartan_next_reg(double* args);
 double cartan_export_cartan_get_quote(double* args);
 double cartan_export_cartan_jit_eval(double* args);
+double cartan_export_cartan_system(double* args);
 double cartan_export_cartan_async_spawn(double* args);
 double cartan_export_cartan_async_yield(double* args);
 double cartan_export_cartan_async_await(double* args);

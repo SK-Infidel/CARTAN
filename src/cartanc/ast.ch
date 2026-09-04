@@ -216,5 +216,7 @@ extern fn cartan_tree_len(t: ptr) -> float;
 extern fn cartan_tree_len_f(t: ptr) -> float;
 extern fn cartan_tree_len_f32(t: ptr) -> float;
 extern fn cartan_tree_get_f32(t: ptr, idx: float) -> ptr;
+extern fn cartan_tree_set(t: ptr, idx: float, val: ptr) -> void;
+extern fn cartan_tree_remove(t: ptr, idx: float) -> void;
 extern fn cartan_string_concat(s1: string, s2: string) -> string;
 extern fn cartan_string_replace(s: string, old_s: string, new_s: string) -> string;

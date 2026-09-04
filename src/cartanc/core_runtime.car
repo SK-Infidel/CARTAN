@@ -619,6 +619,10 @@ fn cartan_jit_eval(ll_file: string) -> float {
     return res;
 }
 
+fn cartan_system(cmd: string) -> float {
+    return system(cmd);
+}
+
 fn cartan_async_spawn(fn_ptr: ptr) -> float { return 1.0; }
 fn cartan_async_yield() -> float { return 1.0; }
 fn cartan_async_await(task_id: float) -> float { return 1.0; }

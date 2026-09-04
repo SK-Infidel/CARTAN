@@ -6,7 +6,6 @@ struct TypeChecker {
     functions: ptr;
     symbol_table: ptr;
     struct_registry: ptr;
-    current_scope: ptr;
 }
 
 
@@ -58,6 +57,7 @@ fn cartan_dict_clone(dict: ptr) -> ptr {
 
 fn type_checker_init() -> TypeChecker {
     var p = TypeChecker { functions: cartan_tree_create(), symbol_table: cartan_tree_create(), struct_registry: cartan_tree_create() };
+    push_scope(p);
     return p;
 }
 
@@ -67,23 +67,21 @@ fn type_checker_init() -> TypeChecker {
     }
 
     fn pop_scope(self_ptr: TypeChecker) {
-    if (self_ptr.current_scope != 0.0) {
-        self_ptr.current_scope = cartan_tree_get_f32(self_ptr.current_scope, 1.0);
-    }
+        let len = cartan_tree_len_f(self_ptr.symbol_table);
+        if (len > 1.0) {
+            cartan_tree_remove(self_ptr.symbol_table, len - 1.0);
+        }
     }
 
     fn resolve_var(self_ptr: TypeChecker, name: string) -> ptr {
-        if (name == "self") {
-            printf("[DEBUG resolve_var self] symbol_table scopes");
-        }
-        var curr_node = self_ptr.current_scope;
-        while (curr_node != 0.0) {
-            var scope = cartan_tree_get_f32(curr_node, 0.0);
+        var i = cartan_tree_len_f(self_ptr.symbol_table) - 1.0;
+        while (i >= 0.0) {
+            var scope = cartan_tree_get_f32(self_ptr.symbol_table, i);
             var t = cartan_dict_get(scope, name);
             if (t != 0.0) {
                 return t;
             }
-            curr_node = cartan_tree_get_f32(curr_node, 1.0);
+            i = i - 1.0;
         }
         return 0.0;
     }

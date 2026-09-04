@@ -394,27 +394,27 @@ This file tracks technical debt and bugs identified during repository code revie
 
 # Active Issues (Sprint 289 Line-by-Line Code Review Audit)
 
-## [ISSUE-029] Lexer Logical NOT `!` Drops Operator Token to EOF
+## [ISSUE-029] [FIXED] Lexer Logical NOT `!` Drops Operator Token to EOF
 - **Severity**: High (Compiler Lexer Bug)
-- **Component**: `src/cartanc/lexer.car:276-280`
-- **Description**: In character scanning for `!` (`c == 33.0`), if the next character is not `=`, `ttype_op` is not assigned and defaults to `TokenType::EOF`. This prevents logical negation expressions (`!x`) from lexing into `TokenType::Not` (token ID 137.0).
-- **Proposed Fix**: Add `else { ttype_op = TokenType::Not; }` to the `c == 33.0` match block.
+- **Component**: `src/cartanc/lexer.car:276-280`, `src/cartanc/llvm_codegen.car:2234-2248`
+- **Description**: In character scanning for `!` (`c == 33.0`), if the next character is not `=`, `ttype_op` was not assigned and defaulted to `TokenType::EOF`. Additionally, UnaryOp in `llvm_codegen.car` allocated the result register before `bool_val`, producing non-monotonic LLVM register ordering error.
+- **Status**: Fixed in Sprint 289. Added `else { ttype_op = TokenType::Not; }` to `lexer.car` and corrected register allocation ordering in `llvm_codegen.car`. Verified in `scratch/test_sprint289_fixes.car`.
 
 ---
 
-## [ISSUE-030] TypeChecker Scope Stack & `resolve_var` Linkage Disconnection
+## [ISSUE-030] [FIXED] TypeChecker Scope Stack & `resolve_var` Linkage Disconnection
 - **Severity**: Critical (Compiler Type Checker Bug)
-- **Component**: `src/cartanc/type_checker.car:65-88`
-- **Description**: `push_scope` appends newly created scopes to `self_ptr.symbol_table`, but `resolve_var` traverses `self_ptr.current_scope` which is initialized to null (`0.0`) and never linked. Furthermore, `pop_scope` attempts to traverse null links without popping `symbol_table`. As a result, `resolve_var` never resolves local variables.
-- **Proposed Fix**: Standardize `push_scope`, `pop_scope`, and `resolve_var` to operate consistently on the `symbol_table` stack or maintain `current_scope` parent links.
+- **Component**: `src/cartanc/type_checker.car:5-10, 59-89`
+- **Description**: `push_scope` appended newly created scopes to `self_ptr.symbol_table`, but `resolve_var` traversed `self_ptr.current_scope` which was initialized to null (`0.0`) and never linked. Furthermore, `pop_scope` attempted to traverse null links without popping `symbol_table`.
+- **Status**: Fixed in Sprint 289. Aligned `struct TypeChecker` fields (3 fields matching `type_checker_init`), pushed initial global scope in `type_checker_init()`, implemented `pop_scope` with `cartan_tree_remove(self_ptr.symbol_table, len - 1.0)`, and updated `resolve_var` to iterate backwards through `symbol_table` stack frames.
 
 ---
 
-## [ISSUE-031] AST Optimizer Constant Folding Serializes Float as String
+## [ISSUE-031] [FIXED] AST Optimizer Constant Folding Serializes Float as String
 - **Severity**: Medium (AST Invariant Violation)
-- **Component**: `src/cartanc/optimizer.car:26, 32, 38, 44`
-- **Description**: `optimize_expr` constructs `Expr::Float` (discriminant 1.0) using `cartan_float_to_string(val_l + val_r)` instead of raw numerical float values, violating the AST invariant that variant 1.0 contains float data.
-- **Proposed Fix**: Push raw numerical float results directly into the folded AST node.
+- **Component**: `src/cartanc/optimizer.car:23-47`
+- **Description**: `optimize_expr` constructed `Expr::Float` (discriminant 1.0) using `cartan_float_to_string(val_l + val_r)` instead of raw numerical float values, violating the AST invariant that variant 1.0 contains float data and corrupting float literals in codegen.
+- **Status**: Fixed in Sprint 289. Replaced string serialization with direct `Expr::Float(val_l [op] val_r)` constructors returning raw float values.
 
 ---
 
@@ -434,11 +434,11 @@ This file tracks technical debt and bugs identified during repository code revie
 
 ---
 
-## [ISSUE-034] Missing System Command Wrapper `cartan_system` in Core Runtime
+## [ISSUE-034] [FIXED] Missing System Command Wrapper `cartan_system` in Core Runtime
 - **Severity**: Medium (Standard Library Link Error)
-- **Component**: `src/std/io.cl:6`, `src/cartanc/core_runtime.car:41`
-- **Description**: `src/std/io.cl:io_exec` binds to `extern fn cartan_system(cmd: string) -> float`, but `core_runtime.car` only defines `system(cmd: string) -> float`.
-- **Proposed Fix**: Add `fn cartan_system(cmd: string) -> float { return system(cmd); }` to `src/cartanc/core_runtime.car`.
+- **Component**: `src/std/io.cl:6`, `src/cartanc/core_runtime.car:620`, `src/cartanc/geomind_runtime.c:98`
+- **Description**: `src/std/io.cl:io_exec` binds to `extern fn cartan_system(cmd: string) -> float`, but `core_runtime.car` only defined `system(cmd: string) -> float`.
+- **Status**: Fixed in Sprint 289. Exported `cartan_system(cmd: string) -> float` from `core_runtime.car` delegating to `system(cmd)` and declared `cartan_system` in `geomind_runtime.c` as `CARTAN_WEAK` to allow clean linker overrides.
 
 ---
 

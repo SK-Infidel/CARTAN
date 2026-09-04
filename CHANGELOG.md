@@ -1,16 +1,32 @@
-## [8.246.0] - 2026-09-04 (Sprint 289: Full Codebase Line-by-Line Code Review & Zero-Mock Compliance Audit)
+## [8.246.0] - 2026-09-04 (Sprint 289: Full Codebase Audit & Compiler Core Hardening)
 
 ### Completed & Validated
 - **Comprehensive Line-by-Line Code Review Audit**:
   - Performed full line-by-line inspection across compiler core (`src/cartanc/`), standard libraries (`src/std/`), and GeoMind model suite (`test/geomind/`).
   - Audited implementation bodies for stubbed functions, pseudo-code, placeholders, and simulated calculations violating the Strict Zero-Mock Rule.
   - Constructed comprehensive, multi-layer logical dependency tree linking compiler passes, runtime layers, standard library modules, and GeoMind models.
-- **Defects & Technical Debt Logged (`ISSUES.md`)**:
-  - Registered 20 concrete issues (`[ISSUE-029]` through `[ISSUE-048]`):
-    - Compiler core: Lexer `!` token drop, type checker scope lookup, constant folder float string serialization, and `cartan_system` wrapper omission.
-    - Zero-mock violations: Simulated distillation loops, geometric decay loss multipliers, synthetic WebGPU cross-entropy loss and Sasaki MoE telemetry, dummy matrix multiplications in autotune, pass-through sliding window attention, and pseudo-implementations in inductive bias modules.
-- **Audit Documentation & Archive**:
-  - Authored full audit report and dependency tree in `docs/archive/code_review_full_audit_cartan_geomind.md`.
+  - Registered 20 concrete issues (`[ISSUE-029]` through `[ISSUE-048]`) in `ISSUES.md`.
+- **Compiler Core Hardening & Defect Repairs**:
+  - **`[ISSUE-029]` Lexer Logical NOT & Monotonic LLVM Register Ordering**:
+    - Added `else { ttype_op = TokenType::Not; }` in `src/cartanc/lexer.car` restoring tokenization of unary `!` (137.0).
+    - Corrected register allocation order in `src/cartanc/llvm_codegen.car` (`UnaryOp`) allocating `bool_val` before `res_reg` to satisfy LLVM monotonic register ID invariants.
+  - **`[ISSUE-030]` TypeChecker Scope Stack & Resolution**:
+    - Aligned `struct TypeChecker` fields with `type_checker_init()`.
+    - Pushed initial top-level global scope in `type_checker_init()`.
+    - Fixed `pop_scope` using `cartan_tree_remove(self_ptr.symbol_table, len - 1.0)`.
+    - Implemented reverse stack frame traversal in `resolve_var`.
+  - **`[ISSUE-031]` AST Optimizer Constant Folding**:
+    - Replaced string-serialized float representations in `src/cartanc/optimizer.car` with direct `Expr::Float(val_l [op] val_r)` constructors returning raw numerical floats.
+  - **`[ISSUE-034]` System Command Wrapper**:
+    - Exported `cartan_system(cmd: string) -> float` from `src/cartanc/core_runtime.car` delegating to `system(cmd)`.
+    - Declared `cartan_system` in `src/cartanc/geomind_runtime.c` as `CARTAN_WEAK` to allow clean linker overrides with zero duplicate symbol warnings.
+- **Bit-for-Bit 3-Stage Self-Hosting Parity & Empirical Validation**:
+  - Re-bootstrapped compiler through 3 stages with zero errors.
+  - Verified exact bit-for-bit identity between `scratch/cartanc_stage2.ll` and `scratch/cartanc_stage3.ll` (37,906 lines) via `fc.exe` (`FC: no differences encountered`).
+  - Promoted verified Stage 3 compiler to primary `cartanc.exe`.
+  - Verified passing execution of `scratch/test_sprint289_fixes.car` with exit code 0.
+  - Executed all 47 compiler snapshot regression tests (`test/compiler_suite/run_tests.car`) with 100% pass rate.
+  - Compiled and verified native `geomind.exe --help` with exit code 0 and zero linker warnings.
 
 ## [8.245.0] - 2026-09-04 (Sprint 288: GeoMind Compilation, Indirect Function Calls & Self-Contained AI Runtime)
 

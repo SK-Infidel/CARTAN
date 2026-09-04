@@ -384,6 +384,10 @@
 - **Type**: Verified TypeChecker Symbol Table Export
 - **Status**: Production-Grade Native Implementation
 
+### `cartan_system()`
+- **Type**: Verified TypeChecker Symbol Table Export
+- **Status**: Production-Grade Native Implementation
+
 ### `cartan_async_spawn()`
 - **Type**: Verified TypeChecker Symbol Table Export
 - **Status**: Production-Grade Native Implementation

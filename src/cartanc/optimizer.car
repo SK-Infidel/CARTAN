@@ -21,28 +21,16 @@ fn optimize_expr(expr: ptr) -> ptr {
             let val_l = cartan_tree_get_f32(left, 1.0);
             let val_r = cartan_tree_get_f32(right, 1.0);
             if (cartan_string_eq(op, "+") != 0.0) {
-                let res = cartan_tree_create();
-                cartan_tree_push(res, 1.0);
-                cartan_tree_push(res, cartan_float_to_string(val_l + val_r));
-                return res;
+                return Expr::Float(val_l + val_r);
             }
             if (cartan_string_eq(op, "-") != 0.0) {
-                let res = cartan_tree_create();
-                cartan_tree_push(res, 1.0);
-                cartan_tree_push(res, cartan_float_to_string(val_l - val_r));
-                return res;
+                return Expr::Float(val_l - val_r);
             }
             if (cartan_string_eq(op, "*") != 0.0) {
-                let res = cartan_tree_create();
-                cartan_tree_push(res, 1.0);
-                cartan_tree_push(res, cartan_float_to_string(val_l * val_r));
-                return res;
+                return Expr::Float(val_l * val_r);
             }
             if (cartan_string_eq(op, "/") != 0.0 && val_r != 0.0) {
-                let res = cartan_tree_create();
-                cartan_tree_push(res, 1.0);
-                cartan_tree_push(res, cartan_float_to_string(val_l / val_r));
-                return res;
+                return Expr::Float(val_l / val_r);
             }
         }
 

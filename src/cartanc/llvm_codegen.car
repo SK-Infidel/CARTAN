@@ -2235,17 +2235,21 @@ while (idx_method < cartan_tree_len_f(methods)) {
             let op = cartan_tree_get_f32(expr, 1.0);
             let right = cartan_tree_get_f32(expr, 2.0);
             let rhs = llvm_visit_expr(self_ptr, right);
-            let res_reg = next_reg(self_ptr);
             if (cartan_string_eq(op, "!") != 0.0) {
                 let bool_val = next_reg(self_ptr);
+                let res_reg = next_reg(self_ptr);
                 cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", bool_val), " = fcmp oeq double "), as_float(self_ptr, rhs)), ", 0.0\n"));
                 cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", res_reg), " = uitofp i1 "), bool_val), " to double\n"));
+                return res_reg;
             } else if (cartan_string_eq(op, "-") != 0.0) {
+                let res_reg = next_reg(self_ptr);
                 cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", res_reg), " = fsub double 0.0, "), as_float(self_ptr, rhs)), "\n"));
+                return res_reg;
             } else {
+                let res_reg = next_reg(self_ptr);
                 cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", res_reg), " = fadd double 0.0, "), as_float(self_ptr, rhs)), "\n"));
+                return res_reg;
             }
-            return res_reg;
         }
         if (disc == 22.0) {
             let target = cartan_tree_get_f32(expr, 1.0);

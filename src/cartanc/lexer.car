@@ -276,6 +276,8 @@ fn lexer_next_token(lexer: Lexer) -> Token {
         else if (c == 33.0) {
             if (lexer_match(lexer, 61.0) == 1.0) {
                 ttype_op = TokenType::NotEq;
+            } else {
+                ttype_op = TokenType::Not;
             }
         }
         else if (c == 60.0) {

@@ -95,7 +95,7 @@ CARTAN_WEAK void cartan_print_string(const char* text) {
     }
 }
 
-double cartan_system(const char* cmd) {
+CARTAN_WEAK double cartan_system(const char* cmd) {
     if (!cmd) return -1.0;
     int res = system(cmd);
     return (double)res;
