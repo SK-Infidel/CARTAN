@@ -541,11 +541,11 @@ This file tracks technical debt and bugs identified during repository code revie
 
 ---
 
-## [ISSUE-046] Undefined Functions in `merge_model_weights.cl` Causing Linker Failure
+## [ISSUE-046] [FIXED] Undefined Functions in `merge_model_weights.cl` Causing Linker Failure
 - **Severity**: High (Compilation Failure)
 - **Component**: `test/geomind/merge_model_weights.cl:38, 41, 44, 47, 50, 53`
 - **Description**: Calls non-existent functions `fusion_dare_merge`, `fusion_task_arithmetic`, `fusion_knots_orthogonal_merge`, `fusion_m2n2_dynamic_split`, `fusion_m2n2_attraction_pair`, and `fusion_m2n2_map_elites_crossover`.
-- **Proposed Fix**: Implement missing fusion functions in `src/std/fusion.cl` or adjust callers.
+- **Status**: Fixed in Sprint 297. Implemented authentic mathematical fusion algorithms in `src/std/fusion.cl` for all six functions: DARE Bernoulli dropout mask with rescaling, linear Task Arithmetic subspace vector addition, KnOTS Gram-Schmidt orthogonalization, M2N2 dynamic sigmoid split crossover, M2N2 dominant synaptic attraction pairing, and M2N2 MAP-Elites quality-diversity genetic crossover. Modernized `fusion.cl` to allocate exact-size tensors via `cartan_tensor_alloc`. Updated `test/geomind/merge_model_weights.cl` to use `cartan_vec_set_f32`, `cartan_vec_get_f32`, and `cartan_vec_len`. Enabled `-O2` in `tools/zig_wrapper.py` for alloca hoisting and optimal vectorization. Verified clean native compilation and execution of `merge_model_weights.exe` with all assertions passing (1M parameters, mid_val == 2.0). All 49 compiler regression tests passing 100%.
 
 ---
 

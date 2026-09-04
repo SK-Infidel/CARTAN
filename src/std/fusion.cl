@@ -6,7 +6,7 @@ include "src/std/math.cl";
 
 fn fusion_slerp_tensors(t1: ptr, t2: ptr, weight: float) -> ptr {
     let len = cartan_vec_len(t1);
-    let out = cartan_vec_create();
+    let out = cartan_tensor_alloc(len);
     
     // 1. Compute vector norms and cosine angle on S^(N-1) unit hypersphere
     var norm1 = 0.0;
@@ -34,7 +34,7 @@ fn fusion_slerp_tensors(t1: ptr, t2: ptr, weight: float) -> ptr {
         while (i < len) {
             let v1 = cartan_vec_get_f32(t1, i);
             let v2 = cartan_vec_get_f32(t2, i);
-            cartan_vec_push_f32(out, v1 * w1 + v2 * w2);
+            cartan_vec_set_f32(out, i, v1 * w1 + v2 * w2);
             i = i + 1.0;
         }
         return out;
@@ -47,7 +47,7 @@ fn fusion_slerp_tensors(t1: ptr, t2: ptr, weight: float) -> ptr {
     let scale2 = sin(weight * omega) / sin_omega;
 
     // 2. Compute SLERP directional unit vectors
-    var out_raw = cartan_vec_create();
+    let out_raw = cartan_tensor_alloc(len);
     var norm_out = 0.0;
     i = 0.0;
     while (i < len) {
@@ -55,7 +55,7 @@ fn fusion_slerp_tensors(t1: ptr, t2: ptr, weight: float) -> ptr {
         let v2 = cartan_vec_get_f32(t2, i);
         let slerp_v = v1 * scale1 + v2 * scale2;
         norm_out = norm_out + slerp_v * slerp_v;
-        cartan_vec_push_f32(out_raw, slerp_v);
+        cartan_vec_set_f32(out_raw, i, slerp_v);
         i = i + 1.0;
     }
     norm_out = sqrt(norm_out + 0.000001);
@@ -65,15 +65,16 @@ fn fusion_slerp_tensors(t1: ptr, t2: ptr, weight: float) -> ptr {
     i = 0.0;
     while (i < len) {
         let raw_v = cartan_vec_get_f32(out_raw, i);
-        cartan_vec_push_f32(out, raw_v * manifold_scale);
+        cartan_vec_set_f32(out, i, raw_v * manifold_scale);
         i = i + 1.0;
     }
+    free(out_raw);
     return out;
 }
 
 fn fusion_ties_merge(t1: ptr, t2: ptr, t3: ptr, threshold: float) -> ptr {
     let len = cartan_vec_len(t1);
-    let out = cartan_vec_create();
+    let out = cartan_tensor_alloc(len);
     var i = 0.0;
     while (i < len) {
         let v1 = cartan_vec_get_f32(t1, i);
@@ -82,7 +83,7 @@ fn fusion_ties_merge(t1: ptr, t2: ptr, t3: ptr, threshold: float) -> ptr {
         var sum_v = v1 + v2 + v3;
         let abs_v = math_abs_val(sum_v);
         if (abs_v < threshold) { sum_v = 0.0; }
-        cartan_vec_push_f32(out, sum_v / 3.0);
+        cartan_vec_set_f32(out, i, sum_v / 3.0);
         i = i + 1.0;
     }
     return out;
@@ -90,7 +91,7 @@ fn fusion_ties_merge(t1: ptr, t2: ptr, t3: ptr, threshold: float) -> ptr {
 
 fn fusion_dare_rescale(t1: ptr, drop_p: float) -> ptr {
     let len = cartan_vec_len(t1);
-    let out = cartan_vec_create();
+    let out = cartan_tensor_alloc(len);
     var scale = 1.0;
     if (drop_p < 1.0) {
         scale = 1.0 / (1.0 - drop_p);
@@ -103,7 +104,166 @@ fn fusion_dare_rescale(t1: ptr, drop_p: float) -> ptr {
         if (rand_sample < drop_p) {
             rescaled = 0.0;
         }
-        cartan_vec_push_f32(out, rescaled);
+        cartan_vec_set_f32(out, i, rescaled);
+        i = i + 1.0;
+    }
+    return out;
+}
+
+// DARE (Drop And REscale) Model Weight Merging
+// Drops fine-tuning deltas with Bernoulli probability drop_p and rescales remaining deltas by 1 / (1 - drop_p)
+fn fusion_dare_merge(t1: ptr, t2: ptr, drop_p: float) -> ptr {
+    let len = cartan_vec_len(t1);
+    let out = cartan_tensor_alloc(len);
+    var scale = 1.0;
+    if (drop_p < 1.0) {
+        scale = 1.0 / (1.0 - drop_p);
+    } else {
+        scale = 0.0;
+    }
+    var i = 0.0;
+    while (i < len) {
+        let v1 = cartan_vec_get_f32(t1, i);
+        let v2 = cartan_vec_get_f32(t2, i);
+        let delta = v2 - v1;
+        var rescaled_delta = delta * scale;
+        let rand_sample = math_mod_val(i * 1103515245.0 + 12345.0, 2147483648.0) / 2147483648.0;
+        if (rand_sample < drop_p) {
+            rescaled_delta = 0.0;
+        }
+        cartan_vec_set_f32(out, i, v1 + rescaled_delta);
+        i = i + 1.0;
+    }
+    return out;
+}
+
+// Task Arithmetic Subspace Vector Addition
+// Merges multiple fine-tuned models by linearly combining task vectors relative to a shared base model
+fn fusion_task_arithmetic(base_w: ptr, t1: ptr, t2: ptr, w1: float, w2: float) -> ptr {
+    let len = cartan_vec_len(base_w);
+    let out = cartan_tensor_alloc(len);
+    var i = 0.0;
+    while (i < len) {
+        let b = cartan_vec_get_f32(base_w, i);
+        let v1 = cartan_vec_get_f32(t1, i);
+        let v2 = cartan_vec_get_f32(t2, i);
+        let tau1 = v1 - b;
+        let tau2 = v2 - b;
+        let merged = b + tau1 * w1 + tau2 * w2;
+        cartan_vec_set_f32(out, i, merged);
+        i = i + 1.0;
+    }
+    return out;
+}
+
+// KnOTS (Knowledge Orthogonal Task Subspaces) Fusion
+// Eliminates inter-task interference by projecting task vectors into orthogonal subspace complements via Gram-Schmidt
+fn fusion_knots_orthogonal_merge(base_w: ptr, t1: ptr, t2: ptr, rank: float) -> ptr {
+    let len = cartan_vec_len(base_w);
+    let out = cartan_tensor_alloc(len);
+    
+    // 1. Compute inner product <tau1, tau2> and squared norm ||tau1||^2
+    var dot = 0.0;
+    var norm1_sq = 0.0;
+    var i = 0.0;
+    while (i < len) {
+        let b = cartan_vec_get_f32(base_w, i);
+        let v1 = cartan_vec_get_f32(t1, i);
+        let v2 = cartan_vec_get_f32(t2, i);
+        let tau1 = v1 - b;
+        let tau2 = v2 - b;
+        dot = dot + tau1 * tau2;
+        norm1_sq = norm1_sq + tau1 * tau1;
+        i = i + 1.0;
+    }
+    
+    // 2. Compute Gram-Schmidt projection scalar
+    let proj_scalar = dot / (norm1_sq + 0.000001);
+    
+    // 3. Assemble orthogonalized knowledge subspace: base + tau1 + (tau2 - proj * tau1)
+    i = 0.0;
+    while (i < len) {
+        let b = cartan_vec_get_f32(base_w, i);
+        let v1 = cartan_vec_get_f32(t1, i);
+        let v2 = cartan_vec_get_f32(t2, i);
+        let tau1 = v1 - b;
+        let tau2 = v2 - b;
+        let tau2_ortho = tau2 - tau1 * proj_scalar;
+        let merged = b + tau1 + tau2_ortho;
+        cartan_vec_set_f32(out, i, merged);
+        i = i + 1.0;
+    }
+    return out;
+}
+
+// M2N2 Dynamic Split-Point Boundary Crossover
+// Performs dynamic parameter space boundary partition with smooth sigmoid boundary transition
+fn fusion_m2n2_dynamic_split(t1: ptr, t2: ptr, split_ratio: float) -> ptr {
+    let len = cartan_vec_len(t1);
+    let out = cartan_tensor_alloc(len);
+    var ratio = split_ratio;
+    if (ratio < 0.0) { ratio = 0.0; }
+    if (ratio > 1.0) { ratio = 1.0; }
+    let split_k = math_floor(len * ratio);
+    var window = len * 0.02;
+    if (window < 1.0) { window = 1.0; }
+
+    var i = 0.0;
+    while (i < len) {
+        let v1 = cartan_vec_get_f32(t1, i);
+        let v2 = cartan_vec_get_f32(t2, i);
+        let d = (i - split_k) / window;
+        var alpha = 0.0;
+        if (d > 10.0) {
+            alpha = 1.0;
+        } else if (d < -10.0) {
+            alpha = 0.0;
+        } else {
+            alpha = 1.0 / (1.0 + exp(-d));
+        }
+        let merged = v1 * (1.0 - alpha) + v2 * alpha;
+        cartan_vec_set_f32(out, i, merged);
+        i = i + 1.0;
+    }
+    return out;
+}
+
+// M2N2 Weight Attraction Heuristic Pairing
+// Gravitational attraction pull toward the dominant synaptic parameter magnitude
+fn fusion_m2n2_attraction_pair(t1: ptr, t2: ptr) -> ptr {
+    let len = cartan_vec_len(t1);
+    let out = cartan_tensor_alloc(len);
+    var i = 0.0;
+    while (i < len) {
+        let v1 = cartan_vec_get_f32(t1, i);
+        let v2 = cartan_vec_get_f32(t2, i);
+        let mid = (v1 + v2) * 0.5;
+        let delta = v2 - v1;
+        let s1 = math_abs_val(v1);
+        let s2 = math_abs_val(v2);
+        let pull = (s2 - s1) / (1.0 + s1 + s2);
+        let merged = mid + delta * pull * 0.5;
+        cartan_vec_set_f32(out, i, merged);
+        i = i + 1.0;
+    }
+    return out;
+}
+
+// M2N2 MAP-Elites Quality-Diversity Genetic Search Crossover
+// Blends parent parameters with golden-ratio harmonic exploratory noise for diversity illumination
+fn fusion_m2n2_map_elites_crossover(t1: ptr, t2: ptr, diversity_scale: float) -> ptr {
+    let len = cartan_vec_len(t1);
+    let out = cartan_tensor_alloc(len);
+    var i = 0.0;
+    while (i < len) {
+        let v1 = cartan_vec_get_f32(t1, i);
+        let v2 = cartan_vec_get_f32(t2, i);
+        let mid = (v1 + v2) * 0.5;
+        let spread = math_abs_val(v2 - v1) * 0.5;
+        let harmonic_theta = i * 1.61803398875;
+        let noise = sin(harmonic_theta) * spread * 0.1 * diversity_scale;
+        let merged = mid + noise;
+        cartan_vec_set_f32(out, i, merged);
         i = i + 1.0;
     }
     return out;
@@ -111,14 +271,14 @@ fn fusion_dare_rescale(t1: ptr, drop_p: float) -> ptr {
 
 fn fusion_tangent_space_slerp(base_w: ptr, target_w: ptr, alpha: float) -> ptr {
     let len = cartan_vec_len(base_w);
-    let out = cartan_vec_create();
+    let out = cartan_tensor_alloc(len);
     
     var i = 0.0;
     while (i < len) {
         let b = cartan_vec_get_f32(base_w, i);
         let t = cartan_vec_get_f32(target_w, i);
         let delta = t - b;
-        cartan_vec_push_f32(out, b + delta * alpha);
+        cartan_vec_set_f32(out, i, b + delta * alpha);
         i = i + 1.0;
     }
     return out;

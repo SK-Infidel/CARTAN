@@ -16,7 +16,7 @@ fn main() -> float {
     let teacher1_w = cartan_tensor_alloc(num_params);
     var i = 0.0;
     while (i < num_params) {
-        cartan_tree_set(teacher1_w, i, 1.0);
+        cartan_vec_set_f32(teacher1_w, i, 1.0);
         i = i + 1.0;
     }
 
@@ -24,7 +24,7 @@ fn main() -> float {
     let teacher2_w = cartan_tensor_alloc(num_params);
     i = 0.0;
     while (i < num_params) {
-        cartan_tree_set(teacher2_w, i, 3.0);
+        cartan_vec_set_f32(teacher2_w, i, 3.0);
         i = i + 1.0;
     }
 
@@ -52,12 +52,12 @@ fn main() -> float {
     printf("[Merge Pipeline] Executing M2N2 MAP-Elites Quality-Diversity Genetic Search Crossover...\n");
     let map_elites_w = fusion_m2n2_map_elites_crossover(teacher1_w, teacher2_w, 2.5);
 
-    let mid_val = cartan_tree_get_f32(merged_w, 0.0);
+    let mid_val = cartan_vec_get_f32(merged_w, 0.0);
     printf("[Merge Pipeline] Merged Parameter Check: First parameter value = ");
     printf(cartan_float_to_string(mid_val));
     printf(" (expected: 2.0)\n");
 
-    let merged_len = cartan_tree_len(merged_w);
+    let merged_len = cartan_vec_len(merged_w);
     printf("[Merge Pipeline] Merged Model Total Parameter Count: ");
     printf(cartan_float_to_string(merged_len));
     printf(" elements.\n");
