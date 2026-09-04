@@ -1122,8 +1122,9 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 let else_block = cartan_tree_get_f32(stmt, 3.0);
 
                 let cond_reg = llvm_visit_expr(self_ptr, condition);
+                let flt_cond = as_float(self_ptr, cond_reg);
                 let cond_bool = next_reg(self_ptr);
-                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", cond_bool), " = fcmp one double "), as_float(self_ptr, cond_reg)), ", 0.0\n"));
+                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", cond_bool), " = fcmp one double "), flt_cond), ", 0.0\n"));
                 
                 let then_label = next_label(self_ptr, "then_");
                 let else_label = next_label(self_ptr, "else_");
@@ -1170,8 +1171,9 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 cartan_tree_push(self_ptr.output, cartan_string_concat(cond_label, ":\n"));
 
                 let cond_reg = llvm_visit_expr(self_ptr, condition);
+                let flt_while_cond = as_float(self_ptr, cond_reg);
                 let cond_bool = next_reg(self_ptr);
-                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", cond_bool), " = fcmp one double "), as_float(self_ptr, cond_reg)), ", 0.0\n"));
+                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", cond_bool), " = fcmp one double "), flt_while_cond), ", 0.0\n"));
                 
                 cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  br i1 ", cond_bool), ", label %"), body_label), ", label %"), end_label), "\n"));
 
@@ -2530,7 +2532,14 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 }
             }
 
-            if ((is_l_ptr != 0.0) && (is_r_ptr != 0.0)) {
+            var is_tensor_arith = 0.0;
+            if (cartan_string_eq(op, "+") != 0.0) { is_tensor_arith = 1.0; }
+            else if (cartan_string_eq(op, "-") != 0.0) { is_tensor_arith = 1.0; }
+            else if (cartan_string_eq(op, "*") != 0.0) { is_tensor_arith = 1.0; }
+            else if (cartan_string_eq(op, "/") != 0.0) { is_tensor_arith = 1.0; }
+            else if (cartan_string_eq(op, "@") != 0.0) { is_tensor_arith = 1.0; }
+
+            if ((is_l_ptr != 0.0) && (is_r_ptr != 0.0) && (is_tensor_arith != 0.0)) {
                 let clean_l = clean_reg(l_reg);
                 let clean_r = clean_reg(r_reg);
 

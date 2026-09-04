@@ -1,3 +1,37 @@
+## [8.253.0] - 2026-09-04 (Sprint 296: Authentic Untrained Network Inductive Biases - WANN, DIP, ELM, ESN)
+
+### Completed & Validated
+- **Authentic Weight-Agnostic Neural Networks (WANN) (`[ISSUE-045]`)**:
+  - Replaced scalar scalar `tanh(input[0] * w)` stub in `src/std/wann.cl`.
+  - Implemented authentic DAG representation with input, output, and hidden node topology (`wann_create_network`).
+  - Implemented directed edge mutation (`wann_mutate_add_connection`) and edge-splitting node mutation (`wann_mutate_add_node`).
+  - Implemented activation dispatcher (`wann_apply_activation`) supporting Linear, Tanh, ReLU, Sigmoid, Sinusoid, and Step.
+  - Implemented multi-pass DAG topological signal propagation with shared scalar weight parameter (`wann_evaluate_shared_weight`).
+- **Authentic Deep Image Prior (DIP) (`[ISSUE-045]`)**:
+  - Replaced 3-tap moving average filter stub in `src/std/dip.cl`.
+  - Implemented 2-layer parameterized neural network with inductive spectral bias (`dip_create_prior_network`).
+  - Implemented continuous sinusoidal coordinate encoding $z_i = [\sin(2\pi i/L), \cos(2\pi i/L)]$.
+  - Implemented authentic analytical gradient descent optimization loop ($\nabla_{\theta} ||f_{\theta}(z) - y||^2$) over network weights and biases (`dip_reconstruct_signal`).
+- **Authentic Extreme Learning Machine (ELM) (`[ISSUE-045]`)**:
+  - Replaced elementwise scalar division stub in `src/std/elm.cl`.
+  - Implemented randomized input layer projection with frozen weights and biases (`elm_create`).
+  - Implemented closed-form pseudo-inverse regression solver $\beta = (H^T H + \alpha I)^{-1} H^T Y$ with Gaussian elimination and partial pivoting (`elm_fit_zero_shot`, `elm_solve_linear_system`).
+  - Implemented forward projection inference (`elm_predict`).
+- **Authentic Echo State Networks (ESN) (`[ISSUE-045]`)**:
+  - Replaced diagonal scalar recurrence stub in `src/std/esn.cl`.
+  - Implemented input projection and sparse recurrent reservoir matrix scaled to spectral radius $\rho / \sqrt{N}$ (`esn_create_reservoir`).
+  - Implemented recurrent non-linear reservoir state updates $x(t) = \tanh(W_{in} u(t) + W_{res} x(t-1))$ (`esn_step_forward`).
+  - Implemented Ridge regression readout solver $W_{out} = (S^T S + \alpha I)^{-1} S^T Y$ (`esn_solve_readout_ridge`).
+- **Compiler Codegen & Runtime Collection Hardening (`src/cartanc/llvm_codegen.car`)**:
+  - Fixed condition register scheduling in `IfStmt` and `WhileStmt` by evaluating `as_float(self_ptr, cond_reg)` before allocating `cond_bool`.
+  - Restricted binary operator delegation to tensor runtime to only arithmetic ops (`+`, `-`, `*`, `/`, `@`), preserving standard comparison branching.
+  - Migrated floating-point arrays and matrices across WANN, DIP, ELM, and ESN to dedicated native vector primitives (`cartan_vec_create`, `cartan_vec_push_f32`, `cartan_vec_get_f32`, `cartan_vec_set_f32`, `cartan_vec_len`).
+- **Empirical Validation & Test Suite Expansion**:
+  - Created Target 49: `test/compiler_suite/test_inductive_biases.car`.
+  - Bootstrapped candidate compiler cleanly into `cartanc.exe`.
+  - Verified Target 49 executes with 100% assertions (`TEST_INDUCTIVE_BIASES_SUCCESS`).
+  - Executed all 49 compiler regression test targets via `scratch/run_tests.exe` with 100% pass rate.
+
 ## [8.252.0] - 2026-09-04 (Sprint 295: Authentic XML Parser, Data Ingestion Pipeline & Module Scope Resolution)
 
 ### Completed & Validated

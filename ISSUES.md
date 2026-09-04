@@ -528,15 +528,16 @@ This file tracks technical debt and bugs identified during repository code revie
 
 ---
 
-## [ISSUE-045] Untrained Network Inductive Biases (DIP, WANN, ELM, ESN) Pseudo-Implementations
+## [ISSUE-045] [FIXED] Untrained Network Inductive Biases (DIP, WANN, ELM, ESN) Pseudo-Implementations
 - **Severity**: High (Strict Zero-Mock Violation)
-- **Component**: `src/std/wann.cl`, `src/std/dip.cl`, `src/std/elm.cl`, `src/std/esn.cl`
+- **Component**: `src/std/wann.cl`, `src/std/dip.cl`, `src/std/elm.cl`, `src/std/esn.cl`, `src/cartanc/llvm_codegen.car`
 - **Description**:
   - `wann_evaluate_shared_weight`: ignores DAG edges, applying scalar `tanh(input[0] * w)` to outputs.
   - `dip_reconstruct_signal`: applies 3-tap moving average filter instead of network optimization.
   - `elm_fit_zero_shot`: computes scalar elementwise division instead of matrix pseudo-inverse.
   - `esn_step_forward`: applies diagonal scalar recurrence ignoring reservoir matrix and non-zero inputs.
 - **Proposed Fix**: Implement authentic graph traversal for WANN, real reservoir matrix multiplication for ESN, and linear algebra pseudo-inverse for ELM.
+- **Status**: Fixed in Sprint 296. Implemented authentic topological DAG signal propagation with node activations and edge mutation for WANN (`wann.cl`). Implemented 2-layer prior network with continuous coordinate encoding and real gradient descent optimization for DIP (`dip.cl`). Implemented frozen random projection, Gram matrix assembly, and Gaussian elimination with partial pivoting for ELM (`elm.cl`). Implemented input/reservoir weight matrix updates with spectral radius scaling and Ridge regression readout solver for ESN (`esn.cl`). Standardized all numerical collections on `cartan_vec` float primitives. Fixed `as_float` register scheduling in `IfStmt`/`WhileStmt` and restricted pointer binary ops in `llvm_codegen.car`. Added Target 49 (`test_inductive_biases.car`) with 100% test pass across all 49 regression tests.
 
 ---
 
