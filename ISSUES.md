@@ -615,8 +615,17 @@ This file tracks technical debt and bugs identified during repository code revie
   4. Added Target 56 regression test (`test/compiler_suite/test_language_acquisition_cloze.car`) verifying all 4 taxonomies, anchor weights, and authentic cloze loss optimization.
   5. Registered Target 56 in `test/compiler_suite/run_tests.car`; verified 56/56 tests passing with exit code 0.
 
+---
 
-
-
-
-
+## [ISSUE-056] [OPEN] Zero-Day Cross-Model Geodesic Grafting & 42-Layer Multi-Tower Safetensors Ingestion
+- **Severity**: High (Zero-Day Knowledge Absorption & Architectural Completeness)
+- **Component**: `src/std/fusion.cl`, `src/std/hub.cl`, `src/cartanc/geomind_runtime.c`, `test/geomind/main.car`, `test/geomind/chat.cl`
+- **Description**:
+  1. `fusion_riemannian_retraction` ($\text{Exp}_W(v) = W \cos(\|v\|) + \frac{v}{\|v\|} \sin(\|v\|)$) was omitted from `src/std/fusion.cl` after the stdlib `.car` to `.cl` migration.
+  2. While `cache_google_gemma-4-E4B-it_model.safetensors` (15.9 GB) contains full multi-modal weights (`language_model`, `vision_tower`, `embed_vision`, `audio_tower`, `embed_audio`), the current ingestion only loads `embed_tokens.weight` and lacks multi-tower geodesic projection into the 42-layer manifold, `EikonalStream`, and `SpectralStream`.
+  3. GeoMind lacks an automated `--graft` CLI subcommand in `test/geomind/main.car` to execute one-shot cross-model weight absorption and output aligned checkpoints.
+- **Proposed Fix**:
+  1. Implement canonical `fusion_riemannian_retraction` and `fusion_riemannian_align` in `src/std/fusion.cl`.
+  2. Implement multi-tower Safetensors streaming loaders in `src/cartanc/geomind_runtime.c` and `src/std/hub.cl` to stream vision patch projection weights and audio spectrogram projection weights without RAM exhaustion.
+  3. Wire multi-tower grafting into `test/geomind/main.car` via `--graft` CLI flag.
+  4. Create Target 57 regression test (`test/compiler_suite/test_model_grafting.car`) verifying multi-tower retraction, dimension alignment, and shared $E_8$ manifold projections.
