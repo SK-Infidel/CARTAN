@@ -184,6 +184,7 @@ double cartan_export_math_tanh(double* args);
 double cartan_export_math_floor(double* args);
 double cartan_export_math_ceil(double* args);
 double cartan_export_math_mod_val(double* args);
+double cartan_export_math_mod(double* args);
 double cartan_export_math_hypot(double* args);
 double cartan_export_math_clamp(double* args);
 double cartan_export_math_lerp(double* args);

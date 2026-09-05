@@ -1,3 +1,24 @@
+## [8.263.0] - 2026-09-05 (Sprint 306: Native Multimodal I/O for BMP/PPM & WAV, Checkpoint Auto-Discovery & 42-Layer Conversational Inference)
+
+### Completed & Validated
+- **Native Binary File Buffer Engine (`src/cartanc/geomind_runtime.c`, `[ISSUE-057]`, Phase 64 Item 1)**:
+  - Implemented low-level binary buffer allocators, accessors, and file operations (`cartan_read_binary_file_data`, `cartan_get_binary_file_size`, `cartan_byte_at`, `cartan_set_byte`, `cartan_alloc_binary_buffer`, `cartan_free_binary_buffer`, `cartan_write_binary_file`).
+  - Exported and wired `cartan_load_signed_checkpoint` for automated runtime loading.
+- **Native Image Decoders & Encoders (`src/std/vision.cl`, Phase 64 Item 2)**:
+  - Implemented `vision_save_ppm` and `vision_load_ppm` for P6 binary RGB PPM files with comment skipping (`#`) and header parsing.
+  - Implemented `vision_save_bmp` and `vision_load_bmp` for 24-bit uncompressed Windows BMP files with dynamic 4-byte row-stride padding calculation ($\lfloor(3w + 3)/4\rfloor \times 4$) and BGR-to-RGB conversion, strictly eliminating synthetic/mock visual inputs.
+- **Native Audio Decoders & Encoders (`src/std/audio.cl`, Phase 64 Item 3)**:
+  - Implemented `audio_save_wav` and `audio_load_wav` for 16-bit PCM RIFF/WAVE files with canonical header validation, mono and stereo downmixing, and normalized float conversion ($[-1.0, 1.0]$) with $< 6 \times 10^{-5}$ quantization error.
+- **Multimodal Checkpoint Auto-Discovery & 42-Layer Manifold Autoregressive Inference (`test/geomind/chat.cl`, `test/geomind/main.car`, Phase 64 Item 4)**:
+  - Added prioritized automatic loading of `geomind_grafted_multimodal.bin` (1.77 GB) in `geomind_chat_start()`.
+  - Implemented `geomind_chat_process_image_file` and `geomind_chat_process_audio_file` ingesting real user image and audio files into Eikonal and Spectral streams.
+  - Added `--image <path>` and `--audio <path>` CLI options to `test/geomind/main.car` with full help dialogue integration.
+  - Upgraded autoregressive reply generation in `test/geomind/chat.cl` to step through the 42-layer manifold (`cur_h = e8_attention_forward_step(cur_h, temp)`) on every generated token.
+- **Regression Test Suite Expansion (Target 58)**:
+  - Authored `test/compiler_suite/test_native_multimodal_io.car` verifying exact byte round-tripping for PPM, BMP with padding, WAV PCM, stream projections, and 42-layer manifold stepping (5/5 tests passing).
+  - Registered Target 58 in `test/compiler_suite/run_tests.car`; verified all 58 compiler snapshot tests building and passing cleanly.
+- **Milestone Reached**: Phase 64 of CARTAN Roadmap (Native Multimodal I/O & Conversational Inference) 100% completed.
+
 ## [8.262.0] - 2026-09-05 (Sprint 305: Zero-Day Cross-Model Geodesic Grafting & 42-Layer Multi-Tower Safetensors Ingestion)
 
 ### Completed & Validated

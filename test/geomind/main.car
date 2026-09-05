@@ -57,24 +57,30 @@ fn print_help_dialogue() -> float {
     printf("  --sleep         Run Autonomous Metacognitive Sleep memory consolidation\n");
     printf("  --train-webgpu  Run pure native CARTAN WebGPU Causal Training Engine\n");
     printf("  --help, -h      Display this help dialogue and exit\n\n");
-    printf("Targeting Flags:\n");
+    printf("Targeting & Multimodal Flags:\n");
     printf("  -target <file>  Explicit dataset file path on disk\n");
-    printf("  -repo <repo_id> HuggingFace dataset repository ID\n\n");
+    printf("  -repo <repo_id> HuggingFace dataset repository ID\n");
+    printf("  --image <file>  Input image file (PPM / BMP) for visual Eikonal grounding\n");
+    printf("  --audio <file>  Input audio file (WAV PCM) for auditory Spectral grounding\n\n");
     printf("================================================================================\n");
     cartan_flush(0.0);
     return 0.0;
 }
 
-fn get_cli_target_path(arg_count: float) -> string {
-    var i = 2.0;
+fn get_cli_param(flag_name: string, arg_count: float) -> string {
+    var i = 1.0;
     while (i < arg_count) {
         let arg = sys_get_arg(i);
-        if (cartan_string_eq(arg, "-target") == 1.0 && (i + 1.0) < arg_count) {
+        if (cartan_string_eq(arg, flag_name) == 1.0 && (i + 1.0) < arg_count) {
             return sys_get_arg(i + 1.0);
         }
         i = i + 1.0;
     }
     return "";
+}
+
+fn get_cli_target_path(arg_count: float) -> string {
+    return get_cli_param("-target", arg_count);
 }
 
 fn main() -> float {
@@ -163,12 +169,16 @@ fn main() -> float {
         if (cartan_string_eq(flag, "--chat") == 1.0) {
             geomind_chat_start();
             cartan_flush(0.0);
-            let img_tensor = geomind_chat_process_image_input(224.0, 224.0);
-            printf("[GeoMind Chat] Multimodal vision tensor processed successfully.\n");
-            
+
+            let image_arg = get_cli_param("--image", arg_count);
+            let audio_arg = get_cli_param("--audio", arg_count);
+
             if (arg_count >= 3.0) {
-                let initial_prompt = sys_get_arg(2.0);
-                geomind_chat_generate_reply(initial_prompt, 50.0, 0.7);
+                var initial_prompt = sys_get_arg(2.0);
+                if (cartan_string_starts_with(initial_prompt, "--") == 1.0) {
+                    initial_prompt = "Describe the observed physical scene and auditory harmonics.";
+                }
+                geomind_chat_generate_reply_multimodal(initial_prompt, 50.0, 0.7, image_arg, audio_arg);
                 cartan_flush(0.0);
                 return 0.0;
             }
@@ -186,7 +196,7 @@ fn main() -> float {
                 } else {
                     if (len > 0.0) {
                         geomind_chat_generate_reasoning_pass(line, 0.7);
-                        geomind_chat_generate_reply(line, 50.0, 0.7);
+                        geomind_chat_generate_reply_multimodal(line, 50.0, 0.7, image_arg, audio_arg);
                         cartan_flush(0.0);
                     }
                 }

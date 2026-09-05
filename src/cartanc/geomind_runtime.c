@@ -689,6 +689,14 @@ CARTAN_WEAK double cartan_graft_multimodal_weights(const char* safetensors_path,
 CARTAN_WEAK double cartan_is_multimodal_grafted(void);
 CARTAN_WEAK void* cartan_get_grafted_vision_weights(void);
 CARTAN_WEAK void* cartan_get_grafted_audio_weights(void);
+CARTAN_WEAK double cartan_load_signed_checkpoint(const char* filepath);
+CARTAN_WEAK void* cartan_read_binary_file_data(const char* path);
+CARTAN_WEAK double cartan_get_binary_file_size(const char* path);
+CARTAN_WEAK double cartan_byte_at(void* ptr, double offset);
+CARTAN_WEAK void cartan_set_byte(void* ptr, double offset, double val);
+CARTAN_WEAK void* cartan_alloc_binary_buffer(double size);
+CARTAN_WEAK void cartan_free_binary_buffer(void* ptr);
+CARTAN_WEAK double cartan_write_binary_file(const char* path, void* buf, double size);
 
 CARTAN_WEAK int cartan_load_42layer_checkpoint_file(FILE* f, unsigned int num_layers, unsigned int num_experts, unsigned int embed_dim) {
     if (!f || num_layers != 42 || embed_dim != 2560) return 0;
@@ -4066,6 +4074,86 @@ static void load_signed_checkpoint(const char* filepath) {
     fclose(f);
 }
 
+CARTAN_WEAK double cartan_load_signed_checkpoint(const char* filepath) {
+    if (!filepath || strlen(filepath) == 0) return 0.0;
+    load_signed_checkpoint(filepath);
+    return (double)g_42layer_loaded;
+}
+
+CARTAN_WEAK void* cartan_read_binary_file_data(const char* path) {
+    if (!path) return NULL;
+    FILE* f = fopen(path, "rb");
+    if (!f) {
+        char alt[512];
+        snprintf(alt, sizeof(alt), "test/geomind/%s", path);
+        f = fopen(alt, "rb");
+        if (!f) {
+            snprintf(alt, sizeof(alt), "../../%s", path);
+            f = fopen(alt, "rb");
+        }
+    }
+    if (!f) return NULL;
+    _fseeki64(f, 0, SEEK_END);
+    int64_t sz = _ftelli64(f);
+    _fseeki64(f, 0, SEEK_SET);
+    if (sz <= 0) { fclose(f); return NULL; }
+    unsigned char* buf = (unsigned char*)malloc((size_t)sz + 4);
+    if (!buf) { fclose(f); return NULL; }
+    fread(buf, 1, (size_t)sz, f);
+    fclose(f);
+    return (void*)buf;
+}
+
+CARTAN_WEAK double cartan_get_binary_file_size(const char* path) {
+    if (!path) return 0.0;
+    FILE* f = fopen(path, "rb");
+    if (!f) {
+        char alt[512];
+        snprintf(alt, sizeof(alt), "test/geomind/%s", path);
+        f = fopen(alt, "rb");
+        if (!f) {
+            snprintf(alt, sizeof(alt), "../../%s", path);
+            f = fopen(alt, "rb");
+        }
+    }
+    if (!f) return 0.0;
+    _fseeki64(f, 0, SEEK_END);
+    int64_t sz = _ftelli64(f);
+    fclose(f);
+    return (double)sz;
+}
+
+CARTAN_WEAK double cartan_byte_at(void* ptr, double offset) {
+    if (!ptr || offset < 0.0) return 0.0;
+    const unsigned char* p = (const unsigned char*)ptr;
+    return (double)p[(size_t)offset];
+}
+
+CARTAN_WEAK void cartan_set_byte(void* ptr, double offset, double val) {
+    if (!ptr || offset < 0.0) return;
+    unsigned char* p = (unsigned char*)ptr;
+    p[(size_t)offset] = (unsigned char)val;
+}
+
+CARTAN_WEAK void* cartan_alloc_binary_buffer(double size) {
+    if (size <= 0.0) return NULL;
+    return calloc((size_t)size + 4, 1);
+}
+
+CARTAN_WEAK void cartan_free_binary_buffer(void* ptr) {
+    if (ptr) free(ptr);
+}
+
+CARTAN_WEAK double cartan_write_binary_file(const char* path, void* buf, double size) {
+    if (!path || !buf || size <= 0.0) return 0.0;
+    FILE* f = fopen(path, "wb");
+    if (!f) return 0.0;
+    fwrite(buf, 1, (size_t)size, f);
+    fclose(f);
+    return 1.0;
+}
+
+
 CARTAN_WEAK double geomind_train_streaming_steady_state(double stage_mode_d, const char* custom_dataset, double target_loss, double base_lr, double max_epochs_d, const char* log_path) {
     int stage_mode = (int)stage_mode_d;
     int max_epochs = (int)max_epochs_d;
@@ -4119,7 +4207,9 @@ CARTAN_WEAK double geomind_train_streaming_steady_state(double stage_mode_d, con
             }
         }
     } else if (stage_mode == STAGE_CE) {
-        if (cartan_file_exists("test/geomind/trainingdata/checkpoints/geomind_CAUSAL CE_best.bin")) {
+        if (cartan_file_exists("test/geomind/trainingdata/checkpoints/geomind_grafted_multimodal.bin")) {
+            strcpy(ckpt_path, "test/geomind/trainingdata/checkpoints/geomind_grafted_multimodal.bin");
+        } else if (cartan_file_exists("test/geomind/trainingdata/checkpoints/geomind_CAUSAL CE_best.bin")) {
             strcpy(ckpt_path, "test/geomind/trainingdata/checkpoints/geomind_CAUSAL CE_best.bin");
         } else if (cartan_file_exists("test/geomind/trainingdata/checkpoints/geomind_CLOZE_best.bin")) {
             strcpy(ckpt_path, "test/geomind/trainingdata/checkpoints/geomind_CLOZE_best.bin");
@@ -4129,7 +4219,9 @@ CARTAN_WEAK double geomind_train_streaming_steady_state(double stage_mode_d, con
             strcpy(ckpt_path, "test/geomind/trainingdata/checkpoints/geomind_gemma4_clean_slerp_base.bin");
         }
     } else if (stage_mode == STAGE_SFT) {
-        if (cartan_file_exists("test/geomind/trainingdata/checkpoints/geomind_SFT_best.bin")) {
+        if (cartan_file_exists("test/geomind/trainingdata/checkpoints/geomind_grafted_multimodal.bin")) {
+            strcpy(ckpt_path, "test/geomind/trainingdata/checkpoints/geomind_grafted_multimodal.bin");
+        } else if (cartan_file_exists("test/geomind/trainingdata/checkpoints/geomind_SFT_best.bin")) {
             strcpy(ckpt_path, "test/geomind/trainingdata/checkpoints/geomind_SFT_best.bin");
         } else if (cartan_file_exists("test/geomind/trainingdata/checkpoints/geomind_CAUSAL CE_best.bin")) {
             strcpy(ckpt_path, "test/geomind/trainingdata/checkpoints/geomind_CAUSAL CE_best.bin");
@@ -4137,7 +4229,9 @@ CARTAN_WEAK double geomind_train_streaming_steady_state(double stage_mode_d, con
             strcpy(ckpt_path, "test/geomind/trainingdata/checkpoints/geomind_CLOZE_best.bin");
         }
     } else if (stage_mode == STAGE_CLOZE) {
-        if (cartan_file_exists("test/geomind/trainingdata/checkpoints/geomind_CLOZE_best.bin")) {
+        if (cartan_file_exists("test/geomind/trainingdata/checkpoints/geomind_grafted_multimodal.bin")) {
+            strcpy(ckpt_path, "test/geomind/trainingdata/checkpoints/geomind_grafted_multimodal.bin");
+        } else if (cartan_file_exists("test/geomind/trainingdata/checkpoints/geomind_CLOZE_best.bin")) {
             strcpy(ckpt_path, "test/geomind/trainingdata/checkpoints/geomind_CLOZE_best.bin");
         } else if (cartan_file_exists("test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin")) {
             strcpy(ckpt_path, "test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin");

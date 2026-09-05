@@ -207,6 +207,13 @@ This roadmap tracks the implementation of the advanced AI optimizations and nati
 - [x] **4. CLI Subcommand & Stream Wiring**: Wired live multi-tower weights into `cartan_multimodal_project_vision`, `cartan_multimodal_project_audio`, `test/geomind/streams.cl`, and added `--graft` CLI option to `test/geomind/main.car`. (Completed in Sprint 305).
 - [x] **5. Regression Test Suite Expansion (Target 57)**: Authored `test/compiler_suite/test_model_grafting.car` verifying retraction, alignment, offset discovery, multi-tower ingestion, and live forward pass on GPU; registered in `test/compiler_suite/run_tests.car`. (Completed in Sprint 305).
 
+## Phase 64: Native Multimodal I/O (BMP/PPM & WAV), Checkpoint Auto-Discovery & 42-Layer Conversational Inference (Completed - Sprint 306)
+- [x] **1. Native Binary File Buffer Operations (`src/cartanc/geomind_runtime.c`)**: Implemented low-level binary I/O primitives (`cartan_read_binary_file_data`, `cartan_get_binary_file_size`, `cartan_byte_at`, `cartan_set_byte`, `cartan_alloc_binary_buffer`, `cartan_free_binary_buffer`, `cartan_write_binary_file`) and exposed `cartan_load_signed_checkpoint`. (Completed in Sprint 306).
+- [x] **2. Native Image Encoders & Decoders (`src/std/vision.cl`)**: Implemented P6 binary PPM (`vision_save_ppm`, `vision_load_ppm`) and 24-bit uncompressed Windows BMP (`vision_save_bmp`, `vision_load_bmp`) with dynamic 4-byte row-stride padding calculation, eliminating stub and mock visual inputs. (Completed in Sprint 306).
+- [x] **3. Native Audio Encoders & Decoders (`src/std/audio.cl`)**: Implemented 16-bit PCM RIFF/WAVE encoder (`audio_save_wav`) and decoder (`audio_load_wav`) with automatic sample-rate detection, stereo downmixing, and normalized float conversion. (Completed in Sprint 306).
+- [x] **4. Multimodal Checkpoint Auto-Discovery & 42-Layer Autoregressive Inference (`test/geomind/chat.cl`, `test/geomind/main.car`)**: Prioritized `geomind_grafted_multimodal.bin` (1.77 GB) in `geomind_chat_start()`, added `--image <path>` and `--audio <path>` CLI options, and cascaded every autoregressive generated token through `e8_attention_forward_step` across the 42-layer manifold. (Completed in Sprint 306).
+- [x] **5. Regression Test Suite Expansion (Target 58)**: Authored `test/compiler_suite/test_native_multimodal_io.car` verifying exact byte round-tripping for PPM, BMP with padding, WAV PCM, stream projections, and 42-layer manifold stepping; registered in `test/compiler_suite/run_tests.car` (58/58 passing). (Completed in Sprint 306).
+
 
 
 

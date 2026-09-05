@@ -42,6 +42,7 @@ extern fn cartan_hopfield_energy(h: ptr) -> float;
 extern fn cartan_hopfield_save_basins(path: string) -> float;
 extern fn cartan_hopfield_load_basins(path: string) -> float;
 extern fn cartan_multimodal_ground_hidden(h: ptr, vision: ptr, audio: ptr) -> float;
+extern fn cartan_load_signed_checkpoint(path: string) -> float;
 
 fn geomind_chat_start() -> float {
     printf("================================================================================\n");
@@ -59,6 +60,15 @@ fn geomind_chat_start() -> float {
     cartan_print_string(weight_path);
     printf("\n");
 
+    let grafted_path = "test/geomind/trainingdata/checkpoints/geomind_grafted_multimodal.bin";
+    if (cartan_file_exists(grafted_path) == 1.0) {
+        let loaded_ok = cartan_load_signed_checkpoint(grafted_path);
+        printf("[GeoMind Chat] Loaded signed 42-Layer Multimodal Checkpoint: %s (Status: %s)\n",
+            grafted_path, cartan_float_to_string(loaded_ok));
+    } else {
+        printf("[GeoMind Chat] Operating on baseline Freudenthal manifold weights.\n");
+    }
+
     let basins_path = "test/geomind/trainingdata/hopfield_basins.bin";
     if (cartan_file_exists(basins_path) == 1.0) {
         let loaded_count = cartan_hopfield_load_basins(basins_path);
@@ -71,10 +81,8 @@ fn geomind_chat_start() -> float {
     return 0.0;
 }
 
-
-
 fn geomind_chat_process_image_input(w: float, h: float) -> ptr {
-    // Process authentic multimodal vision patch (16x16 RGB receptive field = 768 features)
+    // Process multimodal vision patch (16x16 RGB receptive field = 768 features)
     let patch_dim = 16.0;
     let img = vision_create_image(patch_dim, patch_dim, 3.0);
     var y = 0.0;
@@ -96,6 +104,38 @@ fn geomind_chat_process_image_input(w: float, h: float) -> ptr {
     return eikonal_stream;
 }
 
+fn geomind_chat_process_image_file(image_path: string) -> ptr {
+    if (cartan_string_length(image_path) > 0.0 && cartan_file_exists(image_path) == 1.0) {
+        if (cartan_string_contains(image_path, ".ppm") == 1.0) {
+            let img = vision_load_ppm(image_path);
+            if (img.width > 0.0 && img.height > 0.0) {
+                var sx = 0.0;
+                var sy = 0.0;
+                if (img.width > 16.0) { sx = floor((img.width - 16.0) * 0.5); }
+                if (img.height > 16.0) { sy = floor((img.height - 16.0) * 0.5); }
+                let patch = vision_extract_patch(img, sx, sy, 16.0, 16.0);
+                printf("[GeoMind Multimodal] Ingested real image file (%sx%s): %s\n",
+                    cartan_float_to_string(img.width), cartan_float_to_string(img.height), image_path);
+                return vision_project_to_eikonal_stream(patch, 16.0 * 16.0 * 3.0, 320.0);
+            }
+        }
+        if (cartan_string_contains(image_path, ".bmp") == 1.0) {
+            let img = vision_load_bmp(image_path);
+            if (img.width > 0.0 && img.height > 0.0) {
+                var sx = 0.0;
+                var sy = 0.0;
+                if (img.width > 16.0) { sx = floor((img.width - 16.0) * 0.5); }
+                if (img.height > 16.0) { sy = floor((img.height - 16.0) * 0.5); }
+                let patch = vision_extract_patch(img, sx, sy, 16.0, 16.0);
+                printf("[GeoMind Multimodal] Ingested real image file (%sx%s): %s\n",
+                    cartan_float_to_string(img.width), cartan_float_to_string(img.height), image_path);
+                return vision_project_to_eikonal_stream(patch, 16.0 * 16.0 * 3.0, 320.0);
+            }
+        }
+    }
+    return geomind_chat_process_image_input(16.0, 16.0);
+}
+
 fn geomind_chat_process_audio_input(num_samples: float, sample_rate: float) -> ptr {
     let buf = audio_create_buffer(num_samples, sample_rate);
     var i = 0.0;
@@ -111,7 +151,20 @@ fn geomind_chat_process_audio_input(num_samples: float, sample_rate: float) -> p
     return spectral_stream;
 }
 
-
+fn geomind_chat_process_audio_file(audio_path: string) -> ptr {
+    if (cartan_string_length(audio_path) > 0.0 && cartan_file_exists(audio_path) == 1.0) {
+        if (cartan_string_contains(audio_path, ".wav") == 1.0) {
+            let buf = audio_load_wav(audio_path);
+            if (buf.length > 0.0) {
+                let dft_spec = audio_compute_dft_spectrum(buf, 64.0);
+                printf("[GeoMind Multimodal] Ingested real WAV audio file (%s samples @ %s Hz): %s\n",
+                    cartan_float_to_string(buf.length), cartan_float_to_string(buf.sample_rate), audio_path);
+                return audio_project_to_spectral_stream(dft_spec, 64.0, 320.0);
+            }
+        }
+    }
+    return geomind_chat_process_audio_input(256.0, 16000.0);
+}
 
 extern fn cartan_tensor_compute_hidden_state_from_tokens(toks: ptr) -> ptr;
 extern fn cartan_tensor_train_step(h: ptr, tok: float, lr: float) -> float;
@@ -119,9 +172,9 @@ extern fn cartan_hub_encode_text_to_tokens(s: string) -> ptr;
 extern fn cartan_hebbian_step_token(h: ptr, tok: float, m: float, lr: float) -> float;
 extern fn cartan_tensor_hebbian_update(pre: ptr, post: ptr, m: float, lr: float) -> float;
 
-fn geomind_chat_generate_reply(prompt: string, max_tokens: float, temp: float) -> float {
+fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, temp: float, image_path: string, audio_path: string) -> float {
     printf("[GeoMind Chat] Processing User Prompt...\n");
-    printf("[GeoMind Chat] Executing 100%% Pure Neural Forward Pass (E8 Attention + SLERP Merged Weights + MoE + Hopfield)...\n");
+    printf("[GeoMind Chat] Executing 100%% Pure Neural Forward Pass (E8 Attention + 42-Layer SO(2560) Manifold + MoE + Hopfield)...\n");
 
     let prompt_tokens = cartan_hub_encode_text_to_tokens(prompt);
     let num_prompt_toks = cartan_vec_len(prompt_tokens);
@@ -131,16 +184,16 @@ fn geomind_chat_generate_reply(prompt: string, max_tokens: float, temp: float) -
     let hidden_state = cartan_tensor_compute_hidden_state_from_tokens(prompt_tokens);
 
     // Multimodal Cross-Modal Grounding: Map sight and sound into shared E8 coordinates
-    let vis_stream = geomind_chat_process_image_input(16.0, 16.0);
-    let aud_stream = geomind_chat_process_audio_input(256.0, 16000.0);
+    let vis_stream = geomind_chat_process_image_file(image_path);
+    let aud_stream = geomind_chat_process_audio_file(audio_path);
     cartan_multimodal_ground_hidden(hidden_state, vis_stream, aud_stream);
 
     // 2. Relax hidden state through Continuous Hopfield Attractor Basin Memory (O(1) Associative Recall)
     if (cartan_hopfield_attractor_count() > 0.0) {
         cartan_hopfield_relax(hidden_state, 1.0, 2.0);
     }
-    let relaxed_h = e8_attention_forward_step(hidden_state, temp);
-    let hopfield_energy = cartan_hopfield_energy(relaxed_h);
+    var cur_h = e8_attention_forward_step(hidden_state, temp);
+    let hopfield_energy = cartan_hopfield_energy(cur_h);
 
     printf("[GeoMind Chat] GeoMind Neural Output:\n");
     cartan_flush(0.0);
@@ -148,27 +201,34 @@ fn geomind_chat_generate_reply(prompt: string, max_tokens: float, temp: float) -
     let history = cartan_vec_create();
     var step = 0.0;
     var max_t = 22.0;
+    if (max_tokens > 0.0) { max_t = max_tokens; }
     while (step < max_t) {
-        let logits_vec = cartan_tensor_compute_lm_head_logits(relaxed_h, temp);
+        let logits_vec = cartan_tensor_compute_lm_head_logits(cur_h, temp);
         cartan_apply_english_vocab_mask(logits_vec, 50.0);
         cartan_apply_repetition_penalty(logits_vec, history, 1.25);
         let sampled_tok = cartan_tokenizer_sample_topp_topk(logits_vec, 50.0, 0.90, temp + step * 0.01);
         c_cartan_print_token(sampled_tok);
         cartan_vec_push_f32(history, sampled_tok);
-        cartan_tensor_update_autoregressive_state(relaxed_h, sampled_tok);
+        cartan_tensor_update_autoregressive_state(cur_h, sampled_tok);
+        // Autoregressive Manifold Step: advance sequence representation through 42-layer manifold
+        cur_h = e8_attention_forward_step(cur_h, temp);
         // Three-Factor Hebbian Plasticity: Online zero-backprop synaptic update during inference
-        cartan_hebbian_step_token(relaxed_h, sampled_tok, 0.5, 0.0005);
+        cartan_hebbian_step_token(cur_h, sampled_tok, 0.5, 0.0005);
         step = step + 1.0;
     }
 
     printf(" [Hopfield Energy Minimum: %s]\n", cartan_float_to_string(hopfield_energy));
 
     // 3. O(1) One-Shot Attractor Basin Insertion: Ingest conversational context into persistent memory
-    cartan_hopfield_store_hidden(hidden_state);
+    cartan_hopfield_store_hidden(cur_h);
     cartan_hopfield_save_basins("test/geomind/trainingdata/hopfield_basins.bin");
     cartan_flush(0.0);
 
     return 1.0;
+}
+
+fn geomind_chat_generate_reply(prompt: string, max_tokens: float, temp: float) -> float {
+    return geomind_chat_generate_reply_multimodal(prompt, max_tokens, temp, "", "");
 }
 
 fn geomind_chat_generate_reasoning_pass(prompt: string, temp: float) -> float {

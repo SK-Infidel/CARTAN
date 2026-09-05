@@ -630,3 +630,20 @@ This file tracks technical debt and bugs identified during repository code revie
   3. Exported signed 1.77 GB multimodal checkpoint `test/geomind/trainingdata/checkpoints/geomind_grafted_multimodal.bin`.
   4. Wired live weights into `cartan_multimodal_project_vision`, `cartan_multimodal_project_audio`, `test/geomind/streams.cl`, and added `--graft` CLI option to `test/geomind/main.car`.
   5. Added Target 57 regression test (`test/compiler_suite/test_model_grafting.car`) and registered in `test/compiler_suite/run_tests.car`; verified 57/57 tests passing cleanly.
+
+---
+
+## [ISSUE-057] [FIXED] Native Multimodal I/O (BMP/PPM & WAV) & Grafted 42-Layer Conversational Inference
+- **Severity**: High (Zero-Mock Multimodal Architecture & End-to-End Inference Integrity)
+- **Component**: `src/std/vision.cl`, `src/std/audio.cl`, `test/geomind/chat.cl`, `test/geomind/main.car`, `src/cartanc/geomind_runtime.c`
+- **Description**:
+  1. `geomind_chat_start()` in `test/geomind/chat.cl` does not load the newly created 1.77 GB `geomind_grafted_multimodal.bin`, falling back to un-grafted Freudenthal layers during `--chat`.
+  2. `geomind_chat_process_image_input` and `geomind_chat_process_audio_input` generate synthetic gradients and sine waves because `src/std/vision.cl` and `src/std/audio.cl` lack native binary file decoders for real image formats (PPM/BMP) and audio formats (WAV/PCM).
+  3. `geomind.exe` lacks `--image <file>` and `--audio <file>` CLI flags to ingest real user visual and acoustic media into conversational grounding.
+  4. In `test/geomind/chat.cl:geomind_chat_generate_reply`, autoregressive generation advances state via linear embedding blending without passing updated context through `e8_attention_forward_step` on subsequent token generation steps.
+- **Resolution**:
+  1. Implemented `vision_load_ppm`, `vision_save_ppm`, `vision_load_bmp`, and `vision_save_bmp` in `src/std/vision.cl` with dynamic 4-byte row-stride padding calculation, eliminating synthetic mock pixels.
+  2. Implemented `audio_load_wav` and `audio_save_wav` in `src/std/audio.cl` for 16-bit PCM RIFF/WAVE files with sample rate normalization and float sample arrays.
+  3. Implemented binary file buffer operations (`cartan_read_binary_file_data`, `cartan_get_binary_file_size`, `cartan_byte_at`, `cartan_set_byte`, `cartan_alloc_binary_buffer`, `cartan_free_binary_buffer`, `cartan_write_binary_file`) and exposed `cartan_load_signed_checkpoint` in `src/cartanc/geomind_runtime.c`.
+  4. Auto-prioritized `geomind_grafted_multimodal.bin` (1.77 GB) in `geomind_chat_start()`, added `--image <path>` and `--audio <path>` CLI options in `test/geomind/main.car`, and wired 42-layer manifold stepping `cur_h = e8_attention_forward_step(cur_h, temp)` into autoregressive reply generation.
+  5. Authored Target 58 regression test (`test/compiler_suite/test_native_multimodal_io.car`) and registered in `test/compiler_suite/run_tests.car`, confirming 58/58 test targets passing cleanly. (Sprint 306).
