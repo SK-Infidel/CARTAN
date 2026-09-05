@@ -69,6 +69,10 @@ extern fn cartan_safetensors_read_header(path: string) -> string;
 extern fn cartan_safetensors_load_tensor_f32(path: string, header_len: float, data_start: float, num_elements: float) -> ptr;
 
 extern fn cartan_safetensors_find_offset(path: string, tensor_name: string) -> float;
+extern fn cartan_graft_multimodal_weights(safetensors_path: string, out_checkpoint: string) -> float;
+extern fn cartan_is_multimodal_grafted() -> float;
+extern fn cartan_get_grafted_vision_weights() -> ptr;
+extern fn cartan_get_grafted_audio_weights() -> ptr;
 
 fn hub_load_safetensors_tensor(filepath: string, tensor_name: string, num_elements: float) -> ptr {
     let h_len = cartan_safetensors_header_length(filepath);
@@ -78,6 +82,12 @@ fn hub_load_safetensors_tensor(filepath: string, tensor_name: string, num_elemen
     }
     let data_offset = cartan_safetensors_find_offset(filepath, tensor_name);
     return cartan_safetensors_load_tensor_f32(filepath, h_len, data_offset, num_elements);
+}
+
+// Zero-Day Cross-Model Geodesic Grafting: Streams 42-layer language, vision patch, and audio filterbank
+// weights from donor safetensors checkpoint and serializes unified multimodal E8 manifold
+fn hub_graft_multimodal_model(safetensors_path: string, out_checkpoint: string) -> float {
+    return cartan_graft_multimodal_weights(safetensors_path, out_checkpoint);
 }
 
 fn hub_autotokenizer_from_pretrained(repo_id: string) -> AutoTokenizer {

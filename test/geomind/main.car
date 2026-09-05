@@ -51,6 +51,7 @@ fn print_help_dialogue() -> float {
     printf("  --train-sft     Run Supervised Fine-Tuning loop (-repo <id>|-target <file>)\n");
     printf("  --train-distill Run Teacher-Student KL divergence logit distillation pass\n");
     printf("  --merge-slerp   Run Zero-Day SLERP geodesic model weight merging pipeline\n");
+    printf("  --graft         Graft Gemma 4E4B multimodal weights into 42-layer manifold\n");
     printf("  --azr-selfplay  Run Absolute Zero Reasoning (AZR) compiler self-play loop\n");
     printf("  --ingest        Ingest material into Continuous Hopfield memory (-target <file>)\n");
     printf("  --sleep         Run Autonomous Metacognitive Sleep memory consolidation\n");
@@ -336,6 +337,16 @@ fn main() -> float {
             printf("[GeoMind Fusion] Tangent Space Geodesic SLERP Merging Complete!\n");
             printf("[GeoMind Fusion] Fused Parameters: %s | Manifold Metric Check: %s\n", cartan_float_to_string(cartan_vec_len(fused)), cartan_float_to_string(mid_val));
             printf("[GeoMind Fusion] Saved Tangent-Space Merged Checkpoint: test/geomind/trainingdata/checkpoints/geomind_slerp_fused_weights.bin\n");
+            cartan_flush(0.0);
+            return 0.0;
+        }
+        if (cartan_string_eq(flag, "--graft") == 1.0) {
+            var sf_path = "cache_google_gemma-4-E4B-it_model.safetensors";
+            if (arg_count >= 3.0) {
+                sf_path = sys_get_arg(2.0);
+            }
+            let out_ckpt = "test/geomind/trainingdata/checkpoints/geomind_grafted_multimodal.bin";
+            let res = hub_graft_multimodal_model(sf_path, out_ckpt);
             cartan_flush(0.0);
             return 0.0;
         }

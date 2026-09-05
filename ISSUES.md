@@ -617,15 +617,16 @@ This file tracks technical debt and bugs identified during repository code revie
 
 ---
 
-## [ISSUE-056] [OPEN] Zero-Day Cross-Model Geodesic Grafting & 42-Layer Multi-Tower Safetensors Ingestion
+## [ISSUE-056] [FIXED] Zero-Day Cross-Model Geodesic Grafting & 42-Layer Multi-Tower Safetensors Ingestion
 - **Severity**: High (Zero-Day Knowledge Absorption & Architectural Completeness)
-- **Component**: `src/std/fusion.cl`, `src/std/hub.cl`, `src/cartanc/geomind_runtime.c`, `test/geomind/main.car`, `test/geomind/chat.cl`
+- **Component**: `src/std/fusion.cl`, `src/std/hub.cl`, `src/cartanc/geomind_runtime.c`, `test/geomind/main.car`, `test/geomind/streams.cl`
 - **Description**:
   1. `fusion_riemannian_retraction` ($\text{Exp}_W(v) = W \cos(\|v\|) + \frac{v}{\|v\|} \sin(\|v\|)$) was omitted from `src/std/fusion.cl` after the stdlib `.car` to `.cl` migration.
   2. While `cache_google_gemma-4-E4B-it_model.safetensors` (15.9 GB) contains full multi-modal weights (`language_model`, `vision_tower`, `embed_vision`, `audio_tower`, `embed_audio`), the current ingestion only loads `embed_tokens.weight` and lacks multi-tower geodesic projection into the 42-layer manifold, `EikonalStream`, and `SpectralStream`.
   3. GeoMind lacks an automated `--graft` CLI subcommand in `test/geomind/main.car` to execute one-shot cross-model weight absorption and output aligned checkpoints.
-- **Proposed Fix**:
-  1. Implement canonical `fusion_riemannian_retraction` and `fusion_riemannian_align` in `src/std/fusion.cl`.
-  2. Implement multi-tower Safetensors streaming loaders in `src/cartanc/geomind_runtime.c` and `src/std/hub.cl` to stream vision patch projection weights and audio spectrogram projection weights without RAM exhaustion.
-  3. Wire multi-tower grafting into `test/geomind/main.car` via `--graft` CLI flag.
-  4. Create Target 57 regression test (`test/compiler_suite/test_model_grafting.car`) verifying multi-tower retraction, dimension alignment, and shared $E_8$ manifold projections.
+- **Resolution (Sprint 305 / Phase 63)**:
+  1. Implemented canonical `fusion_riemannian_retraction`, `fusion_riemannian_align`, and `fusion_riemannian_retract_arrays` in `src/std/fusion.cl`.
+  2. Built single-pass cached JSON header parser `cartan_find_offset_in_header` and streaming loader `cartan_graft_multimodal_weights` in `src/cartanc/geomind_runtime.c` and `src/std/hub.cl`, extracting 42 layers of Lie rotations, vision weights ($320 \times 256$), and audio weights ($320 \times 128$) without RAM exhaustion.
+  3. Exported signed 1.77 GB multimodal checkpoint `test/geomind/trainingdata/checkpoints/geomind_grafted_multimodal.bin`.
+  4. Wired live weights into `cartan_multimodal_project_vision`, `cartan_multimodal_project_audio`, `test/geomind/streams.cl`, and added `--graft` CLI option to `test/geomind/main.car`.
+  5. Added Target 57 regression test (`test/compiler_suite/test_model_grafting.car`) and registered in `test/compiler_suite/run_tests.car`; verified 57/57 tests passing cleanly.

@@ -343,13 +343,19 @@ fn main(argc: float, argv: ptr) -> float {
     cartan_flush(0.0);
     system(t55_cmd);
 
-    // [56/56] Positive test: test_language_acquisition_cloze
+    // [56/57] Positive test: test_language_acquisition_cloze
     let t56_cmd = "cartanc.exe build test/compiler_suite/test_language_acquisition_cloze.car -o build/test_language_acquisition_cloze.exe && build\\test_language_acquisition_cloze.exe";
-    printf("[56/56] [// run-pass] Building and Executing Staged Language Acquisition & Cloze Engine Verification: %s\n", t56_cmd);
+    printf("[56/57] [// run-pass] Building and Executing Staged Language Acquisition & Cloze Engine Verification: %s\n", t56_cmd);
     cartan_flush(0.0);
     system(t56_cmd);
 
-    printf("\nAll 56 compiler snapshot test targets executed!\n", "");
+    // [57/57] Positive test: test_model_grafting
+    let t57_cmd = "cartanc.exe build test/compiler_suite/test_model_grafting.car -o build/test_model_grafting.exe && build\\test_model_grafting.exe";
+    printf("[57/57] [// run-pass] Building and Executing Zero-Day Cross-Model Geodesic Grafting Verification: %s\n", t57_cmd);
+    cartan_flush(0.0);
+    system(t57_cmd);
+
+    printf("\nAll 57 compiler snapshot test targets executed!\n", "");
     return 0.0;
 }
 

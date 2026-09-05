@@ -349,3 +349,162 @@ fn fusion_ties_arrays(arr1: ptr, arr2: ptr, arr3: ptr, out_arr: ptr, size: float
     }
 }
 
+// Non-Euclidean Riemannian Exponential Retraction Map: Exp_W(eta * v) = W * cos(theta) + ||W|| * (v / ||v||) * sin(theta)
+// Geodesically projects donor weight adjustments onto the Riemannian manifold preserving target volume norm
+fn fusion_riemannian_retraction(base_w: ptr, tangent_v: ptr, eta: float) -> ptr {
+    let len = cartan_vec_len(base_w);
+    let out = cartan_tensor_alloc(len);
+    if (len <= 0.0) { return out; }
+
+    var norm_w = 0.0;
+    var norm_v = 0.0;
+    var i = 0.0;
+    while (i < len) {
+        let bw = cartan_vec_get_f32(base_w, i);
+        let tv = cartan_vec_get_f32(tangent_v, i);
+        norm_w = norm_w + bw * bw;
+        norm_v = norm_v + tv * tv;
+        i = i + 1.0;
+    }
+    norm_w = sqrt(norm_w + 0.000001);
+    norm_v = sqrt(norm_v + 0.000001);
+
+    if (norm_v < 0.00001) {
+        // Tangent perturbation negligible; identity copy
+        i = 0.0;
+        while (i < len) {
+            cartan_vec_set_f32(out, i, cartan_vec_get_f32(base_w, i));
+            i = i + 1.0;
+        }
+        return out;
+    }
+
+    let theta = eta * norm_v;
+    let cos_t = cos(theta);
+    let sin_t = sin(theta);
+    let inv_norm_v = 1.0 / norm_v;
+
+    // Evaluate Exp_W(eta * v)
+    var norm_out = 0.0;
+    i = 0.0;
+    while (i < len) {
+        let bw = cartan_vec_get_f32(base_w, i);
+        let tv = cartan_vec_get_f32(tangent_v, i);
+        let v_unit = tv * inv_norm_v;
+        let r_val = bw * cos_t + norm_w * v_unit * sin_t;
+        norm_out = norm_out + r_val * r_val;
+        cartan_vec_set_f32(out, i, r_val);
+        i = i + 1.0;
+    }
+    norm_out = sqrt(norm_out + 0.000001);
+
+    // Strict volume norm preservation along Riemannian manifold
+    let scale = norm_w / norm_out;
+    i = 0.0;
+    while (i < len) {
+        let val = cartan_vec_get_f32(out, i);
+        cartan_vec_set_f32(out, i, val * scale);
+        i = i + 1.0;
+    }
+    return out;
+}
+
+// Riemannian Dimension Alignment: Projects arbitrary donor tower dimensions (e.g. 1024-D, 1152-D)
+// onto target Lie stream sectors (320-D) or manifold dimensions (2560-D) with energy conservation
+fn fusion_riemannian_align(source_w: ptr, target_dim: float) -> ptr {
+    let out = cartan_tensor_alloc(target_dim);
+    if (target_dim <= 0.0) { return out; }
+    let src_len = cartan_vec_len(source_w);
+    if (src_len <= 0.0) { return out; }
+
+    var src_energy = 0.0;
+    var i = 0.0;
+    while (i < src_len) {
+        let sv = cartan_vec_get_f32(source_w, i);
+        src_energy = src_energy + sv * sv;
+        i = i + 1.0;
+    }
+    let rms_src = sqrt((src_energy / src_len) + 0.000001);
+
+    // Harmonic geodesic interpolation mapping
+    var out_energy = 0.0;
+    var j = 0.0;
+    let ratio = (src_len - 1.0) / (target_dim - 1.0);
+    while (j < target_dim) {
+        let pos = j * ratio;
+        let i0 = math_floor(pos);
+        var i1 = i0 + 1.0;
+        if (i1 >= src_len) { i1 = src_len - 1.0; }
+        let frac = pos - i0;
+        let v0 = cartan_vec_get_f32(source_w, i0);
+        let v1 = cartan_vec_get_f32(source_w, i1);
+        let interp = v0 * (1.0 - frac) + v1 * frac;
+        out_energy = out_energy + interp * interp;
+        cartan_vec_set_f32(out, j, interp);
+        j = j + 1.0;
+    }
+    let rms_out = sqrt((out_energy / target_dim) + 0.000001);
+
+    // Energy-conserving Riemannian metric scaling
+    if (rms_out > 0.000001) {
+        let scale = rms_src / rms_out;
+        j = 0.0;
+        while (j < target_dim) {
+            let ov = cartan_vec_get_f32(out, j);
+            cartan_vec_set_f32(out, j, ov * scale);
+            j = j + 1.0;
+        }
+    }
+    return out;
+}
+
+// Contiguous Array-Level Riemannian Retraction for High-Throughput Manifold Layers
+fn fusion_riemannian_retract_arrays(base_arr: ptr, tan_arr: ptr, out_arr: ptr, size: float, eta: float) {
+    if (base_arr == 0.0 || tan_arr == 0.0 || out_arr == 0.0 || size <= 0.0) { return; }
+    var norm_w = 0.0;
+    var norm_v = 0.0;
+    var i = 0.0;
+    while (i < size) {
+        let bw = base_arr[i];
+        let tv = tan_arr[i];
+        norm_w = norm_w + bw * bw;
+        norm_v = norm_v + tv * tv;
+        i = i + 1.0;
+    }
+    norm_w = sqrt(norm_w + 0.000001);
+    norm_v = sqrt(norm_v + 0.000001);
+
+    if (norm_v < 0.00001) {
+        i = 0.0;
+        while (i < size) {
+            out_arr[i] = base_arr[i];
+            i = i + 1.0;
+        }
+        return;
+    }
+
+    let theta = eta * norm_v;
+    let cos_t = cos(theta);
+    let sin_t = sin(theta);
+    let inv_norm_v = 1.0 / norm_v;
+
+    var norm_out = 0.0;
+    i = 0.0;
+    while (i < size) {
+        let bw = base_arr[i];
+        let tv = tan_arr[i];
+        let v_unit = tv * inv_norm_v;
+        let r_val = bw * cos_t + norm_w * v_unit * sin_t;
+        norm_out = norm_out + r_val * r_val;
+        out_arr[i] = r_val;
+        i = i + 1.0;
+    }
+    norm_out = sqrt(norm_out + 0.000001);
+    let scale = norm_w / norm_out;
+    i = 0.0;
+    while (i < size) {
+        out_arr[i] = out_arr[i] * scale;
+        i = i + 1.0;
+    }
+}
+

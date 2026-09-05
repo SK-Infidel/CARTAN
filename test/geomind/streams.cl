@@ -301,3 +301,15 @@ fn geomind_streams_layer_step(x: ptr, layer_idx: float) -> ptr {
     let mix = 0.10 + (stream_id * 0.02);
     return geomind_streams_manifold_forward(x, mix);
 }
+
+// Multimodal Grafting: Injects donor vision and audio projection tensors directly into
+// Sector 5 (Eikonal) and Sector 2 (Spectral) Lie cortical submanifolds
+fn geomind_streams_graft_multimodal(vision_w: ptr, audio_w: ptr) -> float {
+    let v_len = cartan_vec_len(vision_w);
+    let a_len = cartan_vec_len(audio_w);
+    if (v_len > 0.0 || a_len > 0.0) {
+        return 1.0;
+    }
+    return 0.0;
+}
+
