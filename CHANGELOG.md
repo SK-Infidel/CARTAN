@@ -1,3 +1,26 @@
+## [8.258.0] - 2026-09-04 (Sprint 301: Three-Factor Hebbian Synaptic Plasticity & Inference Learning)
+
+### Completed & Validated
+- **Three-Factor Hebbian Synaptic Plasticity Engine (`[ISSUE-052]`, Phase 59 Item 3)**:
+  - Standard Library Hebbian Module (`src/std/hebbian.cl`):
+    - Implemented `hebbian_vector_outer_product(pre, post)`: generates flattened $M \times N$ outer product tensors.
+    - Implemented `hebbian_three_factor_update(W, rows, cols, pre, post, M, lr, decay)`: computes local three-factor updates ($\Delta W = \eta \cdot M \cdot (\text{Pre} \cdot \text{Post}) - \lambda W$).
+    - Implemented `hebbian_oja_update(W, rows, cols, pre, post, M, lr, alpha)`: applies stabilized Oja's rule ($\Delta W = \eta \cdot M \cdot (\text{Pre} \cdot \text{Post} - \alpha \cdot \text{Post}^2 \cdot W)$) preventing runaway synaptic saturation.
+    - Implemented `hebbian_trace_update(traces, W, rows, cols, pre, post, M, lr, lambda_decay)`: accumulates eligibility traces $e(t) = \lambda e(t-1) + \text{Pre} \cdot \text{Post}$ with neuromodulated weight updates.
+    - Implemented `hebbian_matrix_norm(W, total_len)` for Frobenius norm stability monitoring.
+  - C Runtime Synaptic Kernel (`src/cartanc/geomind_runtime.c`):
+    - Implemented `cartan_tensor_hebbian_update(pre_ptr, post_ptr, neuromodulator, lr)`: parallel OpenMP in-place updates to GeoMind's 2560x2560 synaptic weight matrix with Oja normalization.
+    - Implemented `cartan_hebbian_step_token(hidden_ptr, tok_id, neuromodulator, lr)`: single-column token-level synaptic reinforcement during inference.
+  - Real-Time Inference Learning Integration (`test/geomind/chat.cl`):
+    - Wired `cartan_hebbian_step_token` into conversational response generation loop in `geomind_chat_generate_reply` (online zero-backprop learning during speech/reading).
+    - Wired neuromodulated Hebbian updates into `geomind_chat_apply_human_feedback` (reinforcing or depressing weights via human reward $M \in \{+1.0, -1.0\}$).
+    - Wired positive Hebbian reinforcement ($M = +1.5$) into `geomind_chat_apply_correction`.
+- **Regression Test Suite Expansion (Target 53)**:
+  - Created `test/compiler_suite/test_hebbian_plasticity.car` verifying vector outer products, canonical three-factor updates, neuromodulated sign inversion (reward vs penalty), Oja norm bounding, and C runtime in-place matrix/token updates.
+  - Registered Target 53 in `test/compiler_suite/run_tests.car` and recompiled `scratch/run_tests.exe`.
+  - All 53 compiler regression test targets building and executing with 100% pass rate.
+  - Recompiled and verified `build/geomind.exe --chat` through all 42 physical manifold layers with online synaptic plasticity and continuous Hopfield memory active.
+
 ## [8.257.0] - 2026-09-04 (Sprint 300: 8 Lie Subgroup Cortical Streams Integration & Core Vector Capacity Hardening)
 
 ### Completed & Validated

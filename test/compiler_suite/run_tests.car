@@ -319,13 +319,19 @@ fn main(argc: float, argv: ptr) -> float {
     cartan_flush(0.0);
     system(t51_cmd);
 
-    // [52/52] Positive test: test_lie_streams
+    // [52/53] Positive test: test_lie_streams
     let t52_cmd = "cartanc.exe build test/compiler_suite/test_lie_streams.car -o build/test_lie_streams.exe && build\\test_lie_streams.exe";
-    printf("[52/52] [// run-pass] Building and Executing 8 Lie Subgroup Cortical Streams Manifold Verification: %s\n", t52_cmd);
+    printf("[52/53] [// run-pass] Building and Executing 8 Lie Subgroup Cortical Streams Manifold Verification: %s\n", t52_cmd);
     cartan_flush(0.0);
     system(t52_cmd);
 
-    printf("\nAll 52 compiler snapshot test targets executed!\n", "");
+    // [53/53] Positive test: test_hebbian_plasticity
+    let t53_cmd = "cartanc.exe build test/compiler_suite/test_hebbian_plasticity.car -o build/test_hebbian_plasticity.exe && build\\test_hebbian_plasticity.exe";
+    printf("[53/53] [// run-pass] Building and Executing Three-Factor Hebbian Synaptic Plasticity Verification: %s\n", t53_cmd);
+    cartan_flush(0.0);
+    system(t53_cmd);
+
+    printf("\nAll 53 compiler snapshot test targets executed!\n", "");
     return 0.0;
 }
 

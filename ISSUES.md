@@ -548,6 +548,17 @@ This file tracks technical debt and bugs identified during repository code revie
 - **Description**: `cartan_vec_create` statically allocated `malloc(16384.0)` bytes (2048 doubles) and assigned `v[1] = 2000.0` capacity. When pushing 2,560 hidden manifold elements in `cartan_vec_push_f32`, `len < cap` evaluated to false after index 1999, silently truncating vectors at 2000 elements and preventing full 2560-D operations from completing.
 - **Status**: Fixed in Sprint 300. Expanded `cartan_vec_create` allocation from 16KB to 64KB (`malloc(65536.0)`) with capacity set to 8,190 elements (`v[1] = 8190.0`), accommodating 2,560-D neural manifold representations with full headroom. Replaced elided `static_assert` calls in test suite with real `cartan_assert` runtime assertions. Verified 100% test pass across all 52 compiler test suite targets.
 
+---
+
+## [ISSUE-052] [FIXED] Absence of Three-Factor Hebbian Synaptic Plasticity for Zero-Backprop Real-Time Inference Learning
+- **Severity**: High (Architectural Gap & Inference Adaptation Defect)
+- **Component**: `src/cartanc/geomind_runtime.c`, `src/std/hebbian.cl`, `test/geomind/chat.cl`
+- **Description**:
+  1. GeoMind conversational inference (`geomind_chat_generate_reply`, `geomind_chat_apply_human_feedback`) only adapted weights via standard SGD backpropagation or episodic Hopfield attractor insertion. It lacked local neuromodulated three-factor Hebbian synaptic updates ($\Delta W = \eta \cdot \text{Pre} \cdot \text{Post} \cdot M$).
+  2. The standard library lacked a canonical module for biologically plausible three-factor learning, Oja-stabilized synaptic weight updates, and eligibility trace accumulation.
+- **Status**: Fixed in Sprint 301. Implemented canonical three-factor synaptic plasticity in `src/std/hebbian.cl` (`hebbian_vector_outer_product`, `hebbian_three_factor_update`, `hebbian_oja_update`, `hebbian_trace_update`, and `hebbian_matrix_norm`). Implemented high-performance OpenMP/C runtime kernels in `src/cartanc/geomind_runtime.c` (`cartan_tensor_hebbian_update` and `cartan_hebbian_step_token`). Integrated real-time Three-Factor Hebbian plasticity into `test/geomind/chat.cl` across token emission, human feedback modulation, and correction reinforcement. Added Target 53 (`test_hebbian_plasticity.car`) to compiler test suite with 100% test pass rate across all 53 targets. Verified `geomind.exe --chat` neural forward pass with online synaptic plasticity active.
+
+
 
 
 

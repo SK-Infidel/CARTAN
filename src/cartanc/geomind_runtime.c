@@ -662,6 +662,8 @@ CARTAN_WEAK double cartan_hopfield_save_basins(const char* filepath);
 CARTAN_WEAK double cartan_hopfield_load_basins(const char* filepath);
 CARTAN_WEAK void cartan_apply_8_lie_streams(float* h, size_t dim, float stream_mix);
 CARTAN_WEAK double cartan_apply_8_lie_streams_vec(void* hidden_ptr, double stream_mix);
+CARTAN_WEAK double cartan_tensor_hebbian_update(void* pre_ptr, void* post_ptr, double neuromodulator, double lr);
+CARTAN_WEAK double cartan_hebbian_step_token(void* hidden_ptr, double tok_id, double neuromodulator, double lr);
 
 // --- WordNet Information Content (IC) & Semantic Taxonomy Structures ---
 static float* g_wordnet_ic = NULL;
@@ -1719,6 +1721,65 @@ CARTAN_WEAK double cartan_tensor_train_step(void* hidden_ptr, double target_tok_
         }
     }
     return loss;
+}
+
+CARTAN_WEAK double cartan_tensor_hebbian_update(void* pre_ptr, void* post_ptr, double neuromodulator, double lr) {
+    cartan_init_weights_if_needed();
+    if (!pre_ptr || !post_ptr) return 0.0;
+    CartanVector* pre = (CartanVector*)pre_ptr;
+    CartanVector* post = (CartanVector*)post_ptr;
+    if (pre->size == 0 || post->size == 0) return 0.0;
+
+    size_t rows = pre->size < 2560 ? (size_t)pre->size : 2560;
+    size_t cols = post->size < 2560 ? (size_t)post->size : 2560;
+    double m = (neuromodulator != 0.0) ? neuromodulator : 1.0;
+    double eta = (lr != 0.0) ? lr : 0.001;
+    double alpha = 0.01;
+
+    #pragma omp parallel for schedule(static, 64)
+    for (int r = 0; r < (int)rows; r++) {
+        double pre_val = pre->data[r];
+        for (size_t c = 0; c < cols; c++) {
+            double post_val = post->data[c];
+            double cur_w = g_model_weights[r][c];
+            double oja_term = alpha * (post_val * post_val) * cur_w;
+            double delta = eta * m * (pre_val * post_val - oja_term);
+            double new_w = cur_w + delta;
+            g_model_weights[r][c] = new_w;
+            if (g_model_weights_flat && c < CARTAN_LM_HEAD_VOCAB) {
+                g_model_weights_flat[r * CARTAN_FULL_VOCAB_SIZE + c] = (float)new_w;
+            }
+        }
+    }
+    return 1.0;
+}
+
+CARTAN_WEAK double cartan_hebbian_step_token(void* hidden_ptr, double tok_id, double neuromodulator, double lr) {
+    cartan_init_weights_if_needed();
+    if (!hidden_ptr) return 0.0;
+    CartanVector* h = (CartanVector*)hidden_ptr;
+    if (h->size == 0) return 0.0;
+
+    int target_idx = ((int)tok_id) % 2560;
+    if (target_idx < 0) target_idx = 0;
+
+    size_t rows = h->size < 2560 ? (size_t)h->size : 2560;
+    double m = (neuromodulator != 0.0) ? neuromodulator : 1.0;
+    double eta = (lr != 0.0) ? lr : 0.001;
+    double alpha = 0.01;
+
+    for (size_t r = 0; r < rows; r++) {
+        double pre_val = h->data[r];
+        double post_val = 1.0;
+        double cur_w = g_model_weights[r][target_idx];
+        double delta = eta * m * (pre_val * post_val - alpha * cur_w);
+        double new_w = cur_w + delta;
+        g_model_weights[r][target_idx] = new_w;
+        if (g_model_weights_flat && (size_t)target_idx < CARTAN_LM_HEAD_VOCAB) {
+            g_model_weights_flat[r * CARTAN_FULL_VOCAB_SIZE + target_idx] = (float)new_w;
+        }
+    }
+    return 1.0;
 }
 
 CARTAN_WEAK double cartan_tensor_train_batch_gpu(const float* h_batch_hidden, const int* h_targets, const float* h_ic_weights, double batch_size, double learning_rate) {

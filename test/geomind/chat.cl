@@ -84,6 +84,8 @@ fn geomind_chat_process_image_input(w: float, h: float) -> float {
 extern fn cartan_tensor_compute_hidden_state_from_tokens(toks: ptr) -> ptr;
 extern fn cartan_tensor_train_step(h: ptr, tok: float, lr: float) -> float;
 extern fn cartan_hub_encode_text_to_tokens(s: string) -> ptr;
+extern fn cartan_hebbian_step_token(h: ptr, tok: float, m: float, lr: float) -> float;
+extern fn cartan_tensor_hebbian_update(pre: ptr, post: ptr, m: float, lr: float) -> float;
 
 fn geomind_chat_generate_reply(prompt: string, max_tokens: float, temp: float) -> float {
     printf("[GeoMind Chat] Processing User Prompt...\n");
@@ -117,6 +119,8 @@ fn geomind_chat_generate_reply(prompt: string, max_tokens: float, temp: float) -
         c_cartan_print_token(sampled_tok);
         cartan_vec_push_f32(history, sampled_tok);
         cartan_tensor_update_autoregressive_state(relaxed_h, sampled_tok);
+        // Three-Factor Hebbian Plasticity: Online zero-backprop synaptic update during inference
+        cartan_hebbian_step_token(relaxed_h, sampled_tok, 0.5, 0.0005);
         step = step + 1.0;
     }
 
@@ -179,6 +183,8 @@ fn geomind_chat_apply_human_feedback(prompt: string, reply: string, reward: floa
     while (t < r_len) {
         let tok_id = cartan_vec_get_f32(reply_toks, t);
         let step_loss = cartan_tensor_train_step(h_state, tok_id, lr);
+        // Three-Factor Neuromodulated Synaptic Plasticity: gated by human reward (+1.0 / -1.0)
+        cartan_hebbian_step_token(h_state, tok_id, reward, 0.002);
         total_loss = total_loss + step_loss;
         cartan_tensor_update_autoregressive_state(h_state, tok_id);
         t = t + 1.0;
@@ -209,6 +215,8 @@ fn geomind_chat_apply_correction(prompt: string, correct_reply: string) -> float
     while (t < c_len) {
         let tok_id = cartan_vec_get_f32(corr_toks, t);
         let step_loss = cartan_tensor_train_step(h_state, tok_id, 0.005);
+        // Positive Three-Factor Hebbian reinforcement on human correction target
+        cartan_hebbian_step_token(h_state, tok_id, 1.5, 0.003);
         total_loss = total_loss + step_loss;
         cartan_tensor_update_autoregressive_state(h_state, tok_id);
         t = t + 1.0;
