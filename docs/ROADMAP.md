@@ -193,12 +193,12 @@ This roadmap tracks the implementation of the advanced AI optimizations and nati
 - [x] **Native Linker Diagnostics (`src/cartanc/main.car`)**: Strict error status propagation from clang/zig compilation.
 - [x] **Bit-for-Bit Self-Hosting Parity & Full Test Suite**: Re-bootstrapped compiler to 3-stage parity and verified `geomind.exe --help` (exit 0) and 47/47 regression suite tests.
 
-## Phase 62: Staged Language Acquisition & Attention-Trigger Cloze Architecture (`docs/Research/Idea.txt`)
-- [ ] **1. High-Frequency Noun-Noun Bigrams Taxonomy**: Ingest and register the 100 most statistically common noun-noun pairs (`Health care`, `Cell phone`, `Data base`, `Ice cream`, etc.) as prioritized lexical units.
-- [ ] **2. Binomial Non-Reversible Structural Pairs**: Integrate non-reversible grammatical pairs across Noun+Noun (`Law and order`, `Bread and butter`), Adj+Adj (`Black and white`, `Safe and sound`), Verb+Verb (`Give and take`, `Live and learn`), and Adverbial (`Back and forth`, `Up and down`).
-- [ ] **3. Functional Discourse Markers & Social Rituals**: Ingest the 100 most common short conversational triggers (`In other words`, `By the way`, `At the end of the day`, `Long story short`, `On the other hand`).
-- [ ] **4. Narrative Progression & Structural Transition Bridges**: Ingest the 100 narrative transition bridges (`As previously mentioned`, `In contrast to`, `Consequently`, `More specifically`, `All things considered`).
-- [ ] **5. Full-Scale Anchored Cloze Curriculum Engine (`--train-cloze`)**: Upgrade `test/geomind/cloze_engine.cl` to stream through the 240,000+ mined cloze pairs (`mined_expanded_corpus_cloze_part01..06.jsonl`), driving bridge transition loss to near-zero before prose pre-training.
+## Phase 62: Staged Language Acquisition & Attention-Trigger Cloze Architecture (`docs/Research/Idea.txt`) (Completed - Sprint 304)
+- [x] **1. High-Frequency Noun-Noun Bigrams Taxonomy**: Ingest and register the 100 most statistically common noun-noun pairs (`Health care`, `Cell phone`, `Data base`, `Ice cream`, etc.) as prioritized lexical units in `src/std/language_acquisition.cl`. (Completed in Sprint 304).
+- [x] **2. Binomial Non-Reversible Structural Pairs**: Integrate non-reversible grammatical pairs across Noun+Noun (`Law and order`, `Bread and butter`), Adj+Adj (`Black and white`, `Safe and sound`), Verb+Verb (`Give and take`, `Live and learn`), and Adverbial (`Back and forth`, `Up and down`). (Completed in Sprint 304).
+- [x] **3. Functional Discourse Markers & Social Rituals**: Ingest the 100 most common short conversational triggers (`In other words`, `By the way`, `At the end of the day`, `Long story short`, `On the other hand`) across 5 subcategories. (Completed in Sprint 304).
+- [x] **4. Narrative Progression & Structural Transition Bridges**: Ingest the 100 narrative transition bridges (`As previously mentioned`, `In contrast to`, `Consequently`, `More specifically`, `All things considered`). (Completed in Sprint 304).
+- [x] **5. Full-Scale Anchored Cloze Curriculum Engine (`--train-cloze`)**: Upgrade `test/geomind/cloze_engine.cl` to stream through the 240,000+ mined cloze pairs (`mined_expanded_corpus_cloze_part01..06.jsonl`), driving bridge transition loss to near-zero with authentic SentencePiece BPE tokens and Riemannian gradient steps. (Completed in Sprint 304).
 
 
 

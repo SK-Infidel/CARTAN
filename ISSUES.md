@@ -593,6 +593,29 @@ This file tracks technical debt and bugs identified during repository code revie
   4. Added Target 55 (`test/compiler_suite/test_sleep_consolidation.car`) verifying replay resonance ($\rho > 0.85$), slow-weight consolidation, redundant basin pruning, binary file persistence, and multi-cycle stability.
   5. Registered Target 55 in `test/compiler_suite/run_tests.car`; verified 55/55 tests passing.
 
+---
+
+## [ISSUE-055] [FIXED] Disconnected Staged Language Acquisition & Stubbed Cloze Curriculum Engine
+- **Severity**: High (Linguistic Structural Gaps & Prototype Training Stubs)
+- **Component**: `test/geomind/cloze_engine.cl`, `test/geomind/main.car`, `src/std/language_acquisition.cl`, `src/cartanc/geomind_runtime.c`
+- **Description**:
+  1. `test/geomind/cloze_engine.cl` had hardcoded stub token IDs (26352.0, 29104.0) and tested only 2 toy sentences without streaming the 240,000+ mined cloze pairs in `test/geomind/trainingdata/mined_expanded_corpus_cloze_part01..06.jsonl`.
+  2. The four core structural language acquisition taxonomies specified in `docs/Research/Idea.txt` (100 Noun-Noun pairs, 100 Binomial non-reversible pairs, 100 Discourse markers, 100 Narrative transition bridges) were not formalized in the standard library.
+  3. The master driver `geomind.exe` did not properly document or expose `--train-cloze` in its help dialog.
+- **Resolution**:
+  1. Implemented `src/std/language_acquisition.cl` containing the full 400-phrase 4-tier taxonomy:
+     - 100 statistical Noun-Noun pairs (`lang_get_noun_pair`)
+     - 100 Binomial non-reversible pairs across 4 subcategories (`lang_get_binomial_pair`, `lang_get_binomial_category`)
+     - 100 Functional discourse markers & social rituals across 5 categories (`lang_get_discourse_marker`, `lang_get_discourse_category`)
+     - 100 Structural transition bridges (`lang_get_transition_bridge`)
+     - Dynamic phrase membership checking (`lang_is_registered_phrase`)
+     - Adaptive attention anchor weight computation (`lang_calculate_anchor_weight`) with scale factors (2.5x bridges, 2.0x discourse, 1.8x binomial, 1.5x noun-noun).
+  2. Upgraded `test/geomind/cloze_engine.cl` with authentic SentencePiece BPE token encoding (`cartan_hub_encode_text_to_tokens`), true next-token cross-entropy loss over all target tokens (`cartan_tensor_train_step`), autoregressive hidden state advancement (`cartan_tensor_update_autoregressive_state`), and full-scale streaming through mined JSONL datasets (`geomind_cloze_stream_curriculum`).
+  3. Wired `test/geomind/cloze_engine.cl` and documented `--train-cloze` CLI option in `test/geomind/main.car`.
+  4. Added Target 56 regression test (`test/compiler_suite/test_language_acquisition_cloze.car`) verifying all 4 taxonomies, anchor weights, and authentic cloze loss optimization.
+  5. Registered Target 56 in `test/compiler_suite/run_tests.car`; verified 56/56 tests passing with exit code 0.
+
+
 
 
 

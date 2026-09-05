@@ -1,3 +1,24 @@
+## [8.261.0] - 2026-09-04 (Sprint 304: Staged Language Acquisition & Attention-Trigger Cloze Architecture)
+
+### Completed & Validated
+- **Staged Language Acquisition Standard Library (`src/std/language_acquisition.cl`, `[ISSUE-055]`, Phase 62 Items 1-4)**:
+  - Implemented 4-tier language acquisition taxonomy containing 400 prioritized lexical units:
+    - **Item 1: High-Frequency Noun-Noun Bigrams (100 pairs)**: `lang_get_noun_pair(idx)` ingesting `Health care`, `Ice cream`, `Web page`, `Cell phone`, `Data base`, `Climate change`, through `Drug addiction`.
+    - **Item 2: Binomial Non-Reversible Structural Pairs (100 pairs)**: `lang_get_binomial_pair(idx)` and `lang_get_binomial_category(idx)` across Noun+Noun (`Law and order`, `Bread and butter`), Adj+Adj (`Black and white`, `Safe and sound`), Verb+Verb (`Give and take`, `Live and learn`), and Adverbial (`Back and forth`, `Up and down`).
+    - **Item 3: Functional Discourse Markers & Social Rituals (100 triggers)**: `lang_get_discourse_marker(idx)` and `lang_get_discourse_category(idx)` across Social Rituals, Discourse Management, Agreement/Certainty, Desires/Requests, and Empathy.
+    - **Item 4: Narrative Progression & Structural Transition Bridges (100 bridges)**: `lang_get_transition_bridge(idx)` ingesting `As previously mentioned`, `In contrast to`, `Consequently`, `Long story short`, `In other words`, through `In light of this`.
+  - Implemented `lang_is_registered_phrase(phrase)` for fast O(1) lexical membership verification.
+  - Implemented `lang_calculate_anchor_weight(phrase)` providing adaptive attention scaling factors: 2.5x for transition bridges, 2.0x for discourse markers, 1.8x for binomial pairs, and 1.5x for noun-noun bigrams.
+- **Anchored Cloze Curriculum Engine (`test/geomind/cloze_engine.cl`, Phase 62 Item 5)**:
+  - Eliminated hardcoded toy token stubs (26352.0, 29104.0).
+  - Upgraded `geomind_cloze_eval_bridge` to tokenize target anchors using genuine SentencePiece BPE vocabulary (`cartan_hub_encode_text_to_tokens`), compute Riemannian natural gradient steps over all tokens in the phrase, and advance autoregressive state (`cartan_tensor_update_autoregressive_state`).
+  - Upgraded `geomind_cloze_eval_finish_sentence` to compute authentic sequential continuation loss.
+  - Implemented `geomind_cloze_stream_curriculum` and documented `--train-cloze` CLI streaming flag in `test/geomind/main.car`.
+- **Regression Test Suite Expansion (Target 56)**:
+  - Created `test/compiler_suite/test_language_acquisition_cloze.car` verifying all 4 taxonomies, categorization, anchor weighting, genuine BPE token sequences, and Riemannian gradient updates.
+  - Registered Target 56 in `test/compiler_suite/run_tests.car`; verified all 56 compiler snapshot targets building and passing.
+- **Milestone Reached**: Phase 62 of CARTAN Roadmap (Staged Language Acquisition & Attention-Trigger Cloze Architecture) 100% completed across all 5 items.
+
 ## [8.260.0] - 2026-09-04 (Sprint 303: Autonomous Metacognitive Sleep Daemon & Generative Attractor Consolidation)
 
 ### Completed & Validated

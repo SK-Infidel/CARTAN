@@ -1,6 +1,7 @@
 // test/geomind/main.cl
 // GeoMind Unified Multi-Phase Model Driver
 
+include "test/geomind/cloze_engine.cl";
 include "test/geomind/geometry.cl";
 include "test/geomind/ode_solver.cl";
 include "test/geomind/ising_state_machine.cl";
@@ -45,6 +46,7 @@ fn print_help_dialogue() -> float {
     printf("  --chat          Start interactive E8 Hopfield multimodal chat engine\n");
     printf("  --hf-download   Explore & download HuggingFace datasets (-repo <repo_id>)\n");
     printf("  --train-pre     Pre-train model on skill corpus (-target <file>|-repo <id>)\n");
+    printf("  --train-cloze   Run Anchored Cloze Curriculum Stream (-target <file>)\n");
     printf("  --train-ce      Run Cross-Entropy Autoregressive Pre-Trainer (-target <file>)\n");
     printf("  --train-sft     Run Supervised Fine-Tuning loop (-repo <id>|-target <file>)\n");
     printf("  --train-distill Run Teacher-Student KL divergence logit distillation pass\n");
