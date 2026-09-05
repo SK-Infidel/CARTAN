@@ -664,6 +664,9 @@ CARTAN_WEAK void cartan_apply_8_lie_streams(float* h, size_t dim, float stream_m
 CARTAN_WEAK double cartan_apply_8_lie_streams_vec(void* hidden_ptr, double stream_mix);
 CARTAN_WEAK double cartan_tensor_hebbian_update(void* pre_ptr, void* post_ptr, double neuromodulator, double lr);
 CARTAN_WEAK double cartan_hebbian_step_token(void* hidden_ptr, double tok_id, double neuromodulator, double lr);
+CARTAN_WEAK void cartan_multimodal_project_vision(float* h_cur, const float* patch_pixels, size_t patch_size, float alpha);
+CARTAN_WEAK void cartan_multimodal_project_audio(float* h_cur, const float* audio_samples, size_t num_samples, float beta);
+CARTAN_WEAK double cartan_multimodal_ground_hidden(void* hidden_ptr, void* vision_ptr, void* audio_ptr);
 
 // --- WordNet Information Content (IC) & Semantic Taxonomy Structures ---
 static float* g_wordnet_ic = NULL;
@@ -2902,6 +2905,84 @@ CARTAN_WEAK double cartan_apply_8_lie_streams_vec(void* hidden_ptr, double strea
     cartan_apply_8_lie_streams(buf, 2560, (float)stream_mix);
     for (size_t d = 0; d < 2560; d++) {
         h_vec->data[d] = (double)buf[d];
+    }
+    return 1.0;
+}
+
+CARTAN_WEAK void cartan_multimodal_project_vision(float* h_cur, const float* patch_pixels, size_t patch_size, float alpha) {
+    if (!h_cur || !patch_pixels || patch_size == 0) return;
+    float a = alpha > 0.0f ? alpha : 0.35f;
+    // Project into Sector 5: dims 1600..1919 (320 dimensions)
+    for (size_t d = 0; d < 320; d++) {
+        size_t p_idx = (d * patch_size) / 320;
+        float p_val = patch_pixels[p_idx];
+        float speed_factor = 1.0f / (1.0f + p_val * p_val * 0.05f);
+        float eik_val = p_val * speed_factor;
+        h_cur[1600 + d] = (1.0f - a) * h_cur[1600 + d] + a * eik_val;
+    }
+}
+
+CARTAN_WEAK void cartan_multimodal_project_audio(float* h_cur, const float* audio_samples, size_t num_samples, float beta) {
+    if (!h_cur || !audio_samples || num_samples == 0) return;
+    float b = beta > 0.0f ? beta : 0.35f;
+    // Compute 64-bin DFT magnitudes on the fly
+    float spec[64] = {0};
+    size_t K = 64;
+    float pi2 = 6.283185307179586f;
+    for (size_t k = 0; k < K; k++) {
+        float r_sum = 0.0f, i_sum = 0.0f;
+        for (size_t n = 0; n < num_samples; n++) {
+            float angle = (pi2 * (float)k * (float)n) / (float)num_samples;
+            r_sum += audio_samples[n] * cosf(angle);
+            i_sum -= audio_samples[n] * sinf(angle);
+        }
+        spec[k] = sqrtf(r_sum * r_sum + i_sum * i_sum) / (float)num_samples;
+    }
+    // Project into Sector 2: dims 640..959 (320 dimensions)
+    for (size_t d = 0; d < 320; d++) {
+        size_t bin_idx = (d * K) / 320;
+        float harmonic = sinf((float)(d + 1) * 0.1f) * 0.7071f;
+        float spec_val = spec[bin_idx] * (1.0f + harmonic);
+        h_cur[640 + d] = (1.0f - b) * h_cur[640 + d] + b * spec_val;
+    }
+}
+
+CARTAN_WEAK double cartan_multimodal_ground_hidden(void* hidden_ptr, void* vision_ptr, void* audio_ptr) {
+    if (!hidden_ptr) return 0.0;
+    CartanVector* h_vec = (CartanVector*)hidden_ptr;
+    if (h_vec->size < 2560) return 0.0;
+
+    float h_buf[2560];
+    for (size_t d = 0; d < 2560; d++) {
+        h_buf[d] = (float)h_vec->data[d];
+    }
+
+    if (vision_ptr) {
+        CartanVector* v_vec = (CartanVector*)vision_ptr;
+        if (v_vec->size > 0) {
+            float* v_buf = (float*)malloc(sizeof(float) * (size_t)v_vec->size);
+            if (v_buf) {
+                for (size_t i = 0; i < (size_t)v_vec->size; i++) v_buf[i] = (float)v_vec->data[i];
+                cartan_multimodal_project_vision(h_buf, v_buf, (size_t)v_vec->size, 0.35f);
+                free(v_buf);
+            }
+        }
+    }
+
+    if (audio_ptr) {
+        CartanVector* a_vec = (CartanVector*)audio_ptr;
+        if (a_vec->size > 0) {
+            float* a_buf = (float*)malloc(sizeof(float) * (size_t)a_vec->size);
+            if (a_buf) {
+                for (size_t i = 0; i < (size_t)a_vec->size; i++) a_buf[i] = (float)a_vec->data[i];
+                cartan_multimodal_project_audio(h_buf, a_buf, (size_t)a_vec->size, 0.35f);
+                free(a_buf);
+            }
+        }
+    }
+
+    for (size_t d = 0; d < 2560; d++) {
+        h_vec->data[d] = (double)h_buf[d];
     }
     return 1.0;
 }

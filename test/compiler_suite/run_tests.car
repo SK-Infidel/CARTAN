@@ -325,13 +325,19 @@ fn main(argc: float, argv: ptr) -> float {
     cartan_flush(0.0);
     system(t52_cmd);
 
-    // [53/53] Positive test: test_hebbian_plasticity
+    // [53/54] Positive test: test_hebbian_plasticity
     let t53_cmd = "cartanc.exe build test/compiler_suite/test_hebbian_plasticity.car -o build/test_hebbian_plasticity.exe && build\\test_hebbian_plasticity.exe";
-    printf("[53/53] [// run-pass] Building and Executing Three-Factor Hebbian Synaptic Plasticity Verification: %s\n", t53_cmd);
+    printf("[53/54] [// run-pass] Building and Executing Three-Factor Hebbian Synaptic Plasticity Verification: %s\n", t53_cmd);
     cartan_flush(0.0);
     system(t53_cmd);
 
-    printf("\nAll 53 compiler snapshot test targets executed!\n", "");
+    // [54/54] Positive test: test_multimodal_grounding
+    let t54_cmd = "cartanc.exe build test/compiler_suite/test_multimodal_grounding.car -o build/test_multimodal_grounding.exe && build\\test_multimodal_grounding.exe";
+    printf("[54/54] [// run-pass] Building and Executing Multimodal Cross-Modal Grounding Verification: %s\n", t54_cmd);
+    cartan_flush(0.0);
+    system(t54_cmd);
+
+    printf("\nAll 54 compiler snapshot test targets executed!\n", "");
     return 0.0;
 }
 

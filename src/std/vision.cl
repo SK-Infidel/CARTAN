@@ -140,3 +140,69 @@ fn vision_conv2d(img: Image, kernel: ptr, kernel_size: float) -> Image {
     }
     return out_img;
 }
+
+fn vision_get_pixel(img: Image, x: float, y: float, c: float) -> float {
+    if (x < 0.0 || x >= img.width || y < 0.0 || y >= img.height || c < 0.0 || c >= img.channels) {
+        return 0.0;
+    }
+    let idx = (y * img.width + x) * img.channels + c;
+    return cartan_vec_get_f32(img.data, idx);
+}
+
+fn vision_set_pixel(img: Image, x: float, y: float, c: float, val: float) -> float {
+    if (x < 0.0 || x >= img.width || y < 0.0 || y >= img.height || c < 0.0 || c >= img.channels) {
+        return 0.0;
+    }
+    let idx = (y * img.width + x) * img.channels + c;
+    return cartan_vec_set_f32(img.data, idx, val);
+}
+
+// Extract a P x P receptive field patch from an Image as a flat tensor (P * P * C floats)
+fn vision_extract_patch(img: Image, start_x: float, start_y: float, patch_w: float, patch_h: float) -> ptr {
+    let total_feats = patch_w * patch_h * img.channels;
+    let patch = cartan_tensor_alloc(total_feats);
+    var py = 0.0;
+    var out_idx = 0.0;
+    while (py < patch_h) {
+        var px = 0.0;
+        while (px < patch_w) {
+            let img_x = start_x + px;
+            let img_y = start_y + py;
+            var c = 0.0;
+            while (c < img.channels) {
+                var p_val = 0.0;
+                if (img_x < img.width && img_y < img.height) {
+                    let p_idx = (img_y * img.width + img_x) * img.channels + c;
+                    p_val = cartan_vec_get_f32(img.data, p_idx) / 255.0;
+                }
+                cartan_vec_set_f32(patch, out_idx, p_val);
+                out_idx = out_idx + 1.0;
+                c = c + 1.0;
+            }
+            px = px + 1.0;
+        }
+        py = py + 1.0;
+    }
+    return patch;
+}
+
+// Linear projection of visual patch features (e.g. 768-D) to 320-D SO(10) x SU(4) Eikonal Stream
+fn vision_project_to_eikonal_stream(patch_tensor: ptr, patch_size: float, target_dim: float) -> ptr {
+    var dim = 320.0;
+    if (target_dim > 0.0) { dim = target_dim; }
+    var P = 768.0;
+    if (patch_size > 0.0) { P = patch_size; }
+
+    let out = cartan_tensor_alloc(dim);
+    var d = 0.0;
+    while (d < dim) {
+        let feat_idx = math_floor((d * P) / dim);
+        let pixel_val = cartan_vec_get_f32(patch_tensor, feat_idx);
+        // Eikonal geodesic speed modulation
+        let speed_factor = 1.0 / (1.0 + (pixel_val * pixel_val * 0.05));
+        let proj_val = pixel_val * speed_factor;
+        cartan_vec_set_f32(out, d, proj_val);
+        d = d + 1.0;
+    }
+    return out;
+}

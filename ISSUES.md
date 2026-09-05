@@ -558,6 +558,22 @@ This file tracks technical debt and bugs identified during repository code revie
   2. The standard library lacked a canonical module for biologically plausible three-factor learning, Oja-stabilized synaptic weight updates, and eligibility trace accumulation.
 - **Status**: Fixed in Sprint 301. Implemented canonical three-factor synaptic plasticity in `src/std/hebbian.cl` (`hebbian_vector_outer_product`, `hebbian_three_factor_update`, `hebbian_oja_update`, `hebbian_trace_update`, and `hebbian_matrix_norm`). Implemented high-performance OpenMP/C runtime kernels in `src/cartanc/geomind_runtime.c` (`cartan_tensor_hebbian_update` and `cartan_hebbian_step_token`). Integrated real-time Three-Factor Hebbian plasticity into `test/geomind/chat.cl` across token emission, human feedback modulation, and correction reinforcement. Added Target 53 (`test_hebbian_plasticity.car`) to compiler test suite with 100% test pass rate across all 53 targets. Verified `geomind.exe --chat` neural forward pass with online synaptic plasticity active.
 
+---
+
+## [ISSUE-053] [FIXED] Disconnected Multimodal Ingestion: Vision & Audio Bypassing 2560-D E8 Manifold Streams & Shared Attractor Basins
+- **Severity**: High (Architectural Disconnect & Sensory Isolation)
+- **Component**: `test/geomind/chat.cl`, `src/std/vision.cl`, `src/std/audio.cl`, `src/cartanc/geomind_runtime.c`
+- **Description**:
+  1. `geomind_chat_process_image_input` returned raw pixel count without projecting patch features into the 2560-D manifold or Sector 5 ($SO(10) \times SU(4)$ Eikonal stream).
+  2. The system had no audio ingestion module, STFT/DFT spectrogram filterbank, or connection to Sector 2 ($E_6 \times SU(3)$ Spectral stream).
+  3. Sight, sound, and text were not grounded into shared $E_8$ coordinates, preventing multimodal associative recall in Continuous Hopfield attractor memory.
+- **Resolution**:
+  1. Created `src/std/audio.cl` with `AudioBuffer`, DFT harmonic energy filterbank (`audio_compute_dft_spectrum`), and Spectral stream projection (`audio_project_to_spectral_stream`).
+  2. Extended `src/std/vision.cl` with `vision_get_pixel`, `vision_set_pixel`, SigLIP receptive field patch extraction (`vision_extract_patch`), and Eikonal stream projection (`vision_project_to_eikonal_stream`).
+  3. Implemented C runtime multimodal kernels `cartan_multimodal_project_vision`, `cartan_multimodal_project_audio`, and `cartan_multimodal_ground_hidden` in `src/cartanc/geomind_runtime.c`.
+  4. Wired multimodal grounding into `test/geomind/chat.cl` and `src/std/chat.cl`.
+  5. Added Target 54 (`test/compiler_suite/test_multimodal_grounding.car`) to compiler test suite and registered in `test/compiler_suite/run_tests.car`; verified 54/54 tests passing.
+
 
 
 

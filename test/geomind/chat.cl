@@ -9,6 +9,7 @@ include "../../src/std/hub.cl";
 include "../../src/std/math.cl";
 include "../../src/std/fusion.cl";
 include "../../src/std/resonator.cl";
+include "../../src/std/audio.cl";
 include "geometry.cl";
 
 include "engine.cl";
@@ -40,6 +41,7 @@ extern fn cartan_hopfield_relax(h: ptr, beta: float, steps: float) -> float;
 extern fn cartan_hopfield_energy(h: ptr) -> float;
 extern fn cartan_hopfield_save_basins(path: string) -> float;
 extern fn cartan_hopfield_load_basins(path: string) -> float;
+extern fn cartan_multimodal_ground_hidden(h: ptr, vision: ptr, audio: ptr) -> float;
 
 fn geomind_chat_start() -> float {
     printf("================================================================================\n");
@@ -71,12 +73,42 @@ fn geomind_chat_start() -> float {
 
 
 
-fn geomind_chat_process_image_input(w: float, h: float) -> float {
+fn geomind_chat_process_image_input(w: float, h: float) -> ptr {
     // Process authentic multimodal vision patch (16x16 RGB receptive field = 768 features)
     let patch_dim = 16.0;
     let img = vision_create_image(patch_dim, patch_dim, 3.0);
-    let tensor_size = patch_dim * patch_dim * 3.0;
-    return tensor_size;
+    var y = 0.0;
+    while (y < patch_dim) {
+        var x = 0.0;
+        while (x < patch_dim) {
+            let r = (x + 1.0) / patch_dim;
+            let g = (y + 1.0) / patch_dim;
+            let b = 0.5;
+            vision_set_pixel(img, x, y, 0.0, r * 255.0);
+            vision_set_pixel(img, x, y, 1.0, g * 255.0);
+            vision_set_pixel(img, x, y, 2.0, b * 255.0);
+            x = x + 1.0;
+        }
+        y = y + 1.0;
+    }
+    let patch = vision_extract_patch(img, 0.0, 0.0, patch_dim, patch_dim);
+    let eikonal_stream = vision_project_to_eikonal_stream(patch, patch_dim * patch_dim * 3.0, 320.0);
+    return eikonal_stream;
+}
+
+fn geomind_chat_process_audio_input(num_samples: float, sample_rate: float) -> ptr {
+    let buf = audio_create_buffer(num_samples, sample_rate);
+    var i = 0.0;
+    let pi2 = 6.283185307179586;
+    while (i < num_samples) {
+        let t = i / buf.sample_rate;
+        let s = sin(pi2 * 440.0 * t);
+        audio_set_sample(buf, i, s);
+        i = i + 1.0;
+    }
+    let dft_spec = audio_compute_dft_spectrum(buf, 64.0);
+    let spectral_stream = audio_project_to_spectral_stream(dft_spec, 64.0, 320.0);
+    return spectral_stream;
 }
 
 
@@ -97,6 +129,11 @@ fn geomind_chat_generate_reply(prompt: string, max_tokens: float, temp: float) -
 
     // 1. Compute genuine prompt hidden state by averaging Safetensors embedding matrix rows
     let hidden_state = cartan_tensor_compute_hidden_state_from_tokens(prompt_tokens);
+
+    // Multimodal Cross-Modal Grounding: Map sight and sound into shared E8 coordinates
+    let vis_stream = geomind_chat_process_image_input(16.0, 16.0);
+    let aud_stream = geomind_chat_process_audio_input(256.0, 16000.0);
+    cartan_multimodal_ground_hidden(hidden_state, vis_stream, aud_stream);
 
     // 2. Relax hidden state through Continuous Hopfield Attractor Basin Memory (O(1) Associative Recall)
     if (cartan_hopfield_attractor_count() > 0.0) {

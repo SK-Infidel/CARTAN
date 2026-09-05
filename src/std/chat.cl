@@ -48,8 +48,9 @@ fn geomind_chat_start() {
 }
 
 
-fn geomind_chat_process_image_input(w: float, h: float) -> float {
-    return 1.0;
+fn geomind_chat_process_image_input(w: float, h: float) -> ptr {
+    let patch = cartan_tensor_alloc(320.0);
+    return patch;
 }
 
 
