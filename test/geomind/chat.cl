@@ -30,6 +30,10 @@ extern fn cartan_tensor_compute_lm_head_logits(h: ptr, temp: float) -> ptr;
 extern fn cartan_tokenizer_sample_topp_topk(logits: ptr, top_k: float, top_p: float, temp: float) -> float;
 extern fn cartan_tensor_update_autoregressive_state(h: ptr, tok: float) -> float;
 extern fn e8_attention_forward_step(h: ptr, temp: float) -> ptr;
+extern fn e8_attention_forward_step_with_momentum(h: ptr, mom: ptr, temp: float) -> ptr;
+extern fn cartan_tensor_compute_momentum(cur_h: ptr, prev_h: ptr) -> ptr;
+extern fn cartan_sasaki_brainstem_route_vec(pos: ptr, mom: ptr, temp: float) -> ptr;
+extern fn cartan_apply_8_lie_streams_routed_vec(hidden_ptr: ptr, weights_ptr: ptr) -> float;
 extern fn e8_attention_compute_energy(h: ptr) -> float;
 
 extern fn cartan_hopfield_clear() -> float;
@@ -199,6 +203,7 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
     cartan_flush(0.0);
 
     let history = cartan_vec_create();
+    var prev_h = hidden_state;
     var step = 0.0;
     var max_t = 22.0;
     if (max_tokens > 0.0) { max_t = max_tokens; }
@@ -210,8 +215,11 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
         c_cartan_print_token(sampled_tok);
         cartan_vec_push_f32(history, sampled_tok);
         cartan_tensor_update_autoregressive_state(cur_h, sampled_tok);
-        // Autoregressive Manifold Step: advance sequence representation through 42-layer manifold
-        cur_h = e8_attention_forward_step(cur_h, temp);
+        // Tangent Bundle Momentum Tracking: cognitive velocity on TM = M x TxM
+        let mom = cartan_tensor_compute_momentum(cur_h, prev_h);
+        prev_h = cur_h;
+        // Autoregressive Manifold Step with Sasaki Phase-Space Brainstem Routing
+        cur_h = e8_attention_forward_step_with_momentum(cur_h, mom, temp);
         // Three-Factor Hebbian Plasticity: Online zero-backprop synaptic update during inference
         cartan_hebbian_step_token(cur_h, sampled_tok, 0.5, 0.0005);
         step = step + 1.0;
@@ -258,6 +266,23 @@ fn geomind_chat_generate_reasoning_pass(prompt: string, temp: float) -> float {
     printf("[Hopfield Attractor Basin] Relaxing hidden state trajectories toward energy minimum E(h) = ");
     printf(cartan_float_to_string(energy));
     printf(".\n");
+    let sasaki_w = cartan_sasaki_brainstem_route_vec(h_vec, h_vec, temp);
+    var max_w = cartan_vec_get_f32(sasaki_w, 0.0);
+    var dom_stream = 0.0;
+    var s_idx = 1.0;
+    while (s_idx < 8.0) {
+        let w_s = cartan_vec_get_f32(sasaki_w, s_idx);
+        if (w_s > max_w) {
+            max_w = w_s;
+            dom_stream = s_idx;
+        }
+        s_idx = s_idx + 1.0;
+    }
+    printf("[Sasaki Brainstem Router] Phase-space routing on TM: Dominant Lie Submanifold Stream ");
+    printf(cartan_float_to_string(dom_stream));
+    printf(" (Weight: ");
+    printf(cartan_float_to_string(max_w));
+    printf(").\n");
     printf("[Chain-of-Thought Synthesis] Formulating dynamic, contextual response strategy for Pass 2.\n");
     printf("</think>\n\n");
     cartan_flush(0.0);

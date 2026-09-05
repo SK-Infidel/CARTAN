@@ -1,3 +1,29 @@
+## [8.264.0] - 2026-09-05 (Sprint 307: Sasaki Tangent Bundle Phase-Space Brainstem Router & Dynamic 8-Stream Cortical Trajectory Routing)
+
+### Completed & Validated
+- **Tangent Bundle Momentum & Cognitive Velocity Tracking (`src/cartanc/geomind_runtime.c`, `test/geomind/chat.cl`, `[ISSUE-058]`, Phase 65 Item 1)**:
+  - Implemented `cartan_tensor_compute_momentum` across $TM = M \times T_x M$ computing the exact trajectory velocity $\dot{h}_t = h_{\text{curr}} - h_{\text{prev}}$ across all 2,560 dimensions.
+  - Wired live cognitive momentum tracking into `geomind_chat_generate_reply` across conversational turns and autoregressive token emissions in `test/geomind/chat.cl`.
+- **Sasaki Metric Phase-Space Brainstem Routing (`src/cartanc/geomind_runtime.c`, `test/geomind/moe.cl`, Phase 65 Item 2)**:
+  - Implemented `cartan_sasaki_brainstem_route` and `geomind_sasaki_stream_routing` computing 8-sector phase-space Sasaki energies $E_s = \frac{\|p_s\|^2 + \|m_s\|^2}{320}$, velocity-position directional alignments, and temperature-scaled Softmax probability distributions.
+  - Added `cartan_sasaki_brainstem_route_vec` for high-level CartanVector FFI interoperability.
+- **Dynamic 8-Stream Lie Submanifold Modulation (`src/cartanc/geomind_runtime.c`, `test/geomind/streams.cl`, Phase 65 Item 3)**:
+  - Implemented `cartan_apply_8_lie_streams_routed` and `geomind_streams_manifold_forward_routed`, dynamically modulating per-stream mixture rates $m_s = \text{clamp}(0.10 \times 8 w_s, 0.02, 0.65)$ across all 8 Lie submanifolds based on cognitive momentum.
+  - Added `cartan_apply_8_lie_streams_routed_vec` and `geomind_streams_layer_step_routed`.
+- **42-Layer Manifold Cascade Integration & `<think>` Telemetry (`test/geomind/chat.cl`, Phase 65 Item 4)**:
+  - Implemented `e8_attention_forward_step_with_momentum(h, mom, temp)` cascading live routed 8-stream dynamics through all 42 manifold layers.
+  - Maintained backward-compatible `e8_attention_forward_step(h, temp)` defaulting to zero momentum.
+  - Added Sasaki phase-space routing telemetry to `<think>` passes in `test/geomind/chat.cl`.
+- **Compiler & Toolchain Hygiene (`src/cartanc/ast.ch`, `src/std/vision.cl`, `src/std/audio.cl`, `src/std/collections.cl`)**:
+  - Replaced undefined `@cartan_string_get_char` with native primitive `c_cartan_string_char_at` in `ast.ch`.
+  - Fixed parameter keyword collisions (`ptr: ptr` -> `buf: ptr`) in `src/std/vision.cl` and `src/std/audio.cl`.
+  - Removed duplicate `cartan_vec_scale` definition in `src/std/collections.cl`.
+  - Promoted self-hosted `cartanc.exe` to `.cartan/bin/cartanc.exe`.
+- **Regression Test Suite Expansion (Target 59)**:
+  - Authored `test/compiler_suite/test_sasaki_brainstem_routing.car` verifying tangent bundle momentum calculation, Softmax normalization, sector-selective steering, routed forward execution, and 42-layer manifold stepping (5/5 tests passing).
+  - Registered Target [59/59] in `test/compiler_suite/run_tests.car`; verified all 59 compiler snapshot tests building and passing cleanly.
+- **Milestone Reached**: Phase 65 of CARTAN Roadmap (Sasaki Brainstem Router & Dynamic Cortical Routing) 100% completed.
+
 ## [8.263.0] - 2026-09-05 (Sprint 306: Native Multimodal I/O for BMP/PPM & WAV, Checkpoint Auto-Discovery & 42-Layer Conversational Inference)
 
 ### Completed & Validated

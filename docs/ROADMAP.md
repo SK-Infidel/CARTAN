@@ -214,6 +214,13 @@ This roadmap tracks the implementation of the advanced AI optimizations and nati
 - [x] **4. Multimodal Checkpoint Auto-Discovery & 42-Layer Autoregressive Inference (`test/geomind/chat.cl`, `test/geomind/main.car`)**: Prioritized `geomind_grafted_multimodal.bin` (1.77 GB) in `geomind_chat_start()`, added `--image <path>` and `--audio <path>` CLI options, and cascaded every autoregressive generated token through `e8_attention_forward_step` across the 42-layer manifold. (Completed in Sprint 306).
 - [x] **5. Regression Test Suite Expansion (Target 58)**: Authored `test/compiler_suite/test_native_multimodal_io.car` verifying exact byte round-tripping for PPM, BMP with padding, WAV PCM, stream projections, and 42-layer manifold stepping; registered in `test/compiler_suite/run_tests.car` (58/58 passing). (Completed in Sprint 306).
 
+## Phase 65: Sasaki Tangent Bundle Phase-Space Brainstem Router & Dynamic 8-Stream Cortical Trajectory Routing (Completed - Sprint 307)
+- [x] **1. Tangent Bundle Momentum & Velocity Tracking**: Implemented `cartan_tensor_compute_momentum` across $TM = M \times T_x M$ in `src/cartanc/geomind_runtime.c` to track cognitive trajectory delta $\dot{h}_t = h_t - h_{t-1}$ across conversational turns and autoregressive token emissions in `test/geomind/chat.cl`. (Completed in Sprint 307).
+- [x] **2. Sasaki Phase-Space Brainstem Router**: Implemented `cartan_sasaki_brainstem_route` and `geomind_sasaki_stream_routing` calculating 8-sector phase-space Sasaki energies $E_s = \frac{\|p_s\|^2 + \|m_s\|^2}{320}$, velocity-position directional alignments, and temperature-scaled Softmax probability distributions. (Completed in Sprint 307).
+- [x] **3. Dynamic 8-Stream Cortical Modulation**: Implemented `cartan_apply_8_lie_streams_routed` and `geomind_streams_manifold_forward_routed`, dynamically modulating per-stream mixture rates $m_s = \text{clamp}(0.10 \times 8 w_s, 0.02, 0.65)$ across all 8 Lie submanifolds based on cognitive momentum. (Completed in Sprint 307).
+- [x] **4. 42-Layer Manifold Cascade Integration**: Integrated `e8_attention_forward_step_with_momentum` into autoregressive generation in `test/geomind/chat.cl` and exposed Sasaki phase-space routing telemetry in `<think>` output tags. (Completed in Sprint 307).
+- [x] **5. Regression Test Suite Expansion (Target 59)**: Authored `test/compiler_suite/test_sasaki_brainstem_routing.car` verifying tangent bundle momentum calculation, Softmax normalization, sector-selective steering, routed forward execution, and 42-layer manifold stepping; registered in `test/compiler_suite/run_tests.car` (59/59 passing). (Completed in Sprint 307).
+
 
 
 

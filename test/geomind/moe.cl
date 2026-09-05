@@ -57,6 +57,72 @@ fn geomind_sasaki_route(position: ptr, momentum: ptr, expert_idx: float) -> floa
     return route_score;
 }
 
+fn geomind_sasaki_stream_routing(position: ptr, momentum: ptr, temp: float) -> ptr {
+    let weights = cartan_vec_create();
+    if (position == 0.0) {
+        var s = 0.0;
+        while (s < 8.0) {
+            cartan_vec_push_f32(weights, 0.125);
+            s = s + 1.0;
+        }
+        return weights;
+    }
+    var t = 0.70;
+    if (temp > 0.05) { t = temp; }
+    let plen = cartan_vec_len(position);
+    let logits = cartan_vec_create();
+    var max_logit = -1000000.0;
+
+    var s = 0.0;
+    while (s < 8.0) {
+        let start_d = s * 320.0;
+        var pos_sq = 0.0;
+        var mom_sq = 0.0;
+        var dot_prod = 0.0;
+        var d = 0.0;
+        while (d < 320.0 && (start_d + d) < plen) {
+            let p = cartan_vec_get_f32(position, start_d + d);
+            var m = 0.0;
+            if (momentum != 0.0 && (start_d + d) < cartan_vec_len(momentum)) {
+                m = cartan_vec_get_f32(momentum, start_d + d);
+            }
+            pos_sq = pos_sq + (p * p);
+            mom_sq = mom_sq + (m * m);
+            dot_prod = dot_prod + (p * m);
+            d = d + 1.0;
+        }
+        let sasaki_energy = (pos_sq + mom_sq) / 320.0;
+        let norm_prod = sqrt(pos_sq * mom_sq);
+        var alignment = 0.0;
+        if (norm_prod > 0.0000001) {
+            alignment = dot_prod / norm_prod;
+        }
+        let logit = sqrt(sasaki_energy) + alignment;
+        cartan_vec_push_f32(logits, logit);
+        if (logit > max_logit) { max_logit = logit; }
+        s = s + 1.0;
+    }
+
+    var sum_exp = 0.0;
+    s = 0.0;
+    while (s < 8.0) {
+        let l_val = cartan_vec_get_f32(logits, s);
+        let exp_val = exp((l_val - max_logit) / t);
+        cartan_vec_push_f32(weights, exp_val);
+        sum_exp = sum_exp + exp_val;
+        s = s + 1.0;
+    }
+    if (sum_exp > 0.0) {
+        s = 0.0;
+        while (s < 8.0) {
+            let unnorm = cartan_vec_get_f32(weights, s);
+            cartan_vec_set_f32(weights, s, unnorm / sum_exp);
+            s = s + 1.0;
+        }
+    }
+    return weights;
+}
+
 fn geomind_moe_forward_grid(hidden_dim: float, position: ptr, momentum: ptr) -> ptr {
     let tile = autotune_find_optimal_tile(hidden_dim, hidden_dim, hidden_dim, "FP16");
     
@@ -76,5 +142,6 @@ fn geomind_moe_forward_grid(hidden_dim: float, position: ptr, momentum: ptr) -> 
 fn geomind_moe_forward(hidden_dim: float, x: ptr) -> ptr {
     return geomind_moe_forward_grid(hidden_dim, x, x);
 }
+
 
 

@@ -355,13 +355,19 @@ fn main(argc: float, argv: ptr) -> float {
     cartan_flush(0.0);
     system(t57_cmd);
 
-    // [58/58] Positive test: test_native_multimodal_io
+    // [58/59] Positive test: test_native_multimodal_io
     let t58_cmd = "cartanc.exe build test/compiler_suite/test_native_multimodal_io.car -o build/test_native_multimodal_io.exe && build\\test_native_multimodal_io.exe";
-    printf("[58/58] [// run-pass] Building and Executing Native Multimodal I/O (PPM/BMP/WAV) Verification: %s\n", t58_cmd);
+    printf("[58/59] [// run-pass] Building and Executing Native Multimodal I/O (PPM/BMP/WAV) Verification: %s\n", t58_cmd);
     cartan_flush(0.0);
     system(t58_cmd);
 
-    printf("\nAll 58 compiler snapshot test targets executed!\n", "");
+    // [59/59] Positive test: test_sasaki_brainstem_routing
+    let t59_cmd = "cartanc.exe build test/compiler_suite/test_sasaki_brainstem_routing.car -o build/test_sasaki_brainstem_routing.exe && build\\test_sasaki_brainstem_routing.exe";
+    printf("[59/59] [// run-pass] Building and Executing Sasaki Phase-Space Brainstem Router Verification: %s\n", t59_cmd);
+    cartan_flush(0.0);
+    system(t59_cmd);
+
+    printf("\nAll 59 compiler snapshot test targets executed!\n", "");
     return 0.0;
 }
 

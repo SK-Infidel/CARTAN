@@ -647,3 +647,25 @@ This file tracks technical debt and bugs identified during repository code revie
   3. Implemented binary file buffer operations (`cartan_read_binary_file_data`, `cartan_get_binary_file_size`, `cartan_byte_at`, `cartan_set_byte`, `cartan_alloc_binary_buffer`, `cartan_free_binary_buffer`, `cartan_write_binary_file`) and exposed `cartan_load_signed_checkpoint` in `src/cartanc/geomind_runtime.c`.
   4. Auto-prioritized `geomind_grafted_multimodal.bin` (1.77 GB) in `geomind_chat_start()`, added `--image <path>` and `--audio <path>` CLI options in `test/geomind/main.car`, and wired 42-layer manifold stepping `cur_h = e8_attention_forward_step(cur_h, temp)` into autoregressive reply generation.
   5. Authored Target 58 regression test (`test/compiler_suite/test_native_multimodal_io.car`) and registered in `test/compiler_suite/run_tests.car`, confirming 58/58 test targets passing cleanly. (Sprint 306).
+
+---
+
+## [ISSUE-058] [FIXED] Undefined `@cartan_string_get_char` in `ast.ch` & Dormant Sasaki Brainstem Routing in 42-Layer Inference
+- **Severity**: High (Toolchain Linkage Defect & Biological Routing Disconnect)
+- **Component**: `src/cartanc/ast.ch`, `test/geomind/moe.cl`, `test/geomind/chat.cl`, `src/cartanc/geomind_runtime.c`, `test/geomind/streams.cl`
+- **Description**:
+  1. In `src/cartanc/ast.ch:226`, `is_uppercase(s)` calls `cartan_string_get_char(s, 0.0)`. The LLVM IR runtime primitive emitted by `llvm_codegen.car` is `@c_cartan_string_char_at`, while `cartan_string_get_char` is merely a high-level wrapper in `core_runtime.car`. When standalone tools including `ast.ch` (e.g., `test/compiler_suite/run_tests.car` or `tools/build_toolchain.car`) are compiled, Clang fails with `use of undefined value '@cartan_string_get_char'`.
+  2. In `test/geomind/chat.cl`, autoregressive generation advances hidden states without tracking phase-space velocity $\dot{h}_t = h_t - h_{t-1}$ on the tangent bundle $TM = M \times T_x M$.
+  3. `geomind_sasaki_route` in `test/geomind/moe.cl` is never called during conversational generation, and `cartan_apply_8_lie_streams` in `src/cartanc/geomind_runtime.c` applies a uniform scalar mix across all 8 Lie submanifolds rather than dynamically routing energy based on Sasaki metric phase-space distance.
+- **Proposed Fix**:
+  1. Update `src/cartanc/ast.ch` to declare and invoke `@c_cartan_string_char_at`, restoring clean compilation of `test/compiler_suite/run_tests.car`.
+  2. Implement tangent bundle momentum tracking in `test/geomind/chat.cl` ($\dot{h}_t = h_t - h_{t-1}$).
+  3. Implement `cartan_sasaki_brainstem_route(pos, mom, stream_weights)` and dynamic per-stream modulation in `src/cartanc/geomind_runtime.c` and `test/geomind/streams.cl`.
+  4. Add Target 59 regression test verifying tangent bundle momentum and Sasaki routing.
+- **Resolution**:
+  1. Replaced `cartan_string_get_char` in `src/cartanc/ast.ch` with direct invocation of native runtime primitive `c_cartan_string_char_at`, enabling clean build of `run_tests.car` and developer tools.
+  2. Fixed parameter keyword collisions (`ptr: ptr` -> `buf: ptr`) in `src/std/vision.cl` and `src/std/audio.cl`.
+  3. Implemented `cartan_tensor_compute_momentum`, `cartan_sasaki_brainstem_route`, `cartan_sasaki_brainstem_route_vec`, `cartan_apply_8_lie_streams_routed`, and `e8_attention_forward_step_with_momentum` in `src/cartanc/geomind_runtime.c`.
+  4. Implemented `geomind_sasaki_stream_routing` in `test/geomind/moe.cl` and `geomind_streams_manifold_forward_routed` in `test/geomind/streams.cl`.
+  5. Wired cognitive velocity tracking and dynamic Sasaki brainstem modulation into `test/geomind/chat.cl` with live routing telemetry during `<think>` passes.
+  6. Authored Target 59 regression test (`test/compiler_suite/test_sasaki_brainstem_routing.car`), verified all 5/5 assertions pass, and registered Target [59/59] in `test/compiler_suite/run_tests.car`. (Sprint 307).

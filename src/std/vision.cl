@@ -7,10 +7,10 @@ include "src/std/string.cl";
 
 extern fn cartan_read_binary_file_data(path: string) -> ptr;
 extern fn cartan_get_binary_file_size(path: string) -> float;
-extern fn cartan_byte_at(ptr: ptr, offset: float) -> float;
-extern fn cartan_set_byte(ptr: ptr, offset: float, val: float);
+extern fn cartan_byte_at(buf: ptr, offset: float) -> float;
+extern fn cartan_set_byte(buf: ptr, offset: float, val: float);
 extern fn cartan_alloc_binary_buffer(size: float) -> ptr;
-extern fn cartan_free_binary_buffer(ptr: ptr);
+extern fn cartan_free_binary_buffer(buf: ptr);
 extern fn cartan_write_binary_file(path: string, buf: ptr, size: float) -> float;
 extern fn cartan_c_int_to_string(val: float) -> string;
 

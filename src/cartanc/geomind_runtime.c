@@ -662,6 +662,12 @@ CARTAN_WEAK double cartan_hopfield_save_basins(const char* filepath);
 CARTAN_WEAK double cartan_hopfield_load_basins(const char* filepath);
 CARTAN_WEAK void cartan_apply_8_lie_streams(float* h, size_t dim, float stream_mix);
 CARTAN_WEAK double cartan_apply_8_lie_streams_vec(void* hidden_ptr, double stream_mix);
+CARTAN_WEAK void cartan_sasaki_brainstem_route(const float* pos, const float* mom, float* stream_weights, size_t dim, float temp);
+CARTAN_WEAK void* cartan_sasaki_brainstem_route_vec(void* pos_ptr, void* mom_ptr, double temp);
+CARTAN_WEAK void cartan_apply_8_lie_streams_routed(float* h, size_t dim, const float* stream_weights);
+CARTAN_WEAK double cartan_apply_8_lie_streams_routed_vec(void* hidden_ptr, void* weights_ptr);
+CARTAN_WEAK void* e8_attention_forward_step_with_momentum(void* hidden_ptr, void* mom_ptr, double temp);
+CARTAN_WEAK void* cartan_tensor_compute_momentum(void* cur_h_ptr, void* prev_h_ptr);
 CARTAN_WEAK double cartan_tensor_hebbian_update(void* pre_ptr, void* post_ptr, double neuromodulator, double lr);
 CARTAN_WEAK double cartan_hebbian_step_token(void* hidden_ptr, double tok_id, double neuromodulator, double lr);
 CARTAN_WEAK void cartan_multimodal_project_vision(float* h_cur, const float* patch_pixels, size_t patch_size, float alpha);
@@ -3186,6 +3192,210 @@ CARTAN_WEAK double cartan_apply_8_lie_streams_vec(void* hidden_ptr, double strea
     return 1.0;
 }
 
+CARTAN_WEAK void* cartan_tensor_compute_momentum(void* cur_h_ptr, void* prev_h_ptr) {
+    CartanVector* mom_vec = (CartanVector*)cartan_vec_create();
+    if (!cur_h_ptr) return mom_vec;
+    CartanVector* cur_vec = (CartanVector*)cur_h_ptr;
+    CartanVector* prev_vec = (CartanVector*)prev_h_ptr;
+    size_t sz = cur_vec->size;
+    for (size_t d = 0; d < sz; d++) {
+        double cur_v = cur_vec->data[d];
+        double prev_v = (prev_vec && d < prev_vec->size) ? prev_vec->data[d] : 0.0;
+        cartan_vec_push_f32(mom_vec, cur_v - prev_v);
+    }
+    return mom_vec;
+}
+
+CARTAN_WEAK void cartan_sasaki_brainstem_route(const float* pos, const float* mom, float* stream_weights, size_t dim, float temp) {
+    if (!stream_weights) return;
+    if (!pos || dim < 2560) {
+        for (int s = 0; s < 8; s++) stream_weights[s] = 0.125f;
+        return;
+    }
+    float t = temp > 0.05f ? temp : 0.70f;
+    float logits[8];
+    float max_logit = -1e9f;
+
+    for (int s = 0; s < 8; s++) {
+        size_t start_d = (size_t)s * 320;
+        float pos_sq = 0.0f;
+        float mom_sq = 0.0f;
+        float dot_prod = 0.0f;
+
+        for (size_t d = 0; d < 320; d++) {
+            float p = pos[start_d + d];
+            float m = mom ? mom[start_d + d] : 0.0f;
+            pos_sq += p * p;
+            mom_sq += m * m;
+            dot_prod += p * m;
+        }
+
+        // Sasaki metric distance on tangent bundle TM = M x TxM: d_sasaki^2 = ||p||^2 + ||m||^2
+        float sasaki_energy = (pos_sq + mom_sq) / 320.0f;
+        float norm_prod = sqrtf(pos_sq * mom_sq);
+        float alignment = (norm_prod > 1e-7f) ? (dot_prod / norm_prod) : 0.0f;
+
+        // Phase-space routing logit: combines kinetic energy with directional momentum
+        float logit = sqrtf(sasaki_energy) + alignment;
+        logits[s] = logit;
+        if (logit > max_logit) max_logit = logit;
+    }
+
+    // Temperature-scaled Softmax across 8 Lie cortical submanifolds
+    float sum_exp = 0.0f;
+    for (int s = 0; s < 8; s++) {
+        stream_weights[s] = expf((logits[s] - max_logit) / t);
+        sum_exp += stream_weights[s];
+    }
+    if (sum_exp > 0.0f) {
+        for (int s = 0; s < 8; s++) stream_weights[s] /= sum_exp;
+    } else {
+        for (int s = 0; s < 8; s++) stream_weights[s] = 0.125f;
+    }
+}
+
+CARTAN_WEAK void* cartan_sasaki_brainstem_route_vec(void* pos_ptr, void* mom_ptr, double temp) {
+    CartanVector* out = (CartanVector*)cartan_vec_create();
+    float weights[8] = { 0.125f, 0.125f, 0.125f, 0.125f, 0.125f, 0.125f, 0.125f, 0.125f };
+    if (!pos_ptr) {
+        for (int s = 0; s < 8; s++) cartan_vec_push_f32(out, (double)weights[s]);
+        return out;
+    }
+    CartanVector* p_vec = (CartanVector*)pos_ptr;
+    CartanVector* m_vec = (CartanVector*)mom_ptr;
+    float p_buf[2560] = {0};
+    float m_buf[2560] = {0};
+    for (size_t d = 0; d < 2560 && d < p_vec->size; d++) p_buf[d] = (float)p_vec->data[d];
+    if (m_vec) {
+        for (size_t d = 0; d < 2560 && d < m_vec->size; d++) m_buf[d] = (float)m_vec->data[d];
+    }
+    cartan_sasaki_brainstem_route(p_buf, m_vec ? m_buf : NULL, weights, 2560, (float)temp);
+    for (int s = 0; s < 8; s++) {
+        cartan_vec_push_f32(out, (double)weights[s]);
+    }
+    return out;
+}
+
+CARTAN_WEAK void cartan_apply_8_lie_streams_routed(float* h, size_t dim, const float* stream_weights) {
+    if (!h || dim < 2560) return;
+
+    // Compute clamped per-stream mixture rate from routing weights
+    float mix[8];
+    for (int s = 0; s < 8; s++) {
+        float w = stream_weights ? stream_weights[s] : 0.125f;
+        float m = 0.10f * (8.0f * w);
+        if (m < 0.02f) m = 0.02f;
+        if (m > 0.65f) m = 0.65f;
+        mix[s] = m;
+    }
+
+    // Stream 0: SO(16) Cosformer Linear Attention (dims 0..319)
+    float mix0 = mix[0];
+    for (size_t i = 0; i < 320; i++) {
+        float v = h[i];
+        float cos_mod = cosf((float)i * 0.05f) * 0.25f + 0.75f;
+        h[i] = (1.0f - mix0) * v + mix0 * (v * cos_mod);
+    }
+
+    // Stream 1: E7 x SU(2) Selective State-Space Recurrence (dims 320..639)
+    float mix1 = mix[1];
+    float ssm_state = 0.0f;
+    for (size_t i = 320; i < 640; i++) {
+        float v = h[i];
+        ssm_state = ssm_state * 0.85f + v * 0.15f;
+        float ssm_out = ssm_state * 1.1f + v * 0.5f;
+        h[i] = (1.0f - mix1) * v + mix1 * ssm_out;
+    }
+
+    // Stream 2: E6 x SU(3) Auditory / Spectral DFT Harmonic Filter (dims 640..959)
+    float mix2 = mix[2];
+    for (size_t i = 640; i < 960; i++) {
+        float v = h[i];
+        float harmonic = sinf((float)(i + 1) * 0.1f) * 0.7071f;
+        float spec_out = v * harmonic + v * 0.5f;
+        h[i] = (1.0f - mix2) * v + mix2 * spec_out;
+    }
+
+    // Stream 3: SU(9) Hyperbolic Poincare Conformal Metric (dims 960..1279)
+    float mix3 = mix[3];
+    float norm_sq = 0.0f;
+    for (size_t k = 960; k < 1280; k++) {
+        norm_sq += h[k] * h[k];
+    }
+    float denom = 1.0f - norm_sq * 0.001f;
+    if (denom < 0.1f) denom = 0.1f;
+    float hyp_scale = 1.0f / denom;
+    for (size_t i = 960; i < 1280; i++) {
+        float v = h[i];
+        float poincare_out = v * hyp_scale * 0.5f;
+        h[i] = (1.0f - mix3) * v + mix3 * poincare_out;
+    }
+
+    // Stream 4: F4 x G2 Simplicial Loop Homology Density (dims 1280..1599)
+    float mix4 = mix[4];
+    for (size_t i = 1280; i < 1600; i++) {
+        float v = h[i];
+        float loop_density = v * v * v * 0.05f;
+        float hom_out = v + loop_density;
+        h[i] = (1.0f - mix4) * v + mix4 * hom_out;
+    }
+
+    // Stream 5: SO(10) x SU(4) Visual Eikonal Geodesic Ray-Tracing (dims 1600..1919)
+    float mix5 = mix[5];
+    float speed_sq = 0.0f;
+    for (size_t k = 1600; k < 1920; k++) {
+        speed_sq += h[k] * h[k];
+    }
+    float travel_factor = 1.0f / (1.0f + speed_sq * 0.005f);
+    for (size_t i = 1600; i < 1920; i++) {
+        float v = h[i];
+        float eik_out = v * travel_factor;
+        h[i] = (1.0f - mix5) * v + mix5 * eik_out;
+    }
+
+    // Stream 6: SU(5) x SU(5) Heat Kernel Discrete Laplacian Diffusion (dims 1920..2239)
+    float mix6 = mix[6];
+    for (size_t i = 1920; i < 2240; i++) {
+        float v = h[i];
+        float laplacian = v * 0.5f;
+        float diff_out = v - (laplacian * 0.1f) + (laplacian * laplacian * 0.005f);
+        h[i] = (1.0f - mix6) * v + mix6 * diff_out;
+    }
+
+    // Stream 7: SU(3)^3 Triality Symplectic Cyclic Rotation (dims 2240..2559)
+    float mix7 = mix[7];
+    for (size_t i = 2240; i < 2560; i++) {
+        float t1 = h[i];
+        float t2 = t1 * 0.8660254f;
+        float t3 = t2 * -0.5f;
+        float tri_out = (t1 + t2 + t3) * 0.75f;
+        h[i] = (1.0f - mix7) * t1 + mix7 * tri_out;
+    }
+}
+
+CARTAN_WEAK double cartan_apply_8_lie_streams_routed_vec(void* hidden_ptr, void* weights_ptr) {
+    if (!hidden_ptr) return 0.0;
+    CartanVector* h_vec = (CartanVector*)hidden_ptr;
+    if (h_vec->size < 2560) return 0.0;
+    float buf[2560];
+    for (size_t d = 0; d < 2560; d++) {
+        buf[d] = (float)h_vec->data[d];
+    }
+    float weights[8] = { 0.125f, 0.125f, 0.125f, 0.125f, 0.125f, 0.125f, 0.125f, 0.125f };
+    if (weights_ptr) {
+        CartanVector* w_vec = (CartanVector*)weights_ptr;
+        for (int s = 0; s < 8 && s < (int)w_vec->size; s++) {
+            weights[s] = (float)w_vec->data[s];
+        }
+    }
+    cartan_apply_8_lie_streams_routed(buf, 2560, weights);
+    for (size_t d = 0; d < 2560; d++) {
+        h_vec->data[d] = (double)buf[d];
+    }
+    return 1.0;
+}
+
+
 CARTAN_WEAK void cartan_multimodal_project_vision(float* h_cur, const float* patch_pixels, size_t patch_size, float alpha) {
     if (!h_cur || !patch_pixels || patch_size == 0) return;
     float a = alpha > 0.0f ? alpha : 0.35f;
@@ -3290,16 +3500,29 @@ CARTAN_WEAK double cartan_multimodal_ground_hidden(void* hidden_ptr, void* visio
     return 1.0;
 }
 
-CARTAN_WEAK void* e8_attention_forward_step(void* hidden_ptr, double temp) {
+CARTAN_WEAK void* e8_attention_forward_step_with_momentum(void* hidden_ptr, void* mom_ptr, double temp) {
     if (!hidden_ptr) return cartan_vec_create();
     CartanVector* h_in = (CartanVector*)hidden_ptr;
     if (h_in->size == 0) return cartan_vec_create();
 
     size_t embed_dim = 2560;
     float h_cur[2560];
+    float m_cur[2560];
     for (size_t d = 0; d < embed_dim; d++) {
         h_cur[d] = (d < h_in->size) ? (float)h_in->data[d] : 0.0f;
     }
+    if (mom_ptr) {
+        CartanVector* m_in = (CartanVector*)mom_ptr;
+        for (size_t d = 0; d < embed_dim; d++) {
+            m_cur[d] = (d < m_in->size) ? (float)m_in->data[d] : 0.0f;
+        }
+    } else {
+        for (size_t d = 0; d < embed_dim; d++) m_cur[d] = 0.0f;
+    }
+
+    // Dynamic Sasaki Phase-Space Brainstem Routing on Tangent Bundle TM = M x TxM
+    float stream_weights[8];
+    cartan_sasaki_brainstem_route(h_cur, mom_ptr ? m_cur : NULL, stream_weights, embed_dim, (float)temp);
 
     if (g_42layer_loaded && g_42layer_weights) {
         float inv_sqrt_42 = 1.0f / sqrtf(42.0f);
@@ -3365,9 +3588,8 @@ CARTAN_WEAK void* e8_attention_forward_step(void* hidden_ptr, double temp) {
                 h_cur[d] += inv_sqrt_42 * ffn_d;
             }
 
-            // 5. 8 Lie Subgroup Cortical Streams Integration:
-            // Route residual manifold channels through SO(16), E7xSU(2), E6xSU(3), SU(9), F4xG2, SO(10)xSU(4), SU(5)xSU(5), SU(3)^3
-            cartan_apply_8_lie_streams(h_cur, embed_dim, 0.10f + (float)(l % 8) * 0.015f);
+            // 5. 8 Lie Subgroup Cortical Streams Integration: Dynamic Sasaki Brainstem Modulation
+            cartan_apply_8_lie_streams_routed(h_cur, embed_dim, stream_weights);
         }
         // Single Final RMSNorm across main stream at exit of Layer 41
         cartan_anisotropic_rmsnorm_inplace(h_cur, NULL, embed_dim);
@@ -3398,7 +3620,7 @@ CARTAN_WEAK void* e8_attention_forward_step(void* hidden_ptr, double temp) {
             for (size_t d = 0; d < embed_dim; d++) {
                 h_cur[d] += 0.25f * ffn[d];
             }
-            cartan_apply_8_lie_streams(h_cur, embed_dim, 0.10f + (float)(l % 8) * 0.015f);
+            cartan_apply_8_lie_streams_routed(h_cur, embed_dim, stream_weights);
             cartan_anisotropic_rmsnorm_inplace(h_cur, s_freudenthal_gamma[l], embed_dim);
         }
     }
@@ -3408,6 +3630,10 @@ CARTAN_WEAK void* e8_attention_forward_step(void* hidden_ptr, double temp) {
         cartan_vec_push_f32(h_out, (double)h_cur[d]);
     }
     return h_out;
+}
+
+CARTAN_WEAK void* e8_attention_forward_step(void* hidden_ptr, double temp) {
+    return e8_attention_forward_step_with_momentum(hidden_ptr, NULL, temp);
 }
 
 CARTAN_WEAK double e8_attention_compute_energy(void* hidden_ptr) {

@@ -302,6 +302,153 @@ fn geomind_streams_layer_step(x: ptr, layer_idx: float) -> ptr {
     return geomind_streams_manifold_forward(x, mix);
 }
 
+fn geomind_streams_manifold_forward_routed(x: ptr, weights: ptr) -> ptr {
+    if (x == 0.0) { return x; }
+    let len = cartan_vec_len(x);
+    if (len < 2560.0) {
+        return geomind_multistream_forward(x, -1.0);
+    }
+    let out = cartan_vec_create();
+
+    // Stream 0: SO(16) Cosformer (0..319)
+    var w0 = 0.125;
+    if (weights != 0.0 && cartan_vec_len(weights) >= 8.0) { w0 = cartan_vec_get_f32(weights, 0.0); }
+    var m0 = 0.10 * (8.0 * w0);
+    if (m0 < 0.02) { m0 = 0.02; }
+    if (m0 > 0.65) { m0 = 0.65; }
+    var i = 0.0;
+    while (i < 320.0) {
+        let v = cartan_vec_get_f32(x, i);
+        let cos_mod = cos(i * 0.05) * 0.25 + 0.75;
+        let trans = v * cos_mod;
+        cartan_vec_push_f32(out, (1.0 - m0) * v + m0 * trans);
+        i = i + 1.0;
+    }
+
+    // Stream 1: E7 x SU(2) SSM (320..639)
+    var w1 = 0.125;
+    if (weights != 0.0 && cartan_vec_len(weights) >= 8.0) { w1 = cartan_vec_get_f32(weights, 1.0); }
+    var m1 = 0.10 * (8.0 * w1);
+    if (m1 < 0.02) { m1 = 0.02; }
+    if (m1 > 0.65) { m1 = 0.65; }
+    var ssm_state = 0.0;
+    while (i < 640.0) {
+        let v = cartan_vec_get_f32(x, i);
+        ssm_state = ssm_state * 0.85 + v * 0.15;
+        let ssm_out = ssm_state * 1.1 + v * 0.5;
+        cartan_vec_push_f32(out, (1.0 - m1) * v + m1 * ssm_out);
+        i = i + 1.0;
+    }
+
+    // Stream 2: E6 x SU(3) Spectral (640..959)
+    var w2 = 0.125;
+    if (weights != 0.0 && cartan_vec_len(weights) >= 8.0) { w2 = cartan_vec_get_f32(weights, 2.0); }
+    var m2 = 0.10 * (8.0 * w2);
+    if (m2 < 0.02) { m2 = 0.02; }
+    if (m2 > 0.65) { m2 = 0.65; }
+    while (i < 960.0) {
+        let v = cartan_vec_get_f32(x, i);
+        let harmonic = sin((i + 1.0) * 0.1) * 0.7071;
+        let spec_out = v * harmonic + v * 0.5;
+        cartan_vec_push_f32(out, (1.0 - m2) * v + m2 * spec_out);
+        i = i + 1.0;
+    }
+
+    // Stream 3: SU(9) Poincare (960..1279)
+    var w3 = 0.125;
+    if (weights != 0.0 && cartan_vec_len(weights) >= 8.0) { w3 = cartan_vec_get_f32(weights, 3.0); }
+    var m3 = 0.10 * (8.0 * w3);
+    if (m3 < 0.02) { m3 = 0.02; }
+    if (m3 > 0.65) { m3 = 0.65; }
+    var norm_sq = 0.0;
+    var k = 960.0;
+    while (k < 1280.0) {
+        let val = cartan_vec_get_f32(x, k);
+        norm_sq = norm_sq + (val * val);
+        k = k + 1.0;
+    }
+    var denom = 1.0 - norm_sq * 0.001;
+    if (denom < 0.1) { denom = 0.1; }
+    let hyp_scale = 1.0 / denom;
+    while (i < 1280.0) {
+        let v = cartan_vec_get_f32(x, i);
+        let poincare_out = v * hyp_scale * 0.5;
+        cartan_vec_push_f32(out, (1.0 - m3) * v + m3 * poincare_out);
+        i = i + 1.0;
+    }
+
+    // Stream 4: F4 x G2 Homology (1280..1599)
+    var w4 = 0.125;
+    if (weights != 0.0 && cartan_vec_len(weights) >= 8.0) { w4 = cartan_vec_get_f32(weights, 4.0); }
+    var m4 = 0.10 * (8.0 * w4);
+    if (m4 < 0.02) { m4 = 0.02; }
+    if (m4 > 0.65) { m4 = 0.65; }
+    while (i < 1600.0) {
+        let v = cartan_vec_get_f32(x, i);
+        let loop_density = v * v * v * 0.05;
+        let hom_out = v + loop_density;
+        cartan_vec_push_f32(out, (1.0 - m4) * v + m4 * hom_out);
+        i = i + 1.0;
+    }
+
+    // Stream 5: SO(10) x SU(4) Eikonal (1600..1919)
+    var w5 = 0.125;
+    if (weights != 0.0 && cartan_vec_len(weights) >= 8.0) { w5 = cartan_vec_get_f32(weights, 5.0); }
+    var m5 = 0.10 * (8.0 * w5);
+    if (m5 < 0.02) { m5 = 0.02; }
+    if (m5 > 0.65) { m5 = 0.65; }
+    var speed_sq = 0.0;
+    k = 1600.0;
+    while (k < 1920.0) {
+        let val = cartan_vec_get_f32(x, k);
+        speed_sq = speed_sq + (val * val);
+        k = k + 1.0;
+    }
+    let travel_factor = 1.0 / (1.0 + speed_sq * 0.005);
+    while (i < 1920.0) {
+        let v = cartan_vec_get_f32(x, i);
+        let eik_out = v * travel_factor;
+        cartan_vec_push_f32(out, (1.0 - m5) * v + m5 * eik_out);
+        i = i + 1.0;
+    }
+
+    // Stream 6: SU(5) x SU(5) Heat Kernel (1920..2239)
+    var w6 = 0.125;
+    if (weights != 0.0 && cartan_vec_len(weights) >= 8.0) { w6 = cartan_vec_get_f32(weights, 6.0); }
+    var m6 = 0.10 * (8.0 * w6);
+    if (m6 < 0.02) { m6 = 0.02; }
+    if (m6 > 0.65) { m6 = 0.65; }
+    while (i < 2240.0) {
+        let v = cartan_vec_get_f32(x, i);
+        let laplacian = v * 0.5;
+        let diff_out = v - (laplacian * 0.1) + (laplacian * laplacian * 0.005);
+        cartan_vec_push_f32(out, (1.0 - m6) * v + m6 * diff_out);
+        i = i + 1.0;
+    }
+
+    // Stream 7: SU(3)^3 Triality (2240..2559)
+    var w7 = 0.125;
+    if (weights != 0.0 && cartan_vec_len(weights) >= 8.0) { w7 = cartan_vec_get_f32(weights, 7.0); }
+    var m7 = 0.10 * (8.0 * w7);
+    if (m7 < 0.02) { m7 = 0.02; }
+    if (m7 > 0.65) { m7 = 0.65; }
+    while (i < 2560.0) {
+        let t1 = cartan_vec_get_f32(x, i);
+        let t2 = t1 * 0.8660254;
+        let t3 = t2 * -0.5;
+        let tri_out = (t1 + t2 + t3) * 0.75;
+        cartan_vec_push_f32(out, (1.0 - m7) * t1 + m7 * tri_out);
+        i = i + 1.0;
+    }
+
+    return out;
+}
+
+fn geomind_streams_layer_step_routed(x: ptr, weights: ptr) -> ptr {
+    return geomind_streams_manifold_forward_routed(x, weights);
+}
+
+
 // Multimodal Grafting: Injects donor vision and audio projection tensors directly into
 // Sector 5 (Eikonal) and Sector 2 (Spectral) Lie cortical submanifolds
 fn geomind_streams_graft_multimodal(vision_w: ptr, audio_w: ptr) -> float {
