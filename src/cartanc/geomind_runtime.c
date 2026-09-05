@@ -667,6 +667,7 @@ CARTAN_WEAK double cartan_hebbian_step_token(void* hidden_ptr, double tok_id, do
 CARTAN_WEAK void cartan_multimodal_project_vision(float* h_cur, const float* patch_pixels, size_t patch_size, float alpha);
 CARTAN_WEAK void cartan_multimodal_project_audio(float* h_cur, const float* audio_samples, size_t num_samples, float beta);
 CARTAN_WEAK double cartan_multimodal_ground_hidden(void* hidden_ptr, void* vision_ptr, void* audio_ptr);
+CARTAN_WEAK double cartan_sleep_consolidate_cycle(const char* filepath, double lr_sleep, double prune_threshold);
 
 // --- WordNet Information Content (IC) & Semantic Taxonomy Structures ---
 static float* g_wordnet_ic = NULL;
@@ -3334,6 +3335,67 @@ CARTAN_WEAK double cartan_hopfield_load_basins(const char* filepath) {
     g_hopfield_basin_count = read_floats / CARTAN_HOPFIELD_DIM;
     fclose(f);
     return (double)g_hopfield_basin_count;
+}
+
+CARTAN_WEAK double cartan_sleep_consolidate_cycle(const char* filepath, double lr_sleep, double prune_threshold) {
+    if (filepath && strlen(filepath) > 0) {
+        cartan_hopfield_load_basins(filepath);
+    }
+    if (g_hopfield_basin_count == 0) return 0.0;
+
+    float lr = lr_sleep > 0.0 ? (float)lr_sleep : 0.001f;
+    float thresh = prune_threshold > 0.0 ? (float)prune_threshold : 0.98f;
+    size_t initial_count = g_hopfield_basin_count;
+    size_t kept_count = 0;
+
+    float (*temp_basins)[CARTAN_HOPFIELD_DIM] = (float(*)[CARTAN_HOPFIELD_DIM])malloc(sizeof(float) * CARTAN_MAX_HOPFIELD_BASINS * CARTAN_HOPFIELD_DIM);
+    if (!temp_basins) return 0.0;
+
+    for (size_t k = 0; k < initial_count; k++) {
+        // 1. Replay: Perturb and relax through continuous attractor dynamics
+        float replay[CARTAN_HOPFIELD_DIM];
+        for (size_t d = 0; d < CARTAN_HOPFIELD_DIM; d++) {
+            replay[d] = g_hopfield_basins[k][d] + sinf((float)(d + 1) * 0.1f) * 0.01f;
+        }
+        cartan_hopfield_relax_raw_float(replay, CARTAN_HOPFIELD_DIM, 2.0f, 3);
+
+        // 2. Slow-weight consolidation via Hebbian outer product
+        void* pre_vec = cartan_vec_create();
+        void* post_vec = cartan_vec_create();
+        for (size_t d = 0; d < CARTAN_HOPFIELD_DIM; d++) {
+            cartan_vec_push_f32(pre_vec, (double)g_hopfield_basins[k][d]);
+            cartan_vec_push_f32(post_vec, (double)replay[d]);
+        }
+        cartan_tensor_hebbian_update(pre_vec, post_vec, 1.0, (double)lr);
+
+        // 3. Redundancy check against already kept basins
+        int is_redundant = 0;
+        for (size_t j = 0; j < kept_count; j++) {
+            float sim = 0.0f;
+            for (size_t d = 0; d < CARTAN_HOPFIELD_DIM; d++) {
+                sim += g_hopfield_basins[k][d] * temp_basins[j][d];
+            }
+            if (sim > thresh) {
+                is_redundant = 1;
+                break;
+            }
+        }
+        if (!is_redundant && kept_count < CARTAN_MAX_HOPFIELD_BASINS) {
+            memcpy(temp_basins[kept_count], g_hopfield_basins[k], sizeof(float) * CARTAN_HOPFIELD_DIM);
+            kept_count++;
+        }
+    }
+
+    // Copy back consolidated and pruned basins
+    memcpy(g_hopfield_basins, temp_basins, sizeof(float) * kept_count * CARTAN_HOPFIELD_DIM);
+    g_hopfield_basin_count = kept_count;
+    free(temp_basins);
+
+    if (filepath && strlen(filepath) > 0) {
+        cartan_hopfield_save_basins(filepath);
+    }
+
+    return (double)kept_count;
 }
 
 

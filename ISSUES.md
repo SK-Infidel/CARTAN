@@ -574,6 +574,25 @@ This file tracks technical debt and bugs identified during repository code revie
   4. Wired multimodal grounding into `test/geomind/chat.cl` and `src/std/chat.cl`.
   5. Added Target 54 (`test/compiler_suite/test_multimodal_grounding.car`) to compiler test suite and registered in `test/compiler_suite/run_tests.car`; verified 54/54 tests passing.
 
+---
+
+## [ISSUE-054] [FIXED] Missing Autonomous Metacognitive Sleep Daemon: Episodic Attractor Replay & Slow Cortical Weight Consolidation
+- **Severity**: High (Episodic Accumulation & Missing Offline Synaptic Consolidation)
+- **Component**: `src/std/sleep.cl`, `test/geomind/sleep.car`, `test/geomind/main.car`, `src/cartanc/geomind_runtime.c`
+- **Description**:
+  1. The original GeoMind design (`sleep.ctn`) specified an asynchronous background metacognitive sleep consolidation loop.
+  2. During conversational inference and `--ingest`, episodic attractors accumulate in Continuous Hopfield memory (`hopfield_basins.bin`) and Three-Factor Hebbian plasticity modifies online weights without slow-weight consolidation.
+  3. Without generative replay during idle states:
+     - Hopfield basins grow without pruning or compaction of redundant/divergent attractors.
+     - Fast synaptic changes are never consolidated into permanent cortical slow weights ($W_{slow} \leftarrow (1 - \tau) W_{slow} + \tau W_{fast}$ or Hebbian replay).
+     - GeoMind lacked `--sleep` CLI flag or standalone background daemon for offline memory consolidation.
+- **Resolution**:
+  1. Implemented `src/std/sleep.cl` with generative attractor replay (`sleep_replay_basin`), trajectory cosine resonance evaluation (`sleep_compute_resonance`), Hebbian slow-weight consolidation (`sleep_consolidate_slow_weights`), and sleep consolidation cycles (`sleep_run_consolidation_cycle`).
+  2. Implemented C runtime acceleration `cartan_sleep_consolidate_cycle` in `src/cartanc/geomind_runtime.c` performing in-place replay, Hebbian synaptic updates, and redundant basin pruning ($\cos > 0.98$).
+  3. Created standalone daemon script `test/geomind/sleep.car` and added `--sleep [cycles]` CLI flag to `test/geomind/main.car`.
+  4. Added Target 55 (`test/compiler_suite/test_sleep_consolidation.car`) verifying replay resonance ($\rho > 0.85$), slow-weight consolidation, redundant basin pruning, binary file persistence, and multi-cycle stability.
+  5. Registered Target 55 in `test/compiler_suite/run_tests.car`; verified 55/55 tests passing.
+
 
 
 

@@ -1,0 +1,53 @@
+// test/geomind/sleep.car
+// GeoMind Autonomous Metacognitive Sleep Memory Consolidation Daemon
+// Replays Continuous Hopfield episodic attractors into slow cortical weights during system idle
+
+include "../../src/std/sleep.cl";
+include "../../src/std/string.cl";
+include "../../src/std/collections.cl";
+
+extern fn printf(format: string) -> i32;
+extern fn cartan_flush(v: float) -> float;
+extern fn cartan_float_to_string(v: float) -> string;
+extern fn sys_get_arg_count() -> float;
+extern fn sys_get_arg(idx: float) -> string;
+
+extern fn cartan_sleep_consolidate_cycle(filepath: string, lr: float, thresh: float) -> float;
+
+fn main() -> float {
+    printf("=================================================================================\n");
+    printf("  GEOMIND AUTONOMOUS METACOGNITIVE SLEEP CONSOLIDATION DAEMON (sleep.car)\n");
+    printf("  Hippocampal-Neocortical Attractor Replay & Slow Cortical Weight Plasticity\n");
+    printf("=================================================================================\n\n");
+
+    let basins_file = "test/geomind/trainingdata/hopfield_basins.bin";
+    var max_cycles = 1.0;
+    let argc = sys_get_arg_count();
+    if (argc >= 2.0) {
+        max_cycles = 3.0;
+    }
+
+    printf("[GeoMind Sleep Daemon] Inspecting episodic attractor memory bank: %s\n", basins_file);
+    let initial_count = cartan_hopfield_load_basins(basins_file);
+    printf("[GeoMind Sleep Daemon] Active episodic attractors prior to sleep: %s\n", cartan_float_to_string(initial_count));
+
+    if (initial_count <= 0.0) {
+        printf("[GeoMind Sleep Daemon] No episodic attractors found. Sleeping idle.\n");
+        cartan_flush(0.0);
+        return 0.0;
+    }
+
+    var cycle = 1.0;
+    while (cycle <= max_cycles) {
+        printf("[GeoMind Sleep Daemon] Executing Sleep Consolidation Cycle %s/%s...\n",
+            cartan_float_to_string(cycle), cartan_float_to_string(max_cycles));
+        let remaining = cartan_sleep_consolidate_cycle(basins_file, 0.001, 0.98);
+        printf("[GeoMind Sleep Daemon] Cycle %s complete. Consolidated and preserved %s stable attractors.\n",
+            cartan_float_to_string(cycle), cartan_float_to_string(remaining));
+        cycle = cycle + 1.0;
+    }
+
+    printf("[GeoMind Sleep Daemon] Offline metacognitive sleep phase complete. Synaptic consolidation finalized.\n\n");
+    cartan_flush(0.0);
+    return 0.0;
+}

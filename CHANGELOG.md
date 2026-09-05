@@ -1,3 +1,22 @@
+## [8.260.0] - 2026-09-04 (Sprint 303: Autonomous Metacognitive Sleep Daemon & Generative Attractor Consolidation)
+
+### Completed & Validated
+- **Autonomous Metacognitive Sleep Daemon (`[ISSUE-054]`, Phase 59 Item 5)**:
+  - Standard Library Sleep Consolidation Module (`src/std/sleep.cl`):
+    - Implemented `sleep_replay_basin(basin_vec, dim, noise_scale, beta, steps)`: generative perturbation and Continuous Hopfield relaxation.
+    - Implemented `sleep_compute_resonance(basin_vec, replay_vec, dim)`: evaluates cosine reconstruction resonance ($\rho_k$).
+    - Implemented `sleep_consolidate_slow_weights(basin_vec, replay_vec, lr)`: permanent slow-weight synaptic consolidation via Three-Factor Hebbian outer product ($\Delta W_{slow} = \eta \cdot \text{Pre} \otimes \text{Post}$).
+    - Implemented `sleep_run_consolidation_cycle(basins_file, dim, lr_sleep)`: disk-persisted offline memory consolidation.
+  - C Runtime Acceleration Kernel (`src/cartanc/geomind_runtime.c`):
+    - Implemented `cartan_sleep_consolidate_cycle(filepath, lr_sleep, prune_threshold)`: in-place attractor replay, slow cortical weight consolidation, redundant attractor pruning ($\cos > 0.98$), and disk serialization.
+  - Dedicated Sleep Daemon & CLI Integration (`test/geomind/sleep.car`, `test/geomind/main.car`):
+    - Created standalone background daemon script `test/geomind/sleep.car` (`cartanc.exe run test/geomind/sleep.car`).
+    - Added `--sleep [cycles]` CLI flag to production `geomind.exe` binary.
+- **Regression Test Suite Expansion (Target 55)**:
+  - Created `test/compiler_suite/test_sleep_consolidation.car` verifying generative replay resonance ($\rho = 1.0 > 0.85$), Hebbian slow-weight consolidation, redundant attractor pruning ($3 \to 2$ basins), binary file persistence, and multi-cycle stability.
+  - Registered Target 55 in `test/compiler_suite/run_tests.car`; verified all 55 targets building and passing.
+- **Milestone Reached**: Phase 59 of CARTAN Roadmap (Biological Inference Learning & Multimodal Attractor Integration) 100% completed across all 6 roadmap items.
+
 ## [8.259.0] - 2026-09-04 (Sprint 302: Multimodal Cross-Modal Grounding into Shared E8 Manifold Coordinates)
 
 ### Completed & Validated

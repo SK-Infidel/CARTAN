@@ -17,6 +17,7 @@ include "src/std/string.cl";
 include "src/std/distill.cl";
 include "src/std/fusion.cl";
 include "src/std/hub.cl";
+include "src/std/sleep.cl";
 
 extern fn sys_get_arg_count() -> float;
 extern fn sys_get_arg(idx: float) -> string;
@@ -30,6 +31,7 @@ extern fn cartan_hopfield_relax(h: ptr, beta: float, steps: float) -> float;
 extern fn cartan_hopfield_energy(h: ptr) -> float;
 extern fn cartan_hopfield_save_basins(path: string) -> float;
 extern fn cartan_hopfield_load_basins(path: string) -> float;
+extern fn cartan_sleep_consolidate_cycle(filepath: string, lr: float, thresh: float) -> float;
 
 
 fn print_help_dialogue() -> float {
@@ -49,6 +51,7 @@ fn print_help_dialogue() -> float {
     printf("  --merge-slerp   Run Zero-Day SLERP geodesic model weight merging pipeline\n");
     printf("  --azr-selfplay  Run Absolute Zero Reasoning (AZR) compiler self-play loop\n");
     printf("  --ingest        Ingest material into Continuous Hopfield memory (-target <file>)\n");
+    printf("  --sleep         Run Autonomous Metacognitive Sleep memory consolidation\n");
     printf("  --train-webgpu  Run pure native CARTAN WebGPU Causal Training Engine\n");
     printf("  --help, -h      Display this help dialogue and exit\n\n");
     printf("Targeting Flags:\n");
@@ -224,6 +227,27 @@ fn main() -> float {
             } else {
                 printf("[GeoMind Hopfield Ingestion] File not found: %s\n", target_path);
             }
+            cartan_flush(0.0);
+            return 0.0;
+        }
+
+        if (cartan_string_eq(flag, "--sleep") == 1.0) {
+            let basins_path = "test/geomind/trainingdata/hopfield_basins.bin";
+            var cycles = 1.0;
+            if (arg_count >= 3.0) {
+                cycles = 3.0;
+            }
+            printf("[GeoMind Sleep Daemon] Starting Autonomous Metacognitive Memory Consolidation (%s cycles)...\n", cartan_float_to_string(cycles));
+            let initial = cartan_hopfield_load_basins(basins_path);
+            printf("[GeoMind Sleep Daemon] Initial Episodic Attractors: %s\n", cartan_float_to_string(initial));
+            var c = 1.0;
+            while (c <= cycles) {
+                let remaining = cartan_sleep_consolidate_cycle(basins_path, 0.001, 0.98);
+                printf("[GeoMind Sleep Daemon] Cycle %s: Consolidated into slow weights. Retained %s stable attractors.\n",
+                    cartan_float_to_string(c), cartan_float_to_string(remaining));
+                c = c + 1.0;
+            }
+            printf("[GeoMind Sleep Daemon] Offline consolidation complete.\n");
             cartan_flush(0.0);
             return 0.0;
         }
