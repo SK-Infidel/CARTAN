@@ -173,7 +173,7 @@ This roadmap tracks the implementation of the advanced AI optimizations and nati
 
 ## Phase 59: Biological Inference Learning & Multimodal Attractor Integration (Roadmap Active)
 - [x] **1. Continuous Hopfield Episodic Memory Buffer**: Connect persistent associative memory matrix in VRAM to `--ingest` and conversational inference, replacing backprop with $\mathcal{O}(1)$ one-shot attractor basin insertion. (Completed in Sprint 299).
-- [ ] **2. 8 Lie Subgroup Cortical Streams Integration**: Wire `streams.cl` (`SpectralStream`, `EikonalStream`, `PoincareStream`, `SSMStream`, etc.) directly into the 42-layer manifold forward pass.
+- [x] **2. 8 Lie Subgroup Cortical Streams Integration**: Wire `streams.cl` (`SpectralStream`, `EikonalStream`, `PoincareStream`, `SSMStream`, etc.) directly into the 42-layer manifold forward pass. (Completed in Sprint 300).
 - [ ] **3. Three-Factor Hebbian Plasticity**: Implement local neuromodulated synaptic update operator ($\Delta W = \eta \cdot \text{Pre} \cdot \text{Post} \cdot M$) for learning by reading/observing/listening directly during inference.
 - [ ] **4. Multimodal Cross-Modal Grounding**: Connect SigLIP vision patch projections to `EikonalStream` and audio spectrogram features to `SpectralStream`, mapping sight, sound, and text into shared $E_8$ coordinates.
 - [ ] **5. Autonomous Metacognitive Sleep Daemon**: Re-implement background replay loop (`sleep.ctn`) consolidating episodic attractors into slow cortical weights during system idle.

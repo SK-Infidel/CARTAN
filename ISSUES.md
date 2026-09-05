@@ -530,5 +530,24 @@ This file tracks technical debt and bugs identified during repository code revie
   4. In `src/std/resonator.cl`: `resonator_save_basins` and `resonator_load_basins` assumed 4-byte indexing instead of CARTAN's 64-bit double (8-byte) pointer indexing, causing header reads to corrupt.
 - **Status**: Fixed in Sprint 299. Implemented `cartan_hopfield_save_basins`, `cartan_hopfield_load_basins`, and `cartan_hopfield_store_hidden` in `geomind_runtime.c`, expanding attractor capacity to 2048. Connected persistent binary basin serialization (`test/geomind/trainingdata/hopfield_basins.bin`) to `--ingest` in `test/geomind/main.car`. Integrated basin loading into `geomind_chat_start`, continuous Hopfield hidden state relaxation and Demircigil-Krotov-Hopfield log-sum-exp energy computation into `geomind_chat_generate_reply` and `geomind_chat_generate_reasoning_pass`, and connected $\mathcal{O}(1)$ one-shot attractor insertion (`cartan_hopfield_store_hidden`) to conversation inference. Fixed 8-byte pointer buffer serialization in `src/std/resonator.cl`. Added Target 51 (`test_hopfield_buffer.car`) to compiler test suite with 100% pass across all 51 test targets.
 
+---
+
+## [ISSUE-050] [FIXED] 8 Lie Subgroup Cortical Streams Disconnected from 42-Layer Manifold Forward Pass
+- **Severity**: High (Architectural Gap & Dormant Submanifold Processing)
+- **Component**: `src/cartanc/geomind_runtime.c:2750-2860`, `test/geomind/streams.cl`
+- **Description**:
+  1. In `src/cartanc/geomind_runtime.c`: The 42-layer manifold forward pass `e8_attention_forward_step` executed SO(2560) block-diagonal rotations and GeGLU activations, but never routed representations through the 8 Lie Subgroup Cortical Streams (`Cosformer`, `SSM`, `Spectral`, `Poincare`, `Homology`, `Eikonal`, `Heat Kernel`, `Triality`).
+  2. In `test/geomind/streams.cl`: The 8 streams existed as scalar 1D vector mappers without a unified 2560-dimensional partitioned manifold transformation (`geomind_streams_manifold_forward`).
+- **Status**: Fixed in Sprint 300. Implemented `geomind_streams_manifold_forward(x, mix)` and `geomind_streams_layer_step(x, layer_idx)` in `test/geomind/streams.cl`, cleanly partitioning the 2560 hidden dimensions into 8 distinct 320-D Lie group submanifolds ($8 \times 320 = 2560$): Stream 0 ($SO(16)$ Cosformer), Stream 1 ($E_7 \times SU(2)$ SSM), Stream 2 ($E_6 \times SU(3)$ Spectral DFT Harmonic), Stream 3 ($SU(9)$ Poincare Conformal Metric), Stream 4 ($F_4 \times G_2$ Simplicial Homology Density), Stream 5 ($SO(10) \times SU(4)$ Visual Eikonal Geodesic), Stream 6 ($SU(5) \times SU(5)$ Heat Kernel Laplacian Diffusion), Stream 7 ($SU(3)^3$ Triality Symplectic Rotation). Implemented `cartan_apply_8_lie_streams(float* h, size_t dim, float stream_mix)` and `cartan_apply_8_lie_streams_vec(void* hidden_ptr, double stream_mix)` in `src/cartanc/geomind_runtime.c`, wiring the transform directly into the 42-layer sequential cascade and 16-layer fallback in `e8_attention_forward_step`. Added Target 52 (`test_lie_streams.car`) to compiler test suite with 100% test pass rate across all 52 targets.
+
+---
+
+## [ISSUE-051] [FIXED] Core Runtime Vector Capacity Statically Bounded to 2000 Elements Silently Truncating 2560-D Manifolds
+- **Severity**: High (Data Truncation / Silent Degradation)
+- **Component**: `src/cartanc/core_runtime.car:358-379`
+- **Description**: `cartan_vec_create` statically allocated `malloc(16384.0)` bytes (2048 doubles) and assigned `v[1] = 2000.0` capacity. When pushing 2,560 hidden manifold elements in `cartan_vec_push_f32`, `len < cap` evaluated to false after index 1999, silently truncating vectors at 2000 elements and preventing full 2560-D operations from completing.
+- **Status**: Fixed in Sprint 300. Expanded `cartan_vec_create` allocation from 16KB to 64KB (`malloc(65536.0)`) with capacity set to 8,190 elements (`v[1] = 8190.0`), accommodating 2,560-D neural manifold representations with full headroom. Replaced elided `static_assert` calls in test suite with real `cartan_assert` runtime assertions. Verified 100% test pass across all 52 compiler test suite targets.
+
+
 
 

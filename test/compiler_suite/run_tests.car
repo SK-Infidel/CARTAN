@@ -313,13 +313,19 @@ fn main(argc: float, argv: ptr) -> float {
     cartan_flush(0.0);
     system(t50_cmd);
 
-    // [51/51] Positive test: test_hopfield_buffer
+    // [51/52] Positive test: test_hopfield_buffer
     let t51_cmd = "cartanc.exe build test/compiler_suite/test_hopfield_buffer.car -o build/test_hopfield_buffer.exe && build\\test_hopfield_buffer.exe";
-    printf("[51/51] [// run-pass] Building and Executing Continuous Hopfield Episodic Memory Buffer Verification: %s\n", t51_cmd);
+    printf("[51/52] [// run-pass] Building and Executing Continuous Hopfield Episodic Memory Buffer Verification: %s\n", t51_cmd);
     cartan_flush(0.0);
     system(t51_cmd);
 
-    printf("\nAll 51 compiler snapshot test targets executed!\n", "");
+    // [52/52] Positive test: test_lie_streams
+    let t52_cmd = "cartanc.exe build test/compiler_suite/test_lie_streams.car -o build/test_lie_streams.exe && build\\test_lie_streams.exe";
+    printf("[52/52] [// run-pass] Building and Executing 8 Lie Subgroup Cortical Streams Manifold Verification: %s\n", t52_cmd);
+    cartan_flush(0.0);
+    system(t52_cmd);
+
+    printf("\nAll 52 compiler snapshot test targets executed!\n", "");
     return 0.0;
 }
 

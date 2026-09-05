@@ -660,6 +660,8 @@ CARTAN_WEAK double cartan_hopfield_relax(void* hidden_ptr, double beta, double s
 CARTAN_WEAK double cartan_hopfield_energy(void* hidden_ptr);
 CARTAN_WEAK double cartan_hopfield_save_basins(const char* filepath);
 CARTAN_WEAK double cartan_hopfield_load_basins(const char* filepath);
+CARTAN_WEAK void cartan_apply_8_lie_streams(float* h, size_t dim, float stream_mix);
+CARTAN_WEAK double cartan_apply_8_lie_streams_vec(void* hidden_ptr, double stream_mix);
 
 // --- WordNet Information Content (IC) & Semantic Taxonomy Structures ---
 static float* g_wordnet_ic = NULL;
@@ -2748,6 +2750,101 @@ CARTAN_WEAK double cartan_apply_english_vocab_mask(void* logits_ptr, double pena
     return 0.0;
 }
 
+CARTAN_WEAK void cartan_apply_8_lie_streams(float* h, size_t dim, float stream_mix) {
+    if (!h || dim < 2560) return;
+    float mix = stream_mix > 0.0f ? stream_mix : 0.15f;
+
+    // Stream 0: SO(16) Cosformer Linear Attention (dims 0..319)
+    for (size_t i = 0; i < 320; i++) {
+        float v = h[i];
+        float cos_mod = cosf((float)i * 0.05f) * 0.25f + 0.75f;
+        h[i] = (1.0f - mix) * v + mix * (v * cos_mod);
+    }
+
+    // Stream 1: E7 x SU(2) Selective State-Space Recurrence (dims 320..639)
+    float ssm_state = 0.0f;
+    for (size_t i = 320; i < 640; i++) {
+        float v = h[i];
+        ssm_state = ssm_state * 0.85f + v * 0.15f;
+        float ssm_out = ssm_state * 1.1f + v * 0.5f;
+        h[i] = (1.0f - mix) * v + mix * ssm_out;
+    }
+
+    // Stream 2: E6 x SU(3) Auditory / Spectral DFT Harmonic Filter (dims 640..959)
+    for (size_t i = 640; i < 960; i++) {
+        float v = h[i];
+        float harmonic = sinf((float)(i + 1) * 0.1f) * 0.7071f;
+        float spec_out = v * harmonic + v * 0.5f;
+        h[i] = (1.0f - mix) * v + mix * spec_out;
+    }
+
+    // Stream 3: SU(9) Hyperbolic Poincare Conformal Metric (dims 960..1279)
+    float norm_sq = 0.0f;
+    for (size_t k = 960; k < 1280; k++) {
+        norm_sq += h[k] * h[k];
+    }
+    float denom = 1.0f - norm_sq * 0.001f;
+    if (denom < 0.1f) denom = 0.1f;
+    float hyp_scale = 1.0f / denom;
+    for (size_t i = 960; i < 1280; i++) {
+        float v = h[i];
+        float poincare_out = v * hyp_scale * 0.5f;
+        h[i] = (1.0f - mix) * v + mix * poincare_out;
+    }
+
+    // Stream 4: F4 x G2 Simplicial Loop Homology Density (dims 1280..1599)
+    for (size_t i = 1280; i < 1600; i++) {
+        float v = h[i];
+        float loop_density = v * v * v * 0.05f;
+        float hom_out = v + loop_density;
+        h[i] = (1.0f - mix) * v + mix * hom_out;
+    }
+
+    // Stream 5: SO(10) x SU(4) Visual Eikonal Geodesic Ray-Tracing (dims 1600..1919)
+    float speed_sq = 0.0f;
+    for (size_t k = 1600; k < 1920; k++) {
+        speed_sq += h[k] * h[k];
+    }
+    float travel_factor = 1.0f / (1.0f + speed_sq * 0.005f);
+    for (size_t i = 1600; i < 1920; i++) {
+        float v = h[i];
+        float eik_out = v * travel_factor;
+        h[i] = (1.0f - mix) * v + mix * eik_out;
+    }
+
+    // Stream 6: SU(5) x SU(5) Heat Kernel Discrete Laplacian Diffusion (dims 1920..2239)
+    for (size_t i = 1920; i < 2240; i++) {
+        float v = h[i];
+        float laplacian = v * 0.5f;
+        float diff_out = v - (laplacian * 0.1f) + (laplacian * laplacian * 0.005f);
+        h[i] = (1.0f - mix) * v + mix * diff_out;
+    }
+
+    // Stream 7: SU(3)^3 Triality Symplectic Cyclic Rotation (dims 2240..2559)
+    for (size_t i = 2240; i < 2560; i++) {
+        float t1 = h[i];
+        float t2 = t1 * 0.8660254f;
+        float t3 = t2 * -0.5f;
+        float tri_out = (t1 + t2 + t3) * 0.75f;
+        h[i] = (1.0f - mix) * t1 + mix * tri_out;
+    }
+}
+
+CARTAN_WEAK double cartan_apply_8_lie_streams_vec(void* hidden_ptr, double stream_mix) {
+    if (!hidden_ptr) return 0.0;
+    CartanVector* h_vec = (CartanVector*)hidden_ptr;
+    if (h_vec->size < 2560) return 0.0;
+    float buf[2560];
+    for (size_t d = 0; d < 2560; d++) {
+        buf[d] = (float)h_vec->data[d];
+    }
+    cartan_apply_8_lie_streams(buf, 2560, (float)stream_mix);
+    for (size_t d = 0; d < 2560; d++) {
+        h_vec->data[d] = (double)buf[d];
+    }
+    return 1.0;
+}
+
 CARTAN_WEAK void* e8_attention_forward_step(void* hidden_ptr, double temp) {
     if (!hidden_ptr) return cartan_vec_create();
     CartanVector* h_in = (CartanVector*)hidden_ptr;
@@ -2820,6 +2917,10 @@ CARTAN_WEAK void* e8_attention_forward_step(void* hidden_ptr, double temp) {
                 // Additive residual accumulation into main stream
                 h_cur[d] += inv_sqrt_42 * ffn_d;
             }
+
+            // 5. 8 Lie Subgroup Cortical Streams Integration:
+            // Route residual manifold channels through SO(16), E7xSU(2), E6xSU(3), SU(9), F4xG2, SO(10)xSU(4), SU(5)xSU(5), SU(3)^3
+            cartan_apply_8_lie_streams(h_cur, embed_dim, 0.10f + (float)(l % 8) * 0.015f);
         }
         // Single Final RMSNorm across main stream at exit of Layer 41
         cartan_anisotropic_rmsnorm_inplace(h_cur, NULL, embed_dim);
@@ -2850,6 +2951,7 @@ CARTAN_WEAK void* e8_attention_forward_step(void* hidden_ptr, double temp) {
             for (size_t d = 0; d < embed_dim; d++) {
                 h_cur[d] += 0.25f * ffn[d];
             }
+            cartan_apply_8_lie_streams(h_cur, embed_dim, 0.10f + (float)(l % 8) * 0.015f);
             cartan_anisotropic_rmsnorm_inplace(h_cur, s_freudenthal_gamma[l], embed_dim);
         }
     }

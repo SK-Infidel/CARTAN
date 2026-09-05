@@ -356,10 +356,10 @@ fn cartan_slice_nd(t: ptr, start_idx: float, end_idx: float, step: float) -> ptr
 
 // --- Vector & Math Folding Primitives ---
 fn cartan_vec_create() -> ptr {
-    let v = malloc(16384.0);
+    let v = malloc(65536.0);
     if (v == 0.0) { return 0.0; }
     v[0] = 0.0;    // size
-    v[1] = 2000.0; // capacity
+    v[1] = 8190.0; // capacity
     return v;
 }
 

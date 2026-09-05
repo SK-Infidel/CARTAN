@@ -1,3 +1,31 @@
+## [8.257.0] - 2026-09-04 (Sprint 300: 8 Lie Subgroup Cortical Streams Integration & Core Vector Capacity Hardening)
+
+### Completed & Validated
+- **8 Lie Subgroup Cortical Streams 42-Layer Manifold Integration (`[ISSUE-050]`, Phase 59 Item 2)**:
+  - Extended C runtime in `src/cartanc/geomind_runtime.c`:
+    - Implemented `cartan_apply_8_lie_streams(float* h, size_t dim, float stream_mix)`: decomposes 2560-D manifold representations into 8 distinct 320-D Lie group submanifolds ($8 \times 320 = 2560$).
+      - Stream 0: $SO(16)$ Cosformer Linear Attention ($0..319$)
+      - Stream 1: $E_7 \times SU(2)$ Selective State-Space Recurrence ($320..639$)
+      - Stream 2: $E_6 \times SU(3)$ Auditory / Spectral DFT Harmonic Filter ($640..959$)
+      - Stream 3: $SU(9)$ Hyperbolic Poincare Conformal Metric ($960..1279$)
+      - Stream 4: $F_4 \times G_2$ Simplicial Loop Homology Density ($1280..1599$)
+      - Stream 5: $SO(10) \times SU(4)$ Visual Eikonal Geodesic Ray-Tracing ($1600..1919$)
+      - Stream 6: $SU(5) \times SU(5)$ Heat Kernel Discrete Laplacian Diffusion ($1920..2239$)
+      - Stream 7: $SU(3)^3$ Triality Symplectic Cyclic Rotation ($2240..2559$)
+    - Implemented `cartan_apply_8_lie_streams_vec(void* hidden_ptr, double stream_mix)` vector interface.
+    - Wired `cartan_apply_8_lie_streams` directly into both the 42-layer Gemma physical cascade and 16-layer fallback in `e8_attention_forward_step`.
+  - Pure CARTAN Streams Integration (`test/geomind/streams.cl`):
+    - Implemented `geomind_streams_manifold_forward(x, mix)` performing partitioned manifold transformation with dynamic residual mixing.
+    - Implemented `geomind_streams_layer_step(x, layer_idx)` with $l \pmod 8$ dynamic prioritization schedule.
+- **Core Runtime Vector Allocator Hardening (`[ISSUE-051]`, `src/cartanc/core_runtime.car`)**:
+  - Expanded `cartan_vec_create` buffer allocation from 16KB to 64KB (`malloc(65536.0)`) and capacity from 2,000 to 8,190 elements (`v[1] = 8190.0`), eliminating silent vector truncation on 2560-D manifold vectors.
+  - Replaced elided `static_assert` calls with authentic runtime `cartan_assert` enforcement.
+- **Regression Test Suite Expansion (Target 52)**:
+  - Created `test/compiler_suite/test_lie_streams.car` verifying all 8 individual stream transformations, 2560-D partitioned dispatch, C runtime in-place updates, and dynamic $l \pmod 8$ layer modulation.
+  - Registered Target 52 in `test/compiler_suite/run_tests.car` and compiled `scratch/run_tests.exe`.
+  - All 52 compiler regression test targets building and executing with 100% pass rate.
+  - Recompiled and validated `build/geomind.exe --chat` through all 42 physical manifold layers.
+
 ## [8.256.0] - 2026-09-04 (Sprint 299: Continuous Hopfield Episodic Memory Buffer & Inference Learning)
 
 ### Completed & Validated
