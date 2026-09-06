@@ -1,4 +1,20 @@
+## [8.277.0] - 2026-09-06 (Sprint 320: Substring Slice End Offset Fix and EMA Smoothed Loss Convergence)
+
+### Completed & Validated
+- **Absolute End Index Substring Fix (`test/geomind/train.cl`, `[ISSUE-069]`)**:
+  - Corrected `cartan_string_substring(file_content, offset, window_size)` to `cartan_string_substring(file_content, offset, offset + window_size)`.
+  - Resolved root cause of premature training termination (< 1s) where offsets $\ge 1024.0$ generated empty string windows and skipped inner gradient steps.
+  - Guaranteed full 1024-character continuous text window extraction and 64 token updates per epoch across `storytelling_corpus.txt` (7.05 MB).
+- **Exponential Moving Average (EMA) Smoothed Loss & Convergence Guard (`test/geomind/train.cl`)**:
+  - Implemented EMA loss smoothing ($EMA_t = 0.85 \cdot EMA_{t-1} + 0.15 \cdot Loss_t$).
+  - Bounded early stopping convergence to `smoothed_loss <= t_loss && ep >= 20.0`, preventing false positive early stopping on repetitive section divider banners (`====...`).
+  - Added live smoothed loss tracking to epoch logs: `Loss: %s (EMA: %s)`.
+- **Empirical Verification**:
+  - Recompiled `build/geomind.exe` via `cartanc.exe`.
+  - Empirically verified multi-epoch training descent, genuine forward/backward passes, and safe checkpoint serialization.
+
 ## [8.276.0] - 2026-09-06 (Sprint 319: Unified Training Pipeline Documentation & CLI Help Reference)
+
 
 ### Completed & Validated
 - **CLI Help Dialogue Documentation (`test/geomind/main.car`)**:

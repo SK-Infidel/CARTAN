@@ -558,6 +558,7 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
 
     var ep = 1.0;
     var final_loss = 10.0;
+    var smoothed_loss = 5.0;
     let window_size = 1024.0;
 
     while (ep <= epochs) {
@@ -567,7 +568,7 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
             if (content_len > window_size + 256.0) {
                 offset = math_mod_val(256.0 + (ep - 1.0) * 384.0, content_len - window_size);
             }
-            sample_text = cartan_string_substring(file_content, offset, window_size);
+            sample_text = cartan_string_substring(file_content, offset, offset + window_size);
         }
 
         let tokens = cartan_hub_encode_text_to_tokens(sample_text);
@@ -590,19 +591,25 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
 
             if (step_count > 0.0) {
                 final_loss = ep_loss_sum / step_count;
+                if (ep == 1.0) {
+                    smoothed_loss = final_loss;
+                } else {
+                    smoothed_loss = smoothed_loss * 0.85 + final_loss * 0.15;
+                }
             }
         }
 
-        if (math_mod_val(ep, 10.0) == 0.0 || ep == 1.0 || ep == epochs || (final_loss <= t_loss && ep >= 10.0)) {
-            printf("[Steady-State Stage: %s] Epoch %s / %s | Loss: %s | LR: %s\n",
+        if (math_mod_val(ep, 10.0) == 0.0 || ep == 1.0 || ep == epochs || (smoothed_loss <= t_loss && ep >= 20.0)) {
+            printf("[Steady-State Stage: %s] Epoch %s / %s | Loss: %s (EMA: %s) | LR: %s\n",
                 stage_name, cartan_float_to_string(ep), cartan_float_to_string(epochs),
-                cartan_float_to_string(final_loss), cartan_float_to_string(lr));
+                cartan_float_to_string(final_loss), cartan_float_to_string(smoothed_loss),
+                cartan_float_to_string(lr));
             cartan_flush(0.0);
         }
 
-        if (final_loss <= t_loss && ep >= 10.0) {
-            printf("[Steady-State Stage: %s] Converged to target loss %s at epoch %s!\n",
-                stage_name, cartan_float_to_string(t_loss), cartan_float_to_string(ep));
+        if (smoothed_loss <= t_loss && ep >= 20.0) {
+            printf("[Steady-State Stage: %s] Sustained convergence to target loss %s (Smoothed: %s) at epoch %s!\n",
+                stage_name, cartan_float_to_string(t_loss), cartan_float_to_string(smoothed_loss), cartan_float_to_string(ep));
             ep = epochs + 1.0;
         } else {
             lr = lr * 0.995;

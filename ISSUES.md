@@ -862,3 +862,18 @@ This file tracks technical debt and bugs identified during repository code revie
      - If `IN_PROGRESS`: Detects that the prior run was interrupted by `Ctrl-C`/crash, refuses to overwrite the backup, and restores `geomind_steady_state_weights.bin.bak` to roll back half-baked weights.
   3. Marks `IN_PROGRESS` before entering the epoch loop, and marks `SUCCESS` upon clean completion and serialization.
   4. Empirically tested and verified both clean backup creation and interrupted-run recovery. All 62 compiler tests pass (62/62 PASS).
+
+---
+
+## [ISSUE-069] [FIXED] Substring Slice End Offset Truncation and Premature Divider Early Stopping in Steady-State Trainer
+- **Severity**: High (Training Loop Execution & Convergence Bug)
+- **Component**: `test/geomind/train.cl`
+- **Description**:
+  1. `geomind_train_streaming_steady_state` invoked `cartan_string_substring(file_content, offset, window_size)`. In Cartan, `cartan_string_substring` expects `(s, start, end_idx)`. Passing `window_size` (1024.0) caused any iteration where `offset >= 1024.0` to receive `end_idx <= start`, producing an empty string `""` and 0 tokens. As a result, the inner training loop was bypassed after epoch 2, running 490+ empty iterations in <1 second with frozen loss `4.40822`.
+  2. Isolated ASCII banners (`====...`) at section boundaries in `storytelling_corpus.txt` produced a transient loss drop (to ~1.23) that could trigger early stopping before genuine text learning occurred.
+- **Resolution (Sprint 320)**:
+  1. Fixed substring slice invocation in `test/geomind/train.cl` to `cartan_string_substring(file_content, offset, offset + window_size)`.
+  2. Implemented Exponential Moving Average (EMA) smoothed loss tracking ($EMA_{t} = 0.85 \cdot EMA_{t-1} + 0.15 \cdot Loss_t$) and updated early stopping to require `smoothed_loss <= t_loss && ep >= 20.0`.
+  3. Added EMA metric to console output: `Epoch %s / %s | Loss: %s (EMA: %s) | LR: %s`.
+  4. Recompiled `build/geomind.exe` with `cartanc.exe` and verified continuous loss descent across epochs.
+
