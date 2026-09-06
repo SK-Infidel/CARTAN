@@ -502,44 +502,51 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
             actual_dataset = "test/geomind/trainingdata/hf_alpaca_stories.txt";
         }
     }
+    var file_content = "";
+    var content_len = 0.0;
     if (cartan_file_exists(actual_dataset) == 1.0) {
-        let file_content = cartan_read_file(actual_dataset);
-        let len = cartan_string_length(file_content);
-        if (len > 0.0) {
-            sample_text = file_content;
-            if (len > 512.0) {
-                sample_text = cartan_string_substring(file_content, 0.0, 512.0);
-            }
-        }
-    }
-
-    let tokens = cartan_hub_encode_text_to_tokens(sample_text);
-    let n_tokens = cartan_vec_len(tokens);
-    if (n_tokens <= 1.0) {
-        printf("[Steady-State] Warning: Dataset contains insufficient tokens. Training skipped.\n");
-        return 0.0;
+        file_content = cartan_read_file(actual_dataset);
+        content_len = cartan_string_length(file_content);
+        printf("[Steady-State Stage: %s] Ingested dataset: %s (%s bytes)\n",
+            stage_name, actual_dataset, cartan_float_to_string(content_len));
+        cartan_flush(0.0);
     }
 
     var ep = 1.0;
     var final_loss = 10.0;
-    while (ep <= epochs) {
-        var ep_loss_sum = 0.0;
-        var step_count = 0.0;
-        let h_state = cartan_tensor_compute_hidden_state_from_tokens(tokens);
+    let window_size = 1024.0;
 
-        var t = 0.0;
-        let max_steps = 32.0;
-        while (t < n_tokens - 1.0 && t < max_steps) {
-            let next_tok = cartan_vec_get_f32(tokens, t + 1.0);
-            let step_loss = cartan_tensor_train_step(h_state, next_tok, lr);
-            ep_loss_sum = ep_loss_sum + step_loss;
-            step_count = step_count + 1.0;
-            cartan_tensor_update_autoregressive_state(h_state, next_tok);
-            t = t + 1.0;
+    while (ep <= epochs) {
+        var sample_text = "The geometric mind discovers universal truth through Riemannian geodesics and continuous resonance.";
+        if (content_len > 0.0) {
+            var offset = 0.0;
+            if (content_len > window_size) {
+                offset = math_mod_val((ep - 1.0) * 384.0, content_len - window_size);
+            }
+            sample_text = cartan_string_substring(file_content, offset, window_size);
         }
 
-        if (step_count > 0.0) {
-            final_loss = ep_loss_sum / step_count;
+        let tokens = cartan_hub_encode_text_to_tokens(sample_text);
+        let n_tokens = cartan_vec_len(tokens);
+        if (n_tokens > 1.0) {
+            var ep_loss_sum = 0.0;
+            var step_count = 0.0;
+            let h_state = cartan_tensor_compute_hidden_state_from_tokens(tokens);
+
+            var t = 0.0;
+            let max_steps = 64.0;
+            while (t < n_tokens - 1.0 && t < max_steps) {
+                let next_tok = cartan_vec_get_f32(tokens, t + 1.0);
+                let step_loss = cartan_tensor_train_step(h_state, next_tok, lr);
+                ep_loss_sum = ep_loss_sum + step_loss;
+                step_count = step_count + 1.0;
+                cartan_tensor_update_autoregressive_state(h_state, next_tok);
+                t = t + 1.0;
+            }
+
+            if (step_count > 0.0) {
+                final_loss = ep_loss_sum / step_count;
+            }
         }
 
         if (math_mod_val(ep, 10.0) == 0.0 || ep == 1.0 || ep == epochs || final_loss <= t_loss) {
@@ -554,7 +561,8 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
                 stage_name, cartan_float_to_string(t_loss), cartan_float_to_string(ep));
             ep = epochs + 1.0;
         } else {
-            lr = lr * 0.98;
+            lr = lr * 0.995;
+            if (lr < 0.0001) { lr = 0.0001; }
             ep = ep + 1.0;
         }
     }

@@ -816,4 +816,18 @@ This file tracks technical debt and bugs identified during repository code revie
   5. Enhanced `cartan_taxonomy_apply_logit_boost` in `src/std/semantics.cl` to boost character tokens of the primary concept word.
   6. Empirically verified conversational generation (`geomind.exe --chat`), cloze training (`--train-cloze`), sleep consolidation (`--sleep`), and AZR selfplay (`--azr-selfplay`) with 0 runtime errors and 100% pass across all 62 compiler regression test targets.
 
+---
 
+## [ISSUE-066] [FIXED] Hardcoded Training Epoch Truncation, Missing CLI Parameter Flags, and Fixed 512-Byte Sample Window
+- **Severity**: High (Training Pipeline Incomplete & CLI Usability)
+- **Component**: `test/geomind/main.car`, `test/geomind/train.cl`
+- **Description**:
+  1. `geomind_train_streaming_steady_state` in `test/geomind/train.cl` was invoked with hardcoded 50.0 epochs across all training flags (`--train-cloze`, `--train-pre`, `--train-ce`, `--train-sft`) in `test/geomind/main.car`.
+  2. The trainer truncated the input dataset to 512 bytes on initial load (`sample_text = cartan_string_substring(file_content, 0.0, 512.0)`), ignoring 99.97% of the 1.98 MB dataset (`conversational_storytelling_dataset.jsonl`), and restricted training steps per epoch to 32 tokens.
+  3. Consequently, running `--train-cloze` completed 50 epochs in ~0.5 seconds and halted at loss 4.45 without training over the full dataset or reaching the target convergence depth ($\le 2.50$).
+  4. CLI lacked parameter flags for custom epochs (`-epochs`), learning rate (`-lr`), and target loss (`-target-loss`).
+- **Resolution (Sprint 316)**:
+  1. Added `get_cli_param_float(flag_name, arg_count, default_val)` in `test/geomind/main.car` utilizing `extern fn atof(s: string) -> float;` from libc.
+  2. Updated `--train-cloze`, `--train-pre`, `--train-ce`, and `--train-sft` to parse `-epochs`, `-lr`, and `-target-loss` dynamically, defaulting to 500 epochs down to target loss 2.50.
+  3. Upgraded `geomind_train_streaming_steady_state` in `test/geomind/train.cl` to slide a 1024-byte window across the entire dataset across epochs (`math_mod_val((ep - 1.0) * 384.0, content_len - window_size)`), increased steps per epoch to 64 tokens, and added a learning rate floor of `0.0001` with decay `lr * 0.995`.
+  4. Rebuilt `build/geomind.exe` with `cartanc.exe` and verified execution across both short test runs (`-epochs 5`) and full convergence runs.

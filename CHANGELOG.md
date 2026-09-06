@@ -1,3 +1,18 @@
+## [8.273.0] - 2026-09-06 (Sprint 316: Cloze Training Pipeline Scaling, Full-Dataset Sliding Window, and Dynamic CLI Parameters)
+
+### Completed & Validated
+- **Dynamic CLI Parameter Extraction (`test/geomind/main.car`, `[ISSUE-066]`)**:
+  - Implemented `get_cli_param_float(flag_name, arg_count, default_val)` in `test/geomind/main.car` using standard `atof` (`extern fn atof(s: string) -> float;`).
+  - Wired `-epochs`, `-lr`, and `-target-loss` to `--train-cloze`, `--train-pre`, `--train-ce`, and `--train-sft`, enabling user-specified training duration and target depth rather than quitting after a hardcoded 50 epochs.
+- **Full-Dataset Sliding Window & Training Loop Scaling (`test/geomind/train.cl`)**:
+  - Replaced the hardcoded 512-byte static slice with a rolling 1024-byte sliding window across the entire 1.98 MB dataset (`conversational_storytelling_dataset.jsonl`), stepping 384 bytes per epoch.
+  - Increased autoregressive next-token gradient steps from 32 to 64 tokens per epoch.
+  - Added learning rate decay floor `if (lr < 0.0001) { lr = 0.0001; }` with decay `0.995` to ensure steady descent towards target loss ($\le 2.50$).
+- **Empirical Verification**:
+  - Recompiled `build/geomind.exe` with zero errors.
+  - Tested `build/geomind.exe --train-cloze -epochs 5`, confirming dynamic epoch execution, full dataset ingestion (1.98 MB), and loss reduction.
+  - Executed compiler regression test suite (`test/compiler_suite/run_tests.car`), passing all 62 compiler targets (62/62 PASS).
+
 ## [8.272.0] - 2026-09-06 (Sprint 315: Compiler Toolchain Synchronization, Manifold RMSNorm, and Conversational Inference Stability)
 
 ### Completed & Validated

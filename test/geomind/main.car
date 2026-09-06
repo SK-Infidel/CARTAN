@@ -20,6 +20,7 @@ include "src/std/sleep.cl";
 
 extern fn sys_get_arg_count() -> float;
 extern fn sys_get_arg(idx: float) -> string;
+extern fn atof(s: string) -> float;
 extern fn cartan_flush(v: float) -> float;
 extern fn cartan_read_line() -> string;
 extern fn cartan_hopfield_ingest(path: string) -> float;
@@ -79,6 +80,14 @@ fn get_cli_target_path(arg_count: float) -> string {
     return get_cli_param("-target", arg_count);
 }
 
+fn get_cli_param_float(flag_name: string, arg_count: float, default_val: float) -> float {
+    let p = get_cli_param(flag_name, arg_count);
+    if (cartan_string_length(p) > 0.0) {
+        return atof(p);
+    }
+    return default_val;
+}
+
 fn main() -> float {
     let arg_count = sys_get_arg_count();
     if (arg_count > 1.0) {
@@ -93,14 +102,20 @@ fn main() -> float {
 
         if (cartan_string_eq(flag, "--train-pre") == 1.0) {
             let target = get_cli_target_path(arg_count);
-            let res = geomind_train_streaming_steady_state(2.0, target, 2.50, 0.0005, 50.0, "logs/stage2_ce_training.log");
+            let epochs = get_cli_param_float("-epochs", arg_count, 500.0);
+            let lr = get_cli_param_float("-lr", arg_count, 0.001);
+            let target_loss = get_cli_param_float("-target-loss", arg_count, 2.50);
+            let res = geomind_train_streaming_steady_state(2.0, target, target_loss, lr, epochs, "logs/stage2_ce_training.log");
             cartan_flush(0.0);
             return 0.0;
         }
 
         if (cartan_string_eq(flag, "--train-cloze") == 1.0) {
             let target = get_cli_target_path(arg_count);
-            let res = geomind_train_streaming_steady_state(1.0, target, 2.50, 0.0005, 50.0, "logs/stage1_cloze_training.log");
+            let epochs = get_cli_param_float("-epochs", arg_count, 500.0);
+            let lr = get_cli_param_float("-lr", arg_count, 0.001);
+            let target_loss = get_cli_param_float("-target-loss", arg_count, 2.50);
+            let res = geomind_train_streaming_steady_state(1.0, target, target_loss, lr, epochs, "logs/stage1_cloze_training.log");
             cartan_flush(0.0);
             return 0.0;
         }
@@ -276,14 +291,20 @@ fn main() -> float {
 
         if (cartan_string_eq(flag, "--train-ce") == 1.0) {
             let target = get_cli_target_path(arg_count);
-            let res = geomind_train_streaming_steady_state(2.0, target, 2.50, 0.0005, 50.0, "logs/stage2_ce_training.log");
+            let epochs = get_cli_param_float("-epochs", arg_count, 500.0);
+            let lr = get_cli_param_float("-lr", arg_count, 0.001);
+            let target_loss = get_cli_param_float("-target-loss", arg_count, 2.50);
+            let res = geomind_train_streaming_steady_state(2.0, target, target_loss, lr, epochs, "logs/stage2_ce_training.log");
             cartan_flush(0.0);
             return 0.0;
         }
 
         if (cartan_string_eq(flag, "--train-sft") == 1.0) {
             let target = get_cli_target_path(arg_count);
-            let res = geomind_train_streaming_steady_state(3.0, target, 2.50, 0.0001, 50.0, "logs/stage3_sft_training.log");
+            let epochs = get_cli_param_float("-epochs", arg_count, 500.0);
+            let lr = get_cli_param_float("-lr", arg_count, 0.0005);
+            let target_loss = get_cli_param_float("-target-loss", arg_count, 2.50);
+            let res = geomind_train_streaming_steady_state(3.0, target, target_loss, lr, epochs, "logs/stage3_sft_training.log");
             cartan_flush(0.0);
             return 0.0;
         }
