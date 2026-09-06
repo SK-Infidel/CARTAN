@@ -95,6 +95,13 @@ fn main() -> float {
             return 0.0;
         }
 
+        if (cartan_string_eq(flag, "--train-pre") == 1.0) {
+            let target = get_cli_target_path(arg_count);
+            let res = geomind_train_streaming_steady_state(2.0, target, 2.50, 0.0005, 50.0, "logs/stage2_ce_training.log");
+            cartan_flush(0.0);
+            return 0.0;
+        }
+
         if (cartan_string_eq(flag, "--train-cloze") == 1.0) {
             let target = get_cli_target_path(arg_count);
             let res = geomind_train_streaming_steady_state(1.0, target, 2.50, 0.0005, 50.0, "logs/stage1_cloze_training.log");
