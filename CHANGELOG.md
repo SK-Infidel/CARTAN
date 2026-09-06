@@ -1,3 +1,16 @@
+## [8.276.0] - 2026-09-06 (Sprint 319: Unified Training Pipeline Documentation & CLI Help Reference)
+
+### Completed & Validated
+- **CLI Help Dialogue Documentation (`test/geomind/main.car`)**:
+  - Expanded `print_help_dialogue()` with a dedicated "Training & Optimization Flags" section documenting `-epochs`, `-target-loss`, `-lr`, and `-target`.
+  - Formatted clear guidance that omitting `-lr` executes with the optimal default ceiling ($0.001$), decaying $0.995$/epoch to the $0.0001$ floor.
+  - Documented automatic pre-training safety backup creation and Ctrl-C interruption recovery.
+- **Unified 3-Stage Pipeline Guide (`docs/TRAINING_TOOLCHAIN.md`)**:
+  - Added Section 5 detailing the full 3-stage curriculum (Stage 1 Cloze, Stage 2 Causal CE, Stage 3 SFT), calibrated loss thresholds ($4.20 \to 3.00 \to 2.00$), and the rollback protocol.
+- **Empirical Verification**:
+  - Recompiled `build/geomind.exe` with `cartanc.exe`.
+  - Tested `build/geomind.exe --help`, verifying clean terminal output with full flag documentation.
+
 ## [8.275.0] - 2026-09-06 (Sprint 318: Pre-Training Checkpoint Safety Backup & Ctrl-C Interruption Detection)
 
 ### Completed & Validated

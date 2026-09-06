@@ -122,3 +122,52 @@ GeoMind integrates a 4-stage hybrid optimization pipeline combining continuous R
    ./geomind.exe --chat
    ```
 
+---
+
+## 5. Unified 3-Stage Training Pipeline & CLI Reference (`geomind.exe`)
+
+The modern GeoMind training engine consolidates all training pipelines into [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl) under a pure Cartan architecture, providing continuous multi-stage weight inheritance, sliding-window full corpus traversal, automatic checkpoint safety backups, and Ctrl-C interruption rollback.
+
+### 5.1 Training Stages & Default Target Losses
+
+1. **Stage 1: Anchored Cloze Curriculum (`--train-cloze`)**:
+   - **Corpus**: `conversational_storytelling_dataset.jsonl` (1.98 MB, 4,279 records).
+   - **Default Target Loss**: **`4.20`** (Perplexity $\approx 66.7$).
+   - **Purpose**: Rapidly grounds lexical taxonomy units (Noun-Noun pairs, non-reversible binomials, discourse markers, transition bridges) out of random entropy.
+2. **Stage 2: Causal Cross-Entropy Narrative Pre-training (`--train-ce` / `--train-pre`)**:
+   - **Corpus**: `storytelling_corpus.txt` (7.05 MB multi-genre prose).
+   - **Default Target Loss**: **`3.00`** (Perplexity $\approx 20.1$).
+   - **Purpose**: Learns rich English grammar, multi-clause syntactic dependencies, and continuous narrative flow.
+3. **Stage 3: Supervised Fine-Tuning & Alignment (`--train-sft`)**:
+   - **Corpus**: `hf_alpaca_stories.txt` (163 KB dialogue pairs).
+   - **Default Target Loss**: **`2.00`** (Perplexity $\approx 7.4$).
+   - **Purpose**: Aligns conversational responses and sharpens question-answering focus.
+
+### 5.2 CLI Optimization Flags & Learning Rate Mechanics
+
+All flags are completely optional and feature calibrated defaults. Omitting `-lr` is standard and recommended:
+
+| CLI Flag | Type | Default Value | Description & Mechanics |
+| :--- | :--- | :--- | :--- |
+| `-epochs` | Float | `500.0` | Maximum number of training epochs to execute. |
+| `-target-loss` | Float | Stage-calibrated | Convergence threshold triggering early stopping (`ep >= 10.0`). |
+| `-lr` | Float | `0.001` | **Starting Base Learning Rate Ceiling**. Omitting `-lr` uses the optimal default: starts at `0.001`, decays by factor `0.995` each epoch, and clamps at the `0.0001` floor. Learning rate never exceeds this ceiling. |
+| `-target` | String | Curated stage path | Custom dataset filepath. |
+
+### 5.3 Checkpoint Safety & Interruption Rollback Protocol
+
+Training state is protected against corruption from aborted runs, system crashes, or manual `Ctrl-C` breaks using an out-of-band marker (`checkpoint_status.txt`):
+
+1. **Clean-Run Safety Backup**:
+   - When training initializes, the engine inspects `checkpoint_status.txt`.
+   - If the previous run concluded cleanly (`SUCCESS`), a verified safety snapshot is created:
+     `geomind_steady_state_weights.bin.bak` (52.4 MB).
+2. **Interruption (Ctrl-C / Break) Detection**:
+   - Status is marked `IN_PROGRESS` immediately before entering the training loop.
+   - If the process is halted via `Ctrl-C` or terminated unexpectedly, status remains `IN_PROGRESS`.
+3. **Automatic Safe Rollback**:
+   - On the next launch, the engine detects `IN_PROGRESS`.
+   - It refuses to overwrite the safety backup with half-baked weights.
+   - It automatically copies `geomind_steady_state_weights.bin.bak` over `geomind_steady_state_weights.bin`, ensuring zero weight degradation.
+   - Checkpoint status updates to `SUCCESS` only when all requested epochs complete or target loss is achieved.
+
