@@ -1,3 +1,21 @@
+## [8.266.0] - 2026-09-05 (Sprint 309: WordNet & SlangNet Hierarchical Semantic DAG Engine, Synset-Path Resolution & Live Taxonomy Logit Biasing)
+
+### Completed & Validated
+- **Comprehensive WordNet & SlangNet Taxonomic DAG Knowledge Base (`test/geomind/trainingdata/wordnet_slangnet_dag.txt`, `[ISSUE-060]`, Phase 67 Item 1)**:
+  - Created multi-domain ontological DAG indexing 18 concept nodes across physics, astronomy, chemistry, biology, algorithms, architecture, everyday objects, and modern slang.
+- **Native C Runtime Semantic Graph Indexer (`src/cartanc/geomind_runtime.c`, Phase 67 Item 2)**:
+  - Implemented `cartan_taxonomy_load_dag`, `cartan_taxonomy_resolve_path`, `cartan_taxonomy_get_lca_distance`, `cartan_taxonomy_get_ic`, `cartan_taxonomy_resnik_similarity`, `cartan_taxonomy_lin_similarity`, `cartan_taxonomy_extract_primary_concept`, and `cartan_taxonomy_apply_logit_boost`.
+- **Pure Cartan Level-1 Standard Library Engine (`src/std/semantics.cl`, Phase 67 Item 3)**:
+  - Upgraded `src/std/semantics.cl` with `semantics_resolve_concept_path`, `semantics_extract_primary_concept`, `semantics_apply_concept_logit_boost`, and modernized `semantics_lca_tree_distance` to query native DAG structures.
+- **Conversational Semantic Grounding & Dynamic Logit Steering (`test/geomind/chat.cl`, Phase 67 Item 4)**:
+  - Auto-loaded taxonomy DAG on startup in `geomind_chat_start()`.
+  - Resolved prompt primary concepts to exact dot-paths and evaluated genuine LCA tree distance during `<think>` passes.
+  - Dynamically boosted domain-aligned vocabulary logits during autoregressive generation in `geomind_chat_generate_reply_multimodal()`.
+- **Regression Test Suite Expansion (Target 61)**:
+  - Authored `test/compiler_suite/test_wordnet_taxonomy_dag.car` verifying DAG ingestion, synset resolution, LCA tree distance, Lin/Resnik similarity, and genuine LM head logit boosting (delta +7.5 on token 21029) (5/5 tests passing).
+  - Registered Target [61/61] in `test/compiler_suite/run_tests.car`; verified all 61 compiler snapshot tests building and passing cleanly.
+- **Milestone Reached**: Phase 67 of CARTAN Roadmap (WordNet & SlangNet Semantic DAG & Taxonomy Logit Biasing) 100% completed.
+
 ## [8.265.0] - 2026-09-05 (Sprint 308: Modern Continuous Hopfield Key-Value Associative Basins & Online In-Context 1-Shot Recall)
 
 ### Completed & Validated

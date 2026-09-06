@@ -678,6 +678,15 @@ CARTAN_WEAK double cartan_hebbian_step_token(void* hidden_ptr, double tok_id, do
 CARTAN_WEAK void cartan_multimodal_project_vision(float* h_cur, const float* patch_pixels, size_t patch_size, float alpha);
 CARTAN_WEAK void cartan_multimodal_project_audio(float* h_cur, const float* audio_samples, size_t num_samples, float beta);
 CARTAN_WEAK double cartan_multimodal_ground_hidden(void* hidden_ptr, void* vision_ptr, void* audio_ptr);
+CARTAN_WEAK double cartan_taxonomy_load_dag(const char* filepath);
+CARTAN_WEAK const char* cartan_taxonomy_resolve_path(const char* word);
+CARTAN_WEAK double cartan_taxonomy_get_lca_distance(const char* p1, const char* p2);
+CARTAN_WEAK double cartan_taxonomy_get_ic(const char* word);
+CARTAN_WEAK double cartan_taxonomy_resnik_similarity(const char* w1, const char* w2);
+CARTAN_WEAK double cartan_taxonomy_lin_similarity(const char* w1, const char* w2);
+CARTAN_WEAK void cartan_taxonomy_apply_logit_boost(void* logits_ptr, const char* concept_word, double boost_factor);
+CARTAN_WEAK double cartan_taxonomy_node_count(void);
+CARTAN_WEAK const char* cartan_taxonomy_extract_primary_concept(const char* prompt);
 CARTAN_WEAK double cartan_sleep_consolidate_cycle(const char* filepath, double lr_sleep, double prune_threshold);
 CARTAN_WEAK double cartan_save_signed_checkpoint(const char* path);
 
@@ -5640,6 +5649,309 @@ CARTAN_WEAK double cartan_f32_buffer_get(void* buf, double idx) {
 CARTAN_WEAK double cartan_f32_buffer_free(void* buf) {
     if (buf) free(buf);
     return 0.0;
+}
+
+typedef struct {
+    char path[160];
+    char lemmas[160];
+    char hypernym[160];
+    char definition[256];
+    float ic;
+} CartanTaxonomyNode;
+
+#define CARTAN_MAX_TAXONOMY_NODES 512
+static CartanTaxonomyNode g_taxonomy_dag[CARTAN_MAX_TAXONOMY_NODES];
+static size_t g_taxonomy_dag_count = 0;
+
+CARTAN_WEAK double cartan_taxonomy_load_dag(const char* filepath) {
+    if (!filepath) return 0.0;
+    FILE* f = fopen(filepath, "r");
+    if (!f) return 0.0;
+
+    char line[512];
+    CartanTaxonomyNode current_node;
+    memset(&current_node, 0, sizeof(current_node));
+    int in_node = 0;
+
+    g_taxonomy_dag_count = 0;
+
+    while (fgets(line, sizeof(line), f)) {
+        size_t len = strlen(line);
+        while (len > 0 && (line[len - 1] == '\r' || line[len - 1] == '\n' || line[len - 1] == ' ')) {
+            line[len - 1] = '\0';
+            len--;
+        }
+        if (len == 0) {
+            if (in_node && current_node.path[0] != '\0') {
+                if (g_taxonomy_dag_count < CARTAN_MAX_TAXONOMY_NODES) {
+                    g_taxonomy_dag[g_taxonomy_dag_count++] = current_node;
+                }
+                memset(&current_node, 0, sizeof(current_node));
+                in_node = 0;
+            }
+            continue;
+        }
+
+        if (strncmp(line, "Path: ", 6) == 0) {
+            if (in_node && current_node.path[0] != '\0') {
+                if (g_taxonomy_dag_count < CARTAN_MAX_TAXONOMY_NODES) {
+                    g_taxonomy_dag[g_taxonomy_dag_count++] = current_node;
+                }
+                memset(&current_node, 0, sizeof(current_node));
+            }
+            in_node = 1;
+            strncpy(current_node.path, line + 6, sizeof(current_node.path) - 1);
+        } else if (strncmp(line, "Lemmas: ", 8) == 0) {
+            in_node = 1;
+            strncpy(current_node.lemmas, line + 8, sizeof(current_node.lemmas) - 1);
+        } else if (strncmp(line, "Hypernym: ", 10) == 0) {
+            in_node = 1;
+            strncpy(current_node.hypernym, line + 10, sizeof(current_node.hypernym) - 1);
+        } else if (strncmp(line, "Definition: ", 12) == 0) {
+            in_node = 1;
+            strncpy(current_node.definition, line + 12, sizeof(current_node.definition) - 1);
+        } else if (strncmp(line, "IC: ", 4) == 0) {
+            in_node = 1;
+            current_node.ic = (float)atof(line + 4);
+        }
+    }
+    if (in_node && current_node.path[0] != '\0') {
+        if (g_taxonomy_dag_count < CARTAN_MAX_TAXONOMY_NODES) {
+            g_taxonomy_dag[g_taxonomy_dag_count++] = current_node;
+        }
+    }
+    fclose(f);
+    return (double)g_taxonomy_dag_count;
+}
+
+CARTAN_WEAK double cartan_taxonomy_node_count(void) {
+    return (double)g_taxonomy_dag_count;
+}
+
+static int cartan_strcasestr_match(const char* haystack, const char* needle) {
+    if (!haystack || !needle) return 0;
+    size_t nlen = strlen(needle);
+    if (nlen == 0) return 0;
+    size_t hlen = strlen(haystack);
+    if (hlen < nlen) return 0;
+
+    for (size_t i = 0; i <= hlen - nlen; i++) {
+        size_t j = 0;
+        while (j < nlen && tolower((unsigned char)haystack[i + j]) == tolower((unsigned char)needle[j])) {
+            j++;
+        }
+        if (j == nlen) {
+            int left_bound = (i == 0) || !isalnum((unsigned char)haystack[i - 1]);
+            int right_bound = (i + nlen == hlen) || !isalnum((unsigned char)haystack[i + nlen]);
+            if (left_bound && right_bound) return 1;
+        }
+    }
+    return 0;
+}
+
+CARTAN_WEAK const char* cartan_taxonomy_resolve_path(const char* word) {
+    if (!word || strlen(word) == 0) return "";
+    if (strchr(word, '.')) return word;
+
+    for (size_t i = 0; i < g_taxonomy_dag_count; i++) {
+        if (cartan_strcasestr_match(g_taxonomy_dag[i].lemmas, word)) {
+            return g_taxonomy_dag[i].path;
+        }
+    }
+    for (size_t i = 0; i < g_taxonomy_dag_count; i++) {
+        const char* last_dot = strrchr(g_taxonomy_dag[i].path, '.');
+        if (last_dot && cartan_strcasestr_match(last_dot + 1, word)) {
+            return g_taxonomy_dag[i].path;
+        }
+    }
+    return "";
+}
+
+static size_t cartan_count_dots(const char* path) {
+    if (!path) return 0;
+    size_t count = 0;
+    while (*path) {
+        if (*path == '.') count++;
+        path++;
+    }
+    return count;
+}
+
+CARTAN_WEAK double cartan_taxonomy_get_lca_distance(const char* p1, const char* p2) {
+    if (!p1 || !p2 || strlen(p1) == 0 || strlen(p2) == 0) return 0.0;
+    const char* path1 = p1;
+    const char* path2 = p2;
+    if (!strchr(path1, '.')) {
+        const char* res = cartan_taxonomy_resolve_path(path1);
+        if (res && strlen(res) > 0) path1 = res;
+    }
+    if (!strchr(path2, '.')) {
+        const char* res = cartan_taxonomy_resolve_path(path2);
+        if (res && strlen(res) > 0) path2 = res;
+    }
+
+    if (strcmp(path1, path2) == 0) return 0.0;
+
+    size_t len1 = strlen(path1);
+    size_t len2 = strlen(path2);
+    size_t d1 = cartan_count_dots(path1) + 1;
+    size_t d2 = cartan_count_dots(path2) + 1;
+
+    size_t common_len = 0;
+    while (common_len < len1 && common_len < len2 && path1[common_len] == path2[common_len]) {
+        common_len++;
+    }
+
+    size_t lca_depth = 0;
+    if (common_len == len1 && common_len == len2) {
+        lca_depth = d1;
+    } else if (common_len == len1 && path2[common_len] == '.') {
+        lca_depth = d1;
+    } else if (common_len == len2 && path1[common_len] == '.') {
+        lca_depth = d2;
+    } else {
+        int last_dot = -1;
+        for (int k = (int)common_len - 1; k >= 0; k--) {
+            if (path1[k] == '.') {
+                last_dot = k;
+                break;
+            }
+        }
+        if (last_dot >= 0) {
+            size_t dots = 0;
+            for (int j = 0; j <= last_dot; j++) {
+                if (path1[j] == '.') dots++;
+            }
+            lca_depth = dots;
+        } else {
+            lca_depth = 0;
+        }
+    }
+
+    double dist = (double)((d1 - lca_depth) + (d2 - lca_depth));
+    return dist;
+}
+
+CARTAN_WEAK double cartan_taxonomy_get_ic(const char* word) {
+    if (!word || strlen(word) == 0) return 1.0;
+    for (size_t i = 0; i < g_taxonomy_dag_count; i++) {
+        if (cartan_strcasestr_match(g_taxonomy_dag[i].lemmas, word)) {
+            return (double)g_taxonomy_dag[i].ic;
+        }
+    }
+    size_t len = strlen(word);
+    if (len <= 1) return 1.0;
+    int freq[256] = {0};
+    for (size_t i = 0; i < len; i++) {
+        freq[(unsigned char)word[i]]++;
+    }
+    double entropy = 0.0;
+    for (int i = 0; i < 256; i++) {
+        if (freq[i] > 0) {
+            double p = (double)freq[i] / (double)len;
+            entropy -= p * (log(p) / log(2.0));
+        }
+    }
+    double raw_ic = 2.0 + (double)len * 0.45 + entropy * 1.75;
+    if (raw_ic < 1.0) raw_ic = 1.0;
+    if (raw_ic > 16.0) raw_ic = 16.0;
+    return raw_ic;
+}
+
+CARTAN_WEAK double cartan_taxonomy_resnik_similarity(const char* w1, const char* w2) {
+    double ic1 = cartan_taxonomy_get_ic(w1);
+    double ic2 = cartan_taxonomy_get_ic(w2);
+    if (ic1 <= 0.0 || ic2 <= 0.0) return 0.0;
+    if (strcmp(w1, w2) == 0 || cartan_strcasestr_match(w1, w2) || cartan_strcasestr_match(w2, w1)) {
+        return ic1 < ic2 ? ic1 : ic2;
+    }
+    double dist = cartan_taxonomy_get_lca_distance(w1, w2);
+    if (dist <= 0.0) return ic1;
+    double lca_ic = (ic1 + ic2) / (2.0 * (1.0 + 0.1 * dist));
+    return lca_ic;
+}
+
+CARTAN_WEAK double cartan_taxonomy_lin_similarity(const char* w1, const char* w2) {
+    double ic1 = cartan_taxonomy_get_ic(w1);
+    double ic2 = cartan_taxonomy_get_ic(w2);
+    if (ic1 + ic2 <= 0.0) return 0.0;
+    double resnik = cartan_taxonomy_resnik_similarity(w1, w2);
+    return (2.0 * resnik) / (ic1 + ic2);
+}
+
+static char g_primary_concept_buf[64] = "object";
+
+CARTAN_WEAK const char* cartan_taxonomy_extract_primary_concept(const char* prompt) {
+    if (!prompt || strlen(prompt) == 0) return "object";
+    char word[64];
+    size_t w_len = 0;
+    const char* p = prompt;
+
+    while (*p) {
+        if (isalnum((unsigned char)*p)) {
+            if (w_len < sizeof(word) - 1) {
+                word[w_len++] = (char)tolower((unsigned char)*p);
+            }
+        } else {
+            if (w_len >= 3) {
+                word[w_len] = '\0';
+                const char* res = cartan_taxonomy_resolve_path(word);
+                if (res && strlen(res) > 0) {
+                    strncpy(g_primary_concept_buf, word, sizeof(g_primary_concept_buf) - 1);
+                    return g_primary_concept_buf;
+                }
+            }
+            w_len = 0;
+        }
+        p++;
+    }
+    if (w_len >= 3) {
+        word[w_len] = '\0';
+        const char* res = cartan_taxonomy_resolve_path(word);
+        if (res && strlen(res) > 0) {
+            strncpy(g_primary_concept_buf, word, sizeof(g_primary_concept_buf) - 1);
+            return g_primary_concept_buf;
+        }
+    }
+    return "object";
+}
+
+CARTAN_WEAK void cartan_taxonomy_apply_logit_boost(void* logits_ptr, const char* concept_word, double boost_factor) {
+    if (!logits_ptr || !concept_word || strlen(concept_word) == 0 || boost_factor <= 0.0) return;
+    CartanVector* logits = (CartanVector*)logits_ptr;
+    if (logits->size == 0) return;
+
+    const char* path = cartan_taxonomy_resolve_path(concept_word);
+    if (!path || strlen(path) == 0) return;
+
+    const CartanTaxonomyNode* target_node = NULL;
+    for (size_t i = 0; i < g_taxonomy_dag_count; i++) {
+        if (strcmp(g_taxonomy_dag[i].path, path) == 0) {
+            target_node = &g_taxonomy_dag[i];
+            break;
+        }
+    }
+    if (!target_node) return;
+
+    cartan_init_gemma_vocab_if_needed();
+
+    int tok = cartan_find_token_id_for_word(concept_word);
+    if (tok >= 0 && (size_t)tok < (size_t)logits->size) {
+        logits->data[tok] += boost_factor * 1.5;
+    }
+
+    char lemmas_copy[160];
+    strncpy(lemmas_copy, target_node->lemmas, sizeof(lemmas_copy) - 1);
+    char* token = strtok(lemmas_copy, ", ");
+    while (token) {
+        if (strlen(token) > 0) {
+            int lem_tok = cartan_find_token_id_for_word(token);
+            if (lem_tok >= 0 && (size_t)lem_tok < (size_t)logits->size) {
+                logits->data[lem_tok] += boost_factor;
+            }
+        }
+        token = strtok(NULL, ", ");
+    }
 }
 
 CARTAN_WEAK void* cartan_get_lm_head_weights_ptr(void) { return (void*)g_model_weights; }

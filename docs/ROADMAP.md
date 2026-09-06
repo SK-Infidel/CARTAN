@@ -228,6 +228,14 @@ This roadmap tracks the implementation of the advanced AI optimizations and nati
 - [x] **4. Conversational In-Context Fact Storage & Resonance Ingestion**: Integrated online fact memory `geomind_chat_remember_fact` and `/remember <fact>` interactive command into `--chat` REPL loop in `test/geomind/main.car`. Wired sharp $\beta=8.0$ associative query recall and prompt resonance detection into `geomind_chat_generate_reply_multimodal` and `<think>` reasoning telemetry in `test/geomind/chat.cl`. (Completed in Sprint 308).
 - [x] **5. Regression Test Suite Expansion (Target 60)**: Authored `test/compiler_suite/test_continuous_hopfield_recall.car` verifying Key-Value attractor storage, sharp continuous Hopfield retrieval ($\beta=8.0$), orthogonal basin separation, sentence-level fact resonance, and disk round-trip persistence; registered in `test/compiler_suite/run_tests.car` (60/60 passing). (Completed in Sprint 308).
 
+## Phase 67: WordNet & SlangNet Hierarchical Semantic DAG Engine, Synset-Path Resolution & Live Taxonomy Logit Biasing (Completed - Sprint 309)
+- [x] **1. Comprehensive WordNet & SlangNet Taxonomy Knowledge Base**: Built multi-domain taxonomic ontology in `test/geomind/trainingdata/wordnet_slangnet_dag.txt` indexing 18 distinct concept nodes across physics, astronomy, chemistry, biology, algorithms, architecture, everyday objects, and modern slang. (Completed in Sprint 309).
+- [x] **2. Native C Runtime Semantic Graph Indexer**: Implemented `cartan_taxonomy_load_dag`, `cartan_taxonomy_resolve_path`, `cartan_taxonomy_get_lca_distance`, `cartan_taxonomy_get_ic`, `cartan_taxonomy_resnik_similarity`, `cartan_taxonomy_lin_similarity`, `cartan_taxonomy_extract_primary_concept`, and `cartan_taxonomy_apply_logit_boost` in `src/cartanc/geomind_runtime.c`. (Completed in Sprint 309).
+- [x] **3. Pure Cartan Level-1 Standard Library Engine**: Upgraded `src/std/semantics.cl` with `semantics_resolve_concept_path`, `semantics_extract_primary_concept`, `semantics_apply_concept_logit_boost`, and updated `semantics_lca_tree_distance` to query native DAG structures. (Completed in Sprint 309).
+- [x] **4. Conversational Semantic Grounding & Logit Steering**: Auto-loaded taxonomy DAG in `geomind_chat_start()`, resolved prompt concepts to genuine synset paths and LCA tree distance in `geomind_chat_generate_reasoning_pass()`, and dynamically boosted domain-aligned vocabulary logits during autoregressive generation in `test/geomind/chat.cl`. (Completed in Sprint 309).
+- [x] **5. Regression Test Suite Expansion (Target 61)**: Authored `test/compiler_suite/test_wordnet_taxonomy_dag.car` verifying DAG ingestion, synset resolution, LCA distance, Lin/Resnik similarity, and genuine LM head logit boosting (delta +7.5 on token 21029); registered in `test/compiler_suite/run_tests.car` (61/61 passing). (Completed in Sprint 309).
+
+
 
 
 

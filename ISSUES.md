@@ -695,7 +695,7 @@ This file tracks technical debt and bugs identified during repository code revie
 
 ---
 
-## [ISSUE-060] [OPEN] Disconnected WordNet/SlangNet Taxonomy DAG, Unindexed Synsets & Missing Semantic Logit Biasing in Conversational Generation
+## [ISSUE-060] [FIXED] Disconnected WordNet/SlangNet Taxonomy DAG, Unindexed Synsets & Missing Semantic Logit Biasing in Conversational Generation
 - **Severity**: High (Ontological Grounding Gap & Dormant Semantic Steerability)
 - **Component**: `src/std/semantics.cl`, `src/cartanc/geomind_runtime.c`, `test/geomind/chat.cl`, `test/geomind/trainingdata/wordnet_taxonomy.txt`
 - **Description**:
@@ -710,4 +710,11 @@ This file tracks technical debt and bugs identified during repository code revie
   3. Load and index the taxonomy DAG in `geomind_chat_start()`, mapping concepts to their Lowest Common Ancestor (LCA) and genuine Information Content (IC).
   4. Wire semantic taxonomy coherence boosting (`semantics_apply_lca_boost`) into autoregressive token decoding in `geomind_chat_generate_reply_multimodal`.
   5. Author Target 61 regression test (`test/compiler_suite/test_wordnet_taxonomy_dag.car`) verifying synset resolution, LCA graph traversal, semantic similarity (Resnik/Lin), and taxonomy-guided logit boosting; register in `test/compiler_suite/run_tests.car`.
+- **Resolution**:
+  1. Built comprehensive WordNet & SlangNet knowledge base (`test/geomind/trainingdata/wordnet_slangnet_dag.txt` and `wordnet_taxonomy.txt`) indexing 18 multi-domain synset nodes spanning science, physics, biology, chemistry, algorithms, architecture, and modern slang.
+  2. Implemented native C runtime taxonomy DAG indexer (`cartan_taxonomy_load_dag`, `cartan_taxonomy_resolve_path`, `cartan_taxonomy_get_lca_distance`, `cartan_taxonomy_get_ic`, `cartan_taxonomy_resnik_similarity`, `cartan_taxonomy_lin_similarity`, `cartan_taxonomy_extract_primary_concept`, and `cartan_taxonomy_apply_logit_boost`) in `src/cartanc/geomind_runtime.c`.
+  3. Integrated pure Cartan standard library wrappers (`semantics_resolve_concept_path`, `semantics_extract_primary_concept`, `semantics_apply_concept_logit_boost`, `semantics_lca_tree_distance`) in `src/std/semantics.cl`.
+  4. Auto-loaded taxonomy DAG on startup in `geomind_chat_start()`, wired primary concept extraction and true LCA tree distance into `geomind_chat_generate_reasoning_pass()`, and applied real-time semantic logit boosting during autoregressive generation in `geomind_chat_generate_reply_multimodal()` in `test/geomind/chat.cl`.
+  5. Authored Target 61 regression test (`test/compiler_suite/test_wordnet_taxonomy_dag.car`), verified all 5/5 assertions pass cleanly, and registered Target [61/61] in `test/compiler_suite/run_tests.car`. (Sprint 309).
+
 

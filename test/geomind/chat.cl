@@ -84,6 +84,15 @@ fn geomind_chat_start() -> float {
     } else {
         printf("[GeoMind Chat] Continuous Hopfield Memory: Initialized empty attractor bank.\n");
     }
+
+    let tax_path = "test/geomind/trainingdata/wordnet_slangnet_dag.txt";
+    if (cartan_file_exists(tax_path) == 1.0) {
+        semantics_load_taxonomy(tax_path);
+        printf("[GeoMind Chat] WordNet & SlangNet Taxonomy DAG: %s synset nodes active.\n",
+            cartan_float_to_string(g_taxonomy_node_count));
+    } else {
+        printf("[GeoMind Chat] Taxonomy DAG file %s not found.\n", tax_path);
+    }
     cartan_flush(0.0);
     return 0.0;
 }
@@ -216,6 +225,7 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
     printf("[GeoMind Chat] GeoMind Neural Output:\n");
     cartan_flush(0.0);
 
+    let primary_concept = semantics_extract_primary_concept(prompt);
     let history = cartan_vec_create();
     var prev_h = hidden_state;
     var step = 0.0;
@@ -225,6 +235,7 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
         let logits_vec = cartan_tensor_compute_lm_head_logits(cur_h, temp);
         cartan_apply_english_vocab_mask(logits_vec, 50.0);
         cartan_apply_repetition_penalty(logits_vec, history, 1.25);
+        semantics_apply_concept_logit_boost(logits_vec, primary_concept, 1.20);
         let sampled_tok = cartan_tokenizer_sample_topp_topk(logits_vec, 50.0, 0.90, temp + step * 0.01);
         c_cartan_print_token(sampled_tok);
         cartan_vec_push_f32(history, sampled_tok);
@@ -271,9 +282,14 @@ fn geomind_chat_generate_reasoning_pass(prompt: string, temp: float) -> float {
     let plen = cartan_vec_len(prompt_toks);
     let h_vec = cartan_tensor_compute_hidden_state_from_tokens(prompt_toks);
     let energy = cartan_hopfield_energy(h_vec);
-    let concept_ic = semantics_get_concept_ic(prompt);
+    let primary_concept = semantics_extract_primary_concept(prompt);
+    let concept_path = semantics_resolve_concept_path(primary_concept);
+    let concept_ic = semantics_get_concept_ic(primary_concept);
     let entity_node = "entity.physical_entity.object";
-    let lca_dist = semantics_lca_tree_distance(prompt, entity_node);
+    var lca_dist = 4.0;
+    if (cartan_string_length(concept_path) > 0.0) {
+        lca_dist = semantics_lca_tree_distance(concept_path, entity_node);
+    }
     let resonance = cartan_hopfield_get_max_resonance(h_vec);
 
     printf("<think>\n");
@@ -283,6 +299,7 @@ fn geomind_chat_generate_reasoning_pass(prompt: string, temp: float) -> float {
     printf("[Intent & Context Analysis] Prompt Query: \"");
     printf(prompt);
     printf("\"\n");
+    printf("[WordNet/SlangNet Taxonomy] Primary Concept: \"%s\" -> %s\n", primary_concept, concept_path);
     printf("[WordNet/SlangNet Taxonomy] LCA Tree Distance to entity node: ");
     printf(cartan_float_to_string(lca_dist));
     printf(" | Information Content (IC): ");
