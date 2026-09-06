@@ -361,13 +361,19 @@ fn main(argc: float, argv: ptr) -> float {
     cartan_flush(0.0);
     system(t58_cmd);
 
-    // [59/59] Positive test: test_sasaki_brainstem_routing
+    // [59/60] Positive test: test_sasaki_brainstem_routing
     let t59_cmd = "cartanc.exe build test/compiler_suite/test_sasaki_brainstem_routing.car -o build/test_sasaki_brainstem_routing.exe && build\\test_sasaki_brainstem_routing.exe";
-    printf("[59/59] [// run-pass] Building and Executing Sasaki Phase-Space Brainstem Router Verification: %s\n", t59_cmd);
+    printf("[59/60] [// run-pass] Building and Executing Sasaki Phase-Space Brainstem Router Verification: %s\n", t59_cmd);
     cartan_flush(0.0);
     system(t59_cmd);
 
-    printf("\nAll 59 compiler snapshot test targets executed!\n", "");
+    // [60/60] Positive test: test_continuous_hopfield_recall
+    let t60_cmd = "cartanc.exe build test/compiler_suite/test_continuous_hopfield_recall.car -o build/test_continuous_hopfield_recall.exe && build\\test_continuous_hopfield_recall.exe";
+    printf("[60/60] [// run-pass] Building and Executing Modern Continuous Hopfield Key-Value Associative Recall: %s\n", t60_cmd);
+    cartan_flush(0.0);
+    system(t60_cmd);
+
+    printf("\nAll 60 compiler snapshot test targets executed!\n", "");
     return 0.0;
 }
 

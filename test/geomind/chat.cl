@@ -40,6 +40,9 @@ extern fn cartan_hopfield_clear() -> float;
 extern fn cartan_hopfield_attractor_count() -> float;
 extern fn cartan_hopfield_store_vector(vec: ptr, dim: float) -> float;
 extern fn cartan_hopfield_store_hidden(h: ptr) -> float;
+extern fn cartan_hopfield_store_pair_vec(k: ptr, v: ptr) -> float;
+extern fn cartan_hopfield_query_vec(q: ptr, beta: float) -> ptr;
+extern fn cartan_hopfield_get_max_resonance(q: ptr) -> float;
 extern fn cartan_hopfield_ingest(path: string) -> float;
 extern fn cartan_hopfield_relax(h: ptr, beta: float, steps: float) -> float;
 extern fn cartan_hopfield_energy(h: ptr) -> float;
@@ -194,7 +197,18 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
 
     // 2. Relax hidden state through Continuous Hopfield Attractor Basin Memory (O(1) Associative Recall)
     if (cartan_hopfield_attractor_count() > 0.0) {
-        cartan_hopfield_relax(hidden_state, 1.0, 2.0);
+        let max_res = cartan_hopfield_get_max_resonance(hidden_state);
+        if (max_res > 0.55) {
+            let recalled_val = cartan_hopfield_query_vec(hidden_state, 6.0);
+            var d = 0.0;
+            while (d < 2560.0) {
+                let h_d = cartan_vec_get_f32(hidden_state, d);
+                let r_d = cartan_vec_get_f32(recalled_val, d);
+                cartan_vec_set_f32(hidden_state, d, 0.65 * h_d + 0.35 * r_d);
+                d = d + 1.0;
+            }
+        }
+        cartan_hopfield_relax(hidden_state, 3.5, 2.0);
     }
     var cur_h = e8_attention_forward_step(hidden_state, temp);
     let hopfield_energy = cartan_hopfield_energy(cur_h);
@@ -227,12 +241,25 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
 
     printf(" [Hopfield Energy Minimum: %s]\n", cartan_float_to_string(hopfield_energy));
 
-    // 3. O(1) One-Shot Attractor Basin Insertion: Ingest conversational context into persistent memory
-    cartan_hopfield_store_hidden(cur_h);
+    // 3. O(1) One-Shot Key-Value Attractor Basin Insertion: Ingest conversational context into persistent memory
+    cartan_hopfield_store_pair_vec(hidden_state, cur_h);
     cartan_hopfield_save_basins("test/geomind/trainingdata/hopfield_basins.bin");
     cartan_flush(0.0);
 
     return 1.0;
+}
+
+fn geomind_chat_remember_fact(fact_text: string) -> float {
+    if (cartan_string_length(fact_text) == 0.0) { return 0.0; }
+    let toks = cartan_hub_encode_text_to_tokens(fact_text);
+    let h_fact = cartan_tensor_compute_hidden_state_from_tokens(toks);
+    let h_stepped = e8_attention_forward_step(h_fact, 0.70);
+    cartan_hopfield_store_pair_vec(h_fact, h_stepped);
+    cartan_hopfield_save_basins("test/geomind/trainingdata/hopfield_basins.bin");
+    let total_count = cartan_hopfield_attractor_count();
+    printf("[Continuous Hopfield Memory] Remembered fact into attractor basin #%s: \"%s\"\n",
+        cartan_float_to_string(total_count), fact_text);
+    return total_count;
 }
 
 fn geomind_chat_generate_reply(prompt: string, max_tokens: float, temp: float) -> float {
@@ -247,6 +274,7 @@ fn geomind_chat_generate_reasoning_pass(prompt: string, temp: float) -> float {
     let concept_ic = semantics_get_concept_ic(prompt);
     let entity_node = "entity.physical_entity.object";
     let lca_dist = semantics_lca_tree_distance(prompt, entity_node);
+    let resonance = cartan_hopfield_get_max_resonance(h_vec);
 
     printf("<think>\n");
     printf("[Pass 1 Dynamic Reasoning Pass] Analyzing prompt semantics (Tokens: ");
@@ -263,8 +291,12 @@ fn geomind_chat_generate_reasoning_pass(prompt: string, temp: float) -> float {
     printf("[E8 Lie Algebra Projection] Mapping prompt tokens to 248-dimensional E8 roots (Temp: ");
     printf(cartan_float_to_string(temp));
     printf(").\n");
-    printf("[Hopfield Attractor Basin] Relaxing hidden state trajectories toward energy minimum E(h) = ");
+    printf("[Hopfield Attractor Basin] Energy: E(h) = ");
     printf(cartan_float_to_string(energy));
+    if (cartan_hopfield_attractor_count() > 0.0) {
+        printf(" | Top Attractor Resonance: ");
+        printf(cartan_float_to_string(resonance));
+    }
     printf(".\n");
     let sasaki_w = cartan_sasaki_brainstem_route_vec(h_vec, h_vec, temp);
     var max_w = cartan_vec_get_f32(sasaki_w, 0.0);

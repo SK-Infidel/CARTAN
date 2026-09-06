@@ -1,3 +1,25 @@
+## [8.265.0] - 2026-09-05 (Sprint 308: Modern Continuous Hopfield Key-Value Associative Basins & Online In-Context 1-Shot Recall)
+
+### Completed & Validated
+- **Modern Continuous Hopfield Key-Value Memory Arrays (`src/cartanc/geomind_runtime.c`, `[ISSUE-059]`, Phase 66 Item 1)**:
+  - Implemented dual Key-Value attractor matrices (`g_hopfield_val_basins[2048][2560]` alongside `g_hopfield_basins[2048][2560]`) with C runtime primitives `cartan_hopfield_store_pair`, `cartan_hopfield_store_pair_vec`, `cartan_hopfield_query`, `cartan_hopfield_query_vec`, and `cartan_hopfield_get_max_resonance`.
+  - Upgraded legacy single-vector store functions to populate both keys and values for transparent backward compatibility.
+  - Implemented sharp $\beta$-temperature Softmax retrieval ($v_{\text{rec}} = \sum_k \frac{\exp(\beta \langle q, \xi_k^{\text{key}} \rangle)}{\sum_j \exp(\beta \langle q, \xi_j^{\text{key}} \rangle)} \xi_k^{\text{val}}$).
+- **Pure Cartan Level-2 Resonator Standard Library (`src/std/resonator.cl`, Phase 66 Item 2)**:
+  - Implemented `resonator_store_pair` and `resonator_query` providing sharp energy-minimizing attractor retrieval in pure Cartan level-2 standard library.
+- **Hopfield Version 2 Serialization & Sleep Compaction (`src/cartanc/geomind_runtime.c`, Phase 66 Item 3)**:
+  - Extended `cartan_hopfield_save_basins` and `cartan_hopfield_load_basins` with Version 2 header tagging (`header[2] == 2.0f`) saving and restoring both Key and Value basin matrices.
+  - Provided transparent backward compatibility for Version 1 files.
+  - Upgraded `cartan_sleep_consolidate_cycle` to preserve dual Key-Value pairs during compaction.
+- **Conversational In-Context Fact Storage & Resonance Ingestion (`test/geomind/chat.cl`, `test/geomind/main.car`, Phase 66 Item 4)**:
+  - Implemented `geomind_chat_remember_fact(fact_text)` in `test/geomind/chat.cl` and wired `/remember <fact>` interactive command into `--chat` REPL loop in `test/geomind/main.car`.
+  - Integrated sharp $\beta=8.0$ associative query recall and prompt resonance detection into `geomind_chat_generate_reply_multimodal` with gated blending ($0.65 h + 0.35 r$ when resonance $> 0.55$).
+  - Exposed Hopfield basin resonance reporting in `<think>` passes.
+- **Regression Test Suite Expansion (Target 60)**:
+  - Authored `test/compiler_suite/test_continuous_hopfield_recall.car` verifying Key-Value storage, sharp continuous Hopfield retrieval ($\beta=8.0$), orthogonal basin separation, sentence-level factual memory injection and resonance, and disk round-trip persistence (5/5 tests passing).
+  - Registered Target [60/60] in `test/compiler_suite/run_tests.car`; verified all 60 compiler snapshot tests building and passing cleanly.
+- **Milestone Reached**: Phase 66 of CARTAN Roadmap (Modern Continuous Hopfield Key-Value Basins & Online In-Context 1-Shot Recall) 100% completed.
+
 ## [8.264.0] - 2026-09-05 (Sprint 307: Sasaki Tangent Bundle Phase-Space Brainstem Router & Dynamic 8-Stream Cortical Trajectory Routing)
 
 ### Completed & Validated

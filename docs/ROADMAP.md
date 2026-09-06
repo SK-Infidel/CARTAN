@@ -221,6 +221,13 @@ This roadmap tracks the implementation of the advanced AI optimizations and nati
 - [x] **4. 42-Layer Manifold Cascade Integration**: Integrated `e8_attention_forward_step_with_momentum` into autoregressive generation in `test/geomind/chat.cl` and exposed Sasaki phase-space routing telemetry in `<think>` output tags. (Completed in Sprint 307).
 - [x] **5. Regression Test Suite Expansion (Target 59)**: Authored `test/compiler_suite/test_sasaki_brainstem_routing.car` verifying tangent bundle momentum calculation, Softmax normalization, sector-selective steering, routed forward execution, and 42-layer manifold stepping; registered in `test/compiler_suite/run_tests.car` (59/59 passing). (Completed in Sprint 307).
 
+## Phase 66: Modern Continuous Hopfield Key-Value Associative Basins & Online In-Context 1-Shot Recall (Completed - Sprint 308)
+- [x] **1. Modern Continuous Hopfield Key-Value Memory Arrays**: Implemented dual Key-Value attractor matrices (`g_hopfield_val_basins[2048][2560]` alongside `g_hopfield_basins`) in `src/cartanc/geomind_runtime.c` with C runtime primitives `cartan_hopfield_store_pair`, `cartan_hopfield_store_pair_vec`, `cartan_hopfield_query`, `cartan_hopfield_query_vec`, and `cartan_hopfield_get_max_resonance`. (Completed in Sprint 308).
+- [x] **2. Pure Cartan Level-2 Resonator Standard Library**: Implemented `resonator_store_pair` and `resonator_query` with sharp $\beta$-temperature Softmax retrieval in `src/std/resonator.cl`. (Completed in Sprint 308).
+- [x] **3. Version 2 Hopfield Serialization Format**: Extended `cartan_hopfield_save_basins` and `cartan_hopfield_load_basins` to save/restore both Key and Value basins with version tagging (`header[2] == 2.0f`) while preserving transparent backward compatibility for Version 1 files. (Completed in Sprint 308).
+- [x] **4. Conversational In-Context Fact Storage & Resonance Ingestion**: Integrated online fact memory `geomind_chat_remember_fact` and `/remember <fact>` interactive command into `--chat` REPL loop in `test/geomind/main.car`. Wired sharp $\beta=8.0$ associative query recall and prompt resonance detection into `geomind_chat_generate_reply_multimodal` and `<think>` reasoning telemetry in `test/geomind/chat.cl`. (Completed in Sprint 308).
+- [x] **5. Regression Test Suite Expansion (Target 60)**: Authored `test/compiler_suite/test_continuous_hopfield_recall.car` verifying Key-Value attractor storage, sharp continuous Hopfield retrieval ($\beta=8.0$), orthogonal basin separation, sentence-level fact resonance, and disk round-trip persistence; registered in `test/compiler_suite/run_tests.car` (60/60 passing). (Completed in Sprint 308).
+
 
 
 

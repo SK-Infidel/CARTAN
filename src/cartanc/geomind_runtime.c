@@ -655,6 +655,11 @@ CARTAN_WEAK double cartan_hopfield_clear(void);
 CARTAN_WEAK double cartan_hopfield_attractor_count(void);
 CARTAN_WEAK double cartan_hopfield_store_vector(const float* vec, size_t dim);
 CARTAN_WEAK double cartan_hopfield_store_hidden(void* hidden_ptr);
+CARTAN_WEAK double cartan_hopfield_store_pair(const float* key_vec, const float* val_vec, size_t dim);
+CARTAN_WEAK double cartan_hopfield_store_pair_vec(void* key_ptr, void* val_ptr);
+CARTAN_WEAK double cartan_hopfield_query(const float* query_vec, float* out_val, size_t dim, float beta);
+CARTAN_WEAK void* cartan_hopfield_query_vec(void* query_ptr, double beta);
+CARTAN_WEAK double cartan_hopfield_get_max_resonance(void* query_ptr);
 CARTAN_WEAK double cartan_hopfield_ingest(const char* filepath);
 CARTAN_WEAK double cartan_hopfield_relax(void* hidden_ptr, double beta, double steps);
 CARTAN_WEAK double cartan_hopfield_energy(void* hidden_ptr);
@@ -3652,6 +3657,7 @@ CARTAN_WEAK double e8_attention_compute_energy(void* hidden_ptr) {
 #define CARTAN_HOPFIELD_DIM 2560
 
 static float g_hopfield_basins[CARTAN_MAX_HOPFIELD_BASINS][CARTAN_HOPFIELD_DIM];
+static float g_hopfield_val_basins[CARTAN_MAX_HOPFIELD_BASINS][CARTAN_HOPFIELD_DIM];
 static size_t g_hopfield_basin_count = 0;
 
 CARTAN_WEAK double cartan_hopfield_clear(void) {
@@ -3675,10 +3681,13 @@ CARTAN_WEAK double cartan_hopfield_store_vector(const float* vec, size_t dim) {
     }
     float inv_norm = norm_sq > 1e-6f ? 1.0f / sqrtf(norm_sq) : 1.0f;
     for (size_t d = 0; d < d_copy; d++) {
-        g_hopfield_basins[g_hopfield_basin_count][d] = vec[d] * inv_norm;
+        float val_norm = vec[d] * inv_norm;
+        g_hopfield_basins[g_hopfield_basin_count][d] = val_norm;
+        g_hopfield_val_basins[g_hopfield_basin_count][d] = val_norm;
     }
     for (size_t d = d_copy; d < CARTAN_HOPFIELD_DIM; d++) {
         g_hopfield_basins[g_hopfield_basin_count][d] = 0.0f;
+        g_hopfield_val_basins[g_hopfield_basin_count][d] = 0.0f;
     }
     g_hopfield_basin_count++;
     return (double)g_hopfield_basin_count;
@@ -3697,6 +3706,126 @@ CARTAN_WEAK double cartan_hopfield_store_hidden(void* hidden_ptr) {
         buf[d] = 0.0f;
     }
     return cartan_hopfield_store_vector(buf, CARTAN_HOPFIELD_DIM);
+}
+
+CARTAN_WEAK double cartan_hopfield_store_pair(const float* key_vec, const float* val_vec, size_t dim) {
+    if (!key_vec || !val_vec || dim == 0) return 0.0;
+    if (g_hopfield_basin_count >= CARTAN_MAX_HOPFIELD_BASINS) {
+        g_hopfield_basin_count = 0; // FIFO reset
+    }
+    size_t d_copy = dim < CARTAN_HOPFIELD_DIM ? dim : CARTAN_HOPFIELD_DIM;
+
+    // Normalize Key Attractor
+    float k_norm_sq = 0.0f;
+    for (size_t d = 0; d < d_copy; d++) k_norm_sq += key_vec[d] * key_vec[d];
+    float inv_k = k_norm_sq > 1e-6f ? 1.0f / sqrtf(k_norm_sq) : 1.0f;
+    for (size_t d = 0; d < d_copy; d++) g_hopfield_basins[g_hopfield_basin_count][d] = key_vec[d] * inv_k;
+    for (size_t d = d_copy; d < CARTAN_HOPFIELD_DIM; d++) g_hopfield_basins[g_hopfield_basin_count][d] = 0.0f;
+
+    // Normalize Value Attractor
+    float v_norm_sq = 0.0f;
+    for (size_t d = 0; d < d_copy; d++) v_norm_sq += val_vec[d] * val_vec[d];
+    float inv_v = v_norm_sq > 1e-6f ? 1.0f / sqrtf(v_norm_sq) : 1.0f;
+    for (size_t d = 0; d < d_copy; d++) g_hopfield_val_basins[g_hopfield_basin_count][d] = val_vec[d] * inv_v;
+    for (size_t d = d_copy; d < CARTAN_HOPFIELD_DIM; d++) g_hopfield_val_basins[g_hopfield_basin_count][d] = 0.0f;
+
+    g_hopfield_basin_count++;
+    return (double)g_hopfield_basin_count;
+}
+
+CARTAN_WEAK double cartan_hopfield_store_pair_vec(void* key_ptr, void* val_ptr) {
+    if (!key_ptr || !val_ptr) return 0.0;
+    CartanVector* k_vec = (CartanVector*)key_ptr;
+    CartanVector* v_vec = (CartanVector*)val_ptr;
+    if (k_vec->size == 0 || v_vec->size == 0) return 0.0;
+    float k_buf[CARTAN_HOPFIELD_DIM] = {0};
+    float v_buf[CARTAN_HOPFIELD_DIM] = {0};
+    size_t k_dim = k_vec->size < CARTAN_HOPFIELD_DIM ? k_vec->size : CARTAN_HOPFIELD_DIM;
+    size_t v_dim = v_vec->size < CARTAN_HOPFIELD_DIM ? v_vec->size : CARTAN_HOPFIELD_DIM;
+    for (size_t d = 0; d < k_dim; d++) k_buf[d] = (float)k_vec->data[d];
+    for (size_t d = 0; d < v_dim; d++) v_buf[d] = (float)v_vec->data[d];
+    return cartan_hopfield_store_pair(k_buf, v_buf, CARTAN_HOPFIELD_DIM);
+}
+
+CARTAN_WEAK double cartan_hopfield_query(const float* query_vec, float* out_val, size_t dim, float beta) {
+    if (!query_vec || !out_val || g_hopfield_basin_count == 0 || dim == 0) return 0.0;
+    size_t d_copy = dim < CARTAN_HOPFIELD_DIM ? dim : CARTAN_HOPFIELD_DIM;
+    float b = beta > 0.0f ? beta : 4.0f; // Sharp beta default for associative retrieval
+
+    // Normalize query vector
+    float q_norm_sq = 0.0f;
+    for (size_t d = 0; d < d_copy; d++) q_norm_sq += query_vec[d] * query_vec[d];
+    float inv_q = q_norm_sq > 1e-6f ? 1.0f / sqrtf(q_norm_sq) : 1.0f;
+
+    float scores[CARTAN_MAX_HOPFIELD_BASINS];
+    float max_s = -1e9f;
+    float max_cos = -1.0f;
+    for (size_t k = 0; k < g_hopfield_basin_count; k++) {
+        float dot = 0.0f;
+        for (size_t d = 0; d < d_copy; d++) {
+            dot += (query_vec[d] * inv_q) * g_hopfield_basins[k][d];
+        }
+        if (dot > max_cos) max_cos = dot;
+        scores[k] = b * dot;
+        if (scores[k] > max_s) max_s = scores[k];
+    }
+
+    float sum_exp = 0.0f;
+    for (size_t k = 0; k < g_hopfield_basin_count; k++) {
+        scores[k] = expf(scores[k] - max_s);
+        sum_exp += scores[k];
+    }
+    float inv_sum = sum_exp > 1e-6f ? 1.0f / sum_exp : 1.0f;
+    for (size_t k = 0; k < g_hopfield_basin_count; k++) {
+        scores[k] *= inv_sum;
+    }
+
+    for (size_t d = 0; d < d_copy; d++) {
+        float val_d = 0.0f;
+        for (size_t k = 0; k < g_hopfield_basin_count; k++) {
+            val_d += scores[k] * g_hopfield_val_basins[k][d];
+        }
+        out_val[d] = val_d;
+    }
+    return (double)max_cos;
+}
+
+CARTAN_WEAK void* cartan_hopfield_query_vec(void* query_ptr, double beta) {
+    if (!query_ptr || g_hopfield_basin_count == 0) return cartan_vec_create();
+    CartanVector* q_vec = (CartanVector*)query_ptr;
+    if (q_vec->size == 0) return cartan_vec_create();
+    size_t dim = q_vec->size < CARTAN_HOPFIELD_DIM ? q_vec->size : CARTAN_HOPFIELD_DIM;
+    float q_buf[CARTAN_HOPFIELD_DIM] = {0};
+    float out_buf[CARTAN_HOPFIELD_DIM] = {0};
+    for (size_t d = 0; d < dim; d++) q_buf[d] = (float)q_vec->data[d];
+    cartan_hopfield_query(q_buf, out_buf, CARTAN_HOPFIELD_DIM, (float)beta);
+    void* out_vec = cartan_vec_create();
+    for (size_t d = 0; d < dim; d++) {
+        cartan_vec_push_f32(out_vec, (double)out_buf[d]);
+    }
+    return out_vec;
+}
+
+CARTAN_WEAK double cartan_hopfield_get_max_resonance(void* query_ptr) {
+    if (!query_ptr || g_hopfield_basin_count == 0) return 0.0;
+    CartanVector* q_vec = (CartanVector*)query_ptr;
+    if (q_vec->size == 0) return 0.0;
+    size_t dim = q_vec->size < CARTAN_HOPFIELD_DIM ? q_vec->size : CARTAN_HOPFIELD_DIM;
+    float q_norm_sq = 0.0f;
+    for (size_t d = 0; d < dim; d++) {
+        float v = (float)q_vec->data[d];
+        q_norm_sq += v * v;
+    }
+    float inv_q = q_norm_sq > 1e-6f ? 1.0f / sqrtf(q_norm_sq) : 1.0f;
+    float max_cos = -1.0f;
+    for (size_t k = 0; k < g_hopfield_basin_count; k++) {
+        float dot = 0.0f;
+        for (size_t d = 0; d < dim; d++) {
+            dot += ((float)q_vec->data[d] * inv_q) * g_hopfield_basins[k][d];
+        }
+        if (dot > max_cos) max_cos = dot;
+    }
+    return (double)max_cos;
 }
 
 CARTAN_WEAK double cartan_hopfield_ingest(const char* filepath) {
@@ -3829,15 +3958,17 @@ CARTAN_WEAK double cartan_hopfield_save_basins(const char* filepath) {
     if (!filepath) return 0.0;
     FILE* f = fopen(filepath, "wb");
     if (!f) return 0.0;
-    float header[2];
+    float header[3];
     header[0] = (float)g_hopfield_basin_count;
     header[1] = (float)CARTAN_HOPFIELD_DIM;
-    if (fwrite(header, sizeof(float), 2, f) != 2) {
+    header[2] = 2.0f; // Version 2 format: Key + Value attractor matrices
+    if (fwrite(header, sizeof(float), 3, f) != 3) {
         fclose(f);
         return 0.0;
     }
     if (g_hopfield_basin_count > 0) {
         fwrite(g_hopfield_basins, sizeof(float), g_hopfield_basin_count * CARTAN_HOPFIELD_DIM, f);
+        fwrite(g_hopfield_val_basins, sizeof(float), g_hopfield_basin_count * CARTAN_HOPFIELD_DIM, f);
     }
     fclose(f);
     return (double)g_hopfield_basin_count;
@@ -3847,13 +3978,15 @@ CARTAN_WEAK double cartan_hopfield_load_basins(const char* filepath) {
     if (!filepath) return 0.0;
     FILE* f = fopen(filepath, "rb");
     if (!f) return 0.0;
-    float header[2];
-    if (fread(header, sizeof(float), 2, f) != 2) {
+    float header[3] = {0};
+    size_t h_read = fread(header, sizeof(float), 3, f);
+    if (h_read < 2) {
         fclose(f);
         return 0.0;
     }
     size_t count = (size_t)header[0];
     size_t dim = (size_t)header[1];
+    int version = (h_read >= 3 && header[2] == 2.0f) ? 2 : 1;
     if (dim != CARTAN_HOPFIELD_DIM || count == 0) {
         fclose(f);
         return 0.0;
@@ -3861,8 +3994,25 @@ CARTAN_WEAK double cartan_hopfield_load_basins(const char* filepath) {
     if (count > CARTAN_MAX_HOPFIELD_BASINS) {
         count = CARTAN_MAX_HOPFIELD_BASINS;
     }
-    size_t read_floats = fread(g_hopfield_basins, sizeof(float), count * CARTAN_HOPFIELD_DIM, f);
-    g_hopfield_basin_count = read_floats / CARTAN_HOPFIELD_DIM;
+
+    if (version == 1) {
+        // Legacy single-matrix format: rewind to after 2 header floats
+        fseek(f, sizeof(float) * 2, SEEK_SET);
+        size_t read_floats = fread(g_hopfield_basins, sizeof(float), count * CARTAN_HOPFIELD_DIM, f);
+        g_hopfield_basin_count = read_floats / CARTAN_HOPFIELD_DIM;
+        for (size_t k = 0; k < g_hopfield_basin_count; k++) {
+            for (size_t d = 0; d < CARTAN_HOPFIELD_DIM; d++) {
+                g_hopfield_val_basins[k][d] = g_hopfield_basins[k][d];
+            }
+        }
+    } else {
+        // Version 2 format: read key matrix then value matrix
+        size_t read_keys = fread(g_hopfield_basins, sizeof(float), count * CARTAN_HOPFIELD_DIM, f);
+        size_t read_vals = fread(g_hopfield_val_basins, sizeof(float), count * CARTAN_HOPFIELD_DIM, f);
+        size_t k_count = read_keys / CARTAN_HOPFIELD_DIM;
+        size_t v_count = read_vals / CARTAN_HOPFIELD_DIM;
+        g_hopfield_basin_count = k_count < v_count ? k_count : v_count;
+    }
     fclose(f);
     return (double)g_hopfield_basin_count;
 }
@@ -3878,8 +4028,13 @@ CARTAN_WEAK double cartan_sleep_consolidate_cycle(const char* filepath, double l
     size_t initial_count = g_hopfield_basin_count;
     size_t kept_count = 0;
 
-    float (*temp_basins)[CARTAN_HOPFIELD_DIM] = (float(*)[CARTAN_HOPFIELD_DIM])malloc(sizeof(float) * CARTAN_MAX_HOPFIELD_BASINS * CARTAN_HOPFIELD_DIM);
-    if (!temp_basins) return 0.0;
+    float (*temp_key_basins)[CARTAN_HOPFIELD_DIM] = (float(*)[CARTAN_HOPFIELD_DIM])malloc(sizeof(float) * CARTAN_MAX_HOPFIELD_BASINS * CARTAN_HOPFIELD_DIM);
+    float (*temp_val_basins)[CARTAN_HOPFIELD_DIM] = (float(*)[CARTAN_HOPFIELD_DIM])malloc(sizeof(float) * CARTAN_MAX_HOPFIELD_BASINS * CARTAN_HOPFIELD_DIM);
+    if (!temp_key_basins || !temp_val_basins) {
+        if (temp_key_basins) free(temp_key_basins);
+        if (temp_val_basins) free(temp_val_basins);
+        return 0.0;
+    }
 
     for (size_t k = 0; k < initial_count; k++) {
         // 1. Replay: Perturb and relax through continuous attractor dynamics
@@ -3903,7 +4058,7 @@ CARTAN_WEAK double cartan_sleep_consolidate_cycle(const char* filepath, double l
         for (size_t j = 0; j < kept_count; j++) {
             float sim = 0.0f;
             for (size_t d = 0; d < CARTAN_HOPFIELD_DIM; d++) {
-                sim += g_hopfield_basins[k][d] * temp_basins[j][d];
+                sim += g_hopfield_basins[k][d] * temp_key_basins[j][d];
             }
             if (sim > thresh) {
                 is_redundant = 1;
@@ -3911,15 +4066,18 @@ CARTAN_WEAK double cartan_sleep_consolidate_cycle(const char* filepath, double l
             }
         }
         if (!is_redundant && kept_count < CARTAN_MAX_HOPFIELD_BASINS) {
-            memcpy(temp_basins[kept_count], g_hopfield_basins[k], sizeof(float) * CARTAN_HOPFIELD_DIM);
+            memcpy(temp_key_basins[kept_count], g_hopfield_basins[k], sizeof(float) * CARTAN_HOPFIELD_DIM);
+            memcpy(temp_val_basins[kept_count], g_hopfield_val_basins[k], sizeof(float) * CARTAN_HOPFIELD_DIM);
             kept_count++;
         }
     }
 
     // Copy back consolidated and pruned basins
-    memcpy(g_hopfield_basins, temp_basins, sizeof(float) * kept_count * CARTAN_HOPFIELD_DIM);
+    memcpy(g_hopfield_basins, temp_key_basins, sizeof(float) * kept_count * CARTAN_HOPFIELD_DIM);
+    memcpy(g_hopfield_val_basins, temp_val_basins, sizeof(float) * kept_count * CARTAN_HOPFIELD_DIM);
     g_hopfield_basin_count = kept_count;
-    free(temp_basins);
+    free(temp_key_basins);
+    free(temp_val_basins);
 
     if (filepath && strlen(filepath) > 0) {
         cartan_hopfield_save_basins(filepath);

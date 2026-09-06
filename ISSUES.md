@@ -669,3 +669,26 @@ This file tracks technical debt and bugs identified during repository code revie
   4. Implemented `geomind_sasaki_stream_routing` in `test/geomind/moe.cl` and `geomind_streams_manifold_forward_routed` in `test/geomind/streams.cl`.
   5. Wired cognitive velocity tracking and dynamic Sasaki brainstem modulation into `test/geomind/chat.cl` with live routing telemetry during `<think>` passes.
   6. Authored Target 59 regression test (`test/compiler_suite/test_sasaki_brainstem_routing.car`), verified all 5/5 assertions pass, and registered Target [59/59] in `test/compiler_suite/run_tests.car`. (Sprint 307).
+
+---
+
+## [ISSUE-059] [FIXED] Unpaired Hopfield Attractor Storage & Missing In-Context 1-Shot Associative Recall
+- **Severity**: High (Architectural Limitation & One-Shot Recall Disconnect)
+- **Component**: `src/cartanc/geomind_runtime.c`, `src/std/resonator.cl`, `test/geomind/chat.cl`, `test/geomind/main.car`
+- **Description**:
+  1. `cartan_hopfield_store_vector` and `cartan_hopfield_store_hidden` store only a single un-indexed vector $\xi_k \in \mathbb{R}^{2560}$ rather than a bound Key-Value attractor pair $(\xi_k^{\text{key}}, \xi_k^{\text{val}})$. During query retrieval, the state is weakly attracted to past activations without associating queries to target facts.
+  2. In `test/geomind/chat.cl`, `cartan_hopfield_relax(hidden_state, 1.0, 2.0)` uses a fixed $\beta = 1.0$, which is insufficiently sharp to snap precisely to distinct attractor basins. Furthermore, the reasoning pass `<think>` does not evaluate resonance $\rho_{\max}$ to detect when factual memories match the prompt.
+  3. Interactive mode (`--chat`) lacks an online command (e.g. `/remember <fact>`) to encode and store user-provided facts directly into Hopfield basins for immediate subsequent turn retrieval.
+- **Proposed Fix**:
+  1. Implement Key-Value Modern Continuous Hopfield storage (`cartan_hopfield_store_pair`, `cartan_hopfield_store_pair_vec`) and retrieval (`cartan_hopfield_query`, `cartan_hopfield_query_vec`, `cartan_hopfield_get_max_resonance`).
+  2. Implement `resonator_store_pair` and `resonator_query` in `src/std/resonator.cl`.
+  3. Integrate live resonance evaluation into `geomind_chat_generate_reasoning_pass` and Key-Value binding in `geomind_chat_generate_reply_multimodal`.
+  4. Add `/remember <fact>` in `geomind_chat_start`.
+  5. Author Target 60 regression test (`test/compiler_suite/test_continuous_hopfield_recall.car`).
+- **Resolution**:
+  1. Implemented Modern Continuous Hopfield Key-Value memory arrays (`g_hopfield_val_basins[2048][2560]`) and C runtime primitives (`cartan_hopfield_store_pair`, `cartan_hopfield_store_pair_vec`, `cartan_hopfield_query`, `cartan_hopfield_query_vec`, `cartan_hopfield_get_max_resonance`) in `src/cartanc/geomind_runtime.c`.
+  2. Implemented Level-2 pure Cartan standard library functions `resonator_store_pair` and `resonator_query` in `src/std/resonator.cl`.
+  3. Extended Hopfield disk serialization format to Version 2 (`cartan_hopfield_save_basins` and `cartan_hopfield_load_basins`), saving and restoring both Key and Value matrices while maintaining transparent backward compatibility for Version 1 files.
+  4. Wired online fact ingestion `geomind_chat_remember_fact(fact_text)` and the `/remember <fact>` CLI command into the `--chat` REPL loop in `test/geomind/main.car`.
+  5. Integrated sharp $\beta=8.0$ associative query recall and prompt resonance detection into `geomind_chat_generate_reply_multimodal` and `<think>` reasoning telemetry in `test/geomind/chat.cl`.
+  6. Authored Target 60 regression test (`test/compiler_suite/test_continuous_hopfield_recall.car`), verified all 5/5 assertions pass cleanly, and registered Target [60/60] in `test/compiler_suite/run_tests.car`. (Sprint 308).

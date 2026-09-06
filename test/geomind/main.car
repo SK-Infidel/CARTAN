@@ -194,10 +194,16 @@ fn main() -> float {
                 if (cartan_string_eq(line, "exit") == 1.0 || cartan_string_eq(line, "quit") == 1.0) {
                     running = 0.0;
                 } else {
-                    if (len > 0.0) {
-                        geomind_chat_generate_reasoning_pass(line, 0.7);
-                        geomind_chat_generate_reply_multimodal(line, 50.0, 0.7, image_arg, audio_arg);
+                    if (cartan_string_starts_with(line, "/remember ") == 1.0) {
+                        let fact = cartan_string_substring(line, 10.0, len);
+                        geomind_chat_remember_fact(fact);
                         cartan_flush(0.0);
+                    } else {
+                        if (len > 0.0) {
+                            geomind_chat_generate_reasoning_pass(line, 0.7);
+                            geomind_chat_generate_reply_multimodal(line, 50.0, 0.7, image_arg, audio_arg);
+                            cartan_flush(0.0);
+                        }
                     }
                 }
             }

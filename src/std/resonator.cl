@@ -329,6 +329,80 @@ fn resonator_load_basins(path: string, dim: float) -> ptr {
     return bank;
 }
 
+fn resonator_store_pair(key_bank: ptr, val_bank: ptr, key_vec: ptr, val_vec: ptr, dim: float) -> float {
+    if (key_bank == 0.0 || val_bank == 0.0 || key_vec == 0.0 || val_vec == 0.0 || dim <= 0.0) { return 0.0; }
+    resonator_add_attractor(key_bank, key_vec, dim);
+    resonator_add_attractor(val_bank, val_vec, dim);
+    return cartan_tree_len_f(key_bank);
+}
+
+fn resonator_query(key_bank: ptr, val_bank: ptr, query_vec: ptr, dim: float, beta: float) -> ptr {
+    if (key_bank == 0.0 || val_bank == 0.0 || query_vec == 0.0 || dim <= 0.0) { return cartan_vec_create(); }
+    let num_basins = cartan_tree_len_f(key_bank);
+    if (num_basins == 0.0) { return cartan_vec_create(); }
+
+    var b = 4.0;
+    if (beta > 0.0) { b = beta; }
+
+    var q_sq = 0.0;
+    var d = 0.0;
+    while (d < dim) {
+        let q_val = cartan_vec_get_f32(query_vec, d);
+        q_sq = q_sq + (q_val * q_val);
+        d = d + 1.0;
+    }
+    var inv_q = 1.0;
+    if (q_sq > 0.000001) { inv_q = 1.0 / sqrt(q_sq); }
+
+    let scores = cartan_vec_create();
+    var max_score = -999999.0;
+    var k = 0.0;
+    while (k < num_basins) {
+        let key_k = cartan_tree_get(key_bank, k);
+        var dot = 0.0;
+        d = 0.0;
+        while (d < dim) {
+            let s_val = cartan_vec_get_f32(query_vec, d) * inv_q;
+            let k_val = cartan_vec_get_f32(key_k, d);
+            dot = dot + (s_val * k_val);
+            d = d + 1.0;
+        }
+        let s_k = dot * b;
+        if (s_k > max_score) { max_score = s_k; }
+        cartan_vec_push_f32(scores, s_k);
+        k = k + 1.0;
+    }
+
+    var sum_exp = 0.0;
+    k = 0.0;
+    while (k < num_basins) {
+        let s_k = cartan_vec_get_f32(scores, k);
+        let p_k = exp(s_k - max_score);
+        cartan_vec_set_f32(scores, k, p_k);
+        sum_exp = sum_exp + p_k;
+        k = k + 1.0;
+    }
+    var inv_sum = 1.0;
+    if (sum_exp > 0.000001) { inv_sum = 1.0 / sum_exp; }
+
+    let out_vec = cartan_vec_create();
+    var d_idx = 0.0;
+    while (d_idx < dim) {
+        var recall_d = 0.0;
+        k = 0.0;
+        while (k < num_basins) {
+            let p_k = cartan_vec_get_f32(scores, k) * inv_sum;
+            let val_k = cartan_tree_get(val_bank, k);
+            let v_val = cartan_vec_get_f32(val_k, d_idx);
+            recall_d = recall_d + (p_k * v_val);
+            k = k + 1.0;
+        }
+        cartan_vec_push_f32(out_vec, recall_d);
+        d_idx = d_idx + 1.0;
+    }
+    return out_vec;
+}
+
 
 
 
