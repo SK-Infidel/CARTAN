@@ -176,6 +176,26 @@ fn cartan_safetensors_save_tensor_f32(path: string, name: string, t_data: ptr) -
     return 1.0;
 }
 
+fn cartan_safetensors_load_raw_tensor_f32(path: string, num_elements: float) -> ptr {
+    if (path == 0.0 || num_elements <= 0.0) { return 0.0; }
+    let f = fopen(path, "rb");
+    if (f == 0.0) { return 0.0; }
+    let t_out = cartan_tensor_alloc(num_elements);
+    if (t_out == 0.0) { fclose(f); return 0.0; }
+    let buf = cartan_f32_buffer_alloc(num_elements);
+    if (buf == 0.0) { fclose(f); return t_out; }
+    fread(buf, 8.0, num_elements, f);
+    fclose(f);
+    var i = 0.0;
+    while (i < num_elements) {
+        let val = cartan_f32_buffer_get(buf, i);
+        cartan_vec_set_f32(t_out, i, val);
+        i = i + 1.0;
+    }
+    cartan_f32_buffer_free(buf);
+    return t_out;
+}
+
 var g_multimodal_grafted: float = 0.0;
 var g_grafted_vision: ptr = 0.0;
 var g_grafted_audio: ptr = 0.0;

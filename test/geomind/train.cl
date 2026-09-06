@@ -512,6 +512,19 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
         cartan_flush(0.0);
     }
 
+    cartan_init_cortical_weights_if_needed();
+    let ckpt_path = "test/geomind/trainingdata/checkpoints/geomind_steady_state_weights.bin";
+    if (cartan_file_exists(ckpt_path) == 1.0) {
+        let total_params = 2560.0 * 2560.0;
+        let loaded = cartan_safetensors_load_raw_tensor_f32(ckpt_path, total_params);
+        if (loaded != 0.0 && cartan_vec_len(loaded) == total_params) {
+            g_cortical_weights = loaded;
+            printf("[Steady-State Stage: %s] Restored checkpoint from %s (%s parameters)\n",
+                stage_name, ckpt_path, cartan_float_to_string(total_params));
+            cartan_flush(0.0);
+        }
+    }
+
     var ep = 1.0;
     var final_loss = 10.0;
     let window_size = 1024.0;
@@ -520,8 +533,8 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
         var sample_text = "The geometric mind discovers universal truth through Riemannian geodesics and continuous resonance.";
         if (content_len > 0.0) {
             var offset = 0.0;
-            if (content_len > window_size) {
-                offset = math_mod_val((ep - 1.0) * 384.0, content_len - window_size);
+            if (content_len > window_size + 256.0) {
+                offset = math_mod_val(256.0 + (ep - 1.0) * 384.0, content_len - window_size);
             }
             sample_text = cartan_string_substring(file_content, offset, window_size);
         }
@@ -549,14 +562,14 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
             }
         }
 
-        if (math_mod_val(ep, 10.0) == 0.0 || ep == 1.0 || ep == epochs || final_loss <= t_loss) {
+        if (math_mod_val(ep, 10.0) == 0.0 || ep == 1.0 || ep == epochs || (final_loss <= t_loss && ep >= 10.0)) {
             printf("[Steady-State Stage: %s] Epoch %s / %s | Loss: %s | LR: %s\n",
                 stage_name, cartan_float_to_string(ep), cartan_float_to_string(epochs),
                 cartan_float_to_string(final_loss), cartan_float_to_string(lr));
             cartan_flush(0.0);
         }
 
-        if (final_loss <= t_loss) {
+        if (final_loss <= t_loss && ep >= 10.0) {
             printf("[Steady-State Stage: %s] Converged to target loss %s at epoch %s!\n",
                 stage_name, cartan_float_to_string(t_loss), cartan_float_to_string(ep));
             ep = epochs + 1.0;

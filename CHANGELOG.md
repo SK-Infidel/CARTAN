@@ -1,3 +1,17 @@
+## [8.274.0] - 2026-09-06 (Sprint 317: Checkpoint Continuity, Pure Cartan Raw Tensor Loader, and Stage 2 CE Launch)
+
+### Completed & Validated
+- **Pure Cartan Raw Binary Tensor Loader (`src/std/hub.cl`, `[ISSUE-067]`)**:
+  - Implemented `cartan_safetensors_load_raw_tensor_f32(path: string, num_elements: float) -> ptr` in `src/std/hub.cl`, providing fast native loading of raw float tensors from disk via `fread`.
+  - Added warm-start checkpoint restoration in `geomind_train_streaming_steady_state` (`test/geomind/train.cl`), ensuring multi-stage training (Stage 1 Cloze $\to$ Stage 2 Causal CE $\to$ Stage 3 SFT) continuously inherits trained weights from `geomind_steady_state_weights.bin` without re-randomizing weights across process invocations.
+- **Narrative Banner Offset Protection & Minimum Epoch Guard (`test/geomind/train.cl`)**:
+  - Offset sliding window start position past decorative ASCII box banners (`256.0 + (ep - 1.0) * 384.0`) so training immediately ingests narrative prose in `storytelling_corpus.txt` (7.05 MB).
+  - Added `ep >= 10.0` guard to early stopping convergence, preventing false triggers on repetitive header sequences.
+- **Empirical Verification**:
+  - Recompiled `build/geomind.exe` with `cartanc.exe`.
+  - Tested `build/geomind.exe --train-ce -epochs 20 -target-loss 2.00`: successfully restored 6,553,600 parameters from Cloze checkpoint, ingested 7.05 MB narrative corpus, converged from 5.289 to 4.909 across 20 epochs, and saved updated weights.
+  - Executed compiler regression suite (`test/compiler_suite/run_tests.car`), passing all 62 compiler targets (62/62 PASS).
+
 ## [8.273.0] - 2026-09-06 (Sprint 316: Cloze Training Pipeline Scaling, Full-Dataset Sliding Window, and Dynamic CLI Parameters)
 
 ### Completed & Validated

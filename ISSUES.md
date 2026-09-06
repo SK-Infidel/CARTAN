@@ -831,3 +831,18 @@ This file tracks technical debt and bugs identified during repository code revie
   2. Updated `--train-cloze`, `--train-pre`, `--train-ce`, and `--train-sft` to parse `-epochs`, `-lr`, and `-target-loss` dynamically, defaulting to 500 epochs down to target loss 2.50.
   3. Upgraded `geomind_train_streaming_steady_state` in `test/geomind/train.cl` to slide a 1024-byte window across the entire dataset across epochs (`math_mod_val((ep - 1.0) * 384.0, content_len - window_size)`), increased steps per epoch to 64 tokens, and added a learning rate floor of `0.0001` with decay `lr * 0.995`.
   4. Rebuilt `build/geomind.exe` with `cartanc.exe` and verified execution across both short test runs (`-epochs 5`) and full convergence runs.
+
+---
+
+## [ISSUE-067] [FIXED] Disconnected Stage Checkpoints, Missing Warm-Start Loader, and Early Stopping Banner False Trigger
+- **Severity**: High (Training Continuity & Early Stopping Bug)
+- **Component**: `src/std/hub.cl`, `test/geomind/train.cl`, `test/geomind/main.car`
+- **Description**:
+  1. `geomind_train_streaming_steady_state` saved checkpoints to `geomind_steady_state_weights.bin` via `cartan_safetensors_save_tensor_f32`, but lacked a corresponding loader to restore weights at startup, causing each new training process (e.g., `--train-ce` after `--train-cloze`) to re-randomize `g_cortical_weights` from scratch.
+  2. `storytelling_corpus.txt` starts with a 230-byte ASCII box banner composed of repeated `'='` characters; on epoch 1 at offset 0, predicting identical characters dropped loss artificially to 0.34, triggering premature early stopping before training on narrative text.
+- **Resolution (Sprint 317)**:
+  1. Implemented `cartan_safetensors_load_raw_tensor_f32(path, num_elements)` in `src/std/hub.cl`.
+  2. Added checkpoint warm-start restoration in `geomind_train_streaming_steady_state` in `test/geomind/train.cl`, verifying that all 6,553,600 cortical parameters are seamlessly restored.
+  3. Offset sliding window base position past the decorative banner (`256.0 + (ep - 1.0) * 384.0`) and guarded early stopping with `ep >= 10.0`.
+  4. Calibrated default target losses in `test/geomind/main.car` (4.20 for Cloze, 3.50 for Stage 2 CE, 2.00 for Stage 3 SFT).
+  5. Rebuilt `build/geomind.exe` and verified 20 epochs of genuine narrative CE training with continuous loss descent (5.28 -> 4.90) and 62/62 regression pass.

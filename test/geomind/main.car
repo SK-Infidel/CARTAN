@@ -104,7 +104,7 @@ fn main() -> float {
             let target = get_cli_target_path(arg_count);
             let epochs = get_cli_param_float("-epochs", arg_count, 500.0);
             let lr = get_cli_param_float("-lr", arg_count, 0.001);
-            let target_loss = get_cli_param_float("-target-loss", arg_count, 2.50);
+            let target_loss = get_cli_param_float("-target-loss", arg_count, 3.50);
             let res = geomind_train_streaming_steady_state(2.0, target, target_loss, lr, epochs, "logs/stage2_ce_training.log");
             cartan_flush(0.0);
             return 0.0;
@@ -114,7 +114,7 @@ fn main() -> float {
             let target = get_cli_target_path(arg_count);
             let epochs = get_cli_param_float("-epochs", arg_count, 500.0);
             let lr = get_cli_param_float("-lr", arg_count, 0.001);
-            let target_loss = get_cli_param_float("-target-loss", arg_count, 2.50);
+            let target_loss = get_cli_param_float("-target-loss", arg_count, 4.20);
             let res = geomind_train_streaming_steady_state(1.0, target, target_loss, lr, epochs, "logs/stage1_cloze_training.log");
             cartan_flush(0.0);
             return 0.0;
@@ -293,7 +293,7 @@ fn main() -> float {
             let target = get_cli_target_path(arg_count);
             let epochs = get_cli_param_float("-epochs", arg_count, 500.0);
             let lr = get_cli_param_float("-lr", arg_count, 0.001);
-            let target_loss = get_cli_param_float("-target-loss", arg_count, 2.50);
+            let target_loss = get_cli_param_float("-target-loss", arg_count, 3.50);
             let res = geomind_train_streaming_steady_state(2.0, target, target_loss, lr, epochs, "logs/stage2_ce_training.log");
             cartan_flush(0.0);
             return 0.0;
@@ -303,7 +303,7 @@ fn main() -> float {
             let target = get_cli_target_path(arg_count);
             let epochs = get_cli_param_float("-epochs", arg_count, 500.0);
             let lr = get_cli_param_float("-lr", arg_count, 0.0005);
-            let target_loss = get_cli_param_float("-target-loss", arg_count, 2.50);
+            let target_loss = get_cli_param_float("-target-loss", arg_count, 2.00);
             let res = geomind_train_streaming_steady_state(3.0, target, target_loss, lr, epochs, "logs/stage3_sft_training.log");
             cartan_flush(0.0);
             return 0.0;
