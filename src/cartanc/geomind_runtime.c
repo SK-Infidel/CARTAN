@@ -5954,6 +5954,173 @@ CARTAN_WEAK void cartan_taxonomy_apply_logit_boost(void* logits_ptr, const char*
     }
 }
 
+// ============================================================================
+// Sprint 310: Reflective Skepticism, Doubt Verification & Context Rewind
+// ============================================================================
+
+typedef struct {
+    float h_saved[2560];
+    float mom_saved[2560];
+    float history_saved[256];
+    double token_count;
+    double temp_saved;
+    int active;
+    int rewind_triggered;
+    double last_confidence;
+    double last_entropy;
+} CartanDoubtState;
+
+static CartanDoubtState g_doubt_state = {0};
+
+CARTAN_WEAK void cartan_rt_doubt_begin(void) {
+    g_doubt_state.active = 1;
+    g_doubt_state.rewind_triggered = 0;
+}
+
+CARTAN_WEAK void cartan_rt_doubt_end(void) {
+    g_doubt_state.active = 0;
+}
+
+CARTAN_WEAK double cartan_doubt_is_active(void) {
+    return g_doubt_state.active ? 1.0 : 0.0;
+}
+
+CARTAN_WEAK double cartan_doubt_should_rewind(void) {
+    return g_doubt_state.rewind_triggered ? 1.0 : 0.0;
+}
+
+CARTAN_WEAK void cartan_doubt_trigger_rewind(void) {
+    g_doubt_state.rewind_triggered = 1;
+}
+
+CARTAN_WEAK void cartan_doubt_clear_rewind(void) {
+    g_doubt_state.rewind_triggered = 0;
+}
+
+CARTAN_WEAK double cartan_doubt_get_last_confidence(void) {
+    return g_doubt_state.last_confidence;
+}
+
+CARTAN_WEAK double cartan_doubt_get_last_entropy(void) {
+    return g_doubt_state.last_entropy;
+}
+
+CARTAN_WEAK double cartan_doubt_get_checkpoint_temp(void) {
+    return g_doubt_state.temp_saved;
+}
+
+CARTAN_WEAK double cartan_doubt_checkpoint(void* h_ptr, void* mom_ptr, void* history_ptr, double tok_count, double temp) {
+    if (!h_ptr) return 0.0;
+    CartanVector* h_vec = (CartanVector*)h_ptr;
+    size_t dim = (size_t)h_vec->size;
+    if (dim > 2560) dim = 2560;
+    for (size_t i = 0; i < dim; i++) {
+        g_doubt_state.h_saved[i] = (float)h_vec->data[i];
+    }
+    if (mom_ptr) {
+        CartanVector* mom_vec = (CartanVector*)mom_ptr;
+        size_t m_dim = (size_t)mom_vec->size;
+        if (m_dim > 2560) m_dim = 2560;
+        for (size_t i = 0; i < m_dim; i++) {
+            g_doubt_state.mom_saved[i] = (float)mom_vec->data[i];
+        }
+    }
+    if (history_ptr) {
+        CartanVector* hist_vec = (CartanVector*)history_ptr;
+        size_t h_len = (size_t)hist_vec->size;
+        if (h_len > 256) h_len = 256;
+        for (size_t i = 0; i < h_len; i++) {
+            g_doubt_state.history_saved[i] = (float)hist_vec->data[i];
+        }
+    }
+    g_doubt_state.token_count = tok_count;
+    g_doubt_state.temp_saved = temp;
+    return 1.0;
+}
+
+CARTAN_WEAK double cartan_doubt_rewind(void* h_ptr, void* mom_ptr, void* history_ptr) {
+    if (!h_ptr) return 0.0;
+    CartanVector* h_vec = (CartanVector*)h_ptr;
+    size_t dim = (size_t)h_vec->size;
+    if (dim > 2560) dim = 2560;
+    for (size_t i = 0; i < dim; i++) {
+        h_vec->data[i] = (double)g_doubt_state.h_saved[i];
+    }
+    if (mom_ptr) {
+        CartanVector* mom_vec = (CartanVector*)mom_ptr;
+        size_t m_dim = (size_t)mom_vec->size;
+        if (m_dim > 2560) m_dim = 2560;
+        for (size_t i = 0; i < m_dim; i++) {
+            mom_vec->data[i] = (double)g_doubt_state.mom_saved[i];
+        }
+    }
+    if (history_ptr) {
+        CartanVector* hist_vec = (CartanVector*)history_ptr;
+        size_t count = (size_t)g_doubt_state.token_count;
+        if (count > 256) count = 256;
+        hist_vec->size = (double)count;
+        for (size_t i = 0; i < count; i++) {
+            hist_vec->data[i] = (double)g_doubt_state.history_saved[i];
+        }
+    }
+    g_doubt_state.rewind_triggered = 0;
+    return g_doubt_state.token_count;
+}
+
+CARTAN_WEAK double cartan_tensor_compute_confidence(void* logits_ptr, double top_k) {
+    if (!logits_ptr) return 0.0;
+    CartanVector* logits = (CartanVector*)logits_ptr;
+    if (logits->size == 0) return 0.0;
+
+    size_t k = (size_t)(top_k > 0 ? top_k : 50);
+    if (k > 50) k = 50;
+    if (k > (size_t)logits->size) k = (size_t)logits->size;
+
+    double top_logits[50];
+    for (size_t i = 0; i < k; i++) top_logits[i] = -1e9;
+
+    for (size_t i = 0; i < (size_t)logits->size; i++) {
+        double val = logits->data[i];
+        if (val > top_logits[k - 1]) {
+            size_t pos = k - 1;
+            while (pos > 0 && val > top_logits[pos - 1]) {
+                top_logits[pos] = top_logits[pos - 1];
+                pos--;
+            }
+            top_logits[pos] = val;
+        }
+    }
+
+    double max_l = top_logits[0];
+    double sum_exp = 0.0;
+    double exp_vals[50];
+    for (size_t i = 0; i < k; i++) {
+        exp_vals[i] = exp(top_logits[i] - max_l);
+        sum_exp += exp_vals[i];
+    }
+
+    if (sum_exp <= 0.0) return 0.0;
+
+    double top1_prob = exp_vals[0] / sum_exp;
+    g_doubt_state.last_confidence = top1_prob;
+
+    double entropy = 0.0;
+    for (size_t i = 0; i < k; i++) {
+        double p = exp_vals[i] / sum_exp;
+        if (p > 1e-12) {
+            entropy -= p * log(p);
+        }
+    }
+    g_doubt_state.last_entropy = entropy;
+
+    return top1_prob;
+}
+
+CARTAN_WEAK double cartan_tensor_compute_entropy(void* logits_ptr, double top_k) {
+    cartan_tensor_compute_confidence(logits_ptr, top_k);
+    return g_doubt_state.last_entropy;
+}
+
 CARTAN_WEAK void* cartan_get_lm_head_weights_ptr(void) { return (void*)g_model_weights; }
 CARTAN_WEAK size_t cartan_get_lm_head_weight_count(void) { return 2560 * 2560; }
 CARTAN_WEAK int* cartan_get_class_token_mapping_ptr(void) { return g_class_to_token_id; }

@@ -373,13 +373,19 @@ fn main(argc: float, argv: ptr) -> float {
     cartan_flush(0.0);
     system(t60_cmd);
 
-    // [61/61] Positive test: test_wordnet_taxonomy_dag
+    // [61/62] Positive test: test_wordnet_taxonomy_dag
     let t61_cmd = "cartanc.exe build test/compiler_suite/test_wordnet_taxonomy_dag.car -o build/test_wordnet_taxonomy_dag.exe && build\\test_wordnet_taxonomy_dag.exe";
-    printf("[61/61] [// run-pass] Building and Executing WordNet/SlangNet Taxonomy DAG & Semantic Logit Biasing: %s\n", t61_cmd);
+    printf("[61/62] [// run-pass] Building and Executing WordNet/SlangNet Taxonomy DAG & Semantic Logit Biasing: %s\n", t61_cmd);
     cartan_flush(0.0);
     system(t61_cmd);
 
-    printf("\nAll 61 compiler snapshot test targets executed!\n", "");
+    // [62/62] Positive test: test_doubt_reflective_rewind
+    let t62_cmd = "cartanc.exe build test/compiler_suite/test_doubt_reflective_rewind.car -o build/test_doubt_reflective_rewind.exe && build\\test_doubt_reflective_rewind.exe";
+    printf("[62/62] [// run-pass] Building and Executing Reflective Doubt Verification & Context Rewind: %s\n", t62_cmd);
+    cartan_flush(0.0);
+    system(t62_cmd);
+
+    printf("\nAll 62 compiler snapshot test targets executed!\n", "");
     return 0.0;
 }
 

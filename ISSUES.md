@@ -719,19 +719,26 @@ This file tracks technical debt and bugs identified during repository code revie
 
 ---
 
-## [ISSUE-061] [OPEN] Dormant Doubt Block Primitives & Missing Adaptive Perplexity Rewind in Conversational Inference
+## [ISSUE-061] [FIXED] Dormant Doubt Block Primitives & Missing Adaptive Perplexity Rewind in Conversational Inference
 - **Severity**: High (Language Spec Alignment & Frontier Cognition Feature)
-- **Component**: `src/cartanc/geomind_runtime.c`, `src/std/reasoning.cl`, `test/geomind/chat.cl`, `src/cartanc/llvm_codegen.car`
+- **Component**: `src/cartanc/geomind_runtime.c`, `src/std/reasoning.cl`, `test/geomind/chat.cl`, `src/cartanc/llvm_codegen.car`, `src/cartanc/lexer.car`
 - **Description**:
   1. The `doubt { ... }` block is parsed in `src/cartanc/ast.ch` and `src/cartanc/parser.car`, emitting calls to `@cartan_rt_doubt_begin` and `@cartan_rt_doubt_end` in `src/cartanc/llvm_codegen.car`.
-  2. `cartan_rt_doubt_begin` is stubbed with a mock `printf` in `src/std/reasoning.cl`, while `cartan_rt_doubt_end` is completely missing from all runtime implementations, leading to unresolved external symbol linker errors if pure Cartan programs use the `doubt` block.
-  3. `src/cartanc/geomind_runtime.c` lacks native entropy / confidence calculation primitives (`cartan_tensor_compute_confidence`) and tangent bundle state checkpoint/rewind capability (`cartan_doubt_checkpoint`, `cartan_doubt_rewind`).
-  4. In `test/geomind/chat.cl`, autoregressive inference generates tokens without confidence monitoring or context rewind, ignoring high entropy, uncertainty spikes, or contradictory output trajectories.
+  2. `cartan_rt_doubt_begin` was stubbed with a mock `printf` in `src/std/reasoning.cl`, while `cartan_rt_doubt_end` was completely missing from all runtime implementations, leading to unresolved external symbol linker errors if pure Cartan programs use the `doubt` block.
+  3. `src/cartanc/geomind_runtime.c` lacked native entropy / confidence calculation primitives (`cartan_tensor_compute_confidence`) and tangent bundle state checkpoint/rewind capability (`cartan_doubt_checkpoint`, `cartan_doubt_rewind`).
+  4. In `test/geomind/chat.cl`, autoregressive inference generated tokens without confidence monitoring or context rewind, ignoring high entropy, uncertainty spikes, or contradictory output trajectories.
 - **Proposed Fix**:
   1. Implement authentic confidence & Shannon entropy calculation (`cartan_tensor_compute_confidence`) and tangent bundle checkpoint/rewind primitives (`cartan_doubt_checkpoint`, `cartan_doubt_rewind`, `cartan_rt_doubt_begin`, `cartan_rt_doubt_end`) in `src/cartanc/geomind_runtime.c`.
   2. Implement pure Cartan Level-1 standard library routines in `src/std/reasoning.cl` (`doubt_checkpoint`, `doubt_evaluate_confidence`, `doubt_evaluate_entropy`, `doubt_should_rewind`, `doubt_rewind`).
   3. Integrate reflective doubt verification and adaptive context rewind into `geomind_chat_generate_reply_multimodal` in `test/geomind/chat.cl`.
   4. Author Target 62 regression test (`test/compiler_suite/test_doubt_reflective_rewind.car`) verifying confidence metrics, state rewinds, and `doubt { }` block execution; register in `test/compiler_suite/run_tests.car`.
+- **Resolution**:
+  1. Added `doubt`, `vmap`, `multimodal`, `chain`, `route`, and `grok` keywords to `check_keyword` in `src/cartanc/lexer.car` and recompiled self-hosted `cartanc.exe`.
+  2. Implemented `cartan_rt_doubt_begin`, `cartan_rt_doubt_end`, `cartan_doubt_is_active`, `cartan_doubt_should_rewind`, `cartan_doubt_trigger_rewind`, `cartan_doubt_clear_rewind`, `cartan_doubt_checkpoint`, `cartan_doubt_rewind`, `cartan_tensor_compute_confidence`, and `cartan_tensor_compute_entropy` in `src/cartanc/geomind_runtime.c`.
+  3. Implemented pure Cartan standard library functions `doubt_checkpoint`, `doubt_rewind`, `doubt_evaluate_confidence`, `doubt_evaluate_entropy`, and `doubt_should_rewind_threshold` in `src/std/reasoning.cl`.
+  4. Integrated live certainty and entropy telemetry into `<think>` tags in `geomind_chat_generate_reasoning_pass`, and wired adaptive context rewind, temperature cooling ($T \leftarrow T \times 0.75$), and elevated semantic boosting into `geomind_chat_generate_reply_multimodal` in `test/geomind/chat.cl`.
+  5. Authored Target 62 regression test (`test/compiler_suite/test_doubt_reflective_rewind.car`), verified all 5/5 assertions pass cleanly, and registered Target [62/62] in `test/compiler_suite/run_tests.car`. (Sprint 310).
+
 
 
 

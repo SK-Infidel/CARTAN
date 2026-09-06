@@ -102,8 +102,42 @@ fn cartan_rt_multimodal_sync_start() {
     printf("[cartan_rt] Multimodal Sync Block Started\n");
 }
 
-fn cartan_rt_doubt_begin() {
-    printf("[cartan_rt] Doubt Verification Block Started\n");
+extern fn cartan_rt_doubt_begin();
+extern fn cartan_rt_doubt_end();
+extern fn cartan_doubt_is_active() -> float;
+extern fn cartan_doubt_should_rewind() -> float;
+extern fn cartan_doubt_trigger_rewind();
+extern fn cartan_doubt_clear_rewind();
+extern fn cartan_doubt_get_last_confidence() -> float;
+extern fn cartan_doubt_get_last_entropy() -> float;
+extern fn cartan_doubt_get_checkpoint_temp() -> float;
+extern fn cartan_doubt_checkpoint(h: ptr, mom: ptr, hist: ptr, count: float, temp: float) -> float;
+extern fn cartan_doubt_rewind(h: ptr, mom: ptr, hist: ptr) -> float;
+extern fn cartan_tensor_compute_confidence(logits: ptr, top_k: float) -> float;
+extern fn cartan_tensor_compute_entropy(logits: ptr, top_k: float) -> float;
+
+fn doubt_checkpoint(h: ptr, mom: ptr, hist: ptr, count: float, temp: float) -> float {
+    return cartan_doubt_checkpoint(h, mom, hist, count, temp);
+}
+
+fn doubt_rewind(h: ptr, mom: ptr, hist: ptr) -> float {
+    return cartan_doubt_rewind(h, mom, hist);
+}
+
+fn doubt_evaluate_confidence(logits: ptr, top_k: float) -> float {
+    return cartan_tensor_compute_confidence(logits, top_k);
+}
+
+fn doubt_evaluate_entropy(logits: ptr, top_k: float) -> float {
+    return cartan_tensor_compute_entropy(logits, top_k);
+}
+
+fn doubt_should_rewind_threshold(confidence: float, min_confidence: float, entropy: float, max_entropy: float) -> float {
+    if (confidence < min_confidence || entropy > max_entropy) {
+        cartan_doubt_trigger_rewind();
+        return 1.0;
+    }
+    return 0.0;
 }
 
 fn cartan_rt_chain_begin() {

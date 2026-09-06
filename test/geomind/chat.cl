@@ -20,6 +20,17 @@ include "e8_attention_engine.cl";
 include "../../src/std/string.cl";
 include "../../src/std/collections.cl";
 
+extern fn cartan_doubt_checkpoint(h: ptr, mom: ptr, hist: ptr, count: float, temp: float) -> float;
+extern fn cartan_doubt_rewind(h: ptr, mom: ptr, hist: ptr) -> float;
+extern fn cartan_doubt_trigger_rewind();
+extern fn cartan_doubt_clear_rewind();
+extern fn cartan_doubt_should_rewind() -> float;
+extern fn cartan_doubt_get_last_confidence() -> float;
+extern fn cartan_doubt_get_last_entropy() -> float;
+extern fn cartan_doubt_get_checkpoint_temp() -> float;
+extern fn cartan_tensor_compute_confidence(logits: ptr, top_k: float) -> float;
+extern fn cartan_tensor_compute_entropy(logits: ptr, top_k: float) -> float;
+
 extern fn cartan_print_string(s: string);
 extern fn c_cartan_print_token(tok: float) -> float;
 extern fn cartan_tokenizer_is_valid_bigram(tok1: float, tok2: float) -> float;
@@ -231,12 +242,32 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
     var step = 0.0;
     var max_t = 22.0;
     if (max_tokens > 0.0) { max_t = max_tokens; }
+
+    // Checkpoint initial prompt trajectory for Kimi-style Reflective Doubt verification & context rewind
+    cartan_doubt_checkpoint(cur_h, prev_h, history, 0.0, temp);
+    var current_temp = temp;
+    var rewind_executed = 0.0;
+
     while (step < max_t) {
-        let logits_vec = cartan_tensor_compute_lm_head_logits(cur_h, temp);
+        let logits_vec = cartan_tensor_compute_lm_head_logits(cur_h, current_temp);
         cartan_apply_english_vocab_mask(logits_vec, 50.0);
         cartan_apply_repetition_penalty(logits_vec, history, 1.25);
         semantics_apply_concept_logit_boost(logits_vec, primary_concept, 1.20);
-        let sampled_tok = cartan_tokenizer_sample_topp_topk(logits_vec, 50.0, 0.90, temp + step * 0.01);
+
+        // Kimi-Style Reflective Doubt & Entropy Verification
+        let conf = cartan_tensor_compute_confidence(logits_vec, 50.0);
+        let ent = cartan_doubt_get_last_entropy();
+        if (rewind_executed == 0.0 && step >= 2.0 && (conf < 0.015 || ent > 7.2)) {
+            printf("\n[Reflective Doubt & Context Rewind] High uncertainty detected (Top-1 Conf: %s, Entropy: %s at step %s).\n",
+                cartan_float_to_string(conf), cartan_float_to_string(ent), cartan_float_to_string(step));
+            printf("[Reflective Doubt & Context Rewind] Rewinding context trajectory to checkpoint, cooling temperature, and boosting taxonomy...\n");
+            step = cartan_doubt_rewind(cur_h, prev_h, history);
+            current_temp = current_temp * 0.75;
+            semantics_apply_concept_logit_boost(logits_vec, primary_concept, 4.0);
+            rewind_executed = 1.0;
+        }
+
+        let sampled_tok = cartan_tokenizer_sample_topp_topk(logits_vec, 50.0, 0.90, current_temp + step * 0.01);
         c_cartan_print_token(sampled_tok);
         cartan_vec_push_f32(history, sampled_tok);
         cartan_tensor_update_autoregressive_state(cur_h, sampled_tok);
@@ -244,7 +275,7 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
         let mom = cartan_tensor_compute_momentum(cur_h, prev_h);
         prev_h = cur_h;
         // Autoregressive Manifold Step with Sasaki Phase-Space Brainstem Routing
-        cur_h = e8_attention_forward_step_with_momentum(cur_h, mom, temp);
+        cur_h = e8_attention_forward_step_with_momentum(cur_h, mom, current_temp);
         // Three-Factor Hebbian Plasticity: Online zero-backprop synaptic update during inference
         cartan_hebbian_step_token(cur_h, sampled_tok, 0.5, 0.0005);
         step = step + 1.0;
@@ -332,6 +363,11 @@ fn geomind_chat_generate_reasoning_pass(prompt: string, temp: float) -> float {
     printf(" (Weight: ");
     printf(cartan_float_to_string(max_w));
     printf(").\n");
+    let prompt_logits = cartan_tensor_compute_lm_head_logits(h_vec, temp);
+    let prompt_conf = cartan_tensor_compute_confidence(prompt_logits, 50.0);
+    let prompt_ent = cartan_doubt_get_last_entropy();
+    printf("[Reflective Skepticism & Certainty] Initial Confidence: %s | Shannon Entropy: %s\n",
+        cartan_float_to_string(prompt_conf), cartan_float_to_string(prompt_ent));
     printf("[Chain-of-Thought Synthesis] Formulating dynamic, contextual response strategy for Pass 2.\n");
     printf("</think>\n\n");
     cartan_flush(0.0);
