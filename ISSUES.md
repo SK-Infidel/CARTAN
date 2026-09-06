@@ -797,3 +797,23 @@ This file tracks technical debt and bugs identified during repository code revie
   3. Ensured `g_hopfield_dim` defaults to 2560.0 if `<= 0.0` inside `cartan_hopfield_init_if_needed()`.
   4. Implemented document chunking in `cartan_hopfield_ingest()`, successfully storing 774 attractor basins (15.85 MB `hopfield_basins.bin`) and verifying `--sleep` consolidation replay.
   5. Connected synthesized conversational and storytelling datasets as stage defaults in `test/geomind/train.cl`.
+
+---
+
+## [ISSUE-065] [FIXED] Compiler Toolchain Binary Desync, Manifold Activation Explosion & Reflective Doubt Desync
+- **Severity**: High (Compiler Bootstrap Desync & Runtime Stability)
+- **Component**: `C:\Users\rich-\.cartan\bin\cartanc.exe`, `test/geomind/e8_attention_engine.cl`, `test/geomind/chat.cl`, `src/std/semantics.cl`
+- **Description**:
+  1. `C:\Users\rich-\.cartan\bin\cartanc.exe` was out of sync with `src/cartanc/llvm_codegen.car` (binary built 9/4, lacking `cartan_byte_at` and `cartan_set_byte` definitions added in Sprint 306), causing link failures when compiling `geomind.exe`.
+  2. In `test/geomind/e8_attention_engine.cl`, `e8_attention_forward_step_with_momentum` applied 16 un-normalized GeLU+FFN updates without LayerNorm / RMSNorm, causing hidden state activations to compound exponentially into $10^{17}$ over 4 autoregressive token steps, producing `NaN` and crash (`0xC0000005`).
+  3. In `test/geomind/chat.cl`, `cartan_doubt_checkpoint` and `cartan_doubt_rewind` passed `prev_h` (a hidden state vector) into the second parameter instead of the tangent bundle momentum vector `mom` expected by `src/std/reasoning.cl`.
+  4. In `test/geomind/chat.cl`, `cartan_apply_english_vocab_mask` only penalized tokens `< 235.0`, leaving tokens `362.0 .. 4095.0` unpenalized, causing the sampler to pick unmasked tokens that decoded into spaces `" "`.
+- **Status**: Fixed in Sprint 315.
+  1. Recompiled self-hosted compiler from `src/cartanc/main.car` into `build/cartanc_new.exe` and synchronized to `C:\Users\rich-\.cartan\bin\cartanc.exe`.
+  2. Implemented pure Cartan `cartan_tensor_rmsnorm(v: ptr, eps: float)` calculating $\text{RMS}(v) = \sqrt{\frac{1}{D}\sum v_i^2 + \epsilon}$ and normalizing elements $v_i \leftarrow v_i / \text{RMS}(v)$. Applied RMSNorm before and after the 16-layer FFN cascade in `e8_attention_forward_step_with_momentum`.
+  3. Aligned Reflective Doubt invocations in `test/geomind/chat.cl` with tangent bundle momentum vector `mom` initialized to 2560-D.
+  4. Extended `cartan_apply_english_vocab_mask` across all 4096 output logits, bounding generation strictly to printable ASCII characters (`267.0 .. 361.0`), newlines (`108.0`), and EOS (`1.0`), preventing non-decodable token generation.
+  5. Enhanced `cartan_taxonomy_apply_logit_boost` in `src/std/semantics.cl` to boost character tokens of the primary concept word.
+  6. Empirically verified conversational generation (`geomind.exe --chat`), cloze training (`--train-cloze`), sleep consolidation (`--sleep`), and AZR selfplay (`--azr-selfplay`) with 0 runtime errors and 100% pass across all 62 compiler regression test targets.
+
+

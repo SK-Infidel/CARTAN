@@ -35,9 +35,13 @@ fn cartan_apply_english_vocab_mask(logits_ptr: ptr, penalty: float) -> float {
     var pen = penalty;
     if (pen == 0.0) { pen = 50.0; }
     var p = 0.0 - math_abs_val(pen);
+    let total_len = cartan_vec_len(logits_ptr);
     var i = 0.0;
-    while (i < 235.0) {
-        if (i != 1.0 && i != 2.0 && i != 108.0) {
+    while (i < total_len) {
+        var valid = 0.0;
+        if (i >= 267.0 && i <= 361.0) { valid = 1.0; }
+        if (i == 1.0 || i == 108.0) { valid = 1.0; }
+        if (valid == 0.0) {
             let cur = cartan_vec_get_f32(logits_ptr, i);
             cartan_vec_set_f32(logits_ptr, i, cur + p);
         }
@@ -286,7 +290,6 @@ fn geomind_chat_process_audio_file(audio_path: string) -> ptr {
     return geomind_chat_process_audio_input(256.0, 16000.0);
 }
 
-extern fn cartan_tensor_compute_hidden_state_from_tokens(toks: ptr) -> ptr;
 extern fn cartan_tensor_train_step(h: ptr, tok: float, lr: float) -> float;
 extern fn cartan_hub_encode_text_to_tokens(s: string) -> ptr;
 extern fn cartan_hebbian_step_token(h: ptr, tok: float, m: float, lr: float) -> float;
@@ -294,23 +297,34 @@ extern fn cartan_tensor_hebbian_update(pre: ptr, post: ptr, m: float, lr: float)
 
 fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, temp: float, image_path: string, audio_path: string) -> float {
     printf("[GeoMind Chat] Processing User Prompt...\n");
+    cartan_flush(0.0);
     printf("[GeoMind Chat] Executing 100%% Pure Neural Forward Pass (E8 Attention + 42-Layer SO(2560) Manifold + MoE + Hopfield)...\n");
+    cartan_flush(0.0);
 
     let prompt_tokens = cartan_hub_encode_text_to_tokens(prompt);
     let num_prompt_toks = cartan_vec_len(prompt_tokens);
     printf("[GeoMind Neural] Encoded prompt into %s BPE input tokens.\n", cartan_float_to_string(num_prompt_toks));
+    cartan_flush(0.0);
 
     // 1. Compute genuine prompt hidden state by averaging Safetensors embedding matrix rows
     let hidden_state = cartan_tensor_compute_hidden_state_from_tokens(prompt_tokens);
+    printf("[GeoMind Neural] Hidden state computed.\n");
+    cartan_flush(0.0);
 
     // Multimodal Cross-Modal Grounding: Map sight and sound into shared E8 coordinates
     let vis_stream = geomind_chat_process_image_file(image_path);
     let aud_stream = geomind_chat_process_audio_file(audio_path);
     cartan_multimodal_ground_hidden(hidden_state, vis_stream, aud_stream);
+    printf("[GeoMind Multimodal] Multimodal grounding complete.\n");
+    cartan_flush(0.0);
 
     // 2. Relax hidden state through Continuous Hopfield Attractor Basin Memory (O(1) Associative Recall)
     if (cartan_hopfield_attractor_count() > 0.0) {
+        printf("[GeoMind Hopfield] Checking max resonance...\n");
+        cartan_flush(0.0);
         let max_res = cartan_hopfield_get_max_resonance(hidden_state);
+        printf("[GeoMind Hopfield] Max res: %s\n", cartan_float_to_string(max_res));
+        cartan_flush(0.0);
         if (max_res > 0.55) {
             let recalled_val = cartan_hopfield_query_vec(hidden_state, 6.0);
             var d = 0.0;
@@ -321,10 +335,20 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
                 d = d + 1.0;
             }
         }
+        printf("[GeoMind Hopfield] Relaxing...\n");
+        cartan_flush(0.0);
         cartan_hopfield_relax(hidden_state, 3.5, 2.0);
+        printf("[GeoMind Hopfield] Relaxed.\n");
+        cartan_flush(0.0);
     }
+    printf("[GeoMind E8] Stepping...\n");
+    cartan_flush(0.0);
     var cur_h = e8_attention_forward_step(hidden_state, temp);
+    printf("[GeoMind E8] Stepped. Energy...\n");
+    cartan_flush(0.0);
     let hopfield_energy = cartan_hopfield_energy(cur_h);
+    printf("[GeoMind E8] Energy: %s\n", cartan_float_to_string(hopfield_energy));
+    cartan_flush(0.0);
 
     printf("[GeoMind Chat] GeoMind Neural Output:\n");
     cartan_flush(0.0);
@@ -332,19 +356,25 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
     let primary_concept = semantics_extract_primary_concept(prompt);
     let history = cartan_vec_create();
     var prev_h = hidden_state;
+    var mom = cartan_vec_create();
+    var d_mom = 0.0;
+    while (d_mom < 2560.0) {
+        cartan_vec_push_f32(mom, 0.0);
+        d_mom = d_mom + 1.0;
+    }
     var step = 0.0;
     var max_t = 22.0;
     if (max_tokens > 0.0) { max_t = max_tokens; }
 
     // Checkpoint initial prompt trajectory for Kimi-style Reflective Doubt verification & context rewind
-    cartan_doubt_checkpoint(cur_h, prev_h, history, 0.0, temp);
+    cartan_doubt_checkpoint(cur_h, mom, history, 0.0, temp);
     var current_temp = temp;
     var rewind_executed = 0.0;
 
     while (step < max_t) {
         let logits_vec = cartan_tensor_compute_lm_head_logits(cur_h, current_temp);
         cartan_apply_english_vocab_mask(logits_vec, 50.0);
-        cartan_apply_repetition_penalty(logits_vec, history, 1.25);
+        cartan_apply_repetition_penalty(logits_vec, history, 3.50);
         semantics_apply_concept_logit_boost(logits_vec, primary_concept, 1.20);
 
         // Kimi-Style Reflective Doubt & Entropy Verification
@@ -353,19 +383,26 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
         if (rewind_executed == 0.0 && step >= 2.0 && (conf < 0.015 || ent > 7.2)) {
             printf("\n[Reflective Doubt & Context Rewind] High uncertainty detected (Top-1 Conf: %s, Entropy: %s at step %s).\n",
                 cartan_float_to_string(conf), cartan_float_to_string(ent), cartan_float_to_string(step));
+            cartan_flush(0.0);
             printf("[Reflective Doubt & Context Rewind] Rewinding context trajectory to checkpoint, cooling temperature, and boosting taxonomy...\n");
-            step = cartan_doubt_rewind(cur_h, prev_h, history);
+            cartan_flush(0.0);
+            step = cartan_doubt_rewind(cur_h, mom, history);
             current_temp = current_temp * 0.75;
             semantics_apply_concept_logit_boost(logits_vec, primary_concept, 4.0);
             rewind_executed = 1.0;
         }
 
         let sampled_tok = cartan_tokenizer_sample_topp_topk(logits_vec, 50.0, 0.90, current_temp + step * 0.01);
+        if (sampled_tok == 1.0) {
+            // End of Sequence reached cleanly
+            break;
+        }
         c_cartan_print_token(sampled_tok);
+        cartan_flush(0.0);
         cartan_vec_push_f32(history, sampled_tok);
         cartan_tensor_update_autoregressive_state(cur_h, sampled_tok);
         // Tangent Bundle Momentum Tracking: cognitive velocity on TM = M x TxM
-        let mom = cartan_tensor_compute_momentum(cur_h, prev_h);
+        mom = cartan_tensor_compute_momentum(cur_h, prev_h);
         prev_h = cur_h;
         // Autoregressive Manifold Step with Sasaki Phase-Space Brainstem Routing
         cur_h = e8_attention_forward_step_with_momentum(cur_h, mom, current_temp);

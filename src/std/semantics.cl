@@ -326,9 +326,19 @@ fn cartan_taxonomy_apply_logit_boost(logits: ptr, concept_word: string, boost_fa
     if (cartan_string_length(path) == 0.0) { return; }
     let len = cartan_vec_len(logits);
     if (len > 0.0) {
-        let idx = math_mod_val(cartan_hash_string(concept_word), len);
-        let cur = cartan_vec_get_f32(logits, idx);
-        cartan_vec_set_f32(logits, idx, cur + boost_factor * 1.5);
+        let word_len = cartan_string_length(concept_word);
+        var w_i = 0.0;
+        while (w_i < word_len) {
+            let ch = cartan_byte_at(concept_word, w_i);
+            if (ch >= 32.0 && ch <= 126.0) {
+                let ch_tok = ch + 235.0;
+                if (ch_tok < len) {
+                    let cur = cartan_vec_get_f32(logits, ch_tok);
+                    cartan_vec_set_f32(logits, ch_tok, cur + boost_factor * 2.0);
+                }
+            }
+            w_i = w_i + 1.0;
+        }
     }
 }
 

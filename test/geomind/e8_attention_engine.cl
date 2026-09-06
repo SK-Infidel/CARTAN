@@ -134,6 +134,29 @@ fn e8_attention_compute_energy(h: ptr) -> float {
     return 0.5 * sum_sq;
 }
 
+// Anisotropic RMSNorm layer normalization bounding manifold activation energy to 1.0
+fn cartan_tensor_rmsnorm(v: ptr, eps: float) {
+    if (v == 0.0) { return; }
+    let dim = cartan_vec_len(v);
+    if (dim <= 0.0) { return; }
+    var sum_sq = 0.0;
+    var i = 0.0;
+    while (i < dim) {
+        let val = cartan_vec_get_f32(v, i);
+        sum_sq = sum_sq + (val * val);
+        i = i + 1.0;
+    }
+    let rms = math_sqrt((sum_sq / dim) + eps);
+    if (rms <= 0.000001) { return; }
+    let inv_rms = 1.0 / rms;
+    i = 0.0;
+    while (i < dim) {
+        let val = cartan_vec_get_f32(v, i);
+        cartan_vec_set_f32(v, i, val * inv_rms);
+        i = i + 1.0;
+    }
+}
+
 fn e8_attention_forward_step_with_momentum(hidden_ptr: ptr, mom_ptr: ptr, temp: float) -> ptr {
     if (hidden_ptr == 0.0) { return cartan_vec_create(); }
     let h_len = cartan_vec_len(hidden_ptr);
@@ -141,6 +164,8 @@ fn e8_attention_forward_step_with_momentum(hidden_ptr: ptr, mom_ptr: ptr, temp: 
     let weights = cartan_sasaki_brainstem_route_vec(hidden_ptr, mom_ptr, temp);
     let h_cur = geomind_streams_manifold_forward_routed(hidden_ptr, weights);
     
+    // Normalize manifold activations before and after 16-layer FFN cascade
+    cartan_tensor_rmsnorm(h_cur, 0.00001);
     var l = 0.0;
     while (l < 16.0) {
         let kappa = (l + 1.0) / 16.0;
@@ -155,10 +180,12 @@ fn e8_attention_forward_step_with_momentum(hidden_ptr: ptr, mom_ptr: ptr, temp: 
         }
         l = l + 1.0;
     }
+    cartan_tensor_rmsnorm(h_cur, 0.00001);
     return h_cur;
 }
 
 fn e8_attention_forward_step(hidden_ptr: ptr, temp: float) -> ptr {
     return e8_attention_forward_step_with_momentum(hidden_ptr, 0.0, temp);
 }
+
 
