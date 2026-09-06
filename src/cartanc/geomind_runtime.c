@@ -4334,19 +4334,38 @@ CARTAN_WEAK double distill_kl_divergence_loss(void* teacher_logits, void* studen
 #define STAGE_CE 2
 #define STAGE_SFT 3
 
+extern double sys_get_arg_count(void);
+extern char* sys_get_arg(double idx);
+
 static const char* get_arg_value(int argc, char** argv, const char* key) {
-    if (!argv || argc <= 1 || !key) return NULL;
+    if (!key) return NULL;
     char key_eq[128];
     snprintf(key_eq, sizeof(key_eq), "%s=", key);
     size_t key_eq_len = strlen(key_eq);
 
-    for (int i = 1; i < argc; i++) {
-        if (!argv[i]) continue;
-        if (strncmp(argv[i], key_eq, key_eq_len) == 0) {
-            return argv[i] + key_eq_len;
+    if (argv && argc > 1) {
+        for (int i = 1; i < argc; i++) {
+            if (!argv[i]) continue;
+            if (strncmp(argv[i], key_eq, key_eq_len) == 0) {
+                return argv[i] + key_eq_len;
+            }
+            if (strcmp(argv[i], key) == 0 && i < argc - 1 && argv[i + 1]) {
+                return argv[i + 1];
+            }
         }
-        if (strcmp(argv[i], key) == 0 && i < argc - 1 && argv[i + 1]) {
-            return argv[i + 1];
+    }
+
+    double c_argc = sys_get_arg_count();
+    if (c_argc > 1.0) {
+        for (int i = 1; i < (int)c_argc; i++) {
+            char* arg = sys_get_arg((double)i);
+            if (!arg) continue;
+            if (strncmp(arg, key_eq, key_eq_len) == 0) {
+                return arg + key_eq_len;
+            }
+            if (strcmp(arg, key) == 0 && i < (int)c_argc - 1) {
+                return sys_get_arg((double)(i + 1));
+            }
         }
     }
     return NULL;
@@ -4663,21 +4682,26 @@ CARTAN_WEAK double geomind_train_streaming_steady_state(double stage_mode_d, con
         "test/geomind/trainingdata/mined_expanded_corpus_cloze_part03.jsonl",
         "test/geomind/trainingdata/mined_expanded_corpus_cloze_part04.jsonl",
         "test/geomind/trainingdata/mined_expanded_corpus_cloze_part05.jsonl",
-        "test/geomind/trainingdata/mined_expanded_corpus_cloze_part06.jsonl"
+        "test/geomind/trainingdata/mined_expanded_corpus_cloze_part06.jsonl",
+        "test/geomind/trainingdata/conversational_storytelling_dataset.jsonl"
     };
     const char* ce_source_files[] = {
         "test/geomind/trainingdata/gutenberg_classics.txt",
         "test/geomind/trainingdata/physics_and_cartan_knowledge.txt",
-        "test/geomind/trainingdata/multi_domain_corpus.txt"
+        "test/geomind/trainingdata/multi_domain_corpus.txt",
+        "test/geomind/trainingdata/storytelling_corpus.txt",
+        "test/geomind/trainingdata/hf_roneneldan_TinyStories.txt"
     };
     const char* sft_chunk_files[] = {
+        "test/geomind/trainingdata/conversational_storytelling_dataset.jsonl",
         "test/geomind/trainingdata/mined_expanded_corpus_cloze_part01.jsonl",
         "test/geomind/trainingdata/mined_expanded_corpus_cloze_part02.jsonl",
         "test/geomind/trainingdata/mined_expanded_corpus_cloze_part03.jsonl",
         "test/geomind/trainingdata/mined_expanded_corpus_cloze_part04.jsonl",
         "test/geomind/trainingdata/mined_expanded_corpus_cloze_part05.jsonl",
         "test/geomind/trainingdata/mined_expanded_corpus_cloze_part06.jsonl",
-        "test/geomind/trainingdata/hf_alpaca_stories.txt"
+        "test/geomind/trainingdata/hf_alpaca_stories.txt",
+        "test/geomind/trainingdata/hf_roneneldan_TinyStories.txt"
     };
 
     const char* const* input_files = (stage_mode == STAGE_CE) ? ce_source_files : ((stage_mode == STAGE_SFT) ? sft_chunk_files : cloze_chunk_files);
