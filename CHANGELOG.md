@@ -1,3 +1,22 @@
+## [8.271.0] - 2026-09-06 (Sprint 314: Fresh Model Merge, Comprehensive Conversational & Storytelling Synthesis, and Hopfield Chunk Ingestion)
+
+### Completed & Validated
+- **Fresh Model Merge & Binary Checkpoint Serialization (`src/std/hub.cl`, `test/geomind/main.car`, `[ISSUE-064]`)**:
+  - Implemented genuine binary tensor float serialization in `cartan_safetensors_save_tensor_f32` via `cartan_f32_buffer_alloc` and `fwrite`, eliminating empty 0-byte checkpoint stubs.
+  - Executed `--merge-slerp` tangent-space geodesic weight fusion and verified genuine serialized binary checkpoint `geomind_slerp_fused_weights.bin` (65.5 KB).
+- **Comprehensive Conversational & Storytelling Dataset Synthesis (`tools/build_conversational_storytelling_dataset.py`, `test/geomind/train.cl`)**:
+  - Synthesized unified multi-genre dataset `conversational_storytelling_dataset.jsonl` (4,279 records, 1.98 MB) embedding all 4 phrase taxonomies (100 Noun pairs, Binomials, Discourse markers, Transitions) alongside 2,563 authentic literary dialogue turns.
+  - Generated `storytelling_corpus.txt` (7.05 MB), `hf_alpaca_stories.txt` (163 KB), and `hf_roneneldan_TinyStories.txt` (68 KB).
+  - Connected synthesized datasets as stage defaults in `test/geomind/train.cl` for Stage 1 (CLOZE), Stage 2 (CAUSAL CE), and Stage 3 (SFT).
+- **Hopfield Attractor Dimension & Document Chunking Fixes (`src/std/resonator.cl`)**:
+  - Fixed uninitialized global `g_hopfield_dim` in `cartan_hopfield_init_if_needed()`, guaranteeing valid 2560-D manifold embedding.
+  - Implemented multi-basin text chunking in `cartan_hopfield_ingest()`, ingesting 774 active attractor basins from `conversational_storytelling_dataset.jsonl` into `hopfield_basins.bin` (15.85 MB).
+  - Consolidated 774 stable attractors via autonomous `--sleep` daemon.
+- **Empirical Training & Regression Verification**:
+  - `--train-ce` converged to loss 1.64957 and serialized 52.4 MB cortical weights (`geomind_steady_state_weights.bin`).
+  - `--train-cloze` and `--train-sft` verified converging cleanly.
+  - All 62 compiler regression test targets in `test/compiler_suite/run_tests.car` pass cleanly (62/62 PASS).
+
 ## [8.270.0] - 2026-09-06 (Sprint 313: Unified Training Engine Consolidation & WebGPU Mounting)
 
 ### Completed & Validated

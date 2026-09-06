@@ -492,8 +492,18 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
     train_mount_gpu();
 
     var sample_text = "The geometric mind discovers universal truth through Riemannian geodesics and continuous resonance.";
-    if (cartan_file_exists(custom_dataset) == 1.0) {
-        let file_content = cartan_read_file(custom_dataset);
+    var actual_dataset = custom_dataset;
+    if (cartan_file_exists(actual_dataset) == 0.0) {
+        if (stage_mode == 1.0) {
+            actual_dataset = "test/geomind/trainingdata/conversational_storytelling_dataset.jsonl";
+        } else if (stage_mode == 2.0) {
+            actual_dataset = "test/geomind/trainingdata/storytelling_corpus.txt";
+        } else if (stage_mode == 3.0) {
+            actual_dataset = "test/geomind/trainingdata/hf_alpaca_stories.txt";
+        }
+    }
+    if (cartan_file_exists(actual_dataset) == 1.0) {
+        let file_content = cartan_read_file(actual_dataset);
         let len = cartan_string_length(file_content);
         if (len > 0.0) {
             sample_text = file_content;

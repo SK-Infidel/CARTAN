@@ -354,8 +354,9 @@ fn main() -> float {
             let fused = fusion_tangent_space_slerp(t1, t2, 0.5);
             let mid_val = cartan_vec_get_f32(fused, 0.0);
             printf("[GeoMind Fusion] Tangent Space Geodesic SLERP Merging Complete!\n");
-            printf("[GeoMind Fusion] Fused Parameters: %s | Manifold Metric Check: %s\n", cartan_float_to_string(cartan_vec_len(fused)), cartan_float_to_string(mid_val));
-            printf("[GeoMind Fusion] Saved Tangent-Space Merged Checkpoint: test/geomind/trainingdata/checkpoints/geomind_slerp_fused_weights.bin\n");
+            let out_fused_path = "test/geomind/trainingdata/checkpoints/geomind_slerp_fused_weights.bin";
+            cartan_safetensors_save_tensor_f32(out_fused_path, "model.fused", fused);
+            printf("[GeoMind Fusion] Saved Tangent-Space Merged Checkpoint: %s\n", out_fused_path);
             cartan_flush(0.0);
             return 0.0;
         }

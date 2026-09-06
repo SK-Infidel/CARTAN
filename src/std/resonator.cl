@@ -408,6 +408,9 @@ var g_hopfield_val_bank: ptr = 0.0;
 var g_hopfield_dim = 2560.0;
 
 fn cartan_hopfield_init_if_needed() {
+    if (g_hopfield_dim <= 0.0) {
+        g_hopfield_dim = 2560.0;
+    }
     if (g_hopfield_key_bank == 0.0) {
         g_hopfield_key_bank = resonator_create_attractor_bank();
         g_hopfield_val_bank = resonator_create_attractor_bank();
@@ -509,17 +512,24 @@ fn cartan_hopfield_ingest(path: string) -> float {
     let content = cartan_read_file(path);
     if (content == 0.0 || cartan_string_length(content) == 0.0) { return 0.0; }
     let len = cartan_string_length(content);
-    let v = cartan_vec_create();
-    var d = 0.0;
-    while (d < g_hopfield_dim) {
-        var ch = 0.0;
-        if (d < len) {
-            ch = cartan_string_get_char(content, d);
+    var pos = 0.0;
+    var stored = 0.0;
+    while (pos < len && stored < 1000.0) {
+        let v = cartan_vec_create();
+        var d = 0.0;
+        while (d < g_hopfield_dim) {
+            var ch = 0.0;
+            if (pos + d < len) {
+                ch = cartan_string_get_char(content, pos + d);
+            }
+            cartan_vec_push_f32(v, ch / 255.0);
+            d = d + 1.0;
         }
-        cartan_vec_push_f32(v, ch / 255.0);
-        d = d + 1.0;
+        cartan_hopfield_store_vector(v, g_hopfield_dim);
+        stored = stored + 1.0;
+        pos = pos + g_hopfield_dim;
     }
-    return cartan_hopfield_store_vector(v, g_hopfield_dim);
+    return stored;
 }
 
 

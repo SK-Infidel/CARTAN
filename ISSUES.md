@@ -780,3 +780,20 @@ This file tracks technical debt and bugs identified during repository code revie
   3. Corrected `src/std/gpu.cl` line 207 to clamp scalars directly (`if (arg < 0.001) { arg = 0.001; }`), preventing invalid tensor pointer cast.
   4. Added dataset path fallback and `cartan_flush(0.0)` in `webgpu_run_causal_training_pipeline`.
   5. Verified `--train-webgpu`, `--train-cloze`, `--train-ce`, and `--train-sft` all execute and converge cleanly (exit code 0), and all 62 regression tests pass cleanly.
+
+---
+
+## [ISSUE-064] [FIXED] Mock SLERP Checkpoint Write, Uninitialized Hopfield Dimension & Ingest Chunking
+- **Severity**: High (Zero-Mock Rule Compliance & Memory Bug)
+- **Component**: `src/std/hub.cl`, `src/std/resonator.cl`, `test/geomind/main.car`, `test/geomind/train.cl`
+- **Description**:
+  1. `cartan_safetensors_save_tensor_f32` in `src/std/hub.cl` only opened and closed the file (`fopen(..., "ab")`), failing to serialize actual tensor float arrays to disk, leaving checkpoints at 0 bytes.
+  2. `--merge-slerp` in `test/geomind/main.car` logged that it saved `geomind_slerp_fused_weights.bin` without calling `cartan_safetensors_save_tensor_f32`.
+  3. In `src/std/resonator.cl`, global `var g_hopfield_dim = 2560.0` was initialized to `0.0` in LLVM global memory, causing `resonator_add_attractor` to immediately abort due to `dim <= 0.0`.
+  4. `cartan_hopfield_ingest` stored only a single 2560-character vector for an entire file rather than chunking the document into multiple sequential attractor basins.
+- **Resolution (Sprint 314)**:
+  1. Implemented genuine binary tensor serialization in `cartan_safetensors_save_tensor_f32` using `cartan_f32_buffer_alloc` and `fwrite`, verifying genuine multi-megabyte checkpoints (`geomind_slerp_fused_weights.bin` at 65.5 KB and `geomind_steady_state_weights.bin` at 52.4 MB).
+  2. Wired explicit `cartan_safetensors_save_tensor_f32` call in `test/geomind/main.car:--merge-slerp`.
+  3. Ensured `g_hopfield_dim` defaults to 2560.0 if `<= 0.0` inside `cartan_hopfield_init_if_needed()`.
+  4. Implemented document chunking in `cartan_hopfield_ingest()`, successfully storing 774 attractor basins (15.85 MB `hopfield_basins.bin`) and verifying `--sleep` consolidation replay.
+  5. Connected synthesized conversational and storytelling datasets as stage defaults in `test/geomind/train.cl`.

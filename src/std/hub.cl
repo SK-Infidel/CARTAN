@@ -159,9 +159,20 @@ fn cartan_safetensors_load_tensor_f32(path: string, header_len: float, data_star
 
 fn cartan_safetensors_save_tensor_f32(path: string, name: string, t_data: ptr) -> float {
     if (path == 0.0 || t_data == 0.0) { return 0.0; }
-    let f = fopen(path, "ab");
+    let count = cartan_vec_len(t_data);
+    if (count <= 0.0) { return 0.0; }
+    let f = fopen(path, "wb");
     if (f == 0.0) { return 0.0; }
+    let buf = cartan_f32_buffer_alloc(count);
+    var i = 0.0;
+    while (i < count) {
+        let val = cartan_vec_get_f32(t_data, i);
+        cartan_f32_buffer_set(buf, i, val);
+        i = i + 1.0;
+    }
+    fwrite(buf, 8.0, count, f);
     fclose(f);
+    cartan_f32_buffer_free(buf);
     return 1.0;
 }
 
