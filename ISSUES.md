@@ -692,3 +692,22 @@ This file tracks technical debt and bugs identified during repository code revie
   4. Wired online fact ingestion `geomind_chat_remember_fact(fact_text)` and the `/remember <fact>` CLI command into the `--chat` REPL loop in `test/geomind/main.car`.
   5. Integrated sharp $\beta=8.0$ associative query recall and prompt resonance detection into `geomind_chat_generate_reply_multimodal` and `<think>` reasoning telemetry in `test/geomind/chat.cl`.
   6. Authored Target 60 regression test (`test/compiler_suite/test_continuous_hopfield_recall.car`), verified all 5/5 assertions pass cleanly, and registered Target [60/60] in `test/compiler_suite/run_tests.car`. (Sprint 308).
+
+---
+
+## [ISSUE-060] [OPEN] Disconnected WordNet/SlangNet Taxonomy DAG, Unindexed Synsets & Missing Semantic Logit Biasing in Conversational Generation
+- **Severity**: High (Ontological Grounding Gap & Dormant Semantic Steerability)
+- **Component**: `src/std/semantics.cl`, `src/cartanc/geomind_runtime.c`, `test/geomind/chat.cl`, `test/geomind/trainingdata/wordnet_taxonomy.txt`
+- **Description**:
+  1. `test/geomind/chat.cl:274-276` evaluates LCA tree distance by directly passing the user prompt sentence (e.g. `"What is the speed of light in vacuum?"`) to `semantics_lca_tree_distance(prompt, "entity.physical_entity.object")`. Because `prompt` is not a dot-delimited synset path, `semantics_lca_tree_distance` evaluates to a trivial baseline rather than resolving concepts to their actual taxonomic nodes in the WordNet DAG.
+  2. `semantics_load_taxonomy("test/geomind/trainingdata/wordnet_taxonomy.txt")` is never called in `geomind_chat_start()`, leaving `g_taxonomy_loaded` at 0.0 during chat sessions.
+  3. `test/geomind/trainingdata/wordnet_taxonomy.txt` contains only 8 lines of definitions and lemmas, lacking a rich ontology spanning physical entities, abstract concepts, science, living organisms, actions, and modern slang terms.
+  4. `semantics_load_taxonomy` in `src/std/semantics.cl` only counts synset and lemma line occurrences without indexing words, synsets, hypernym paths, or information content values into queryable associative structures.
+  5. `semantics_apply_lca_boost` is never invoked on `logits_vec` during autoregressive token generation in `geomind_chat_generate_reply_multimodal`, leaving generated tokens unguided by semantic taxonomy alignment.
+- **Proposed Fix**:
+  1. Build a comprehensive WordNet & SlangNet taxonomy knowledge base (`wordnet_slangnet_dag.txt`) with multi-domain synsets, hypernym parent-child relationships, and full ontological paths.
+  2. Implement native word-to-synset path resolution (`semantics_resolve_concept_path(word)`) and prompt concept extraction (`semantics_extract_prompt_concepts(prompt)`) in `src/std/semantics.cl` / `src/cartanc/geomind_runtime.c`.
+  3. Load and index the taxonomy DAG in `geomind_chat_start()`, mapping concepts to their Lowest Common Ancestor (LCA) and genuine Information Content (IC).
+  4. Wire semantic taxonomy coherence boosting (`semantics_apply_lca_boost`) into autoregressive token decoding in `geomind_chat_generate_reply_multimodal`.
+  5. Author Target 61 regression test (`test/compiler_suite/test_wordnet_taxonomy_dag.car`) verifying synset resolution, LCA graph traversal, semantic similarity (Resnik/Lin), and taxonomy-guided logit boosting; register in `test/compiler_suite/run_tests.car`.
+
