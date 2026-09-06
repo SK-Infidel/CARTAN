@@ -403,6 +403,125 @@ fn resonator_query(key_bank: ptr, val_bank: ptr, query_vec: ptr, dim: float, bet
     return out_vec;
 }
 
+var g_hopfield_key_bank: ptr = 0.0;
+var g_hopfield_val_bank: ptr = 0.0;
+var g_hopfield_dim = 2560.0;
+
+fn cartan_hopfield_init_if_needed() {
+    if (g_hopfield_key_bank == 0.0) {
+        g_hopfield_key_bank = resonator_create_attractor_bank();
+        g_hopfield_val_bank = resonator_create_attractor_bank();
+    }
+}
+
+fn cartan_hopfield_clear() -> float {
+    g_hopfield_key_bank = resonator_create_attractor_bank();
+    g_hopfield_val_bank = resonator_create_attractor_bank();
+    return 0.0;
+}
+
+fn cartan_hopfield_attractor_count() -> float {
+    cartan_hopfield_init_if_needed();
+    return cartan_tree_len_f(g_hopfield_key_bank);
+}
+
+fn cartan_hopfield_store_vector(vec: ptr, dim: float) -> float {
+    cartan_hopfield_init_if_needed();
+    resonator_add_attractor(g_hopfield_key_bank, vec, dim);
+    resonator_add_attractor(g_hopfield_val_bank, vec, dim);
+    return cartan_tree_len_f(g_hopfield_key_bank);
+}
+
+fn cartan_hopfield_store_hidden(hidden_ptr: ptr) -> float {
+    return cartan_hopfield_store_vector(hidden_ptr, g_hopfield_dim);
+}
+
+fn cartan_hopfield_store_pair_vec(key_ptr: ptr, val_ptr: ptr) -> float {
+    cartan_hopfield_init_if_needed();
+    return resonator_store_pair(g_hopfield_key_bank, g_hopfield_val_bank, key_ptr, val_ptr, g_hopfield_dim);
+}
+
+fn cartan_hopfield_query_vec(query_ptr: ptr, beta: float) -> ptr {
+    cartan_hopfield_init_if_needed();
+    return resonator_query(g_hopfield_key_bank, g_hopfield_val_bank, query_ptr, g_hopfield_dim, beta);
+}
+
+fn cartan_hopfield_get_max_resonance(query_ptr: ptr) -> float {
+    cartan_hopfield_init_if_needed();
+    let num_basins = cartan_tree_len_f(g_hopfield_key_bank);
+    if (num_basins == 0.0 || query_ptr == 0.0) { return 0.0; }
+    var q_sq = 0.0;
+    var d = 0.0;
+    while (d < g_hopfield_dim) {
+        let q_val = cartan_vec_get_f32(query_ptr, d);
+        q_sq = q_sq + (q_val * q_val);
+        d = d + 1.0;
+    }
+    var inv_q = 1.0;
+    if (q_sq > 0.000001) { inv_q = 1.0 / sqrt(q_sq); }
+
+    var max_cos = -1.0;
+    var k = 0.0;
+    while (k < num_basins) {
+        let key_k = cartan_tree_get(g_hopfield_key_bank, k);
+        var dot = 0.0;
+        d = 0.0;
+        while (d < g_hopfield_dim) {
+            let s_val = cartan_vec_get_f32(query_ptr, d) * inv_q;
+            let k_val = cartan_vec_get_f32(key_k, d);
+            dot = dot + (s_val * k_val);
+            d = d + 1.0;
+        }
+        if (dot > max_cos) { max_cos = dot; }
+        k = k + 1.0;
+    }
+    return max_cos;
+}
+
+fn cartan_hopfield_relax(hidden_ptr: ptr, beta: float, steps: float) -> float {
+    cartan_hopfield_init_if_needed();
+    return resonator_continuous_hopfield_relax(g_hopfield_key_bank, hidden_ptr, g_hopfield_dim, beta, steps);
+}
+
+fn cartan_hopfield_energy(hidden_ptr: ptr) -> float {
+    cartan_hopfield_init_if_needed();
+    return resonator_compute_energy(g_hopfield_key_bank, hidden_ptr, g_hopfield_dim);
+}
+
+fn cartan_hopfield_save_basins(path: string) -> float {
+    cartan_hopfield_init_if_needed();
+    return resonator_save_basins(g_hopfield_key_bank, path, g_hopfield_dim);
+}
+
+fn cartan_hopfield_load_basins(path: string) -> float {
+    cartan_hopfield_init_if_needed();
+    let loaded = resonator_load_basins(path, g_hopfield_dim);
+    if (loaded != 0.0) {
+        g_hopfield_key_bank = loaded;
+        g_hopfield_val_bank = cartan_dict_clone(loaded);
+        return cartan_tree_len_f(loaded);
+    }
+    return 0.0;
+}
+
+fn cartan_hopfield_ingest(path: string) -> float {
+    cartan_hopfield_init_if_needed();
+    let content = cartan_read_file(path);
+    if (content == 0.0 || cartan_string_length(content) == 0.0) { return 0.0; }
+    let len = cartan_string_length(content);
+    let v = cartan_vec_create();
+    var d = 0.0;
+    while (d < g_hopfield_dim) {
+        var ch = 0.0;
+        if (d < len) {
+            ch = cartan_string_get_char(content, d);
+        }
+        cartan_vec_push_f32(v, ch / 255.0);
+        d = d + 1.0;
+    }
+    return cartan_hopfield_store_vector(v, g_hopfield_dim);
+}
+
 
 
 

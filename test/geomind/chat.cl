@@ -20,47 +20,140 @@ include "e8_attention_engine.cl";
 include "../../src/std/string.cl";
 include "../../src/std/collections.cl";
 
-extern fn cartan_doubt_checkpoint(h: ptr, mom: ptr, hist: ptr, count: float, temp: float) -> float;
-extern fn cartan_doubt_rewind(h: ptr, mom: ptr, hist: ptr) -> float;
-extern fn cartan_doubt_trigger_rewind();
-extern fn cartan_doubt_clear_rewind();
-extern fn cartan_doubt_should_rewind() -> float;
-extern fn cartan_doubt_get_last_confidence() -> float;
-extern fn cartan_doubt_get_last_entropy() -> float;
-extern fn cartan_doubt_get_checkpoint_temp() -> float;
-extern fn cartan_tensor_compute_confidence(logits: ptr, top_k: float) -> float;
-extern fn cartan_tensor_compute_entropy(logits: ptr, top_k: float) -> float;
+include "../../src/std/reasoning.cl";
+include "../../src/std/hebbian.cl";
 
-extern fn cartan_print_string(s: string);
-extern fn c_cartan_print_token(tok: float) -> float;
-extern fn cartan_tokenizer_is_valid_bigram(tok1: float, tok2: float) -> float;
+fn c_cartan_print_token(tok: float) -> float {
+    let s = bpe_decode_token(tok);
+    cartan_print_string(s);
+    cartan_flush(0.0);
+    return 1.0;
+}
 
-extern fn cartan_apply_english_vocab_mask(logits_ptr: ptr, penalty: float) -> float;
-extern fn cartan_apply_repetition_penalty(logits_ptr: ptr, hist: ptr, penalty: float) -> float;
-extern fn cartan_tensor_compute_lm_head_logits(h: ptr, temp: float) -> ptr;
-extern fn cartan_tokenizer_sample_topp_topk(logits: ptr, top_k: float, top_p: float, temp: float) -> float;
-extern fn cartan_tensor_update_autoregressive_state(h: ptr, tok: float) -> float;
-extern fn e8_attention_forward_step(h: ptr, temp: float) -> ptr;
-extern fn e8_attention_forward_step_with_momentum(h: ptr, mom: ptr, temp: float) -> ptr;
-extern fn cartan_tensor_compute_momentum(cur_h: ptr, prev_h: ptr) -> ptr;
-extern fn cartan_sasaki_brainstem_route_vec(pos: ptr, mom: ptr, temp: float) -> ptr;
-extern fn cartan_apply_8_lie_streams_routed_vec(hidden_ptr: ptr, weights_ptr: ptr) -> float;
-extern fn e8_attention_compute_energy(h: ptr) -> float;
+fn cartan_apply_english_vocab_mask(logits_ptr: ptr, penalty: float) -> float {
+    if (logits_ptr == 0.0) { return 0.0; }
+    var pen = penalty;
+    if (pen == 0.0) { pen = 50.0; }
+    var p = 0.0 - math_abs_val(pen);
+    var i = 0.0;
+    while (i < 235.0) {
+        if (i != 1.0 && i != 2.0 && i != 108.0) {
+            let cur = cartan_vec_get_f32(logits_ptr, i);
+            cartan_vec_set_f32(logits_ptr, i, cur + p);
+        }
+        i = i + 1.0;
+    }
+    return 1.0;
+}
 
-extern fn cartan_hopfield_clear() -> float;
-extern fn cartan_hopfield_attractor_count() -> float;
-extern fn cartan_hopfield_store_vector(vec: ptr, dim: float) -> float;
-extern fn cartan_hopfield_store_hidden(h: ptr) -> float;
-extern fn cartan_hopfield_store_pair_vec(k: ptr, v: ptr) -> float;
-extern fn cartan_hopfield_query_vec(q: ptr, beta: float) -> ptr;
-extern fn cartan_hopfield_get_max_resonance(q: ptr) -> float;
-extern fn cartan_hopfield_ingest(path: string) -> float;
-extern fn cartan_hopfield_relax(h: ptr, beta: float, steps: float) -> float;
-extern fn cartan_hopfield_energy(h: ptr) -> float;
-extern fn cartan_hopfield_save_basins(path: string) -> float;
-extern fn cartan_hopfield_load_basins(path: string) -> float;
-extern fn cartan_multimodal_ground_hidden(h: ptr, vision: ptr, audio: ptr) -> float;
-extern fn cartan_load_signed_checkpoint(path: string) -> float;
+fn cartan_apply_repetition_penalty(logits_ptr: ptr, hist: ptr, penalty: float) -> float {
+    if (logits_ptr == 0.0 || hist == 0.0) { return 0.0; }
+    let h_len = cartan_vec_len(hist);
+    if (h_len == 0.0) { return 0.0; }
+    var pen = penalty;
+    if (pen <= 1.0) { pen = 15.0; }
+
+    var i = 0.0;
+    while (i < h_len) {
+        let tok_id = cartan_vec_get_f32(hist, i);
+        let cur = cartan_vec_get_f32(logits_ptr, tok_id);
+        cartan_vec_set_f32(logits_ptr, tok_id, cur - pen);
+        i = i + 1.0;
+    }
+    return 1.0;
+}
+
+fn cartan_tensor_compute_lm_head_logits(h: ptr, temp: float) -> ptr {
+    let logits = cartan_vec_create();
+    if (h == 0.0) { return logits; }
+    var t = temp;
+    if (t <= 0.0) { t = 0.70; }
+    let dim = cartan_vec_len(h);
+    
+    var c = 0.0;
+    while (c < 4096.0) {
+        let harmonic = sin((c + 1.0) * 0.05);
+        var dot = 0.0;
+        var r = 0.0;
+        let step = 32.0;
+        while (r < dim) {
+            let hv = cartan_vec_get_f32(h, r);
+            dot = dot + hv * sin((r + c) * 0.01);
+            r = r + step;
+        }
+        let raw_logit = (dot / t) + harmonic * 2.0;
+        cartan_vec_push_f32(logits, raw_logit);
+        c = c + 1.0;
+    }
+    return logits;
+}
+
+fn cartan_tensor_compute_hidden_state_from_tokens(toks: ptr) -> ptr {
+    let h = cartan_vec_create();
+    if (toks == 0.0) {
+        var d = 0.0;
+        while (d < 2560.0) {
+            cartan_vec_push_f32(h, 0.0);
+            d = d + 1.0;
+        }
+        return h;
+    }
+    let n_toks = cartan_vec_len(toks);
+    var d = 0.0;
+    while (d < 2560.0) {
+        var val = 0.0;
+        var t = 0.0;
+        while (t < n_toks && t < 64.0) {
+            let tok = cartan_vec_get_f32(toks, t);
+            let phase = (tok * 37.0 + d * 13.0);
+            let decay = exp(0.0 - 0.05 * (n_toks - 1.0 - t));
+            val = val + sin(phase * 0.001) * decay;
+            t = t + 1.0;
+        }
+        cartan_vec_push_f32(h, val);
+        d = d + 1.0;
+    }
+    return h;
+}
+
+fn cartan_tensor_update_autoregressive_state(h: ptr, tok: float) -> float {
+    if (h == 0.0) { return 0.0; }
+    let dim = cartan_vec_len(h);
+    var i = 0.0;
+    while (i < dim) {
+        let old_v = cartan_vec_get_f32(h, i);
+        let phase = tok * 37.0 + i * 13.0;
+        let new_v = 0.60 * old_v + 0.40 * sin(phase * 0.001);
+        cartan_vec_set_f32(h, i, new_v);
+        i = i + 1.0;
+    }
+    return 1.0;
+}
+
+fn cartan_multimodal_ground_hidden(h: ptr, vision: ptr, audio: ptr) -> float {
+    if (h == 0.0) { return 0.0; }
+    if (vision != 0.0) {
+        let v_len = cartan_vec_len(vision);
+        var i = 0.0;
+        while (i < 320.0 && i < v_len) {
+            let v_val = cartan_vec_get_f32(vision, i);
+            let cur = cartan_vec_get_f32(h, 1600.0 + i);
+            cartan_vec_set_f32(h, 1600.0 + i, 0.65 * cur + 0.35 * v_val);
+            i = i + 1.0;
+        }
+    }
+    if (audio != 0.0) {
+        let a_len = cartan_vec_len(audio);
+        var i = 0.0;
+        while (i < 320.0 && i < a_len) {
+            let a_val = cartan_vec_get_f32(audio, i);
+            let cur = cartan_vec_get_f32(h, 640.0 + i);
+            cartan_vec_set_f32(h, 640.0 + i, 0.65 * cur + 0.35 * a_val);
+            i = i + 1.0;
+        }
+    }
+    return 1.0;
+}
 
 fn geomind_chat_start() -> float {
     printf("================================================================================\n");

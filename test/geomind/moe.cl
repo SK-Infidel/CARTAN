@@ -143,5 +143,27 @@ fn geomind_moe_forward(hidden_dim: float, x: ptr) -> ptr {
     return geomind_moe_forward_grid(hidden_dim, x, x);
 }
 
+fn cartan_sasaki_brainstem_route_vec(pos: ptr, mom: ptr, temp: float) -> ptr {
+    return geomind_sasaki_stream_routing(pos, mom, temp);
+}
+
+fn cartan_tensor_compute_momentum(cur_h: ptr, prev_h: ptr) -> ptr {
+    let mom = cartan_vec_create();
+    if (cur_h == 0.0) { return mom; }
+    let n = cartan_vec_len(cur_h);
+    var i = 0.0;
+    while (i < n) {
+        let cur = cartan_vec_get_f32(cur_h, i);
+        var prev = 0.0;
+        if (prev_h != 0.0 && i < cartan_vec_len(prev_h)) {
+            prev = cartan_vec_get_f32(prev_h, i);
+        }
+        cartan_vec_push_f32(mom, cur - prev);
+        i = i + 1.0;
+    }
+    return mom;
+}
+
+
 
 

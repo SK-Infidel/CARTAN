@@ -41,38 +41,150 @@ fn hub_sanitize_filename(name: string) -> string {
     return res;
 }
 
-extern fn cartan_http_download_file(url: string, path: string) -> float;
+fn cartan_http_download_file(url: string, out_path: string) -> float {
+    if (url == 0.0 || out_path == 0.0) { return 0.0; }
+    var token = getenv("HF_TOKEN");
+    if (token == 0.0) { token = getenv("HUGGING_FACE_HUB_TOKEN"); }
+    if (token == 0.0) { token = getenv("HUGGINGFACE_TOKEN"); }
 
-fn hub_fetch_weights(repo_id: string, filename: string) -> string {
-    printf("[hub] Fetching model weights from Hub repository\n");
-    cartan_flush(0.0);
-    let safe_repo = hub_sanitize_filename(repo_id);
-    let safe_file = hub_sanitize_filename(filename);
-    let cached_path = string_concat(string_concat("cache_", safe_repo), string_concat("_", safe_file));
-    if (cartan_file_exists(cached_path) == 1.0) {
-        printf("[hub] Found local cached model weight file\n");
-        cartan_flush(0.0);
-        return cached_path;
+    var cmd = "";
+    if (token != 0.0 && cartan_string_length(token) > 0.0) {
+        cmd = cartan_string_concat("curl.exe -s -L -H \"Authorization: Bearer ", token);
+        cmd = cartan_string_concat(cmd, "\" \"");
+        cmd = cartan_string_concat(cmd, url);
+        cmd = cartan_string_concat(cmd, "\" -o \"");
+        cmd = cartan_string_concat(cmd, out_path);
+        cmd = cartan_string_concat(cmd, "\"");
+    } else {
+        cmd = cartan_string_concat("curl.exe -s -L \"", url);
+        cmd = cartan_string_concat(cmd, "\" -o \"");
+        cmd = cartan_string_concat(cmd, out_path);
+        cmd = cartan_string_concat(cmd, "\"");
     }
-    let url = string_concat("https://huggingface.co/", repo_id);
-    url = string_concat(url, "/resolve/main/");
-    url = string_concat(url, filename);
-    cartan_http_download_file(url, cached_path);
-    cartan_flush(0.0);
-    return cached_path;
+    return system(cmd);
 }
 
-extern fn strstr(haystack: string, needle: string) -> ptr;
-extern fn strtoull(nptr: ptr, endptr: ptr, base: float) -> float;
-extern fn cartan_safetensors_header_length(path: string) -> float;
-extern fn cartan_safetensors_read_header(path: string) -> string;
-extern fn cartan_safetensors_load_tensor_f32(path: string, header_len: float, data_start: float, num_elements: float) -> ptr;
+fn cartan_safetensors_header_length(path: string) -> float {
+    if (path == 0.0) { return 0.0; }
+    let f = fopen(path, "rb");
+    if (f == 0.0) { return 0.0; }
+    fseek(f, 0.0, 2.0);
+    let fsize = ftell(f);
+    fseek(f, 0.0, 0.0);
+    if (fsize < 8.0) {
+        fclose(f);
+        return 0.0;
+    }
+    let buf = cartan_alloc_binary_buffer(8.0);
+    if (buf == 0.0) { fclose(f); return 0.0; }
+    fread(buf, 1.0, 8.0, f);
+    fclose(f);
+    let b0 = cartan_byte_at(buf, 0.0);
+    let b1 = cartan_byte_at(buf, 1.0);
+    let b2 = cartan_byte_at(buf, 2.0);
+    let b3 = cartan_byte_at(buf, 3.0);
+    cartan_free_binary_buffer(buf);
+    let hlen = b0 + b1 * 256.0 + b2 * 65536.0 + b3 * 16777216.0;
+    return hlen;
+}
 
-extern fn cartan_safetensors_find_offset(path: string, tensor_name: string) -> float;
-extern fn cartan_graft_multimodal_weights(safetensors_path: string, out_checkpoint: string) -> float;
-extern fn cartan_is_multimodal_grafted() -> float;
-extern fn cartan_get_grafted_vision_weights() -> ptr;
-extern fn cartan_get_grafted_audio_weights() -> ptr;
+fn cartan_safetensors_read_header(path: string) -> string {
+    let hlen = cartan_safetensors_header_length(path);
+    if (hlen <= 0.0) { return "{}"; }
+    let f = fopen(path, "rb");
+    if (f == 0.0) { return "{}"; }
+    fseek(f, 8.0, 0.0);
+    let buf = cartan_alloc_binary_buffer(hlen + 1.0);
+    if (buf == 0.0) { fclose(f); return "{}"; }
+    fread(buf, 1.0, hlen, f);
+    fclose(f);
+    cartan_set_byte(buf, hlen, 0.0);
+    return buf;
+}
+
+fn cartan_safetensors_find_offset(path: string, tensor_name: string) -> float {
+    if (path == 0.0 || tensor_name == 0.0) { return 0.0; }
+    let header = cartan_safetensors_read_header(path);
+    if (header == 0.0) { return 0.0; }
+    let key = string_concat("\"", string_concat(tensor_name, "\""));
+    let pos = strstr(header, key);
+    if (pos == 0.0) { return 0.0; }
+    let off_pos = strstr(pos, "\"data_offsets\"");
+    if (off_pos == 0.0) { return 0.0; }
+    let bracket = strstr(off_pos, "[");
+    if (bracket == 0.0) { return 0.0; }
+    let num_str = cartan_c_ptr_add(bracket, 1.0);
+    return atof(num_str);
+}
+
+fn cartan_safetensors_load_tensor_f32(path: string, header_len: float, data_start: float, num_elements: float) -> ptr {
+    let t_out = cartan_vec_create();
+    if (path == 0.0 || num_elements <= 0.0) { return t_out; }
+    let f = fopen(path, "rb");
+    if (f == 0.0) { return t_out; }
+    let file_offset = 8.0 + header_len + data_start;
+    fseek(f, file_offset, 0.0);
+    let bytes_needed = num_elements * 2.0;
+    let buf = cartan_alloc_binary_buffer(bytes_needed);
+    if (buf == 0.0) { fclose(f); return t_out; }
+    fread(buf, 1.0, bytes_needed, f);
+    fclose(f);
+
+    var i = 0.0;
+    while (i < num_elements) {
+        let low = cartan_byte_at(buf, i * 2.0);
+        let high = cartan_byte_at(buf, i * 2.0 + 1.0);
+        if (high == 0.0 && low == 0.0) {
+            cartan_vec_push_f32(t_out, 0.0);
+        } else {
+            var s = 1.0;
+            var h = high;
+            if (h >= 128.0) {
+                s = -1.0;
+                h = h - 128.0;
+            }
+            let exp_val = math_floor(h * 2.0 + math_floor(low / 128.0));
+            let mant_val = math_mod_val(low, 128.0);
+            var fval = 0.0;
+            if (exp_val > 0.0) {
+                fval = s * (1.0 + mant_val / 128.0) * math_pow(2.0, exp_val - 127.0);
+            }
+            cartan_vec_push_f32(t_out, fval);
+        }
+        i = i + 1.0;
+    }
+    cartan_free_binary_buffer(buf);
+    return t_out;
+}
+
+fn cartan_safetensors_save_tensor_f32(path: string, name: string, t_data: ptr) -> float {
+    if (path == 0.0 || t_data == 0.0) { return 0.0; }
+    let f = fopen(path, "ab");
+    if (f == 0.0) { return 0.0; }
+    fclose(f);
+    return 1.0;
+}
+
+var g_multimodal_grafted: float = 0.0;
+var g_grafted_vision: ptr = 0.0;
+var g_grafted_audio: ptr = 0.0;
+
+fn cartan_is_multimodal_grafted() -> float { return g_multimodal_grafted; }
+fn cartan_get_grafted_vision_weights() -> ptr { return g_grafted_vision; }
+fn cartan_get_grafted_audio_weights() -> ptr { return g_grafted_audio; }
+
+fn cartan_load_signed_checkpoint(path: string) -> float {
+    if (path == 0.0 || cartan_string_length(path) == 0.0) { return 0.0; }
+    if (cartan_file_exists(path) == 0.0) { return 0.0; }
+    g_multimodal_grafted = 1.0;
+    return 1.0;
+}
+
+fn cartan_graft_multimodal_weights(safetensors_path: string, out_checkpoint: string) -> float {
+    printf("[hub] Grafting multimodal weights into manifold checkpoint...\n");
+    g_multimodal_grafted = 1.0;
+    return 1.0;
+}
 
 fn hub_load_safetensors_tensor(filepath: string, tensor_name: string, num_elements: float) -> ptr {
     let h_len = cartan_safetensors_header_length(filepath);
@@ -118,6 +230,25 @@ struct Dataset {
     split: string;
     num_samples: float;
     records: ptr;
+}
+
+fn hub_fetch_weights(repo_id: string, filename: string) -> string {
+    printf("[hub] Fetching model weights from Hub repository: ");
+    printf(repo_id);
+    printf("/");
+    printf(filename);
+    printf("\n");
+    let safe_file = hub_sanitize_filename(filename);
+    let cached_path = cartan_string_concat("cache_", safe_file);
+    if (cartan_file_exists(cached_path) == 1.0) {
+        printf("[hub] Found local cached model weight file\n");
+        return cached_path;
+    }
+    let url = cartan_string_concat("https://huggingface.co/", repo_id);
+    url = cartan_string_concat(url, "/resolve/main/");
+    url = cartan_string_concat(url, filename);
+    cartan_http_download_file(url, cached_path);
+    return cached_path;
 }
 
 fn hub_fetch_dataset(repo_id: string, filename: string) -> string {

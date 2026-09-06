@@ -9,51 +9,6 @@ struct TypeChecker {
 }
 
 
-fn cartan_dict_get(dict: ptr, key: string) -> ptr {
-    if (dict == 0.0) { return 0.0; }
-    var i = cartan_tree_len_f(dict) - 1.0;
-    while (i >= 0.0) {
-        let pair = cartan_tree_get_f32(dict, i);
-        if (cartan_string_eq(cartan_tree_get_f32(pair, 0.0), key) != 0.0) {
-            return cartan_tree_get_f32(pair, 1.0);
-        }
-        i = i - 1.0;
-    }
-    return 0.0;
-}
-
-fn cartan_dict_set(dict: ptr, key: string, value: ptr) {
-    if (dict == 0.0) { return; }
-    var i = cartan_tree_len_f(dict) - 1.0;
-    while (i >= 0.0) {
-        let pair = cartan_tree_get_f32(dict, i);
-        if (cartan_string_eq(cartan_tree_get_f32(pair, 0.0), key) != 0.0) {
-            cartan_tree_set(pair, 1.0, value);
-            return;
-        }
-        i = i - 1.0;
-    }
-    let pair = cartan_tree_create();
-    cartan_tree_push(pair, key);
-    cartan_tree_push(pair, value);
-    cartan_tree_push(dict, pair);
-}
-
-fn cartan_dict_clone(dict: ptr) -> ptr {
-    let cloned = cartan_tree_create();
-    if (dict == 0.0) { return cloned; }
-    var i = 0.0;
-    let len = cartan_tree_len_f(dict);
-    while (i < len) {
-        let pair = cartan_tree_get_f32(dict, i);
-        let p_copy = cartan_tree_create();
-        cartan_tree_push(p_copy, cartan_tree_get_f32(pair, 0.0));
-        cartan_tree_push(p_copy, cartan_tree_get_f32(pair, 1.0));
-        cartan_tree_push(cloned, p_copy);
-        i = i + 1.0;
-    }
-    return cloned;
-}
 
 fn type_checker_init() -> TypeChecker {
     var p = TypeChecker { functions: cartan_tree_create(), symbol_table: cartan_tree_create(), struct_registry: cartan_tree_create() };

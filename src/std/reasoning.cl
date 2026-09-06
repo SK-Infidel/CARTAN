@@ -102,19 +102,210 @@ fn cartan_rt_multimodal_sync_start() {
     printf("[cartan_rt] Multimodal Sync Block Started\n");
 }
 
-extern fn cartan_rt_doubt_begin();
-extern fn cartan_rt_doubt_end();
-extern fn cartan_doubt_is_active() -> float;
-extern fn cartan_doubt_should_rewind() -> float;
-extern fn cartan_doubt_trigger_rewind();
-extern fn cartan_doubt_clear_rewind();
-extern fn cartan_doubt_get_last_confidence() -> float;
-extern fn cartan_doubt_get_last_entropy() -> float;
-extern fn cartan_doubt_get_checkpoint_temp() -> float;
-extern fn cartan_doubt_checkpoint(h: ptr, mom: ptr, hist: ptr, count: float, temp: float) -> float;
-extern fn cartan_doubt_rewind(h: ptr, mom: ptr, hist: ptr) -> float;
-extern fn cartan_tensor_compute_confidence(logits: ptr, top_k: float) -> float;
-extern fn cartan_tensor_compute_entropy(logits: ptr, top_k: float) -> float;
+var g_doubt_active = 0.0;
+var g_doubt_rewind_triggered = 0.0;
+var g_doubt_last_confidence = 0.0;
+var g_doubt_last_entropy = 0.0;
+var g_doubt_temp_saved = 0.0;
+var g_doubt_token_count = 0.0;
+var g_doubt_h_saved: ptr = 0.0;
+var g_doubt_mom_saved: ptr = 0.0;
+var g_doubt_history_saved: ptr = 0.0;
+
+fn cartan_rt_doubt_begin() {
+    g_doubt_active = 1.0;
+    g_doubt_rewind_triggered = 0.0;
+}
+
+fn cartan_rt_doubt_end() {
+    g_doubt_active = 0.0;
+}
+
+fn cartan_doubt_is_active() -> float {
+    return g_doubt_active;
+}
+
+fn cartan_doubt_should_rewind() -> float {
+    return g_doubt_rewind_triggered;
+}
+
+fn cartan_doubt_trigger_rewind() {
+    g_doubt_rewind_triggered = 1.0;
+}
+
+fn cartan_doubt_clear_rewind() {
+    g_doubt_rewind_triggered = 0.0;
+}
+
+fn cartan_doubt_get_last_confidence() -> float {
+    return g_doubt_last_confidence;
+}
+
+fn cartan_doubt_get_last_entropy() -> float {
+    return g_doubt_last_entropy;
+}
+
+fn cartan_doubt_get_checkpoint_temp() -> float {
+    return g_doubt_temp_saved;
+}
+
+fn cartan_doubt_checkpoint(h: ptr, mom: ptr, hist: ptr, count: float, temp: float) -> float {
+    if (h == 0.0) { return 0.0; }
+    if (g_doubt_h_saved == 0.0) { g_doubt_h_saved = cartan_vec_create(); }
+    if (g_doubt_mom_saved == 0.0) { g_doubt_mom_saved = cartan_vec_create(); }
+    if (g_doubt_history_saved == 0.0) { g_doubt_history_saved = cartan_vec_create(); }
+
+    let dim = cartan_vec_len(h);
+    var i = 0.0;
+    while (i < dim) {
+        let v = cartan_vec_get_f32(h, i);
+        if (i < cartan_vec_len(g_doubt_h_saved)) {
+            cartan_vec_set_f32(g_doubt_h_saved, i, v);
+        } else {
+            cartan_vec_push_f32(g_doubt_h_saved, v);
+        }
+        i = i + 1.0;
+    }
+
+    if (mom != 0.0) {
+        let m_dim = cartan_vec_len(mom);
+        var j = 0.0;
+        while (j < m_dim) {
+            let v = cartan_vec_get_f32(mom, j);
+            if (j < cartan_vec_len(g_doubt_mom_saved)) {
+                cartan_vec_set_f32(g_doubt_mom_saved, j, v);
+            } else {
+                cartan_vec_push_f32(g_doubt_mom_saved, v);
+            }
+            j = j + 1.0;
+        }
+    }
+
+    if (hist != 0.0) {
+        let h_len = cartan_vec_len(hist);
+        var k = 0.0;
+        while (k < h_len) {
+            let v = cartan_vec_get_f32(hist, k);
+            if (k < cartan_vec_len(g_doubt_history_saved)) {
+                cartan_vec_set_f32(g_doubt_history_saved, k, v);
+            } else {
+                cartan_vec_push_f32(g_doubt_history_saved, v);
+            }
+            k = k + 1.0;
+        }
+    }
+
+    g_doubt_token_count = count;
+    g_doubt_temp_saved = temp;
+    return 1.0;
+}
+
+fn cartan_doubt_rewind(h: ptr, mom: ptr, hist: ptr) -> float {
+    if (h == 0.0 || g_doubt_h_saved == 0.0) { return 0.0; }
+    let dim = cartan_vec_len(h);
+    var i = 0.0;
+    while (i < dim) {
+        if (i < cartan_vec_len(g_doubt_h_saved)) {
+            cartan_vec_set_f32(h, i, cartan_vec_get_f32(g_doubt_h_saved, i));
+        }
+        i = i + 1.0;
+    }
+
+    if (mom != 0.0 && g_doubt_mom_saved != 0.0) {
+        let m_dim = cartan_vec_len(mom);
+        var j = 0.0;
+        while (j < m_dim) {
+            if (j < cartan_vec_len(g_doubt_mom_saved)) {
+                cartan_vec_set_f32(mom, j, cartan_vec_get_f32(g_doubt_mom_saved, j));
+            }
+            j = j + 1.0;
+        }
+    }
+
+    if (hist != 0.0 && g_doubt_history_saved != 0.0) {
+        let count = g_doubt_token_count;
+        while (cartan_vec_len(hist) > count) {
+            cartan_vec_pop_f32(hist);
+        }
+        var k = 0.0;
+        while (k < count) {
+            if (k < cartan_vec_len(g_doubt_history_saved)) {
+                cartan_vec_set_f32(hist, k, cartan_vec_get_f32(g_doubt_history_saved, k));
+            }
+            k = k + 1.0;
+        }
+    }
+
+    g_doubt_rewind_triggered = 0.0;
+    return g_doubt_token_count;
+}
+
+fn cartan_tensor_compute_confidence(logits: ptr, top_k: float) -> float {
+    if (logits == 0.0) { return 0.0; }
+    let len = cartan_vec_len(logits);
+    if (len == 0.0) { return 0.0; }
+
+    var k = top_k;
+    if (k <= 0.0) { k = 50.0; }
+    if (k > 50.0) { k = 50.0; }
+    if (k > len) { k = len; }
+
+    let top_logits = cartan_vec_create();
+    var idx = 0.0;
+    while (idx < k) {
+        cartan_vec_push_f32(top_logits, -1000000.0);
+        idx = idx + 1.0;
+    }
+
+    var i = 0.0;
+    while (i < len) {
+        let val = cartan_vec_get_f32(logits, i);
+        let last_top = cartan_vec_get_f32(top_logits, k - 1.0);
+        if (val > last_top) {
+            var pos = k - 1.0;
+            while (pos > 0.0 && val > cartan_vec_get_f32(top_logits, pos - 1.0)) {
+                cartan_vec_set_f32(top_logits, pos, cartan_vec_get_f32(top_logits, pos - 1.0));
+                pos = pos - 1.0;
+            }
+            cartan_vec_set_f32(top_logits, pos, val);
+        }
+        i = i + 1.0;
+    }
+
+    let max_l = cartan_vec_get_f32(top_logits, 0.0);
+    let exp_vals = cartan_vec_create();
+    var sum_exp = 0.0;
+    var j = 0.0;
+    while (j < k) {
+        let e = math_exp(cartan_vec_get_f32(top_logits, j) - max_l);
+        cartan_vec_push_f32(exp_vals, e);
+        sum_exp = sum_exp + e;
+        j = j + 1.0;
+    }
+
+    if (sum_exp <= 0.0) { return 0.0; }
+
+    let top1_prob = cartan_vec_get_f32(exp_vals, 0.0) / sum_exp;
+    g_doubt_last_confidence = top1_prob;
+
+    var entropy = 0.0;
+    var m = 0.0;
+    while (m < k) {
+        let p = cartan_vec_get_f32(exp_vals, m) / sum_exp;
+        if (p > 0.000000000001) {
+            entropy = entropy - (p * math_log(p));
+        }
+        m = m + 1.0;
+    }
+    g_doubt_last_entropy = entropy;
+
+    return top1_prob;
+}
+
+fn cartan_tensor_compute_entropy(logits: ptr, top_k: float) -> float {
+    cartan_tensor_compute_confidence(logits, top_k);
+    return g_doubt_last_entropy;
+}
 
 fn doubt_checkpoint(h: ptr, mom: ptr, hist: ptr, count: float, temp: float) -> float {
     return cartan_doubt_checkpoint(h, mom, hist, count, temp);
@@ -152,30 +343,18 @@ fn cartan_rt_grok_begin() {
     printf("[cartan_rt] Grok Deep Analysis Block Started\n");
 }
 
-fn geomind_azr_propose_task(level: float) -> string {
-    return azr_framework_propose_task(level);
-}
-
-fn geomind_azr_solve_task(task_code: string) -> string {
-    return azr_framework_solve_task(task_code);
-}
-
-fn geomind_azr_eval_reward(candidate_code: string) -> float {
-    return azr_framework_eval_binary_reward(candidate_code);
-}
-
-fn geomind_azr_run_selfplay(iterations: float) -> float {
+fn azr_framework_run_selfplay(iterations: float) -> float {
     printf("================================================================================\n");
-    printf("  GEOMIND ABSOLUTE ZERO REASONING (AZR) COMPILER SELF-PLAY ENGINE\n");
+    printf("  CARTAN ABSOLUTE ZERO REASONING (AZR) COMPILER SELF-PLAY ENGINE\n");
     printf("  Dual-Agent Proposer/Solver | Verifiable Binary Reward RL Signal\n");
     printf("================================================================================\n\n");
 
     var iter = 1.0;
     var total_reward = 0.0;
     while (iter <= iterations) {
-        let task = geomind_azr_propose_task(iter);
-        let solution = geomind_azr_solve_task(task);
-        let reward = geomind_azr_eval_reward(solution);
+        let task = azr_framework_propose_task(iter);
+        let solution = azr_framework_solve_task(task);
+        let reward = azr_framework_eval_binary_reward(solution);
         total_reward = total_reward + reward;
         
         printf("[AZR Self-Play] Iteration %s / %s | Level %s Task Proposed | Binary Reward: %s\n",

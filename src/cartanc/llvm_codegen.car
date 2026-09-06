@@ -29,6 +29,7 @@ struct LLVMGenerator {
     enum_variant_types: ptr;
     header: ptr;
     decls: ptr;
+    global_var_types: ptr;
 }
 
 fn llvm_codegen_init() -> LLVMGenerator {
@@ -55,6 +56,7 @@ fn llvm_codegen_init() -> LLVMGenerator {
         enum_variant_types: cartan_tree_create(),
         header: cartan_tree_create(),
         decls: cartan_tree_create(),
+        global_var_types: cartan_tree_create(),
     };
     cartan_dict_set(l.func_return_types, "cartan_tree_create", "ptr");
     cartan_dict_set(l.func_return_types, "cartan_tree_get_f32", "ptr");
@@ -88,6 +90,21 @@ fn llvm_codegen_init() -> LLVMGenerator {
     cartan_dict_set(l.func_return_types, "strcmp", "double");
     cartan_dict_set(l.func_return_types, "strncmp", "double");
     cartan_dict_set(l.func_return_types, "system", "double");
+    cartan_dict_set(l.func_return_types, "cartan_tree_get", "ptr");
+    cartan_dict_set(l.func_return_types, "cartan_dict_create", "ptr");
+    cartan_dict_set(l.func_return_types, "cartan_dict_get", "ptr");
+    cartan_dict_set(l.func_return_types, "cartan_dict_clone", "ptr");
+    cartan_dict_set(l.func_return_types, "cartan_queue_create", "ptr");
+    cartan_dict_set(l.func_return_types, "cartan_vec_create", "ptr");
+    cartan_dict_set(l.func_return_types, "cartan_slice_tree", "ptr");
+    cartan_dict_set(l.func_return_types, "cartan_slice_nd", "ptr");
+    cartan_dict_set(l.func_return_types, "cartan_byte_at", "double");
+    cartan_dict_set(l.func_return_types, "cartan_set_byte", "void");
+    cartan_dict_set(l.func_return_types, "cartan_alloc_binary_buffer", "ptr");
+    cartan_dict_set(l.func_return_types, "cartan_read_binary_file_data", "ptr");
+    cartan_dict_set(l.func_return_types, "cartan_get_binary_file_size", "double");
+    cartan_dict_set(l.func_return_types, "cartan_write_binary_file", "double");
+    cartan_dict_set(l.func_return_types, "cartan_print_string", "void");
     return l;
 }
 
@@ -336,6 +353,8 @@ fn llvm_codegen_init() -> LLVMGenerator {
         cartan_tree_push(self_ptr.declared_externs, "sys_get_arg_count");
         cartan_tree_push(self_ptr.declared_externs, "cartan_crt_init");
         cartan_tree_push(self_ptr.declared_externs, "c_cartan_string_char_at");
+        cartan_tree_push(self_ptr.declared_externs, "cartan_byte_at");
+        cartan_tree_push(self_ptr.declared_externs, "cartan_set_byte");
         cartan_tree_push(self_ptr.declared_externs, "cartan_c_memcpy");
         cartan_tree_push(self_ptr.declared_externs, "cartan_c_strncmp");
         cartan_tree_push(self_ptr.declared_externs, "cartan_c_ptr_add");
@@ -559,8 +578,14 @@ fn llvm_codegen_init() -> LLVMGenerator {
             let disc = cartan_tree_get_f32(stmt, 0.0);
             if (disc == 3.0) {
                 let name = cartan_tree_get_f32(stmt, 1.0);
+                let type_ann = cartan_tree_get_f32(stmt, 4.0);
                 let glob_name = cartan_string_concat("@global_var_", name);
-                cartan_tree_push(self_ptr.globals, cartan_string_concat(glob_name, " = global double 0.0, align 8\n"));
+                if (type_ann != 0.0 && (cartan_string_eq(type_ann, "ptr") != 0.0 || cartan_string_eq(type_ann, "string") != 0.0 || cartan_string_starts_with(type_ann, "tree<") != 0.0)) {
+                    cartan_tree_push(self_ptr.globals, cartan_string_concat(glob_name, " = global ptr null, align 8\n"));
+                    cartan_dict_set(self_ptr.global_var_types, name, type_ann);
+                } else {
+                    cartan_tree_push(self_ptr.globals, cartan_string_concat(glob_name, " = global double 0.0, align 8\n"));
+                }
                 cartan_dict_set(self_ptr.symbols, name, glob_name);
             } else if (disc == 15.0 || disc == 48.0) {
                 let fn_name = cartan_tree_get_f32(stmt, 1.0);
@@ -682,7 +707,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
             var decl = cartan_tree_get_f32(tup, 1.0);
             self_ptr.current_struct = struct_name;
             self_ptr.symbols = cartan_dict_clone(global_symbols);
-            self_ptr.var_types = cartan_tree_create();
+            self_ptr.var_types = cartan_dict_clone(self_ptr.global_var_types);
             
             let fn_name = cartan_tree_get_f32(decl, 1.0);
             printf("[DEBUG codegen fn] %s\n", fn_name);
@@ -868,6 +893,8 @@ while (idx_method < cartan_tree_len_f(methods)) {
         cartan_tree_push(self_ptr.output, "}\n\n");
 
         cartan_tree_push(self_ptr.output, "define double @c_cartan_string_char_at(ptr %s, double %idx) {\nentry:\n  %is_null = icmp eq ptr %s, null\n  br i1 %is_null, label %ret_zero, label %check_bounds\ncheck_bounds:\n  %len = call i64 @strlen(ptr %s)\n  %i = fptosi double %idx to i64\n  %neg = icmp slt i64 %i, 0\n  %over = icmp uge i64 %i, %len\n  %bad = or i1 %neg, %over\n  br i1 %bad, label %ret_zero, label %load_char\nload_char:\n  %char_ptr = getelementptr inbounds i8, ptr %s, i64 %i\n  %ch = load i8, ptr %char_ptr, align 1\n  %ch_u32 = zext i8 %ch to i32\n  %res = uitofp i32 %ch_u32 to double\n  ret double %res\nret_zero:\n  ret double 0.0\n}\n\n");
+        cartan_tree_push(self_ptr.output, "define double @cartan_byte_at(ptr %p, double %offset) {\nentry:\n  %is_null = icmp eq ptr %p, null\n  br i1 %is_null, label %ret_zero, label %load_byte\nload_byte:\n  %i = fptosi double %offset to i64\n  %byte_ptr = getelementptr inbounds i8, ptr %p, i64 %i\n  %b = load i8, ptr %byte_ptr, align 1\n  %b_u32 = zext i8 %b to i32\n  %res = uitofp i32 %b_u32 to double\n  ret double %res\nret_zero:\n  ret double 0.0\n}\n\n");
+        cartan_tree_push(self_ptr.output, "define void @cartan_set_byte(ptr %p, double %offset, double %val) {\nentry:\n  %is_null = icmp eq ptr %p, null\n  br i1 %is_null, label %ret_void, label %store_byte\nstore_byte:\n  %i = fptosi double %offset to i64\n  %byte_ptr = getelementptr inbounds i8, ptr %p, i64 %i\n  %v_i32 = fptoui double %val to i32\n  %v_i8 = trunc i32 %v_i32 to i8\n  store i8 %v_i8, ptr %byte_ptr, align 1\n  ret void\nret_void:\n  ret void\n}\n\n");
         cartan_tree_push(self_ptr.output, "define ptr @cartan_c_memcpy(ptr %dest, ptr %src, double %count) {\nentry:\n  %dest_null = icmp eq ptr %dest, null\n  %src_null = icmp eq ptr %src, null\n  %either_null = or i1 %dest_null, %src_null\n  %le_zero = fcmp ole double %count, 0.0\n  %skip = or i1 %either_null, %le_zero\n  br i1 %skip, label %ret_dest, label %do_copy\ndo_copy:\n  %n = fptoui double %count to i64\n  %res = call ptr @memcpy(ptr %dest, ptr %src, i64 %n)\n  ret ptr %res\nret_dest:\n  ret ptr %dest\n}\n\n");
         cartan_tree_push(self_ptr.output, "define double @cartan_c_strncmp(ptr %s1, ptr %s2, double %n) {\nentry:\n  %s1_null = icmp eq ptr %s1, null\n  %s2_null = icmp eq ptr %s2, null\n  %either_null = or i1 %s1_null, %s2_null\n  %le_zero = fcmp ole double %n, 0.0\n  %skip = or i1 %either_null, %le_zero\n  br i1 %skip, label %ret_zero, label %do_cmp\ndo_cmp:\n  %count = fptoui double %n to i64\n  %res_i32 = call i32 @strncmp(ptr %s1, ptr %s2, i64 %count)\n  %res = sitofp i32 %res_i32 to double\n  ret double %res\nret_zero:\n  ret double 0.0\n}\n\n");
         cartan_tree_push(self_ptr.output, "define ptr @cartan_c_ptr_add(ptr %p, double %offset) {\nentry:\n  %is_null = icmp eq ptr %p, null\n  br i1 %is_null, label %ret_null, label %do_add\ndo_add:\n  %off_i64 = fptosi double %offset to i64\n  %res = getelementptr inbounds i8, ptr %p, i64 %off_i64\n  ret ptr %res\nret_null:\n  ret ptr null\n}\n\n");
@@ -2072,6 +2099,9 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 let val_reg = next_reg(self_ptr);
                 var t = cartan_dict_get(self_ptr.var_types, name);
                 if (t == 0.0) {
+                    t = cartan_dict_get(self_ptr.global_var_types, name);
+                }
+                if (t == 0.0) {
                     t = "double";
                 } else if (t == "float") {
                     t = "double";
@@ -2275,6 +2305,9 @@ while (idx_method < cartan_tree_len_f(methods)) {
                             let clean = clean_reg(val_reg);
                             cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  store ptr ", clean), ", ptr "), ptr_reg), ", align 8\n"));
                             cartan_dict_set(self_ptr.var_types, name, "ptr");
+                            if (cartan_string_starts_with(ptr_reg, "@global_var_") != 0.0) {
+                                cartan_dict_set(self_ptr.global_var_types, name, "ptr");
+                            }
                         } else {
                             let clean = clean_reg(val_reg);
                             let i64_reg = next_reg(self_ptr);
@@ -2700,7 +2733,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 if (is_arg_ptr != 0.0) {
                     let clean = clean_reg(arg_reg);
                     formatted_arg = cartan_string_concat("ptr ", clean);
-                } else if (cartan_string_eq(name, "cartan_tree_push") != 0.0 || (cartan_string_eq(name, "cartan_tree_set") != 0.0 && idx_a == 2.0) || ((cartan_string_eq(name, "sprintf") != 0.0 || cartan_string_eq(name, "memcpy") != 0.0 || cartan_string_eq(name, "strncmp") != 0.0 || cartan_string_eq(name, "strstr") != 0.0 || cartan_string_eq(name, "fflush") != 0.0 || cartan_string_eq(name, "free") != 0.0 || cartan_string_eq(name, "fclose") != 0.0 || cartan_string_eq(name, "ftell") != 0.0) && (idx_a == 0.0 || idx_a == 1.0)) || ((cartan_string_eq(name, "fread") != 0.0 || cartan_string_eq(name, "fwrite") != 0.0) && (idx_a == 0.0 || idx_a == 3.0)) || (cartan_string_eq(name, "fputs") != 0.0 && idx_a == 1.0) || (cartan_string_eq(name, "fgets") != 0.0 && (idx_a == 0.0 || idx_a == 2.0)) || (cartan_string_eq(name, "fseek") != 0.0 && idx_a == 0.0)) {
+                } else if ((idx_a == 0.0 && (cartan_string_starts_with(name, "cartan_tree_") != 0.0 || cartan_string_starts_with(name, "cartan_c_tree_") != 0.0 || cartan_string_starts_with(name, "cartan_vec_") != 0.0 || cartan_string_starts_with(name, "cartan_queue_") != 0.0 || cartan_string_starts_with(name, "cartan_dict_") != 0.0 || cartan_string_starts_with(name, "cartan_slice_") != 0.0 || cartan_string_eq(name, "contains_string") != 0.0)) || ((idx_a == 2.0 || idx_a == 0.0) && (cartan_string_eq(name, "cartan_tree_set") != 0.0 || cartan_string_eq(name, "cartan_c_tree_set") != 0.0 || cartan_string_eq(name, "cartan_dict_set") != 0.0)) || (cartan_string_eq(name, "cartan_tree_push") != 0.0 || cartan_string_eq(name, "cartan_c_tree_push") != 0.0) || ((cartan_string_eq(name, "sprintf") != 0.0 || cartan_string_eq(name, "memcpy") != 0.0 || cartan_string_eq(name, "strncmp") != 0.0 || cartan_string_eq(name, "strstr") != 0.0 || cartan_string_eq(name, "fflush") != 0.0 || cartan_string_eq(name, "free") != 0.0 || cartan_string_eq(name, "fclose") != 0.0 || cartan_string_eq(name, "ftell") != 0.0) && (idx_a == 0.0 || idx_a == 1.0)) || ((cartan_string_eq(name, "fread") != 0.0 || cartan_string_eq(name, "fwrite") != 0.0) && (idx_a == 0.0 || idx_a == 3.0)) || (cartan_string_eq(name, "fputs") != 0.0 && idx_a == 1.0) || (cartan_string_eq(name, "fgets") != 0.0 && (idx_a == 0.0 || idx_a == 2.0)) || (cartan_string_eq(name, "fseek") != 0.0 && idx_a == 0.0)) {
                     let int_cast = next_reg(self_ptr);
                     let ptr_cast = next_reg(self_ptr);
                     cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", int_cast), " = fptoui double "), as_float(self_ptr, arg_reg)), " to i64\n"));

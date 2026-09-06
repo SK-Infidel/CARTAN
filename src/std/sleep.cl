@@ -14,7 +14,6 @@ extern fn cartan_hopfield_relax(h: ptr, beta: float, steps: float) -> float;
 extern fn cartan_hopfield_energy(h: ptr) -> float;
 extern fn cartan_hopfield_save_basins(path: string) -> float;
 extern fn cartan_hopfield_load_basins(path: string) -> float;
-extern fn cartan_tensor_hebbian_update(pre: ptr, post: ptr, m: float, lr: float) -> float;
 
 // Replays an attractor basin vector, generating a relaxed state through Hopfield dynamics
 fn sleep_replay_basin(basin_vec: ptr, dim: float, noise_scale: float, beta: float, steps: float) -> ptr {
@@ -86,3 +85,8 @@ fn sleep_run_consolidation_cycle(basins_file: string, dim: float, lr_sleep: floa
     cartan_hopfield_save_basins(basins_file);
     return consolidated_count;
 }
+
+fn cartan_sleep_consolidate_cycle(filepath: string, lr: float, thresh: float) -> float {
+    return sleep_run_consolidation_cycle(filepath, 2560.0, lr);
+}
+

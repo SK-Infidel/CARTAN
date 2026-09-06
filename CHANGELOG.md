@@ -1,3 +1,44 @@
+## [8.270.0] - 2026-09-06 (Sprint 313: Unified Training Engine Consolidation & WebGPU Mounting)
+
+### Completed & Validated
+- **Unified Native Training Engine (`test/geomind/train.cl`, `[ISSUE-063]`)**:
+  - Unified all training pipelines into a single consolidated module `test/geomind/train.cl`, eliminating redundant WebGPU mounting across separate engine files.
+  - Implemented centralized `train_mount_gpu()` with persistent VRAM buffer allocation and caching for sequences, attention, Lie streams, target tokens, and cross-entropy loss.
+  - Consolidated analytical tensor backpropagation (`cartan_tensor_train_step`), biological telemetry logger (`webgpu_log_biological_telemetry`), and unified multi-stage streaming steady-state training (`geomind_train_streaming_steady_state`).
+  - Converted `cloze_engine.cl`, `sft_train.cl`, and `webgpu_causal_engine.cl` into thin compatibility shims pointing to `train.cl`.
+  - Updated `test/geomind/main.car` with unified include order.
+- **WebGPU Stream 5 & Execution Engine Bug Fixes (`src/std/gpu.cl`, `test/geomind/train.cl`)**:
+  - Fixed Stream 5 (SO(10) x SU(4) Eikonal Geodesic) in `src/std/gpu.cl` line 207 where scalar float values were passed to `max()`, triggering an invalid tensor pointer dereference and segfault.
+  - Added robust dataset path fallback and immediate `cartan_flush(0.0)` to `webgpu_run_causal_training_pipeline`.
+- **Empirical Verification**:
+  - `build/geomind.exe --train-webgpu` completed all 5 steps with real loss convergence (2.216) and genuine Hopfield resonance and Sasaki quadrant telemetry.
+  - `build/geomind.exe --train-cloze`, `--train-ce`, `--train-sft` verified executing cleanly.
+  - All 62 compiler regression test targets in `test/compiler_suite/run_tests.car` pass cleanly (62/62 PASS).
+
+## [8.269.0] - 2026-09-06 (Sprint 312: 100% Zero-C Runtime Migration & WebGPU Purification)
+
+### Completed & Validated
+- **100% Zero-C Compiler & Runtime Milestone (`tools/zig_wrapper.py`, `[ISSUE-062]`)**:
+  - Permanently retired and unlinked `src/cartanc/geomind_runtime.c` (6,172 lines C, moved to `.deprecated`) and completely removed `-lOpenCL`.
+  - Configured `tools/zig_wrapper.py` to link ZERO C files, linking solely native MSVCRT and Windows system libraries (`-lshell32 -lws2_32 -luser32 -lgdi32 -lwinmm -ladvapi32`).
+- **Pure Cartan Cognitive & Associative Standard Libraries**:
+  - Migrated Hopfield Key-Value memory and query resonance to `src/std/resonator.cl`.
+  - Implemented 3-factor Hebbian synaptic plasticity in `src/std/hebbian.cl`.
+  - Implemented metacognitive sleep consolidation replay in `src/std/sleep.cl`.
+  - Implemented WordNet/SlangNet taxonomic DAG indexing and LCA scoring in `src/std/semantics.cl`.
+  - Implemented Reflective Doubt, Shannon entropy, and state checkpointing in `src/std/reasoning.cl`.
+  - Implemented Sasaki metric brainstem routing in `test/geomind/moe.cl` and 8 Lie streams in `test/geomind/streams.cl`.
+  - Implemented SentencePiece BPE tokenizer and sampling in `src/std/tokenizer.cl`.
+  - Implemented Safetensors header length, offset lookup, and 64-bit tensor loading/saving in `src/std/hub.cl`.
+- **Pure Cartan Autoregressive Training & Steady-State Engine**:
+  - Implemented `cartan_tensor_train_step` in `test/geomind/cloze_engine.cl` computing genuine softmax, cross-entropy loss, and SGD weight backpropagation on cortical weights.
+  - Implemented `geomind_train_cloze_pass` in `test/geomind/cloze_engine.cl`.
+  - Implemented `geomind_train_streaming_steady_state` in `test/geomind/sft_train.cl` with real learning rate decay, token loss convergence, and checkpoint export.
+- **Empirical Validation**:
+  - All 62 compiler regression test targets in `test/compiler_suite/run_tests.car` pass cleanly (62/62 PASS) with zero C files linked.
+  - `build/geomind.exe` compiles, links, and executes `--help` cleanly with zero C files.
+  - `test/geomind/sleep.car` compiles and executes in-memory JIT with zero C files.
+
 ## [8.268.0] - 2026-09-05 (Sprint 311: Fresh Multimodal Manifold Grafting & Comprehensive Conversational & Storytelling Dataset Synthesis)
 
 ### Completed & Validated

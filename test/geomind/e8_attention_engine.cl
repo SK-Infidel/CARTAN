@@ -2,6 +2,8 @@
 // GeoMind E8 Root Lattice Phase Projection & Tiled Multi-Head Attention Engine
 
 include "geometry.cl";
+include "moe.cl";
+include "streams.cl";
 include "../../src/std/autotune.cl";
 
 include "../../src/std/collections.cl";
@@ -118,3 +120,45 @@ fn e8_multihead_sliding_window_attention(h_vec: ptr, num_heads: float, head_dim:
 
     return out_vec;
 }
+
+fn e8_attention_compute_energy(h: ptr) -> float {
+    if (h == 0.0) { return 0.0; }
+    var sum_sq = 0.0;
+    var i = 0.0;
+    let n = cartan_vec_len(h);
+    while (i < n) {
+        let v = cartan_vec_get_f32(h, i);
+        sum_sq = sum_sq + (v * v);
+        i = i + 1.0;
+    }
+    return 0.5 * sum_sq;
+}
+
+fn e8_attention_forward_step_with_momentum(hidden_ptr: ptr, mom_ptr: ptr, temp: float) -> ptr {
+    if (hidden_ptr == 0.0) { return cartan_vec_create(); }
+    let h_len = cartan_vec_len(hidden_ptr);
+    if (h_len == 0.0) { return cartan_vec_create(); }
+    let weights = cartan_sasaki_brainstem_route_vec(hidden_ptr, mom_ptr, temp);
+    let h_cur = geomind_streams_manifold_forward_routed(hidden_ptr, weights);
+    
+    var l = 0.0;
+    while (l < 16.0) {
+        let kappa = (l + 1.0) / 16.0;
+        var d = 0.0;
+        let dim = cartan_vec_len(h_cur);
+        while (d < dim) {
+            let z = cartan_vec_get_f32(h_cur, d);
+            let gelu_z = 0.5 * z * (1.0 + math_tanh(0.79788456 * (z + 0.044715 * z * z * z)));
+            let ffn = gelu_z * (1.0 + math_tanh(kappa * z));
+            cartan_vec_set_f32(h_cur, d, z + 0.25 * ffn);
+            d = d + 1.0;
+        }
+        l = l + 1.0;
+    }
+    return h_cur;
+}
+
+fn e8_attention_forward_step(hidden_ptr: ptr, temp: float) -> ptr {
+    return e8_attention_forward_step_with_momentum(hidden_ptr, 0.0, temp);
+}
+

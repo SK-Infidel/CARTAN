@@ -739,6 +739,44 @@ This file tracks technical debt and bugs identified during repository code revie
   4. Integrated live certainty and entropy telemetry into `<think>` tags in `geomind_chat_generate_reasoning_pass`, and wired adaptive context rewind, temperature cooling ($T \leftarrow T \times 0.75$), and elevated semantic boosting into `geomind_chat_generate_reply_multimodal` in `test/geomind/chat.cl`.
   5. Authored Target 62 regression test (`test/compiler_suite/test_doubt_reflective_rewind.car`), verified all 5/5 assertions pass cleanly, and registered Target [62/62] in `test/compiler_suite/run_tests.car`. (Sprint 310).
 
+---
 
+## [ISSUE-062] [FIXED] Monolithic C Runtime Hook (`geomind_runtime.c`), OpenCL Linkage & Missing Pure Cartan Runtime Layer
+- **Severity**: Critical (Language Self-Hosting & Zero-C Milestone)
+- **Component**: `src/cartanc/geomind_runtime.c`, `tools/zig_wrapper.py`, `src/std/`, `test/geomind/`
+- **Description**:
+  1. `tools/zig_wrapper.py` forcibly linked `src/cartanc/geomind_runtime.c` (6,172 lines C) and `-lOpenCL` into every binary emitted by `cartanc.exe`.
+  2. Geomind does not use OpenCL; it targets native WebGPU. The OpenCL compilation and translation layers represented dead weight and extraneous driver dependencies.
+  3. Over 50 runtime symbols (Hopfield KV memories, Sasaki metric routing, Hebbian plasticity, sleep consolidation, WordNet DAG, Reflective Doubt, WebGPU buffer dispatch, and Safetensors I/O) were locked in C rather than pure Cartan standard libraries.
+- **Resolution (Sprint 312)**:
+  1. Detached and retired `src/cartanc/geomind_runtime.c` (6,172 lines C, renamed to `src/cartanc/geomind_runtime.c.deprecated`) and completely removed `-lOpenCL` from `tools/zig_wrapper.py`.
+  2. Implemented pure Cartan WebGPU compute and buffer management in `src/std/gpu.cl` and `src/std/gpu.car`.
+  3. Wired direct Win32 Winsock2 and MSVCRT C-ABI externs in `src/std/net.cl` and `src/std/fs.cl`.
+  4. Migrated all cognitive, associative memory, and training kernels to pure Cartan standard libraries:
+     - Hopfield KV memory and query resonance in `src/std/resonator.cl`.
+     - Three-factor Hebbian synaptic plasticity in `src/std/hebbian.cl`.
+     - Metacognitive sleep consolidation replay in `src/std/sleep.cl`.
+     - WordNet / SlangNet taxonomic DAG indexing and LCA scoring in `src/std/semantics.cl`.
+     - Reflective doubt and Shannon entropy tracking in `src/std/reasoning.cl`.
+     - Sasaki brainstem routing in `test/geomind/moe.cl` and 8 Lie streams in `test/geomind/streams.cl`.
+     - SentencePiece BPE encoding and sampling in `src/std/tokenizer.cl`.
+     - Safetensors header parsing and 64-bit tensor loading in `src/std/hub.cl`.
+     - Autoregressive next-token training step (`cartan_tensor_train_step`) and cloze evaluation pass (`geomind_train_cloze_pass`) in `test/geomind/cloze_engine.cl`.
+     - Streaming steady-state multi-phase trainer (`geomind_train_streaming_steady_state`) in `test/geomind/sft_train.cl`.
+  5. Verified that all 62 compiler snapshot regression test targets in `test/compiler_suite/run_tests.car` pass cleanly (62/62 PASS) and `build/geomind.exe` compiles, links, and runs cleanly with ZERO C files.
 
+---
 
+## [ISSUE-063] [FIXED] Disparate Training Engines, Missing Central WebGPU Mounting & Stream 5 Scalar Max Segfault
+- **Severity**: High (Architectural Redundancy & Runtime Bug)
+- **Component**: `test/geomind/train.cl`, `test/geomind/main.car`, `src/std/gpu.cl`
+- **Description**:
+  1. Training logic was fragmented across `cloze_engine.cl`, `sft_train.cl`, and `webgpu_causal_engine.cl`, requiring duplicate WebGPU context setups and disparate pipeline initialization.
+  2. In `src/std/gpu.cl` line 207 (Stream 5: SO(10) x SU(4) Eikonal Geodesic), `max(v * v + 0.1, 0.001)` was invoked on scalar float values, calling `tensor.cl:max(t: ptr)` and attempting to treat the scalar as a tensor pointer, causing an access violation crash.
+  3. `--train-webgpu` lacked a default dataset fallback when `-target` was omitted and lacked immediate stdout buffer flushing.
+- **Resolution (Sprint 313)**:
+  1. Consolidated all training engines into single canonical `test/geomind/train.cl`, featuring centralized WebGPU device and pipeline mounting (`train_mount_gpu()`), persistent VRAM buffer caching, analytical tensor backpropagation (`cartan_tensor_train_step`), biological telemetry reporting (`webgpu_log_biological_telemetry`), and unified streaming steady-state training (`geomind_train_streaming_steady_state`).
+  2. Converted `cloze_engine.cl`, `sft_train.cl`, and `webgpu_causal_engine.cl` to thin compatibility shims pointing to `train.cl`.
+  3. Corrected `src/std/gpu.cl` line 207 to clamp scalars directly (`if (arg < 0.001) { arg = 0.001; }`), preventing invalid tensor pointer cast.
+  4. Added dataset path fallback and `cartan_flush(0.0)` in `webgpu_run_causal_training_pipeline`.
+  5. Verified `--train-webgpu`, `--train-cloze`, `--train-ce`, and `--train-sft` all execute and converge cleanly (exit code 0), and all 62 regression tests pass cleanly.

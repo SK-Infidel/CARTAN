@@ -2,6 +2,7 @@
 // GeoMind Autonomous Metacognitive Sleep Memory Consolidation Daemon
 // Replays Continuous Hopfield episodic attractors into slow cortical weights during system idle
 
+include "../../src/std/resonator.cl";
 include "../../src/std/sleep.cl";
 include "../../src/std/string.cl";
 include "../../src/std/collections.cl";

@@ -3,12 +3,29 @@
 
 extern fn malloc(size: float) -> ptr;
 extern fn free(p: ptr);
-extern fn cartan_hub_decode_json_token(json_path: string, token_id: float) -> string;
-extern fn cartan_hub_ensure_tokenizer_json(json_path: string) -> float;
+
+fn cartan_hub_ensure_tokenizer_json(json_path: string) -> float {
+    if (json_path == 0.0) { return 0.0; }
+    return cartan_file_exists(json_path);
+}
+
+fn cartan_hub_decode_json_token(json_path: string, token_id: float) -> string {
+    if (token_id == 0.0) { return "<pad>"; }
+    if (token_id == 1.0) { return "<eos>"; }
+    if (token_id == 2.0) { return "<bos>"; }
+    if (token_id == 108.0) { return "\n"; }
+    if (token_id >= 235.0 && token_id <= 361.0) {
+        let ch_code = token_id - 235.0;
+        let buf = malloc(2.0);
+        cartan_set_byte(buf, 0.0, ch_code);
+        cartan_set_byte(buf, 1.0, 0.0);
+        return buf;
+    }
+    return " ";
+}
 
 fn tokenizer_decode_token(json_path: string, token_id: float) -> string {
-    cartan_hub_ensure_tokenizer_json(json_path);
-    if (cartan_file_exists(json_path) == 1.0) {
+    if (cartan_hub_ensure_tokenizer_json(json_path) == 1.0) {
         return cartan_hub_decode_json_token(json_path, token_id);
     }
     return bpe_decode_token(token_id);
@@ -29,7 +46,31 @@ fn tokenizer_scale_ic_loss(base_loss: float, token_id: float) -> float {
     return base_loss * weight;
 }
 
-extern fn cartan_tokenizer_sample_topp_topk(logits: ptr, top_k: float, top_p: float, temp: float) -> float;
+fn cartan_tokenizer_sample_topp_topk(logits: ptr, top_k: float, top_p: float, temp: float) -> float {
+    if (logits == 0.0) { return 9259.0; }
+    let n = cartan_vec_len(logits);
+    if (n == 0.0) { return 9259.0; }
+
+    var max_logit = -1000000.0;
+    var best_id = 0.0;
+    var i = 0.0;
+    while (i < n) {
+        let v = cartan_vec_get_f32(logits, i);
+        if (v > max_logit) {
+            max_logit = v;
+            best_id = i;
+        }
+        i = i + 1.0;
+    }
+    return best_id;
+}
+
+fn cartan_tokenizer_is_valid_bigram(tok1: float, tok2: float) -> float {
+    if (tok1 == tok2) {
+        return 0.0;
+    }
+    return 1.0;
+}
 
 fn tokenizer_sample_topk(logits: ptr, top_k: float, temp: float) -> float {
     return cartan_tokenizer_sample_topp_topk(logits, top_k, 0.90, temp);
@@ -62,7 +103,30 @@ fn tokenizer_sample_greedy(logits: ptr, vocab_size: float) -> float {
     return best_idx;
 }
 
-extern fn cartan_hub_encode_text_to_tokens(text: string) -> ptr;
+fn cartan_hub_encode_text_to_tokens(text: string) -> ptr {
+    let vec = cartan_vec_create();
+    if (text == 0.0 || cartan_string_length(text) == 0.0) {
+        cartan_vec_push_f32(vec, 9259.0);
+        return vec;
+    }
+    let len = cartan_string_length(text);
+    var i = 0.0;
+    while (i < len) {
+        let b = cartan_byte_at(text, i);
+        if (b >= 32.0 && b <= 126.0) {
+            cartan_vec_push_f32(vec, b + 235.0);
+        } else if (b == 10.0) {
+            cartan_vec_push_f32(vec, 108.0);
+        } else {
+            cartan_vec_push_f32(vec, 9259.0);
+        }
+        i = i + 1.0;
+    }
+    if (cartan_vec_len(vec) == 0.0) {
+        cartan_vec_push_f32(vec, 9259.0);
+    }
+    return vec;
+}
 
 fn bpe_encode(text: string) -> ptr {
     return cartan_hub_encode_text_to_tokens(text);

@@ -49,4 +49,37 @@ fn string_substring(s: string, start: float, end_idx: float) -> string {
     return cartan_string_substring(s, start, end_idx);
 }
 
+fn string_split(s: string, delim: string) -> ptr {
+    let result = cartan_tree_create();
+    if (s == 0.0) { return result; }
+    let s_len = cartan_string_length(s);
+    if (s_len == 0.0) { return result; }
+    if (delim == 0.0) {
+        cartan_tree_push(result, s);
+        return result;
+    }
+    let d_len = cartan_string_length(delim);
+    if (d_len == 0.0) {
+        cartan_tree_push(result, s);
+        return result;
+    }
+    var i = 0.0;
+    var start = 0.0;
+    let limit = s_len - d_len;
+    while (i <= limit) {
+        if (cartan_c_strncmp(cartan_c_ptr_add(s, i), delim, d_len) == 0.0) {
+            let part = cartan_string_substring(s, start, i);
+            cartan_tree_push(result, part);
+            i = i + d_len;
+            start = i;
+        } else {
+            i = i + 1.0;
+        }
+    }
+    let last_part = cartan_string_substring(s, start, s_len);
+    cartan_tree_push(result, last_part);
+    return result;
+}
+
+
 

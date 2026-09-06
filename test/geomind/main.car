@@ -1,7 +1,6 @@
 // test/geomind/main.cl
 // GeoMind Unified Multi-Phase Model Driver
 
-include "test/geomind/cloze_engine.cl";
 include "test/geomind/geometry.cl";
 include "test/geomind/ode_solver.cl";
 include "test/geomind/ising_state_machine.cl";
@@ -9,9 +8,8 @@ include "test/geomind/moe.cl";
 include "test/geomind/e8_attention_engine.cl";
 include "test/geomind/streams.cl";
 include "test/geomind/chat.cl";
-include "test/geomind/sft_train.cl";
+include "test/geomind/train.cl";
 include "test/geomind/azr_engine.cl";
-include "test/geomind/webgpu_causal_engine.cl";
 
 
 include "src/std/string.cl";
@@ -23,8 +21,6 @@ include "src/std/sleep.cl";
 extern fn sys_get_arg_count() -> float;
 extern fn sys_get_arg(idx: float) -> string;
 extern fn cartan_flush(v: float) -> float;
-extern fn geomind_train_cloze_pass(dataset: string, target_loss: float, epochs: float) -> float;
-extern fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: string, target_loss: float, base_lr: float, max_epochs: float, log_path: string) -> float;
 extern fn cartan_read_line() -> string;
 extern fn cartan_hopfield_ingest(path: string) -> float;
 extern fn cartan_hopfield_attractor_count() -> float;

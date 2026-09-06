@@ -460,3 +460,16 @@ fn geomind_streams_graft_multimodal(vision_w: ptr, audio_w: ptr) -> float {
     return 0.0;
 }
 
+fn cartan_apply_8_lie_streams_routed_vec(hidden_ptr: ptr, weights_ptr: ptr) -> float {
+    if (hidden_ptr == 0.0) { return 0.0; }
+    let res = geomind_streams_manifold_forward_routed(hidden_ptr, weights_ptr);
+    var i = 0.0;
+    let len = cartan_vec_len(res);
+    while (i < len) {
+        cartan_vec_set_f32(hidden_ptr, i, cartan_vec_get_f32(res, i));
+        i = i + 1.0;
+    }
+    return 1.0;
+}
+
+

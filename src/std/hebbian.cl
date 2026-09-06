@@ -132,3 +132,83 @@ fn hebbian_matrix_norm(w_mat: ptr, total_len: float) -> float {
     }
     return math_sqrt(sum_sq);
 }
+
+var g_cortical_weights: ptr = 0.0;
+
+fn cartan_init_cortical_weights_if_needed() {
+    if (g_cortical_weights == 0.0) {
+        g_cortical_weights = cartan_tensor_alloc(2560.0 * 2560.0);
+        var i = 0.0;
+        let total = 2560.0 * 2560.0;
+        while (i < total) {
+            let ph = math_mod_val(i * 37.0 + 13.0, 100.0) / 100.0 - 0.5;
+            cartan_vec_set_f32(g_cortical_weights, i, ph * 0.01);
+            i = i + 1.0;
+        }
+    }
+}
+
+// Pure CARTAN Three-Factor Synaptic Plasticity Update
+fn cartan_tensor_hebbian_update(pre: ptr, post: ptr, neuromodulator: float, lr: float) -> float {
+    if (pre == 0.0 || post == 0.0) { return 0.0; }
+    cartan_init_cortical_weights_if_needed();
+    var pre_len = cartan_vec_len(pre);
+    if (pre_len > 2560.0) { pre_len = 2560.0; }
+    var post_len = cartan_vec_len(post);
+    if (post_len > 2560.0) { post_len = 2560.0; }
+    if (pre_len == 0.0 || post_len == 0.0) { return 0.0; }
+
+    var m = neuromodulator;
+    if (m == 0.0) { m = 1.0; }
+    var eta = lr;
+    if (eta == 0.0) { eta = 0.001; }
+    let alpha = 0.01;
+
+    var r = 0.0;
+    while (r < pre_len) {
+        let pre_val = cartan_vec_get_f32(pre, r);
+        var c = 0.0;
+        while (c < post_len) {
+            let post_val = cartan_vec_get_f32(post, c);
+            let idx = r * 2560.0 + c;
+            let cur_w = cartan_vec_get_f32(g_cortical_weights, idx);
+            let oja_term = alpha * (post_val * post_val) * cur_w;
+            let delta = eta * m * (pre_val * post_val - oja_term);
+            cartan_vec_set_f32(g_cortical_weights, idx, cur_w + delta);
+            c = c + 1.0;
+        }
+        r = r + 1.0;
+    }
+    return 1.0;
+}
+
+// Pure CARTAN Online Single-Column Token-Level Synaptic Reinforcement
+fn cartan_hebbian_step_token(hidden_ptr: ptr, tok_id: float, neuromodulator: float, lr: float) -> float {
+    if (hidden_ptr == 0.0) { return 0.0; }
+    cartan_init_cortical_weights_if_needed();
+    var h_len = cartan_vec_len(hidden_ptr);
+    if (h_len > 2560.0) { h_len = 2560.0; }
+    if (h_len == 0.0) { return 0.0; }
+
+    var target_idx = math_mod_val(tok_id, 2560.0);
+    if (target_idx < 0.0) { target_idx = 0.0; }
+
+    var m = neuromodulator;
+    if (m == 0.0) { m = 1.0; }
+    var eta = lr;
+    if (eta == 0.0) { eta = 0.001; }
+    let alpha = 0.01;
+
+    var r = 0.0;
+    while (r < h_len) {
+        let pre_val = cartan_vec_get_f32(hidden_ptr, r);
+        let post_val = 1.0;
+        let idx = r * 2560.0 + target_idx;
+        let cur_w = cartan_vec_get_f32(g_cortical_weights, idx);
+        let delta = eta * m * (pre_val * post_val - alpha * cur_w);
+        cartan_vec_set_f32(g_cortical_weights, idx, cur_w + delta);
+        r = r + 1.0;
+    }
+    return 1.0;
+}
+

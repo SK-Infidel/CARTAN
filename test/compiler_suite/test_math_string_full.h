@@ -145,6 +145,10 @@ double cartan_export_cartan_ast_tree_get_f32(double* args);
 double cartan_export_cartan_ast_get_ptr(double* args);
 double cartan_export_c_sys_get_arg_count(double* args);
 double cartan_export_c_sys_get_arg(double* args);
+double cartan_export_cartan_dict_create(double* args);
+double cartan_export_cartan_dict_set(double* args);
+double cartan_export_cartan_dict_get(double* args);
+double cartan_export_cartan_dict_clone(double* args);
 double cartan_export_sqrt(double* args);
 double cartan_export_pow(double* args);
 double cartan_export_log(double* args);
@@ -194,6 +198,7 @@ double cartan_export_string_starts_with(double* args);
 double cartan_export_string_contains(double* args);
 double cartan_export_string_replace(double* args);
 double cartan_export_string_substring(double* args);
+double cartan_export_string_split(double* args);
 double cartan_export_main(double* args);
 
 #ifdef __cplusplus
