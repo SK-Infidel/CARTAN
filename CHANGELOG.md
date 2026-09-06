@@ -1,3 +1,19 @@
+## [8.275.0] - 2026-09-06 (Sprint 318: Pre-Training Checkpoint Safety Backup & Ctrl-C Interruption Detection)
+
+### Completed & Validated
+- **Pre-Training Checkpoint Safety Backup (`test/geomind/train.cl`, `[ISSUE-068]`)**:
+  - Implemented an out-of-band state tracking protocol using `checkpoint_status.txt` (`SUCCESS` vs. `IN_PROGRESS`).
+  - Automatically creates a safety backup `geomind_steady_state_weights.bin.bak` (52.4 MB) prior to training if and only if the prior run concluded cleanly (`SUCCESS`).
+- **Interruption (Ctrl-C / Crash) Detection & Automatic Rollback (`test/geomind/train.cl`)**:
+  - Marks status as `IN_PROGRESS` before entering the epoch loop.
+  - If a user breaks out of training with `Ctrl-C` or the process is halted, status remains `IN_PROGRESS`.
+  - On the next training startup, the engine detects the interruption, refuses to overwrite the backup, and restores `geomind_steady_state_weights.bin.bak` to prevent partial/degraded runs from corrupting weights.
+  - Marks status as `SUCCESS` only upon full epoch completion or convergence.
+- **Empirical Verification**:
+  - Recompiled `build/geomind.exe` with `cartanc.exe`.
+  - Empirically verified both clean backup generation and interrupted-run recovery.
+  - Regression test suite passed all 62 compiler targets (62/62 PASS).
+
 ## [8.274.0] - 2026-09-06 (Sprint 317: Checkpoint Continuity, Pure Cartan Raw Tensor Loader, and Stage 2 CE Launch)
 
 ### Completed & Validated

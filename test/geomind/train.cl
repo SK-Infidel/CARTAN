@@ -514,6 +514,33 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
 
     cartan_init_cortical_weights_if_needed();
     let ckpt_path = "test/geomind/trainingdata/checkpoints/geomind_steady_state_weights.bin";
+    let bak_path = "test/geomind/trainingdata/checkpoints/geomind_steady_state_weights.bin.bak";
+    let status_path = "test/geomind/trainingdata/checkpoints/checkpoint_status.txt";
+
+    var prior_clean = 0.0;
+    if (cartan_file_exists(status_path) == 1.0) {
+        let status_content = cartan_read_file(status_path);
+        if (cartan_string_contains(status_content, "SUCCESS") == 1.0) {
+            prior_clean = 1.0;
+        }
+    } else {
+        if (cartan_file_exists(ckpt_path) == 1.0) {
+            prior_clean = 1.0;
+        }
+    }
+
+    if (prior_clean == 1.0 && cartan_file_exists(ckpt_path) == 1.0) {
+        cartan_copy_file(ckpt_path, bak_path);
+        printf("[Steady-State Stage: %s] Verified clean prior run. Created checkpoint backup: %s\n",
+            stage_name, bak_path);
+        cartan_flush(0.0);
+    } else if (cartan_file_exists(bak_path) == 1.0) {
+        printf("[Steady-State Stage: %s] Warning: Prior run was interrupted (Ctrl-C/break). Restoring from verified backup: %s\n",
+            stage_name, bak_path);
+        cartan_copy_file(bak_path, ckpt_path);
+        cartan_flush(0.0);
+    }
+
     if (cartan_file_exists(ckpt_path) == 1.0) {
         let total_params = 2560.0 * 2560.0;
         let loaded = cartan_safetensors_load_raw_tensor_f32(ckpt_path, total_params);
@@ -524,6 +551,10 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
             cartan_flush(0.0);
         }
     }
+
+    // Mark current run as IN_PROGRESS to detect aborts/Ctrl-C
+    cartan_write_file(status_path, "IN_PROGRESS\n");
+    cartan_flush(0.0);
 
     var ep = 1.0;
     var final_loss = 10.0;
@@ -581,8 +612,11 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
     }
 
     let ckpt_path = "test/geomind/trainingdata/checkpoints/geomind_steady_state_weights.bin";
+    let status_path = "test/geomind/trainingdata/checkpoints/checkpoint_status.txt";
     cartan_safetensors_save_tensor_f32(ckpt_path, "model.weights", g_cortical_weights);
-    printf("[Steady-State Stage: %s] Training complete. Checkpoint saved: %s | Final Loss: %s\n\n",
+    cartan_write_file(status_path, "SUCCESS\n");
+    cartan_flush(0.0);
+    printf("[Steady-State Stage: %s] Training complete. Checkpoint saved: %s | Status: SUCCESS | Final Loss: %s\n\n",
         stage_name, ckpt_path, cartan_float_to_string(final_loss));
     return final_loss;
 }

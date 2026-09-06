@@ -846,3 +846,19 @@ This file tracks technical debt and bugs identified during repository code revie
   3. Offset sliding window base position past the decorative banner (`256.0 + (ep - 1.0) * 384.0`) and guarded early stopping with `ep >= 10.0`.
   4. Calibrated default target losses in `test/geomind/main.car` (4.20 for Cloze, 3.50 for Stage 2 CE, 2.00 for Stage 3 SFT).
   5. Rebuilt `build/geomind.exe` and verified 20 epochs of genuine narrative CE training with continuous loss descent (5.28 -> 4.90) and 62/62 regression pass.
+
+---
+
+## [ISSUE-068] [FIXED] Lack of Pre-Training Safety Backup and Interruption (Ctrl-C) Corruption Vulnerability
+- **Severity**: High (Checkpoint Safety & Data Loss Prevention)
+- **Component**: `test/geomind/train.cl`
+- **Description**:
+  1. The training engine updated `geomind_steady_state_weights.bin` in place without backing up the previous checkpoint, risking weight corruption if the training run was interrupted mid-flight or degraded.
+  2. The system lacked an out-of-band mechanism to verify whether the previous training run completed cleanly or was terminated with a break (`Ctrl-C`), SIGINT, or crash.
+- **Resolution (Sprint 318)**:
+  1. Implemented two-state tracking via `test/geomind/trainingdata/checkpoints/checkpoint_status.txt` (`SUCCESS` vs. `IN_PROGRESS`).
+  2. On startup, `geomind_train_streaming_steady_state` checks prior status:
+     - If `SUCCESS`: Automatically creates a verified safety copy `geomind_steady_state_weights.bin.bak` before training begins.
+     - If `IN_PROGRESS`: Detects that the prior run was interrupted by `Ctrl-C`/crash, refuses to overwrite the backup, and restores `geomind_steady_state_weights.bin.bak` to roll back half-baked weights.
+  3. Marks `IN_PROGRESS` before entering the epoch loop, and marks `SUCCESS` upon clean completion and serialization.
+  4. Empirically tested and verified both clean backup creation and interrupted-run recovery. All 62 compiler tests pass (62/62 PASS).
