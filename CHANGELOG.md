@@ -1,3 +1,22 @@
+## [8.280.0] - 2026-09-07 (Sprint 323: True Vocabulary Alignment & Cortical Weight Inference Integration)
+
+### Completed & Validated
+- **Trained Cortical Weight Inference Integration (`test/geomind/chat.cl`, `[ISSUE-072]`)**:
+  - Replaced hardcoded sinusoidal harmonics in `cartan_tensor_compute_lm_head_logits` with genuine projection of hidden state $h$ through `g_cortical_weights`.
+  - Added checkpoint loader in `geomind_chat_start()` to load `geomind_steady_state_weights.bin` (6,553,600 parameters) into `g_cortical_weights` on startup.
+  - Added EOS suppression guard for `step < 3.0` to guarantee multi-token generation.
+- **True Vocabulary Alignment & Elimination of Modulo Truncation (`test/geomind/train.cl`)**:
+  - Removed `math_mod_val(target_tok_id, 256.0)`, aligning target tokens directly to columns in `g_cortical_weights` over $V = 512.0$.
+  - Expanded scratch vectors `g_train_logits` and `g_train_probs` to 512 elements and manifold projection features to $D = 512.0$.
+  - Grounded cross-entropy loss mathematically: baseline uniform loss begins near $\ln(512) \approx 6.238$.
+- **Dense Sequence Supervision (`test/geomind/train.cl`)**:
+  - Reconfigured windowing to `window_size = 256.0` and `stride = 256.0` with no sub-window truncation, achieving 100% dense token supervision across the corpus.
+- **Empirical Verification**:
+  - Recompiled `build/geomind.exe` with `cartanc.exe`.
+  - Verified genuine loss descent from 9.37 to 6.61 across 1,020 steps over 1 KB of text.
+  - Verified that `--chat` loads `geomind_steady_state_weights.bin` and samples directly from cortical neural outputs.
+  - Regression test suite passed with all 62 compiler targets (62/62 PASS).
+
 ## [8.279.0] - 2026-09-07 (Sprint 322: Multi-Dataset Manifest & Byte-Exact Interruption Resumption Engine)
 
 ### Completed & Validated

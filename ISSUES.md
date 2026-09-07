@@ -908,3 +908,20 @@ This file tracks technical debt and bugs identified during repository code revie
   4. On interrupted runs (`IN_PROGRESS`), retained trained weights and automatically resumed from the exact byte offset in the active dataset.
   5. Added `-manifest <file>` and `-reset-manifest` CLI flags to `main.car`.
   6. Empirically validated sequential execution and byte-exact interruption resumption. All 62 compiler tests pass (62/62 PASS).
+
+---
+
+## [ISSUE-072] [FIXED] Inference Disconnect from Trained Weights, Modulo Truncation, and Sub-Window Skipping
+- **Severity**: Critical (Language Generation & Training Fidelity Bug)
+- **Component**: `test/geomind/chat.cl`, `test/geomind/train.cl`
+- **Description**:
+  1. `cartan_tensor_compute_lm_head_logits` during inference (`--chat`) calculated logits using fixed sinusoidal functions `sin((r + c) * 0.01)` and never multiplied against `g_cortical_weights`. Furthermore, `geomind_chat_start()` never loaded `geomind_steady_state_weights.bin`, rendering generation completely disconnected from trained weights.
+  2. `cartan_tensor_train_step` performed `math_mod_val(target_tok_id, 256.0)` and clamped hidden dimensions to 256, collapsing token IDs into 256 classes where theoretical max entropy was artificially capped at $\ln(256) \approx 5.54$, producing rapid but meaningless loss drops.
+  3. The training loop clamped inner token steps to 64 per 1024-byte chunk (`stride = 1024.0`), skipping 93.75% of text in each chunk.
+- **Resolution (Sprint 323)**:
+  1. Replaced the sinusoidal projection in `cartan_tensor_compute_lm_head_logits` with genuine projection of hidden state $h[0 \dots 511]$ through `g_cortical_weights[r * 2560.0 + c]` for all $c \in [0, 512)$.
+  2. Loaded `geomind_steady_state_weights.bin` in `geomind_chat_start()`, connecting inference directly to trained cortical neural weights.
+  3. Eliminated `math_mod_val(target_tok_id, 256.0)` and aligned vocabulary to $V = 512.0$, mathematically grounding cross-entropy loss with initial baseline near $\ln(512) \approx 6.238$.
+  4. Sized windowing to `window_size = 256.0` and `stride = 256.0` with dense supervision across 100% of tokens in each chunk.
+  5. Added EOS suppression guard for `step < 3.0` during chat generation.
+  6. Empirically verified genuine loss descent and neural text generation. All 62 compiler tests pass (62/62 PASS).

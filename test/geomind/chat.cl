@@ -70,22 +70,23 @@ fn cartan_apply_repetition_penalty(logits_ptr: ptr, hist: ptr, penalty: float) -
 fn cartan_tensor_compute_lm_head_logits(h: ptr, temp: float) -> ptr {
     let logits = cartan_vec_create();
     if (h == 0.0) { return logits; }
+    cartan_init_cortical_weights_if_needed();
     var t = temp;
     if (t <= 0.0) { t = 0.70; }
-    let dim = cartan_vec_len(h);
+    var dim = cartan_vec_len(h);
+    if (dim > 512.0) { dim = 512.0; }
     
     var c = 0.0;
-    while (c < 4096.0) {
-        let harmonic = sin((c + 1.0) * 0.05);
+    while (c < 512.0) {
         var dot = 0.0;
         var r = 0.0;
-        let step = 32.0;
         while (r < dim) {
             let hv = cartan_vec_get_f32(h, r);
-            dot = dot + hv * sin((r + c) * 0.01);
-            r = r + step;
+            let wv = cartan_vec_get_f32(g_cortical_weights, r * 2560.0 + c);
+            dot = dot + hv * wv;
+            r = r + 1.0;
         }
-        let raw_logit = (dot / t) + harmonic * 2.0;
+        let raw_logit = dot / t;
         cartan_vec_push_f32(logits, raw_logit);
         c = c + 1.0;
     }
@@ -174,6 +175,18 @@ fn geomind_chat_start() -> float {
     printf("[GeoMind Chat] Google Gemma safetensors checkpoint active: ");
     cartan_print_string(weight_path);
     printf("\n");
+
+    cartan_init_cortical_weights_if_needed();
+    let steady_path = "test/geomind/trainingdata/checkpoints/geomind_steady_state_weights.bin";
+    if (cartan_file_exists(steady_path) == 1.0) {
+        let total_params = 2560.0 * 2560.0;
+        let loaded = cartan_safetensors_load_raw_tensor_f32(steady_path, total_params);
+        if (loaded != 0.0 && cartan_vec_len(loaded) == total_params) {
+            g_cortical_weights = loaded;
+            printf("[GeoMind Chat] Loaded steady-state neural weights: %s (%s parameters)\n",
+                steady_path, cartan_float_to_string(total_params));
+        }
+    }
 
     let grafted_path = "test/geomind/trainingdata/checkpoints/geomind_grafted_multimodal.bin";
     if (cartan_file_exists(grafted_path) == 1.0) {
@@ -392,8 +405,12 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
             rewind_executed = 1.0;
         }
 
+        if (step < 3.0) {
+            cartan_vec_set_f32(logits_vec, 1.0, -1000.0);
+        }
+
         let sampled_tok = cartan_tokenizer_sample_topp_topk(logits_vec, 50.0, 0.90, current_temp + step * 0.01);
-        if (sampled_tok == 1.0) {
+        if (sampled_tok == 1.0 && step >= 3.0) {
             // End of Sequence reached cleanly
             break;
         }

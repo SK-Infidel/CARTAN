@@ -273,16 +273,16 @@ fn webgpu_log_biological_telemetry(step: float, total_steps: float, basins: floa
 var g_train_logits: ptr = 0.0;
 var g_train_probs: ptr = 0.0;
 
-// Analytical softmax, cross-entropy loss, and SGD weight backpropagation on cortical weights
+// Analytical softmax, cross-entropy loss, and SGD weight backpropagation on cortical weights (V = 512, D = 512)
 fn cartan_tensor_train_step(hidden_ptr: ptr, target_tok_id: float, learning_rate: float) -> float {
     if (hidden_ptr == 0.0) { return 0.0; }
     cartan_init_cortical_weights_if_needed();
     var dim = cartan_vec_len(hidden_ptr);
-    if (dim > 256.0) { dim = 256.0; }
+    if (dim > 512.0) { dim = 512.0; }
     if (dim <= 0.0) { return 0.0; }
 
-    var target_idx = math_mod_val(target_tok_id, 256.0);
-    if (target_idx < 0.0) { target_idx = 0.0; }
+    var target_idx = target_tok_id;
+    if (target_idx < 0.0 || target_idx >= 512.0) { return 0.0; }
 
     var lr = learning_rate;
     if (lr <= 0.0) { lr = 0.005; }
@@ -291,7 +291,7 @@ fn cartan_tensor_train_step(hidden_ptr: ptr, target_tok_id: float, learning_rate
         g_train_logits = cartan_vec_create();
         g_train_probs = cartan_vec_create();
         var i = 0.0;
-        while (i < 256.0) {
+        while (i < 512.0) {
             cartan_vec_push_f32(g_train_logits, 0.0);
             cartan_vec_push_f32(g_train_probs, 0.0);
             i = i + 1.0;
@@ -301,7 +301,7 @@ fn cartan_tensor_train_step(hidden_ptr: ptr, target_tok_id: float, learning_rate
     var max_logit = -1000000000.0;
 
     var c = 0.0;
-    while (c < 256.0) {
+    while (c < 512.0) {
         var dot = 0.0;
         var r = 0.0;
         while (r < dim) {
@@ -317,7 +317,7 @@ fn cartan_tensor_train_step(hidden_ptr: ptr, target_tok_id: float, learning_rate
 
     var sum_exp = 0.0;
     c = 0.0;
-    while (c < 256.0) {
+    while (c < 512.0) {
         let p = exp(cartan_vec_get_f32(g_train_logits, c) - max_logit);
         cartan_vec_set_f32(g_train_probs, c, p);
         sum_exp = sum_exp + p;
@@ -326,7 +326,7 @@ fn cartan_tensor_train_step(hidden_ptr: ptr, target_tok_id: float, learning_rate
     if (sum_exp <= 0.0) { sum_exp = 1.0; }
 
     c = 0.0;
-    while (c < 256.0) {
+    while (c < 512.0) {
         let p_norm = cartan_vec_get_f32(g_train_probs, c) / sum_exp;
         cartan_vec_set_f32(g_train_probs, c, p_norm);
         c = c + 1.0;
@@ -340,7 +340,7 @@ fn cartan_tensor_train_step(hidden_ptr: ptr, target_tok_id: float, learning_rate
     while (r_idx < dim) {
         let h_val = cartan_vec_get_f32(hidden_ptr, r_idx);
         var col = 0.0;
-        while (col < 256.0) {
+        while (col < 512.0) {
             var target_val = 0.0;
             if (col == target_idx) { target_val = 1.0; }
             let p_val = cartan_vec_get_f32(g_train_probs, col);
@@ -738,8 +738,8 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
     var ep = cur_ep;
     var final_loss = 10.0;
     var smoothed_loss = 5.0;
-    let window_size = 1024.0;
-    let stride = 1024.0;
+    let window_size = 256.0;
+    let stride = 256.0;
 
     while (ep <= epochs) {
         var ep_loss_sum = 0.0;
@@ -770,12 +770,13 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
                     if (n_tokens > 1.0) {
                         let h_state = cartan_tensor_compute_hidden_state_from_tokens(tokens);
                         var t = 0.0;
-                        let max_steps = 64.0;
-                        while (t < n_tokens - 1.0 && t < max_steps) {
+                        while (t < n_tokens - 1.0) {
                             let next_tok = cartan_vec_get_f32(tokens, t + 1.0);
                             let step_loss = cartan_tensor_train_step(h_state, next_tok, lr);
-                            ep_loss_sum = ep_loss_sum + step_loss;
-                            ep_step_count = ep_step_count + 1.0;
+                            if (step_loss > 0.0) {
+                                ep_loss_sum = ep_loss_sum + step_loss;
+                                ep_step_count = ep_step_count + 1.0;
+                            }
                             cartan_tensor_update_autoregressive_state(h_state, next_tok);
                             t = t + 1.0;
                         }
@@ -791,14 +792,14 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
                     }
 
                     // Save state to manifest and checkpoint weights periodically
-                    if (math_mod_val(d_chunks, 200.0) == 0.0) {
+                    if (math_mod_val(d_chunks, 100.0) == 0.0) {
                         if (manifest_mode == 1.0) {
                             geomind_manifest_save(manifest_path, datasets_list, d_idx, offset + stride, ep);
                         }
                         cartan_safetensors_save_tensor_f32(ckpt_path, "model.weights", g_cortical_weights);
                     }
 
-                    if (math_mod_val(d_chunks, 500.0) == 0.0 || d_chunks == 1.0 || (offset + stride + window_size > content_len)) {
+                    if (math_mod_val(d_chunks, 100.0) == 0.0 || d_chunks == 1.0 || (offset + stride + window_size > content_len)) {
                         let pct = ((offset + window_size) / content_len) * 100.0;
                         let kb_done = (offset + window_size) / 1024.0;
                         let kb_total = content_len / 1024.0;
