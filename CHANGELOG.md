@@ -1,3 +1,25 @@
+## [8.281.0] - 2026-09-07 (Sprint 324: Neural Forward Pass Alignment, Causal Integrity & Categorical Sampling)
+
+### Completed & Validated
+- **Full Neural Forward Pass Integration in Steady-State Trainer (`test/geomind/train.cl`, `[ISSUE-073]`)**:
+  - Eliminated training bypass shortcut: wrapped token prediction steps through `e8_attention_forward_step` (Sasaki MoE routing, 8 Lie streams, RMSNorm, 16-layer FFN cascade).
+  - Aligned cortical projection weights `g_cortical_weights` directly to the RMS-normalized manifold representation ($\sim 0.02$ scale) shared identically with `--chat` inference.
+- **Strict Causal Autoregressive State Initialization (`test/geomind/train.cl`)**:
+  - Eliminated causal lookahead leakage caused by pre-computing full chunk phase sums (`cartan_tensor_compute_hidden_state_from_tokens`).
+  - Seeded hidden state strictly with token 0 and stepped causally one token at a time with zero future information.
+- **Authentic Temperature Categorical Sampling (`src/std/tokenizer.cl`)**:
+  - Replaced crude argmax in `cartan_tokenizer_sample_topp_topk` with authentic temperature-scaled softmax categorical sampling using an LCG pseudo-random distribution.
+- **Character Repetition Penalty & Generation Floor Calibration (`test/geomind/chat.cl`)**:
+  - Replaced global character banning penalty with local immediate repetition and double duplicate loop suppression.
+  - Set minimum generation floor (`min_gen_tokens = 32.0`) to prevent premature EOS termination after 3 characters.
+- **CLI Chat Argument Parsing (`test/geomind/main.car`)**:
+  - Bound `-prompt <text>`, `-tokens <num>`, and `-temp <float>` flags in `--chat` CLI parser, resolving prompt misdirection.
+- **Empirical Verification**:
+  - Recompiled `build/geomind.exe` with `cartanc.exe`.
+  - Empirically validated genuine training loss descent from 5.69 to 4.12 across 50 KB through the full neural manifold.
+  - Verified non-terminating, diverse character generation during `--chat`.
+  - Executed compiler regression test suite with 62/62 targets passing (62/62 PASS).
+
 ## [8.280.0] - 2026-09-07 (Sprint 323: True Vocabulary Alignment & Cortical Weight Inference Integration)
 
 ### Completed & Validated

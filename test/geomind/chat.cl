@@ -55,14 +55,20 @@ fn cartan_apply_repetition_penalty(logits_ptr: ptr, hist: ptr, penalty: float) -
     let h_len = cartan_vec_len(hist);
     if (h_len == 0.0) { return 0.0; }
     var pen = penalty;
-    if (pen <= 1.0) { pen = 15.0; }
+    if (pen <= 0.0) { pen = 1.50; }
 
-    var i = 0.0;
-    while (i < h_len) {
-        let tok_id = cartan_vec_get_f32(hist, i);
-        let cur = cartan_vec_get_f32(logits_ptr, tok_id);
-        cartan_vec_set_f32(logits_ptr, tok_id, cur - pen);
-        i = i + 1.0;
+    // Mild penalty on immediately preceding character
+    let last_tok = cartan_vec_get_f32(hist, h_len - 1.0);
+    let cur_last = cartan_vec_get_f32(logits_ptr, last_tok);
+    cartan_vec_set_f32(logits_ptr, last_tok, cur_last - pen);
+
+    // If two identical characters in a row, heavily suppress to break infinite character loops
+    if (h_len >= 2.0) {
+        let prev2 = cartan_vec_get_f32(hist, h_len - 2.0);
+        if (last_tok == prev2) {
+            let cur_p2 = cartan_vec_get_f32(logits_ptr, last_tok);
+            cartan_vec_set_f32(logits_ptr, last_tok, cur_p2 - 12.0);
+        }
     }
     return 1.0;
 }
@@ -405,12 +411,14 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
             rewind_executed = 1.0;
         }
 
-        if (step < 3.0) {
+        var min_gen_tokens = 32.0;
+        if (max_t < min_gen_tokens) { min_gen_tokens = max_t * 0.8; }
+        if (step < min_gen_tokens) {
             cartan_vec_set_f32(logits_vec, 1.0, -1000.0);
         }
 
         let sampled_tok = cartan_tokenizer_sample_topp_topk(logits_vec, 50.0, 0.90, current_temp + step * 0.01);
-        if (sampled_tok == 1.0 && step >= 3.0) {
+        if (sampled_tok == 1.0 && step >= min_gen_tokens) {
             // End of Sequence reached cleanly
             break;
         }

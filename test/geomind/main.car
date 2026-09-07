@@ -245,13 +245,19 @@ fn main() -> float {
 
             let image_arg = get_cli_param("--image", arg_count);
             let audio_arg = get_cli_param("--audio", arg_count);
+            var prompt_arg = get_cli_param("-prompt", arg_count);
+            let tokens_arg = get_cli_param_float("-tokens", arg_count, 64.0);
+            let temp_arg = get_cli_param_float("-temp", arg_count, 0.7);
 
-            if (arg_count >= 3.0) {
-                var initial_prompt = sys_get_arg(2.0);
-                if (cartan_string_starts_with(initial_prompt, "--") == 1.0) {
-                    initial_prompt = "Describe the observed physical scene and auditory harmonics.";
+            if (cartan_string_length(prompt_arg) == 0.0 && arg_count >= 3.0) {
+                let first_pos = sys_get_arg(2.0);
+                if (cartan_string_starts_with(first_pos, "-") == 0.0) {
+                    prompt_arg = first_pos;
                 }
-                geomind_chat_generate_reply_multimodal(initial_prompt, 50.0, 0.7, image_arg, audio_arg);
+            }
+
+            if (cartan_string_length(prompt_arg) > 0.0) {
+                geomind_chat_generate_reply_multimodal(prompt_arg, tokens_arg, temp_arg, image_arg, audio_arg);
                 cartan_flush(0.0);
                 return 0.0;
             }

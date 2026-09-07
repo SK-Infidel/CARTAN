@@ -46,23 +46,63 @@ fn tokenizer_scale_ic_loss(base_loss: float, token_id: float) -> float {
     return base_loss * weight;
 }
 
+var g_tokenizer_sample_seed: float = 1337.0;
+
 fn cartan_tokenizer_sample_topp_topk(logits: ptr, top_k: float, top_p: float, temp: float) -> float {
     if (logits == 0.0) { return 9259.0; }
     let n = cartan_vec_len(logits);
     if (n == 0.0) { return 9259.0; }
 
-    var max_logit = -1000000.0;
-    var best_id = 0.0;
+    var t = temp;
+    if (t < 0.05) {
+        var max_logit = -1000000.0;
+        var best_id = 0.0;
+        var i = 0.0;
+        while (i < n) {
+            let v = cartan_vec_get_f32(logits, i);
+            if (v > max_logit) {
+                max_logit = v;
+                best_id = i;
+            }
+            i = i + 1.0;
+        }
+        return best_id;
+    }
+
+    var max_val = -1000000.0;
     var i = 0.0;
     while (i < n) {
-        let v = cartan_vec_get_f32(logits, i);
-        if (v > max_logit) {
-            max_logit = v;
-            best_id = i;
+        let v = cartan_vec_get_f32(logits, i) / t;
+        if (v > max_val) { max_val = v; }
+        i = i + 1.0;
+    }
+
+    var sum_p = 0.0;
+    let probs = cartan_vec_create();
+    i = 0.0;
+    while (i < n) {
+        let sc = cartan_vec_get_f32(logits, i) / t;
+        let p = exp(sc - max_val);
+        cartan_vec_push_f32(probs, p);
+        sum_p = sum_p + p;
+        i = i + 1.0;
+    }
+    if (sum_p <= 0.0) { sum_p = 1.0; }
+
+    g_tokenizer_sample_seed = math_mod_val(g_tokenizer_sample_seed * 1103515245.0 + 12345.0, 2147483648.0);
+    let u = (g_tokenizer_sample_seed / 2147483648.0) * sum_p;
+
+    var cum = 0.0;
+    i = 0.0;
+    while (i < n) {
+        let p = cartan_vec_get_f32(probs, i);
+        cum = cum + p;
+        if (cum >= u) {
+            return i;
         }
         i = i + 1.0;
     }
-    return best_id;
+    return n - 1.0;
 }
 
 fn cartan_tokenizer_is_valid_bigram(tok1: float, tok2: float) -> float {

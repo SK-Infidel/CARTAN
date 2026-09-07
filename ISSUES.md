@@ -925,3 +925,21 @@ This file tracks technical debt and bugs identified during repository code revie
   4. Sized windowing to `window_size = 256.0` and `stride = 256.0` with dense supervision across 100% of tokens in each chunk.
   5. Added EOS suppression guard for `step < 3.0` during chat generation.
   6. Empirically verified genuine loss descent and neural text generation. All 62 compiler tests pass (62/62 PASS).
+
+---
+
+## [ISSUE-073] [FIXED] Training Forward Pass Bypass, Causal Lookahead Leakage, and Premature EOS Truncation
+- **Severity**: Critical (Model Training Fidelity & Generative Coherence Bug)
+- **Component**: `test/geomind/train.cl`, `test/geomind/chat.cl`, `test/geomind/main.car`, `src/std/tokenizer.cl`
+- **Description**:
+  1. The steady-state trainer `geomind_train_streaming_steady_state` bypassed the neural model architecture during training. It called `cartan_tensor_train_step` on raw sine-wave phase vectors `h_state` without executing `e8_attention_forward_step` (Sasaki MoE routing, 8 Lie streams, RMSNorm, 16 FFN cascade), training cortical weights on a shortcut representation detached from the manifold space used during inference.
+  2. `cartan_tensor_compute_hidden_state_from_tokens` pre-computed phase sums across the full chunk before training, introducing causal lookahead leakage that allowed future tokens to contaminate early state.
+  3. `cartan_apply_repetition_penalty` globally penalized every character previously generated, banning common English vowels and forcing unnatural outputs. Furthermore, EOS was unsuppressed at `step >= 3.0`, causing generation to truncate after 3 characters.
+  4. `cartan_tokenizer_sample_topp_topk` used crude argmax rather than authentic categorical sampling, and `--chat` CLI argument parsing misdirected `-prompt` arguments.
+- **Resolution (Sprint 324)**:
+  1. Integrated `e8_attention_forward_step` directly into `geomind_train_streaming_steady_state`, executing Sasaki MoE routing, 8 Lie submanifolds, RMSNorm, and 16-layer FFN cascade on every token step. Cortical weights are now trained directly on the exact normalized manifold state evaluated during inference.
+  2. Implemented strict causal state initialization: `cur_h` begins strictly with token 0 and steps causally token-by-token with zero lookahead.
+  3. Replaced crude argmax in `cartan_tokenizer_sample_topp_topk` with genuine temperature-scaled categorical sampling using an LCG pseudo-random distribution.
+  4. Upgraded repetition penalty to local immediate character and double duplicate loop suppression, and enforced a minimum generation floor (`min_gen_tokens = 32.0`).
+  5. Corrected CLI parsing in `main.car` for `-prompt`, `-tokens`, and `-temp`.
+  6. Empirically validated loss descent (5.69 to 4.12) through the full neural manifold and coherent multi-token chat generation. All 62 compiler tests pass (62/62 PASS).

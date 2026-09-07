@@ -24,6 +24,7 @@ include "moe.cl";
 extern fn cartan_tensor_compute_hidden_state_from_tokens(toks: ptr) -> ptr;
 extern fn cartan_tensor_update_autoregressive_state(hidden_ptr: ptr, token_id: float) -> float;
 extern fn cartan_tensor_compute_lm_head_logits(h: ptr, temp: float) -> ptr;
+extern fn e8_attention_forward_step(hidden_ptr: ptr, temp: float) -> ptr;
 extern fn geomind_sasaki_route(position: ptr, momentum: ptr, expert_idx: float) -> float;
 extern fn atof(s: string) -> float;
 extern fn cartan_tree_create() -> ptr;
@@ -768,16 +769,27 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
                     let tokens = cartan_hub_encode_text_to_tokens(sample_text);
                     let n_tokens = cartan_vec_len(tokens);
                     if (n_tokens > 1.0) {
-                        let h_state = cartan_tensor_compute_hidden_state_from_tokens(tokens);
+                        var cur_h = cartan_vec_create();
+                        var d = 0.0;
+                        while (d < 2560.0) {
+                            cartan_vec_push_f32(cur_h, 0.0);
+                            d = d + 1.0;
+                        }
+                        // Seed causal state strictly with the initial token of the sequence (zero lookahead)
+                        let first_tok = cartan_vec_get_f32(tokens, 0.0);
+                        cartan_tensor_update_autoregressive_state(cur_h, first_tok);
+                        cur_h = e8_attention_forward_step(cur_h, 0.70);
+
                         var t = 0.0;
                         while (t < n_tokens - 1.0) {
                             let next_tok = cartan_vec_get_f32(tokens, t + 1.0);
-                            let step_loss = cartan_tensor_train_step(h_state, next_tok, lr);
+                            let step_loss = cartan_tensor_train_step(cur_h, next_tok, lr);
                             if (step_loss > 0.0) {
                                 ep_loss_sum = ep_loss_sum + step_loss;
                                 ep_step_count = ep_step_count + 1.0;
                             }
-                            cartan_tensor_update_autoregressive_state(h_state, next_tok);
+                            cartan_tensor_update_autoregressive_state(cur_h, next_tok);
+                            cur_h = e8_attention_forward_step(cur_h, 0.70);
                             t = t + 1.0;
                         }
                     }
