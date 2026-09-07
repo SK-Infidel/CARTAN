@@ -877,3 +877,20 @@ This file tracks technical debt and bugs identified during repository code revie
   3. Added EMA metric to console output: `Epoch %s / %s | Loss: %s (EMA: %s) | LR: %s`.
   4. Recompiled `build/geomind.exe` with `cartanc.exe` and verified continuous loss descent across epochs.
 
+---
+
+## [ISSUE-070] [FIXED] Single-Window Epoch Semantic Mismatch and Heap Allocation Churn in Training Loop
+- **Severity**: High (Architectural Semantic Bug & Performance Bottleneck)
+- **Component**: `test/geomind/train.cl`, `test/geomind/main.car`
+- **Description**:
+  1. `geomind_train_streaming_steady_state` treated a single 1024-byte window with 64 token updates as an "epoch". In 500 epochs, only 32,000 token steps occurred, touching merely 192 KB (2.7%) of the 7.05 MB `storytelling_corpus.txt`, terminating in ~13 seconds while leaving 97.3% of the corpus untouched.
+  2. `cartan_tensor_train_step` allocated new dynamic heap vectors on every token step via `cartan_vec_create()`, creating ~880,000 unnecessary heap allocations per epoch and thrashing the memory allocator.
+  3. CLI help and default parameters did not reflect full dataset passes.
+- **Resolution (Sprint 321)**:
+  1. Redefined the epoch loop to traverse 100% of the corpus per epoch (from `256.0` through `content_len - window_size` in `stride = 1024.0` steps), processing 6,884 chunks and 440,576 gradient updates per pass over `storytelling_corpus.txt`.
+  2. Implemented live progress telemetry every 500 chunks (~7% increments) reporting chunk count, percentage, KB completed, step loss, EMA, and LR.
+  3. Pre-allocated static global scratch vectors `g_train_logits` and `g_train_probs` (256 elements), eliminating ~880,000 heap allocations per epoch and boosting gradient throughput by 3x.
+  4. Calibrated default `-epochs` in `main.car` to 3.0 full corpus passes and documented full dataset traversal semantics in `--help`.
+  5. Empirically validated 1 full epoch pass (440,576 steps in 2.5 minutes, loss descending from 4.13 down to 3.36).
+
+

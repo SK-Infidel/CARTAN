@@ -265,6 +265,9 @@ fn webgpu_log_biological_telemetry(step: float, total_steps: float, basins: floa
     cartan_flush(0.0);
 }
 
+var g_train_logits: ptr = 0.0;
+var g_train_probs: ptr = 0.0;
+
 // Analytical softmax, cross-entropy loss, and SGD weight backpropagation on cortical weights
 fn cartan_tensor_train_step(hidden_ptr: ptr, target_tok_id: float, learning_rate: float) -> float {
     if (hidden_ptr == 0.0) { return 0.0; }
@@ -279,7 +282,17 @@ fn cartan_tensor_train_step(hidden_ptr: ptr, target_tok_id: float, learning_rate
     var lr = learning_rate;
     if (lr <= 0.0) { lr = 0.005; }
 
-    let logits = cartan_vec_create();
+    if (g_train_logits == 0.0) {
+        g_train_logits = cartan_vec_create();
+        g_train_probs = cartan_vec_create();
+        var i = 0.0;
+        while (i < 256.0) {
+            cartan_vec_push_f32(g_train_logits, 0.0);
+            cartan_vec_push_f32(g_train_probs, 0.0);
+            i = i + 1.0;
+        }
+    }
+
     var max_logit = -1000000000.0;
 
     var c = 0.0;
@@ -292,17 +305,16 @@ fn cartan_tensor_train_step(hidden_ptr: ptr, target_tok_id: float, learning_rate
             dot = dot + hv * wv;
             r = r + 1.0;
         }
-        cartan_vec_push_f32(logits, dot);
+        cartan_vec_set_f32(g_train_logits, c, dot);
         if (dot > max_logit) { max_logit = dot; }
         c = c + 1.0;
     }
 
     var sum_exp = 0.0;
-    let probs = cartan_vec_create();
     c = 0.0;
     while (c < 256.0) {
-        let p = exp(cartan_vec_get_f32(logits, c) - max_logit);
-        cartan_vec_push_f32(probs, p);
+        let p = exp(cartan_vec_get_f32(g_train_logits, c) - max_logit);
+        cartan_vec_set_f32(g_train_probs, c, p);
         sum_exp = sum_exp + p;
         c = c + 1.0;
     }
@@ -310,12 +322,12 @@ fn cartan_tensor_train_step(hidden_ptr: ptr, target_tok_id: float, learning_rate
 
     c = 0.0;
     while (c < 256.0) {
-        let p_norm = cartan_vec_get_f32(probs, c) / sum_exp;
-        cartan_vec_set_f32(probs, c, p_norm);
+        let p_norm = cartan_vec_get_f32(g_train_probs, c) / sum_exp;
+        cartan_vec_set_f32(g_train_probs, c, p_norm);
         c = c + 1.0;
     }
 
-    var target_p = cartan_vec_get_f32(probs, target_idx);
+    var target_p = cartan_vec_get_f32(g_train_probs, target_idx);
     if (target_p < 0.000000000001) { target_p = 0.000000000001; }
     let loss = 0.0 - math_log(target_p);
 
@@ -326,7 +338,7 @@ fn cartan_tensor_train_step(hidden_ptr: ptr, target_tok_id: float, learning_rate
         while (col < 256.0) {
             var target_val = 0.0;
             if (col == target_idx) { target_val = 1.0; }
-            let p_val = cartan_vec_get_f32(probs, col);
+            let p_val = cartan_vec_get_f32(g_train_probs, col);
             let grad = (p_val - target_val) * h_val;
             let w_idx = r_idx * 2560.0 + col;
             let cur_w = cartan_vec_get_f32(g_cortical_weights, w_idx);
@@ -560,59 +572,96 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
     var final_loss = 10.0;
     var smoothed_loss = 5.0;
     let window_size = 1024.0;
+    let stride = 1024.0;
 
     while (ep <= epochs) {
-        var sample_text = "The geometric mind discovers universal truth through Riemannian geodesics and continuous resonance.";
-        if (content_len > 0.0) {
-            var offset = 0.0;
-            if (content_len > window_size + 256.0) {
-                offset = math_mod_val(256.0 + (ep - 1.0) * 384.0, content_len - window_size);
-            }
-            sample_text = cartan_string_substring(file_content, offset, offset + window_size);
-        }
+        var ep_loss_sum = 0.0;
+        var ep_step_count = 0.0;
+        var chunk_count = 0.0;
 
-        let tokens = cartan_hub_encode_text_to_tokens(sample_text);
-        let n_tokens = cartan_vec_len(tokens);
-        if (n_tokens > 1.0) {
-            var ep_loss_sum = 0.0;
-            var step_count = 0.0;
-            let h_state = cartan_tensor_compute_hidden_state_from_tokens(tokens);
-
-            var t = 0.0;
-            let max_steps = 64.0;
-            while (t < n_tokens - 1.0 && t < max_steps) {
-                let next_tok = cartan_vec_get_f32(tokens, t + 1.0);
-                let step_loss = cartan_tensor_train_step(h_state, next_tok, lr);
-                ep_loss_sum = ep_loss_sum + step_loss;
-                step_count = step_count + 1.0;
-                cartan_tensor_update_autoregressive_state(h_state, next_tok);
-                t = t + 1.0;
-            }
-
-            if (step_count > 0.0) {
-                final_loss = ep_loss_sum / step_count;
-                if (ep == 1.0) {
-                    smoothed_loss = final_loss;
+        if (content_len > window_size + 256.0) {
+            var offset = 256.0;
+            let total_chunks = math_floor((content_len - 256.0) / stride);
+            while (offset + window_size <= content_len) {
+                let sample_text = cartan_string_substring(file_content, offset, offset + window_size);
+                let tokens = cartan_hub_encode_text_to_tokens(sample_text);
+                let n_tokens = cartan_vec_len(tokens);
+                if (n_tokens > 1.0) {
+                    let h_state = cartan_tensor_compute_hidden_state_from_tokens(tokens);
+                    var t = 0.0;
+                    let max_steps = 64.0;
+                    while (t < n_tokens - 1.0 && t < max_steps) {
+                        let next_tok = cartan_vec_get_f32(tokens, t + 1.0);
+                        let step_loss = cartan_tensor_train_step(h_state, next_tok, lr);
+                        ep_loss_sum = ep_loss_sum + step_loss;
+                        ep_step_count = ep_step_count + 1.0;
+                        cartan_tensor_update_autoregressive_state(h_state, next_tok);
+                        t = t + 1.0;
+                    }
+                }
+                chunk_count = chunk_count + 1.0;
+                let cur_loss = ep_loss_sum / ep_step_count;
+                if (ep == 1.0 && chunk_count == 1.0) {
+                    smoothed_loss = cur_loss;
                 } else {
-                    smoothed_loss = smoothed_loss * 0.85 + final_loss * 0.15;
+                    smoothed_loss = smoothed_loss * 0.95 + cur_loss * 0.05;
+                }
+
+                if (math_mod_val(chunk_count, 500.0) == 0.0 || chunk_count == 1.0 || chunk_count == total_chunks) {
+                    let pct = (chunk_count / total_chunks) * 100.0;
+                    let kb_done = (offset + window_size) / 1024.0;
+                    let kb_total = content_len / 1024.0;
+                    printf("[Steady-State Stage: %s] Epoch %s / %s | Chunk %s / %s (%s%%, %s / %s KB) | Step Loss: %s (EMA: %s) | LR: %s\n",
+                        stage_name, cartan_float_to_string(ep), cartan_float_to_string(epochs),
+                        cartan_float_to_string(chunk_count), cartan_float_to_string(total_chunks),
+                        cartan_float_to_string(pct), cartan_float_to_string(kb_done),
+                        cartan_float_to_string(kb_total), cartan_float_to_string(cur_loss),
+                        cartan_float_to_string(smoothed_loss), cartan_float_to_string(lr));
+                    cartan_flush(0.0);
+                }
+
+                offset = offset + stride;
+            }
+        } else {
+            // Fallback for short dataset / missing file
+            var sample_text = "The geometric mind discovers universal truth through Riemannian geodesics and continuous resonance.";
+            if (content_len > 0.0) { sample_text = file_content; }
+            let tokens = cartan_hub_encode_text_to_tokens(sample_text);
+            let n_tokens = cartan_vec_len(tokens);
+            if (n_tokens > 1.0) {
+                let h_state = cartan_tensor_compute_hidden_state_from_tokens(tokens);
+                var t = 0.0;
+                while (t < n_tokens - 1.0 && t < 64.0) {
+                    let next_tok = cartan_vec_get_f32(tokens, t + 1.0);
+                    let step_loss = cartan_tensor_train_step(h_state, next_tok, lr);
+                    ep_loss_sum = ep_loss_sum + step_loss;
+                    ep_step_count = ep_step_count + 1.0;
+                    cartan_tensor_update_autoregressive_state(h_state, next_tok);
+                    t = t + 1.0;
                 }
             }
         }
 
-        if (math_mod_val(ep, 10.0) == 0.0 || ep == 1.0 || ep == epochs || (smoothed_loss <= t_loss && ep >= 20.0)) {
-            printf("[Steady-State Stage: %s] Epoch %s / %s | Loss: %s (EMA: %s) | LR: %s\n",
-                stage_name, cartan_float_to_string(ep), cartan_float_to_string(epochs),
-                cartan_float_to_string(final_loss), cartan_float_to_string(smoothed_loss),
-                cartan_float_to_string(lr));
-            cartan_flush(0.0);
+        if (ep_step_count > 0.0) {
+            final_loss = ep_loss_sum / ep_step_count;
         }
 
-        if (smoothed_loss <= t_loss && ep >= 20.0) {
-            printf("[Steady-State Stage: %s] Sustained convergence to target loss %s (Smoothed: %s) at epoch %s!\n",
+        printf("[Steady-State Stage: %s] === Epoch %s / %s Complete === | Ingested: %s KB (%s chunks, %s steps) | Mean Loss: %s (EMA: %s) | LR: %s\n",
+            stage_name, cartan_float_to_string(ep), cartan_float_to_string(epochs),
+            cartan_float_to_string(content_len / 1024.0), cartan_float_to_string(chunk_count),
+            cartan_float_to_string(ep_step_count), cartan_float_to_string(final_loss),
+            cartan_float_to_string(smoothed_loss), cartan_float_to_string(lr));
+        cartan_flush(0.0);
+
+        // Checkpoint intermediate weights after every full epoch
+        cartan_safetensors_save_tensor_f32(ckpt_path, "model.weights", g_cortical_weights);
+
+        if (smoothed_loss <= t_loss && ep >= 1.0) {
+            printf("[Steady-State Stage: %s] Sustained convergence to target loss %s (Smoothed: %s) after full epoch %s!\n",
                 stage_name, cartan_float_to_string(t_loss), cartan_float_to_string(smoothed_loss), cartan_float_to_string(ep));
             ep = epochs + 1.0;
         } else {
-            lr = lr * 0.995;
+            lr = lr * 0.90;
             if (lr < 0.0001) { lr = 0.0001; }
             ep = ep + 1.0;
         }

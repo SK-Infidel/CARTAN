@@ -55,11 +55,12 @@ fn print_help_dialogue() -> float {
     printf("  --train-webgpu  Run pure native CARTAN WebGPU Causal Training Engine\n");
     printf("  --help, -h      Display this help dialogue and exit\n\n");
     printf("Training & Optimization Flags (Optional - All have calibrated defaults):\n");
-    printf("  -epochs <num>        Maximum training epochs (Default: 500.0)\n");
+    printf("  -epochs <num>        Full dataset passes / epochs (Default: 3.0)\n");
+    printf("                       Each epoch traverses 100%% of the dataset corpus from start to finish.\n");
     printf("  -target-loss <float> Early stopping loss threshold (Default: 4.20 Cloze, 3.00 CE, 2.00 SFT)\n");
     printf("  -lr <float>          Starting base learning rate ceiling (Default: 0.001)\n");
     printf("                       Omitting -lr uses the optimal default: starts at 0.001,\n");
-    printf("                       decays 0.995/epoch to 0.0001 floor. Never exceeds this ceiling.\n");
+    printf("                       decays 0.90/epoch to 0.0001 floor. Never exceeds this ceiling.\n");
     printf("  -target <file>       Explicit dataset file path on disk (Defaults to stage corpus)\n\n");
     printf("Targeting & Multimodal Flags:\n");
     printf("  -target <file>  Explicit dataset file path on disk\n");
@@ -112,7 +113,7 @@ fn main() -> float {
 
         if (cartan_string_eq(flag, "--train-pre") == 1.0) {
             let target = get_cli_target_path(arg_count);
-            let epochs = get_cli_param_float("-epochs", arg_count, 500.0);
+            let epochs = get_cli_param_float("-epochs", arg_count, 3.0);
             let lr = get_cli_param_float("-lr", arg_count, 0.001);
             let target_loss = get_cli_param_float("-target-loss", arg_count, 3.50);
             let res = geomind_train_streaming_steady_state(2.0, target, target_loss, lr, epochs, "logs/stage2_ce_training.log");
@@ -122,7 +123,7 @@ fn main() -> float {
 
         if (cartan_string_eq(flag, "--train-cloze") == 1.0) {
             let target = get_cli_target_path(arg_count);
-            let epochs = get_cli_param_float("-epochs", arg_count, 500.0);
+            let epochs = get_cli_param_float("-epochs", arg_count, 3.0);
             let lr = get_cli_param_float("-lr", arg_count, 0.001);
             let target_loss = get_cli_param_float("-target-loss", arg_count, 4.20);
             let res = geomind_train_streaming_steady_state(1.0, target, target_loss, lr, epochs, "logs/stage1_cloze_training.log");
@@ -301,9 +302,9 @@ fn main() -> float {
 
         if (cartan_string_eq(flag, "--train-ce") == 1.0) {
             let target = get_cli_target_path(arg_count);
-            let epochs = get_cli_param_float("-epochs", arg_count, 500.0);
+            let epochs = get_cli_param_float("-epochs", arg_count, 3.0);
             let lr = get_cli_param_float("-lr", arg_count, 0.001);
-            let target_loss = get_cli_param_float("-target-loss", arg_count, 3.50);
+            let target_loss = get_cli_param_float("-target-loss", arg_count, 3.00);
             let res = geomind_train_streaming_steady_state(2.0, target, target_loss, lr, epochs, "logs/stage2_ce_training.log");
             cartan_flush(0.0);
             return 0.0;
@@ -311,7 +312,7 @@ fn main() -> float {
 
         if (cartan_string_eq(flag, "--train-sft") == 1.0) {
             let target = get_cli_target_path(arg_count);
-            let epochs = get_cli_param_float("-epochs", arg_count, 500.0);
+            let epochs = get_cli_param_float("-epochs", arg_count, 3.0);
             let lr = get_cli_param_float("-lr", arg_count, 0.0005);
             let target_loss = get_cli_param_float("-target-loss", arg_count, 2.00);
             let res = geomind_train_streaming_steady_state(3.0, target, target_loss, lr, epochs, "logs/stage3_sft_training.log");
