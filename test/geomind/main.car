@@ -61,15 +61,20 @@ fn print_help_dialogue() -> float {
     printf("  -lr <float>          Starting base learning rate ceiling (Default: 0.001)\n");
     printf("                       Omitting -lr uses the optimal default: starts at 0.001,\n");
     printf("                       decays 0.90/epoch to 0.0001 floor. Never exceeds this ceiling.\n");
-    printf("  -target <file>       Explicit dataset file path on disk (Defaults to stage corpus)\n\n");
+    printf("  -target <file>       Explicit dataset file path on disk (Defaults to stage corpus)\n");
+    printf("  -manifest <file>     Multi-dataset JSON manifest path (Default: test/geomind/trainingdata/corpus.json)\n");
+    printf("  -reset-manifest      Reset manifest position to dataset 0, offset 0.0, epoch 1.0\n\n");
     printf("Targeting & Multimodal Flags:\n");
     printf("  -target <file>  Explicit dataset file path on disk\n");
     printf("  -repo <repo_id> HuggingFace dataset repository ID\n");
     printf("  --image <file>  Input image file (PPM / BMP) for visual Eikonal grounding\n");
     printf("  --audio <file>  Input audio file (WAV PCM) for auditory Spectral grounding\n\n");
-    printf("Safety & Rollback Features:\n");
-    printf("  - Pre-Training Backup: Automatically creates .bin.bak if prior run was clean.\n");
-    printf("  - Interruption Recovery: Auto-restores from .bin.bak if prior run was ended with Ctrl-C.\n\n");
+    printf("Safety, Resumption & Persistence:\n");
+    printf("  - Multi-Dataset Manifest: Sequences across all datasets configured in corpus.json.\n");
+    printf("  - Byte-Exact Resumption: Tracks dataset index, byte offset, and epoch in corpus.json.\n");
+    printf("    Interrupted training (Ctrl-C) automatically preserves current weights and resumes\n");
+    printf("    from the exact byte offset without restarting or losing progress.\n");
+    printf("  - Pre-Training Backup: Automatically creates .bin.bak before fresh multi-epoch runs.\n\n");
     printf("================================================================================\n");
     cartan_flush(0.0);
     return 0.0;
@@ -87,8 +92,45 @@ fn get_cli_param(flag_name: string, arg_count: float) -> string {
     return "";
 }
 
+fn get_cli_flag_present(flag_name: string, arg_count: float) -> float {
+    var i = 1.0;
+    while (i < arg_count) {
+        let arg = sys_get_arg(i);
+        if (cartan_string_eq(arg, flag_name) == 1.0) {
+            return 1.0;
+        }
+        i = i + 1.0;
+    }
+    return 0.0;
+}
+
 fn get_cli_target_path(arg_count: float) -> string {
     return get_cli_param("-target", arg_count);
+}
+
+fn get_cli_train_target(arg_count: float) -> string {
+    let manifest_arg = get_cli_param("-manifest", arg_count);
+    if (cartan_string_length(manifest_arg) > 0.0) {
+        return manifest_arg;
+    }
+    return get_cli_param("-target", arg_count);
+}
+
+fn check_and_apply_manifest_reset(target: string, arg_count: float) {
+    let reset_flag = get_cli_flag_present("-reset-manifest", arg_count);
+    if (reset_flag == 1.0) {
+        var m_path = "test/geomind/trainingdata/corpus.json";
+        if (cartan_string_length(target) > 0.0 && cartan_string_ends_with(target, ".json") == 1.0) {
+            m_path = target;
+        }
+        if (cartan_file_exists(m_path) == 1.0) {
+            let m_content = cartan_read_file(m_path);
+            let list = geomind_manifest_parse_datasets(m_content);
+            geomind_manifest_save(m_path, list, 0.0, 0.0, 1.0);
+            printf("[GeoMind Main] Manifest reset to dataset 0, offset 0.0, epoch 1.0: %s\n", m_path);
+            cartan_flush(0.0);
+        }
+    }
 }
 
 fn get_cli_param_float(flag_name: string, arg_count: float, default_val: float) -> float {
@@ -112,7 +154,8 @@ fn main() -> float {
         }
 
         if (cartan_string_eq(flag, "--train-pre") == 1.0) {
-            let target = get_cli_target_path(arg_count);
+            let target = get_cli_train_target(arg_count);
+            check_and_apply_manifest_reset(target, arg_count);
             let epochs = get_cli_param_float("-epochs", arg_count, 3.0);
             let lr = get_cli_param_float("-lr", arg_count, 0.001);
             let target_loss = get_cli_param_float("-target-loss", arg_count, 3.50);
@@ -122,7 +165,8 @@ fn main() -> float {
         }
 
         if (cartan_string_eq(flag, "--train-cloze") == 1.0) {
-            let target = get_cli_target_path(arg_count);
+            let target = get_cli_train_target(arg_count);
+            check_and_apply_manifest_reset(target, arg_count);
             let epochs = get_cli_param_float("-epochs", arg_count, 3.0);
             let lr = get_cli_param_float("-lr", arg_count, 0.001);
             let target_loss = get_cli_param_float("-target-loss", arg_count, 4.20);
@@ -301,7 +345,8 @@ fn main() -> float {
         }
 
         if (cartan_string_eq(flag, "--train-ce") == 1.0) {
-            let target = get_cli_target_path(arg_count);
+            let target = get_cli_train_target(arg_count);
+            check_and_apply_manifest_reset(target, arg_count);
             let epochs = get_cli_param_float("-epochs", arg_count, 3.0);
             let lr = get_cli_param_float("-lr", arg_count, 0.001);
             let target_loss = get_cli_param_float("-target-loss", arg_count, 3.00);
@@ -311,7 +356,8 @@ fn main() -> float {
         }
 
         if (cartan_string_eq(flag, "--train-sft") == 1.0) {
-            let target = get_cli_target_path(arg_count);
+            let target = get_cli_train_target(arg_count);
+            check_and_apply_manifest_reset(target, arg_count);
             let epochs = get_cli_param_float("-epochs", arg_count, 3.0);
             let lr = get_cli_param_float("-lr", arg_count, 0.0005);
             let target_loss = get_cli_param_float("-target-loss", arg_count, 2.00);

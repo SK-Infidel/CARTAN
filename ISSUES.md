@@ -893,4 +893,18 @@ This file tracks technical debt and bugs identified during repository code revie
   4. Calibrated default `-epochs` in `main.car` to 3.0 full corpus passes and documented full dataset traversal semantics in `--help`.
   5. Empirically validated 1 full epoch pass (440,576 steps in 2.5 minutes, loss descending from 4.13 down to 3.36).
 
+---
 
+## [ISSUE-071] [FIXED] Monolithic Dataset Coupling and Progress Loss on Process Interruption
+- **Severity**: High (Training Usability & Fault Tolerance Limitation)
+- **Component**: `test/geomind/train.cl`, `test/geomind/main.car`, `test/geomind/trainingdata/corpus.json`
+- **Description**:
+  1. Training on multiple datasets previously required manually concatenating heterogeneous datasets into a single monolithic `.txt` file, creating storage duplication, risking corruption, and precluding selective dataset curation.
+  2. Stopping a training session via `Ctrl-C` caused the engine to revert to `.bin.bak` or restart from byte 0, losing all learned weights and compute progress accumulated during the session.
+- **Resolution (Sprint 322)**:
+  1. Created a pure Cartan manifest engine (`geomind_manifest_get_field`, `geomind_manifest_parse_datasets`, `geomind_manifest_save`) and `test/geomind/trainingdata/corpus.json`.
+  2. Configured sequential traversal across an arbitrary ordered list of dataset files per epoch without copying or merging files.
+  3. Implemented continuous state tracking (`current_dataset_index`, `current_offset`, `current_epoch`) and checkpointing every 200 chunks and upon dataset completion.
+  4. On interrupted runs (`IN_PROGRESS`), retained trained weights and automatically resumed from the exact byte offset in the active dataset.
+  5. Added `-manifest <file>` and `-reset-manifest` CLI flags to `main.car`.
+  6. Empirically validated sequential execution and byte-exact interruption resumption. All 62 compiler tests pass (62/62 PASS).

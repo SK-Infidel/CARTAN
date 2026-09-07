@@ -1,3 +1,21 @@
+## [8.279.0] - 2026-09-07 (Sprint 322: Multi-Dataset Manifest & Byte-Exact Interruption Resumption Engine)
+
+### Completed & Validated
+- **Dynamic Multi-Dataset Manifest Engine (`test/geomind/train.cl`, `[ISSUE-071]`)**:
+  - Implemented pure Cartan manifest parser, reader, and serializer (`geomind_manifest_get_field`, `geomind_manifest_parse_datasets`, `geomind_manifest_save`) without regex or external dependencies.
+  - Added multi-dataset configuration via `test/geomind/trainingdata/corpus.json` sequencing across multiple modern corpora (`storytelling_corpus.txt`, `hf_roneneldan_TinyStories.txt`, `hf_alpaca_stories.txt`, `conversational_storytelling_dataset.jsonl`).
+  - Seamlessly sequences from one dataset to the next within each epoch.
+- **Byte-Exact Interruption & Resumption Engine (`test/geomind/train.cl`, `test/geomind/main.car`)**:
+  - Continuously persists live state (`current_dataset_index`, `current_offset`, `current_epoch`) and model weights every 200 chunks and upon dataset completion.
+  - On process termination (Ctrl-C or crash), retains trained weights and automatically resumes from the exact byte offset of the active dataset without restarting or losing progress.
+  - Added `-manifest <file>` and `-reset-manifest` CLI flags to `test/geomind/main.car`.
+- **Pure Cartan Standard Library String Expansion (`src/std/string.cl`)**:
+  - Added `cartan_string_ends_with` and `string_ends_with` to layer 1 standard library.
+- **Empirical Verification**:
+  - Recompiled `build/geomind.exe` with `cartanc.exe`.
+  - Empirically verified multi-dataset iteration, state serialization, and simulated Ctrl-C byte-exact resumption across distinct datasets.
+  - Ran full compiler regression suite with all 62 snapshot test targets passing (62/62 PASS).
+
 ## [8.278.0] - 2026-09-07 (Sprint 321: Full Corpus Dataset Traversal & Zero-Allocation Optimization)
 
 ### Completed & Validated

@@ -25,6 +25,11 @@ extern fn cartan_tensor_compute_hidden_state_from_tokens(toks: ptr) -> ptr;
 extern fn cartan_tensor_update_autoregressive_state(hidden_ptr: ptr, token_id: float) -> float;
 extern fn cartan_tensor_compute_lm_head_logits(h: ptr, temp: float) -> ptr;
 extern fn geomind_sasaki_route(position: ptr, momentum: ptr, expert_idx: float) -> float;
+extern fn atof(s: string) -> float;
+extern fn cartan_tree_create() -> ptr;
+extern fn cartan_tree_push(t: ptr, item: ptr) -> void;
+extern fn cartan_tree_get_f32(t: ptr, idx: float) -> ptr;
+extern fn cartan_tree_len_f(t: ptr) -> float;
 
 // Persistent WebGPU context state
 var g_train_gpu_mounted: float = 0.0;
@@ -469,6 +474,140 @@ fn webgpu_run_causal_training_pipeline(dataset_path: string, num_steps: float) -
     return running_loss;
 }
 
+fn geomind_manifest_get_field(json_str: string, key: string) -> string {
+    let len = cartan_string_length(json_str);
+    if (len <= 0.0) { return ""; }
+
+    let pattern = cartan_string_concat("\"", cartan_string_concat(key, "\""));
+    let pat_len = cartan_string_length(pattern);
+
+    var i = 0.0;
+    while (i <= len - pat_len) {
+        let sub = cartan_string_substring(json_str, i, i + pat_len);
+        if (cartan_string_eq(sub, pattern) == 1.0) {
+            var colon_idx = i + pat_len;
+            while (colon_idx < len && cartan_string_get_char(json_str, colon_idx) != 58.0) { // ':'
+                colon_idx = colon_idx + 1.0;
+            }
+            if (colon_idx < len) {
+                var val_start = colon_idx + 1.0;
+                while (val_start < len) {
+                    let vc = cartan_string_get_char(json_str, val_start);
+                    if (vc != 32.0 && vc != 9.0) {
+                        break;
+                    }
+                    val_start = val_start + 1.0;
+                }
+
+                if (val_start < len) {
+                    let first_val_ch = cartan_string_get_char(json_str, val_start);
+                    if (first_val_ch == 34.0) { // Quoted string
+                        var val_end = val_start + 1.0;
+                        while (val_end < len) {
+                            if (cartan_string_get_char(json_str, val_end) == 34.0) {
+                                break;
+                            }
+                            val_end = val_end + 1.0;
+                        }
+                        return cartan_string_substring(json_str, val_start + 1.0, val_end);
+                    } else { // Primitive scalar
+                        var val_end = val_start;
+                        while (val_end < len) {
+                            let ec = cartan_string_get_char(json_str, val_end);
+                            if (ec == 44.0 || ec == 125.0 || ec == 93.0 || ec == 32.0 || ec == 10.0 || ec == 13.0) {
+                                break;
+                            }
+                            val_end = val_end + 1.0;
+                        }
+                        return cartan_string_substring(json_str, val_start, val_end);
+                    }
+                }
+            }
+        }
+        i = i + 1.0;
+    }
+    return "";
+}
+
+fn geomind_manifest_parse_datasets(json_str: string) -> ptr {
+    let list = cartan_tree_create();
+    let len = cartan_string_length(json_str);
+    if (len == 0.0) { return list; }
+
+    let key = "\"datasets\"";
+    let key_len = cartan_string_length(key);
+    var i = 0.0;
+    var found_bracket = -1.0;
+
+    while (i <= len - key_len) {
+        let sub = cartan_string_substring(json_str, i, i + key_len);
+        if (cartan_string_eq(sub, key) == 1.0) {
+            var j = i + key_len;
+            while (j < len) {
+                if (cartan_string_get_char(json_str, j) == 91.0) { // '['
+                    found_bracket = j + 1.0;
+                    j = len + 1.0;
+                }
+                j = j + 1.0;
+            }
+            i = len + 1.0;
+        }
+        i = i + 1.0;
+    }
+
+    if (found_bracket < 0.0) { return list; }
+
+    var p = found_bracket;
+    var in_str = 0.0;
+    var str_start = 0.0;
+
+    while (p < len) {
+        let c = cartan_string_get_char(json_str, p);
+        if (c == 93.0 && in_str == 0.0) { // ']'
+            break;
+        }
+        if (c == 34.0) { // '"'
+            if (in_str == 0.0) {
+                in_str = 1.0;
+                str_start = p + 1.0;
+            } else {
+                in_str = 0.0;
+                let item = cartan_string_substring(json_str, str_start, p);
+                cartan_tree_push(list, item);
+            }
+        }
+        p = p + 1.0;
+    }
+    return list;
+}
+
+fn geomind_manifest_save(path: string, list: ptr, cur_idx: float, cur_offset: float, cur_ep: float) {
+    var out = "{\n";
+    out = cartan_string_concat(out, "  \"current_dataset_index\": ");
+    out = cartan_string_concat(out, cartan_float_to_string(cur_idx));
+    out = cartan_string_concat(out, ",\n  \"current_offset\": ");
+    out = cartan_string_concat(out, cartan_float_to_string(cur_offset));
+    out = cartan_string_concat(out, ",\n  \"current_epoch\": ");
+    out = cartan_string_concat(out, cartan_float_to_string(cur_ep));
+    out = cartan_string_concat(out, ",\n  \"datasets\": [\n");
+
+    let count = cartan_tree_len_f(list);
+    var i = 0.0;
+    while (i < count) {
+        let item = cartan_tree_get_f32(list, i);
+        out = cartan_string_concat(out, "    \"");
+        out = cartan_string_concat(out, item);
+        if (i + 1.0 < count) {
+            out = cartan_string_concat(out, "\",\n");
+        } else {
+            out = cartan_string_concat(out, "\"\n");
+        }
+        i = i + 1.0;
+    }
+    out = cartan_string_concat(out, "  ]\n}\n");
+    cartan_write_file(path, out);
+}
+
 // Unified multi-phase streaming steady-state engine (Stages 1, 2, 3)
 fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: string, target_loss: float, base_lr: float, max_epochs: float, log_path: string) -> float {
     var stage_name = "CLOZE";
@@ -485,11 +624,11 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
     if (cartan_string_length(log_file) == 0.0) { log_file = default_log; }
 
     var lr = base_lr;
-    if (lr <= 0.0) { lr = 0.0005; }
+    if (lr <= 0.0) { lr = 0.001; }
     var t_loss = target_loss;
     if (t_loss <= 0.0) { t_loss = 2.50; }
     var epochs = max_epochs;
-    if (epochs <= 0.0) { epochs = 50.0; }
+    if (epochs <= 0.0) { epochs = 3.0; }
 
     printf("================================================================================\n");
     printf("  GEOMIND STREAMING STEADY-STATE COMPUTE ENGINE (Stage: %s)\n", stage_name);
@@ -503,25 +642,41 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
     // Mount GPU acceleration if available
     train_mount_gpu();
 
-    var sample_text = "The geometric mind discovers universal truth through Riemannian geodesics and continuous resonance.";
-    var actual_dataset = custom_dataset;
-    if (cartan_file_exists(actual_dataset) == 0.0) {
-        if (stage_mode == 1.0) {
-            actual_dataset = "test/geomind/trainingdata/conversational_storytelling_dataset.jsonl";
-        } else if (stage_mode == 2.0) {
-            actual_dataset = "test/geomind/trainingdata/storytelling_corpus.txt";
-        } else if (stage_mode == 3.0) {
-            actual_dataset = "test/geomind/trainingdata/hf_alpaca_stories.txt";
+    var manifest_path = "test/geomind/trainingdata/corpus.json";
+    var datasets_list = cartan_tree_create();
+    var cur_d_idx = 0.0;
+    var cur_offset = 0.0;
+    var cur_ep = 1.0;
+    var manifest_mode = 0.0;
+
+    if (cartan_string_ends_with(custom_dataset, ".json") == 1.0 && cartan_file_exists(custom_dataset) == 1.0) {
+        manifest_path = custom_dataset;
+    }
+
+    if (cartan_string_length(custom_dataset) > 0.0 && cartan_string_ends_with(custom_dataset, ".json") == 0.0 && cartan_file_exists(custom_dataset) == 1.0) {
+        cartan_tree_push(datasets_list, custom_dataset);
+    } else if (cartan_file_exists(manifest_path) == 1.0) {
+        let manifest_content = cartan_read_file(manifest_path);
+        datasets_list = geomind_manifest_parse_datasets(manifest_content);
+        if (cartan_tree_len_f(datasets_list) > 0.0) {
+            manifest_mode = 1.0;
+            cur_d_idx = atof(geomind_manifest_get_field(manifest_content, "current_dataset_index"));
+            cur_offset = atof(geomind_manifest_get_field(manifest_content, "current_offset"));
+            let saved_ep = atof(geomind_manifest_get_field(manifest_content, "current_epoch"));
+            if (saved_ep >= 1.0 && saved_ep <= epochs) {
+                cur_ep = saved_ep;
+            }
         }
     }
-    var file_content = "";
-    var content_len = 0.0;
-    if (cartan_file_exists(actual_dataset) == 1.0) {
-        file_content = cartan_read_file(actual_dataset);
-        content_len = cartan_string_length(file_content);
-        printf("[Steady-State Stage: %s] Ingested dataset: %s (%s bytes)\n",
-            stage_name, actual_dataset, cartan_float_to_string(content_len));
-        cartan_flush(0.0);
+
+    if (cartan_tree_len_f(datasets_list) == 0.0) {
+        if (stage_mode == 1.0) {
+            cartan_tree_push(datasets_list, "test/geomind/trainingdata/conversational_storytelling_dataset.jsonl");
+        } else if (stage_mode == 2.0) {
+            cartan_tree_push(datasets_list, "test/geomind/trainingdata/storytelling_corpus.txt");
+        } else if (stage_mode == 3.0) {
+            cartan_tree_push(datasets_list, "test/geomind/trainingdata/hf_alpaca_stories.txt");
+        }
     }
 
     cartan_init_cortical_weights_if_needed();
@@ -546,11 +701,6 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
         printf("[Steady-State Stage: %s] Verified clean prior run. Created checkpoint backup: %s\n",
             stage_name, bak_path);
         cartan_flush(0.0);
-    } else if (cartan_file_exists(bak_path) == 1.0) {
-        printf("[Steady-State Stage: %s] Warning: Prior run was interrupted (Ctrl-C/break). Restoring from verified backup: %s\n",
-            stage_name, bak_path);
-        cartan_copy_file(bak_path, ckpt_path);
-        cartan_flush(0.0);
     }
 
     if (cartan_file_exists(ckpt_path) == 1.0) {
@@ -564,11 +714,28 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
         }
     }
 
+    let num_datasets = cartan_tree_len_f(datasets_list);
+    printf("[Steady-State Stage: %s] Manifest Active: %s datasets configured\n",
+        stage_name, cartan_float_to_string(num_datasets));
+
+    if (prior_clean == 0.0 && manifest_mode == 1.0 && cur_d_idx < num_datasets && (cur_d_idx > 0.0 || cur_offset > 0.0 || cur_ep > 1.0)) {
+        let resume_name = cartan_tree_get_f32(datasets_list, cur_d_idx);
+        printf("[Steady-State Stage: %s] Resuming interrupted run from %s: Dataset [%s / %s] %s at offset %s bytes (Epoch %s)\n",
+            stage_name, manifest_path, cartan_float_to_string(cur_d_idx + 1.0),
+            cartan_float_to_string(num_datasets), resume_name, cartan_float_to_string(cur_offset),
+            cartan_float_to_string(cur_ep));
+        cartan_flush(0.0);
+    } else {
+        cur_d_idx = 0.0;
+        cur_offset = 0.0;
+        cur_ep = 1.0;
+    }
+
     // Mark current run as IN_PROGRESS to detect aborts/Ctrl-C
     cartan_write_file(status_path, "IN_PROGRESS\n");
     cartan_flush(0.0);
 
-    var ep = 1.0;
+    var ep = cur_ep;
     var final_loss = 10.0;
     var smoothed_loss = 5.0;
     let window_size = 1024.0;
@@ -577,83 +744,107 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
     while (ep <= epochs) {
         var ep_loss_sum = 0.0;
         var ep_step_count = 0.0;
-        var chunk_count = 0.0;
+        var total_chunks_ep = 0.0;
+        var d_idx = cur_d_idx;
 
-        if (content_len > window_size + 256.0) {
-            var offset = 256.0;
-            let total_chunks = math_floor((content_len - 256.0) / stride);
-            while (offset + window_size <= content_len) {
-                let sample_text = cartan_string_substring(file_content, offset, offset + window_size);
-                let tokens = cartan_hub_encode_text_to_tokens(sample_text);
-                let n_tokens = cartan_vec_len(tokens);
-                if (n_tokens > 1.0) {
-                    let h_state = cartan_tensor_compute_hidden_state_from_tokens(tokens);
-                    var t = 0.0;
-                    let max_steps = 64.0;
-                    while (t < n_tokens - 1.0 && t < max_steps) {
-                        let next_tok = cartan_vec_get_f32(tokens, t + 1.0);
-                        let step_loss = cartan_tensor_train_step(h_state, next_tok, lr);
-                        ep_loss_sum = ep_loss_sum + step_loss;
-                        ep_step_count = ep_step_count + 1.0;
-                        cartan_tensor_update_autoregressive_state(h_state, next_tok);
-                        t = t + 1.0;
+        while (d_idx < num_datasets) {
+            let dataset_file = cartan_tree_get_f32(datasets_list, d_idx);
+            if (cartan_file_exists(dataset_file) == 1.0) {
+                let file_content = cartan_read_file(dataset_file);
+                let content_len = cartan_string_length(file_content);
+                printf("[Steady-State Stage: %s] Ingesting Dataset [%s / %s]: %s (%s KB)\n",
+                    stage_name, cartan_float_to_string(d_idx + 1.0), cartan_float_to_string(num_datasets),
+                    dataset_file, cartan_float_to_string(content_len / 1024.0));
+                cartan_flush(0.0);
+
+                var offset = cur_offset;
+                if (offset + window_size > content_len) {
+                    offset = 0.0;
+                }
+                var d_chunks = 0.0;
+
+                while (offset + window_size <= content_len) {
+                    let sample_text = cartan_string_substring(file_content, offset, offset + window_size);
+                    let tokens = cartan_hub_encode_text_to_tokens(sample_text);
+                    let n_tokens = cartan_vec_len(tokens);
+                    if (n_tokens > 1.0) {
+                        let h_state = cartan_tensor_compute_hidden_state_from_tokens(tokens);
+                        var t = 0.0;
+                        let max_steps = 64.0;
+                        while (t < n_tokens - 1.0 && t < max_steps) {
+                            let next_tok = cartan_vec_get_f32(tokens, t + 1.0);
+                            let step_loss = cartan_tensor_train_step(h_state, next_tok, lr);
+                            ep_loss_sum = ep_loss_sum + step_loss;
+                            ep_step_count = ep_step_count + 1.0;
+                            cartan_tensor_update_autoregressive_state(h_state, next_tok);
+                            t = t + 1.0;
+                        }
                     }
-                }
-                chunk_count = chunk_count + 1.0;
-                let cur_loss = ep_loss_sum / ep_step_count;
-                if (ep == 1.0 && chunk_count == 1.0) {
-                    smoothed_loss = cur_loss;
-                } else {
-                    smoothed_loss = smoothed_loss * 0.95 + cur_loss * 0.05;
-                }
+                    d_chunks = d_chunks + 1.0;
+                    total_chunks_ep = total_chunks_ep + 1.0;
 
-                if (math_mod_val(chunk_count, 500.0) == 0.0 || chunk_count == 1.0 || chunk_count == total_chunks) {
-                    let pct = (chunk_count / total_chunks) * 100.0;
-                    let kb_done = (offset + window_size) / 1024.0;
-                    let kb_total = content_len / 1024.0;
-                    printf("[Steady-State Stage: %s] Epoch %s / %s | Chunk %s / %s (%s%%, %s / %s KB) | Step Loss: %s (EMA: %s) | LR: %s\n",
-                        stage_name, cartan_float_to_string(ep), cartan_float_to_string(epochs),
-                        cartan_float_to_string(chunk_count), cartan_float_to_string(total_chunks),
-                        cartan_float_to_string(pct), cartan_float_to_string(kb_done),
-                        cartan_float_to_string(kb_total), cartan_float_to_string(cur_loss),
-                        cartan_float_to_string(smoothed_loss), cartan_float_to_string(lr));
-                    cartan_flush(0.0);
-                }
+                    let cur_loss = ep_loss_sum / ep_step_count;
+                    if (total_chunks_ep == 1.0) {
+                        smoothed_loss = cur_loss;
+                    } else {
+                        smoothed_loss = smoothed_loss * 0.98 + cur_loss * 0.02;
+                    }
 
-                offset = offset + stride;
-            }
-        } else {
-            // Fallback for short dataset / missing file
-            var sample_text = "The geometric mind discovers universal truth through Riemannian geodesics and continuous resonance.";
-            if (content_len > 0.0) { sample_text = file_content; }
-            let tokens = cartan_hub_encode_text_to_tokens(sample_text);
-            let n_tokens = cartan_vec_len(tokens);
-            if (n_tokens > 1.0) {
-                let h_state = cartan_tensor_compute_hidden_state_from_tokens(tokens);
-                var t = 0.0;
-                while (t < n_tokens - 1.0 && t < 64.0) {
-                    let next_tok = cartan_vec_get_f32(tokens, t + 1.0);
-                    let step_loss = cartan_tensor_train_step(h_state, next_tok, lr);
-                    ep_loss_sum = ep_loss_sum + step_loss;
-                    ep_step_count = ep_step_count + 1.0;
-                    cartan_tensor_update_autoregressive_state(h_state, next_tok);
-                    t = t + 1.0;
+                    // Save state to manifest and checkpoint weights periodically
+                    if (math_mod_val(d_chunks, 200.0) == 0.0) {
+                        if (manifest_mode == 1.0) {
+                            geomind_manifest_save(manifest_path, datasets_list, d_idx, offset + stride, ep);
+                        }
+                        cartan_safetensors_save_tensor_f32(ckpt_path, "model.weights", g_cortical_weights);
+                    }
+
+                    if (math_mod_val(d_chunks, 500.0) == 0.0 || d_chunks == 1.0 || (offset + stride + window_size > content_len)) {
+                        let pct = ((offset + window_size) / content_len) * 100.0;
+                        let kb_done = (offset + window_size) / 1024.0;
+                        let kb_total = content_len / 1024.0;
+                        printf("[Steady-State Stage: %s] Ep %s/%s | D[%s/%s] | %s%% (%s / %s KB) | Step Loss: %s (EMA: %s) | LR: %s\n",
+                            stage_name, cartan_float_to_string(ep), cartan_float_to_string(epochs),
+                            cartan_float_to_string(d_idx + 1.0), cartan_float_to_string(num_datasets),
+                            cartan_float_to_string(pct), cartan_float_to_string(kb_done),
+                            cartan_float_to_string(kb_total), cartan_float_to_string(cur_loss),
+                            cartan_float_to_string(smoothed_loss), cartan_float_to_string(lr));
+                        cartan_flush(0.0);
+                    }
+
+                    offset = offset + stride;
                 }
+            } else {
+                printf("[Steady-State Stage: %s] Warning: Dataset not found on disk: %s (Skipping)\n",
+                    stage_name, dataset_file);
+                cartan_flush(0.0);
             }
+
+            d_idx = d_idx + 1.0;
+            cur_offset = 0.0; // Subsequent datasets start at offset 0
+            if (manifest_mode == 1.0) {
+                geomind_manifest_save(manifest_path, datasets_list, d_idx, 0.0, ep);
+            }
+            cartan_safetensors_save_tensor_f32(ckpt_path, "model.weights", g_cortical_weights);
+        }
+
+        // Epoch Complete across all datasets
+        cur_d_idx = 0.0;
+        cur_offset = 0.0;
+        if (manifest_mode == 1.0) {
+            geomind_manifest_save(manifest_path, datasets_list, 0.0, 0.0, ep + 1.0);
         }
 
         if (ep_step_count > 0.0) {
             final_loss = ep_loss_sum / ep_step_count;
         }
 
-        printf("[Steady-State Stage: %s] === Epoch %s / %s Complete === | Ingested: %s KB (%s chunks, %s steps) | Mean Loss: %s (EMA: %s) | LR: %s\n",
+        printf("[Steady-State Stage: %s] === Epoch %s / %s Complete === | Ingested: %s datasets (%s chunks, %s steps) | Mean Loss: %s (EMA: %s) | LR: %s\n",
             stage_name, cartan_float_to_string(ep), cartan_float_to_string(epochs),
-            cartan_float_to_string(content_len / 1024.0), cartan_float_to_string(chunk_count),
+            cartan_float_to_string(num_datasets), cartan_float_to_string(total_chunks_ep),
             cartan_float_to_string(ep_step_count), cartan_float_to_string(final_loss),
             cartan_float_to_string(smoothed_loss), cartan_float_to_string(lr));
         cartan_flush(0.0);
 
-        // Checkpoint intermediate weights after every full epoch
         cartan_safetensors_save_tensor_f32(ckpt_path, "model.weights", g_cortical_weights);
 
         if (smoothed_loss <= t_loss && ep >= 1.0) {
@@ -667,10 +858,10 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
         }
     }
 
-    let ckpt_path = "test/geomind/trainingdata/checkpoints/geomind_steady_state_weights.bin";
-    let status_path = "test/geomind/trainingdata/checkpoints/checkpoint_status.txt";
-    cartan_safetensors_save_tensor_f32(ckpt_path, "model.weights", g_cortical_weights);
     cartan_write_file(status_path, "SUCCESS\n");
+    if (manifest_mode == 1.0) {
+        geomind_manifest_save(manifest_path, datasets_list, 0.0, 0.0, 1.0);
+    }
     cartan_flush(0.0);
     printf("[Steady-State Stage: %s] Training complete. Checkpoint saved: %s | Status: SUCCESS | Final Loss: %s\n\n",
         stage_name, ckpt_path, cartan_float_to_string(final_loss));

@@ -199,6 +199,8 @@ double cartan_export_string_contains(double* args);
 double cartan_export_string_replace(double* args);
 double cartan_export_string_substring(double* args);
 double cartan_export_string_split(double* args);
+double cartan_export_cartan_string_ends_with(double* args);
+double cartan_export_string_ends_with(double* args);
 double cartan_export_main(double* args);
 
 #ifdef __cplusplus

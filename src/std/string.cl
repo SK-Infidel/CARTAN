@@ -81,5 +81,17 @@ fn string_split(s: string, delim: string) -> ptr {
     return result;
 }
 
+fn cartan_string_ends_with(s: string, suffix: string) -> float {
+    let s_len = cartan_string_length(s);
+    let suf_len = cartan_string_length(suffix);
+    if (suf_len > s_len || suf_len == 0.0) { return 0.0; }
+    let sub = cartan_string_substring(s, s_len - suf_len, s_len);
+    return cartan_string_eq(sub, suffix);
+}
+
+fn string_ends_with(s: string, suffix: string) -> float {
+    return cartan_string_ends_with(s, suffix);
+}
+
 
 
