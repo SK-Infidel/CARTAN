@@ -1,3 +1,20 @@
+## [8.284.0] - 2026-09-08 (Sprint 327: Cloze Manifest Purification, CWD Path Resilience & Checkpoint Protection)
+
+### Completed & Validated
+- **Cloze Manifest Purification (`test/geomind/trainingdata/cloze_manifest.json`, `[ISSUE-076]`)**:
+  - Removed conversational storytelling dataset and isolated the 6 genuine mined cloze corpora (`mined_expanded_corpus_cloze_part01.jsonl` through `part06.jsonl`, 240,000 pairs, 45.5 MB).
+  - Reset manifest state cleanly to dataset 0, offset 0.0, epoch 1.0.
+- **CWD Path Resilience (`test/geomind/train.cl`, `test/geomind/main.car`)**:
+  - Implemented `geomind_get_base_prefix()` and `geomind_resolve_path()` to transparently resolve manifests, custom datasets, dataset list items, and checkpoints whether executed from repo root (`CARTAN/`) or subdirectories (`test/geomind/`).
+  - Updated Stage 1 fallback dataset to `mined_expanded_corpus_cloze_part01.jsonl`.
+- **Zero-Step Checkpoint Abort Guard (`test/geomind/train.cl`)**:
+  - Added strict guard preventing empty runs (due to missing datasets or early termination) from marking `checkpoint_status.txt` as `SUCCESS` or truncating `geomind_steady_state_weights.bin`.
+- **Weight Checkpoint Restoration (`test/geomind/trainingdata/checkpoints/`)**:
+  - Restored 52.4 MB model weights from `geomind_steady_state_weights.bin.prior_run` to `geomind_steady_state_weights.bin`.
+- **Binary Synchronization & Empirical Verification**:
+  - Recompiled native executable with `cartanc.exe` and synchronized across `build/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Empirically validated `--train-cloze` startup from both repo root and `test/geomind/` CWDs (restoring 6.55M parameters and mounting all 6.0 datasets).
+
 ## [8.283.0] - 2026-09-07 (Sprint 326: Binary Distribution Sync & CLI Parameter Aliases)
 
 ### Completed & Validated

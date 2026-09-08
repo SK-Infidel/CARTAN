@@ -976,4 +976,22 @@ This file tracks technical debt and bugs identified during repository code revie
   3. Recompiled with `cartanc.exe` and synchronized the 1.26 MB native executable across `build/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
   4. Empirically validated that `.\bin\geomind.exe --train-cloze -tl 3.80` parses `-tl` and starts training on the true neural manifold.
 
+---
+
+## [ISSUE-076] [FIXED] Cloze Manifest Dataset Contamination, CWD Relative Path Fragility, and Zero-Step Checkpoint Truncation
+- **Severity**: High (Data Integrity & Training Curriculum Corruption)
+- **Component**: `test/geomind/trainingdata/cloze_manifest.json`, `test/geomind/train.cl`, `test/geomind/main.car`
+- **Description**:
+  1. `cloze_manifest.json` included `conversational_storytelling_dataset.jsonl` (dialogue turns meant for conversational SFT) as dataset 0 ahead of the mined cloze files, corrupting the cloze curriculum and causing rapid overfitting to JSON boilerplate.
+  2. Training engine hardcoded paths starting with `"test/geomind/"`, which failed `cartan_file_exists` when executed from subdirectories (such as `test/geomind/` or `build/`).
+  3. When datasets were missing on disk, the training loop completed 0 chunks/steps across all epochs, marked `checkpoint_status.txt` as `SUCCESS`, and truncated `geomind_steady_state_weights.bin` to 0 bytes on exit.
+- **Resolution (Sprint 327)**:
+  1. Purged `conversational_storytelling_dataset.jsonl` from `cloze_manifest.json`, retaining solely the 6 mined cloze corpora (`part01` to `part06`, 240,000 cloze pairs, 45.5 MB).
+  2. Implemented `geomind_get_base_prefix()` and `geomind_resolve_path()` in `train.cl` and `main.car`, enabling seamless path resolution across repository root and subdirectories.
+  3. Updated Stage 1 fallback dataset to `mined_expanded_corpus_cloze_part01.jsonl`.
+  4. Added zero-step abort guard in `geomind_train_streaming_steady_state` that aborts cleanly if `ep_step_count <= 0.0`, protecting model weights from truncation.
+  5. Restored 52.4 MB steady-state weights from `geomind_steady_state_weights.bin.prior_run`.
+  6. Recompiled `geomind.exe` with `cartanc.exe` and synchronized across all distribution targets (`build/`, `bin/`, `./`).
+
+
 

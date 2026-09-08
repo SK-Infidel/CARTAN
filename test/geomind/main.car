@@ -119,9 +119,9 @@ fn get_cli_train_target(arg_count: float) -> string {
 fn check_and_apply_manifest_reset(target: string, arg_count: float, default_manifest: string) {
     let reset_flag = get_cli_flag_present("-reset-manifest", arg_count);
     if (reset_flag == 1.0) {
-        var m_path = default_manifest;
+        var m_path = geomind_resolve_path(default_manifest);
         if (cartan_string_length(target) > 0.0 && cartan_string_ends_with(target, ".json") == 1.0) {
-            m_path = target;
+            m_path = geomind_resolve_path(target);
         }
         if (cartan_file_exists(m_path) == 1.0) {
             let m_content = cartan_read_file(m_path);

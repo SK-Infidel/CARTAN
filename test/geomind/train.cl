@@ -609,6 +609,33 @@ fn geomind_manifest_save(path: string, list: ptr, cur_idx: float, cur_offset: fl
     cartan_write_file(path, out);
 }
 
+// Detects repository root vs test/geomind subdirectory context
+fn geomind_get_base_prefix() -> string {
+    if (cartan_file_exists("test/geomind/main.car") == 1.0) {
+        return "test/geomind/";
+    }
+    return "";
+}
+
+// Resolves relative path across repo root and test/geomind working directories
+fn geomind_resolve_path(path: string) -> string {
+    if (cartan_string_length(path) == 0.0) { return ""; }
+    if (cartan_file_exists(path) == 1.0) { return path; }
+    let pfx = geomind_get_base_prefix();
+    if (cartan_string_length(pfx) > 0.0) {
+        if (cartan_string_starts_with(path, "trainingdata/") == 1.0) {
+            let full = cartan_string_concat(pfx, path);
+            if (cartan_file_exists(full) == 1.0) { return full; }
+        }
+    } else {
+        if (cartan_string_starts_with(path, "test/geomind/") == 1.0) {
+            let sub = cartan_string_substring(path, 13.0, cartan_string_length(path));
+            if (cartan_file_exists(sub) == 1.0) { return sub; }
+        }
+    }
+    return path;
+}
+
 // Unified multi-phase streaming steady-state engine (Stages 1, 2, 3)
 fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: string, target_loss: float, base_lr: float, max_epochs: float, log_path: string) -> float {
     var stage_name = "CLOZE";
@@ -643,9 +670,9 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
     // Mount GPU acceleration if available
     train_mount_gpu();
 
-    var manifest_path = "test/geomind/trainingdata/corpus.json";
+    var manifest_path = geomind_resolve_path("test/geomind/trainingdata/corpus.json");
     if (stage_mode == 1.0) {
-        manifest_path = "test/geomind/trainingdata/cloze_manifest.json";
+        manifest_path = geomind_resolve_path("test/geomind/trainingdata/cloze_manifest.json");
     }
     var datasets_list = cartan_tree_create();
     var cur_d_idx = 0.0;
@@ -653,12 +680,13 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
     var cur_ep = 1.0;
     var manifest_mode = 0.0;
 
-    if (cartan_string_ends_with(custom_dataset, ".json") == 1.0 && cartan_file_exists(custom_dataset) == 1.0) {
-        manifest_path = custom_dataset;
+    let res_custom = geomind_resolve_path(custom_dataset);
+    if (cartan_string_ends_with(res_custom, ".json") == 1.0 && cartan_file_exists(res_custom) == 1.0) {
+        manifest_path = res_custom;
     }
 
-    if (cartan_string_length(custom_dataset) > 0.0 && cartan_string_ends_with(custom_dataset, ".json") == 0.0 && cartan_file_exists(custom_dataset) == 1.0) {
-        cartan_tree_push(datasets_list, custom_dataset);
+    if (cartan_string_length(res_custom) > 0.0 && cartan_string_ends_with(res_custom, ".json") == 0.0 && cartan_file_exists(res_custom) == 1.0) {
+        cartan_tree_push(datasets_list, res_custom);
     } else if (cartan_file_exists(manifest_path) == 1.0) {
         let manifest_content = cartan_read_file(manifest_path);
         datasets_list = geomind_manifest_parse_datasets(manifest_content);
@@ -675,18 +703,19 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
 
     if (cartan_tree_len_f(datasets_list) == 0.0) {
         if (stage_mode == 1.0) {
-            cartan_tree_push(datasets_list, "test/geomind/trainingdata/conversational_storytelling_dataset.jsonl");
+            cartan_tree_push(datasets_list, geomind_resolve_path("test/geomind/trainingdata/mined_expanded_corpus_cloze_part01.jsonl"));
         } else if (stage_mode == 2.0) {
-            cartan_tree_push(datasets_list, "test/geomind/trainingdata/storytelling_corpus.txt");
+            cartan_tree_push(datasets_list, geomind_resolve_path("test/geomind/trainingdata/storytelling_corpus.txt"));
         } else if (stage_mode == 3.0) {
-            cartan_tree_push(datasets_list, "test/geomind/trainingdata/hf_alpaca_stories.txt");
+            cartan_tree_push(datasets_list, geomind_resolve_path("test/geomind/trainingdata/hf_alpaca_stories.txt"));
         }
     }
 
     cartan_init_cortical_weights_if_needed();
-    let ckpt_path = "test/geomind/trainingdata/checkpoints/geomind_steady_state_weights.bin";
-    let bak_path = "test/geomind/trainingdata/checkpoints/geomind_steady_state_weights.bin.bak";
-    let status_path = "test/geomind/trainingdata/checkpoints/checkpoint_status.txt";
+    let base_pfx = geomind_get_base_prefix();
+    let ckpt_path = cartan_string_concat(base_pfx, "trainingdata/checkpoints/geomind_steady_state_weights.bin");
+    let bak_path = cartan_string_concat(base_pfx, "trainingdata/checkpoints/geomind_steady_state_weights.bin.bak");
+    let status_path = cartan_string_concat(base_pfx, "trainingdata/checkpoints/checkpoint_status.txt");
 
     var prior_clean = 0.0;
     if (cartan_file_exists(status_path) == 1.0) {
@@ -752,7 +781,8 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
         var d_idx = cur_d_idx;
 
         while (d_idx < num_datasets) {
-            let dataset_file = cartan_tree_get_f32(datasets_list, d_idx);
+            let raw_dataset = cartan_tree_get_f32(datasets_list, d_idx);
+            let dataset_file = geomind_resolve_path(raw_dataset);
             if (cartan_file_exists(dataset_file) == 1.0) {
                 let file_content = cartan_read_file(dataset_file);
                 let content_len = cartan_string_length(file_content);
@@ -850,9 +880,13 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
             geomind_manifest_save(manifest_path, datasets_list, 0.0, 0.0, ep + 1.0);
         }
 
-        if (ep_step_count > 0.0) {
-            final_loss = ep_loss_sum / ep_step_count;
+        if (ep_step_count <= 0.0) {
+            printf("[Steady-State Stage: %s] Error: Zero training steps executed in Epoch %s (Datasets missing or unreadable). Aborting to preserve checkpoints.\n",
+                stage_name, cartan_float_to_string(ep));
+            cartan_flush(0.0);
+            return 0.0;
         }
+        final_loss = ep_loss_sum / ep_step_count;
 
         printf("[Steady-State Stage: %s] === Epoch %s / %s Complete === | Ingested: %s datasets (%s chunks, %s steps) | Mean Loss: %s (EMA: %s) | LR: %s\n",
             stage_name, cartan_float_to_string(ep), cartan_float_to_string(epochs),
