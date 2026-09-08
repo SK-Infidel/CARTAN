@@ -141,6 +141,30 @@ fn get_cli_param_float(flag_name: string, arg_count: float, default_val: float) 
     return default_val;
 }
 
+fn get_cli_target_loss(arg_count: float, default_val: float) -> float {
+    let p = get_cli_param("-target-loss", arg_count);
+    if (cartan_string_length(p) > 0.0) {
+        return atof(p);
+    }
+    let p2 = get_cli_param("-tl", arg_count);
+    if (cartan_string_length(p2) > 0.0) {
+        return atof(p2);
+    }
+    return default_val;
+}
+
+fn get_cli_epochs(arg_count: float, default_val: float) -> float {
+    let p = get_cli_param("-epochs", arg_count);
+    if (cartan_string_length(p) > 0.0) {
+        return atof(p);
+    }
+    let p2 = get_cli_param("-ep", arg_count);
+    if (cartan_string_length(p2) > 0.0) {
+        return atof(p2);
+    }
+    return default_val;
+}
+
 fn main() -> float {
     let arg_count = sys_get_arg_count();
     if (arg_count < 2.0) {
@@ -160,9 +184,9 @@ fn main() -> float {
         if (cartan_string_eq(flag, "--train-pre") == 1.0) {
             let target = get_cli_train_target(arg_count);
             check_and_apply_manifest_reset(target, arg_count, "test/geomind/trainingdata/corpus.json");
-            let epochs = get_cli_param_float("-epochs", arg_count, 3.0);
+            let epochs = get_cli_epochs(arg_count, 3.0);
             let lr = get_cli_param_float("-lr", arg_count, 0.001);
-            let target_loss = get_cli_param_float("-target-loss", arg_count, 3.50);
+            let target_loss = get_cli_target_loss(arg_count, 3.50);
             let res = geomind_train_streaming_steady_state(2.0, target, target_loss, lr, epochs, "logs/stage2_ce_training.log");
             cartan_flush(0.0);
             return 0.0;
@@ -171,9 +195,9 @@ fn main() -> float {
         if (cartan_string_eq(flag, "--train-cloze") == 1.0) {
             let target = get_cli_train_target(arg_count);
             check_and_apply_manifest_reset(target, arg_count, "test/geomind/trainingdata/cloze_manifest.json");
-            let epochs = get_cli_param_float("-epochs", arg_count, 3.0);
+            let epochs = get_cli_epochs(arg_count, 3.0);
             let lr = get_cli_param_float("-lr", arg_count, 0.002);
-            let target_loss = get_cli_param_float("-target-loss", arg_count, 4.20);
+            let target_loss = get_cli_target_loss(arg_count, 4.20);
             let res = geomind_train_streaming_steady_state(1.0, target, target_loss, lr, epochs, "logs/stage1_cloze_training.log");
             cartan_flush(0.0);
             return 0.0;
@@ -357,9 +381,9 @@ fn main() -> float {
         if (cartan_string_eq(flag, "--train-ce") == 1.0) {
             let target = get_cli_train_target(arg_count);
             check_and_apply_manifest_reset(target, arg_count, "test/geomind/trainingdata/corpus.json");
-            let epochs = get_cli_param_float("-epochs", arg_count, 3.0);
+            let epochs = get_cli_epochs(arg_count, 3.0);
             let lr = get_cli_param_float("-lr", arg_count, 0.001);
-            let target_loss = get_cli_param_float("-target-loss", arg_count, 3.00);
+            let target_loss = get_cli_target_loss(arg_count, 3.00);
             let res = geomind_train_streaming_steady_state(2.0, target, target_loss, lr, epochs, "logs/stage2_ce_training.log");
             cartan_flush(0.0);
             return 0.0;
@@ -368,9 +392,9 @@ fn main() -> float {
         if (cartan_string_eq(flag, "--train-sft") == 1.0) {
             let target = get_cli_train_target(arg_count);
             check_and_apply_manifest_reset(target, arg_count, "test/geomind/trainingdata/corpus.json");
-            let epochs = get_cli_param_float("-epochs", arg_count, 3.0);
+            let epochs = get_cli_epochs(arg_count, 3.0);
             let lr = get_cli_param_float("-lr", arg_count, 0.0005);
-            let target_loss = get_cli_param_float("-target-loss", arg_count, 2.00);
+            let target_loss = get_cli_target_loss(arg_count, 2.00);
             let res = geomind_train_streaming_steady_state(3.0, target, target_loss, lr, epochs, "logs/stage3_sft_training.log");
             cartan_flush(0.0);
             return 0.0;

@@ -1,3 +1,15 @@
+## [8.283.0] - 2026-09-07 (Sprint 326: Binary Distribution Sync & CLI Parameter Aliases)
+
+### Completed & Validated
+- **Stale Process Termination & Binary Distribution Synchronization (`[ISSUE-075]`)**:
+  - Identified and force-stopped stale PID 13772 running legacy September 2nd binary `bin/geomind.exe` (13.3 MB), reclaiming 41.5 GB of RAM.
+  - Recompiled pure-Cartan self-hosted `geomind.exe` (1.26 MB) and synchronized identically across `build/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+- **CLI Argument Aliases (`test/geomind/main.car`)**:
+  - Implemented `get_cli_target_loss` supporting both `-target-loss` and `-tl`.
+  - Implemented `get_cli_epochs` supporting both `-epochs` and `-ep`.
+- **Empirical Verification**:
+  - Verified `.\bin\geomind.exe --train-cloze -tl 3.80` starts up cleanly with `Target Loss: 3.8` and begins training at baseline cross-entropy loss `6.12329`.
+
 ## [8.282.0] - 2026-09-07 (Sprint 325: Cloze Curriculum Manifest & CLI Pipeline Disambiguation)
 
 ### Completed & Validated

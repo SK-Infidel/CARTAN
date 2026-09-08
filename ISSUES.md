@@ -961,3 +961,19 @@ This file tracks technical debt and bugs identified during repository code revie
   4. Removed shadow duplicate `--train-cloze` CLI branch and calibrated default parameters (`epochs = 3.0`, `lr = 0.002`, `target_loss = 4.20`).
   5. Empirically verified Stage 1 Cloze execution, beginning at theoretical cross-entropy baseline loss of 6.12. All 62 compiler tests pass (62/62 PASS).
 
+---
+
+## [ISSUE-075] [FIXED] Stale Legacy Binary Execution, Memory Bloat, and CLI Parameter Aliasing Gap
+- **Severity**: High (Distribution & Execution Discrepancy)
+- **Component**: `bin/geomind.exe`, `geomind.exe`, `test/geomind/main.car`
+- **Description**:
+  1. Invoking `.\bin\geomind.exe` launched a stale 13.3 MB legacy executable built on September 2nd from `geomind_runtime.c.deprecated`, rather than the self-hosted pure-Cartan executable in `build/geomind.exe`.
+  2. The legacy binary executed the obsolete 42-layer / 256k vocabulary streaming loop, where train loss stalled at ~9.5 and validation loss stalled at ~11.5 across 11 epochs as LR decayed to `0.000063`, while holding 41.5 GB of RAM.
+  3. `main.car` did not recognize short flag aliases `-tl` (for `-target-loss`) or `-ep` (for `-epochs`).
+- **Resolution (Sprint 326)**:
+  1. Terminated stale process PID 13772, reclaiming 41.5 GB of RAM.
+  2. Added `get_cli_target_loss` (supporting `-target-loss` and `-tl`) and `get_cli_epochs` (supporting `-epochs` and `-ep`) to `main.car`.
+  3. Recompiled with `cartanc.exe` and synchronized the 1.26 MB native executable across `build/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  4. Empirically validated that `.\bin\geomind.exe --train-cloze -tl 3.80` parses `-tl` and starts training on the true neural manifold.
+
+
