@@ -116,10 +116,10 @@ fn get_cli_train_target(arg_count: float) -> string {
     return get_cli_param("-target", arg_count);
 }
 
-fn check_and_apply_manifest_reset(target: string, arg_count: float) {
+fn check_and_apply_manifest_reset(target: string, arg_count: float, default_manifest: string) {
     let reset_flag = get_cli_flag_present("-reset-manifest", arg_count);
     if (reset_flag == 1.0) {
-        var m_path = "test/geomind/trainingdata/corpus.json";
+        var m_path = default_manifest;
         if (cartan_string_length(target) > 0.0 && cartan_string_ends_with(target, ".json") == 1.0) {
             m_path = target;
         }
@@ -143,10 +143,14 @@ fn get_cli_param_float(flag_name: string, arg_count: float, default_val: float) 
 
 fn main() -> float {
     let arg_count = sys_get_arg_count();
-    if (arg_count > 1.0) {
-        let flag = sys_get_arg(1.0);
-        printf("[GeoMind Main] Command Flag Received: '%s'\n", flag);
-        cartan_flush(0.0);
+    if (arg_count < 2.0) {
+        print_help_dialogue();
+        return 0.0;
+    }
+
+    var i = 1.0;
+    while (i < arg_count) {
+        let flag = sys_get_arg(i);
 
         if (cartan_string_eq(flag, "--help") == 1.0 || cartan_string_eq(flag, "-h") == 1.0) {
             print_help_dialogue();
@@ -155,7 +159,7 @@ fn main() -> float {
 
         if (cartan_string_eq(flag, "--train-pre") == 1.0) {
             let target = get_cli_train_target(arg_count);
-            check_and_apply_manifest_reset(target, arg_count);
+            check_and_apply_manifest_reset(target, arg_count, "test/geomind/trainingdata/corpus.json");
             let epochs = get_cli_param_float("-epochs", arg_count, 3.0);
             let lr = get_cli_param_float("-lr", arg_count, 0.001);
             let target_loss = get_cli_param_float("-target-loss", arg_count, 3.50);
@@ -166,9 +170,9 @@ fn main() -> float {
 
         if (cartan_string_eq(flag, "--train-cloze") == 1.0) {
             let target = get_cli_train_target(arg_count);
-            check_and_apply_manifest_reset(target, arg_count);
+            check_and_apply_manifest_reset(target, arg_count, "test/geomind/trainingdata/cloze_manifest.json");
             let epochs = get_cli_param_float("-epochs", arg_count, 3.0);
-            let lr = get_cli_param_float("-lr", arg_count, 0.001);
+            let lr = get_cli_param_float("-lr", arg_count, 0.002);
             let target_loss = get_cli_param_float("-target-loss", arg_count, 4.20);
             let res = geomind_train_streaming_steady_state(1.0, target, target_loss, lr, epochs, "logs/stage1_cloze_training.log");
             cartan_flush(0.0);
@@ -352,7 +356,7 @@ fn main() -> float {
 
         if (cartan_string_eq(flag, "--train-ce") == 1.0) {
             let target = get_cli_train_target(arg_count);
-            check_and_apply_manifest_reset(target, arg_count);
+            check_and_apply_manifest_reset(target, arg_count, "test/geomind/trainingdata/corpus.json");
             let epochs = get_cli_param_float("-epochs", arg_count, 3.0);
             let lr = get_cli_param_float("-lr", arg_count, 0.001);
             let target_loss = get_cli_param_float("-target-loss", arg_count, 3.00);
@@ -363,7 +367,7 @@ fn main() -> float {
 
         if (cartan_string_eq(flag, "--train-sft") == 1.0) {
             let target = get_cli_train_target(arg_count);
-            check_and_apply_manifest_reset(target, arg_count);
+            check_and_apply_manifest_reset(target, arg_count, "test/geomind/trainingdata/corpus.json");
             let epochs = get_cli_param_float("-epochs", arg_count, 3.0);
             let lr = get_cli_param_float("-lr", arg_count, 0.0005);
             let target_loss = get_cli_param_float("-target-loss", arg_count, 2.00);

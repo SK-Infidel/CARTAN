@@ -644,6 +644,9 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
     train_mount_gpu();
 
     var manifest_path = "test/geomind/trainingdata/corpus.json";
+    if (stage_mode == 1.0) {
+        manifest_path = "test/geomind/trainingdata/cloze_manifest.json";
+    }
     var datasets_list = cartan_tree_create();
     var cur_d_idx = 0.0;
     var cur_offset = 0.0;

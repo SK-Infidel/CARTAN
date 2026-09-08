@@ -1,3 +1,18 @@
+## [8.282.0] - 2026-09-07 (Sprint 325: Cloze Curriculum Manifest & CLI Pipeline Disambiguation)
+
+### Completed & Validated
+- **Stage-Aware Manifest Routing & Cloze Manifest Synthesis (`test/geomind/train.cl`, `test/geomind/trainingdata/cloze_manifest.json`, `[ISSUE-074]`)**:
+  - Wired `stage_mode == 1.0` to route to `cloze_manifest.json` by default, sequencing across 7 distinct cloze corpora (~47.5 MB).
+  - Preserved stage-independent `-manifest <file>` and `-target <file>` overrides.
+- **CLI Flag Disambiguation & Parameterized Manifest Resets (`test/geomind/main.car`)**:
+  - Removed duplicate, shadowed `--train-cloze` CLI definition block.
+  - Parameterized `check_and_apply_manifest_reset(target, arg_count, default_manifest)` to reset the active stage's specific manifest when `-reset-manifest` is supplied.
+  - Set default Cloze hyperparameters (`epochs = 3.0`, `lr = 0.002`, `target_loss = 4.20`).
+- **Empirical Verification**:
+  - Recompiled `build/geomind.exe` with `cartanc.exe`.
+  - Empirically verified `--train-cloze` startup on `conversational_storytelling_dataset.jsonl` with baseline step loss `6.12329` (EMA `6.12329`).
+  - Executed compiler regression suite with all 62 snapshot targets passing (62/62 PASS).
+
 ## [8.281.0] - 2026-09-07 (Sprint 324: Neural Forward Pass Alignment, Causal Integrity & Categorical Sampling)
 
 ### Completed & Validated

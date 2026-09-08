@@ -943,3 +943,21 @@ This file tracks technical debt and bugs identified during repository code revie
   4. Upgraded repetition penalty to local immediate character and double duplicate loop suppression, and enforced a minimum generation floor (`min_gen_tokens = 32.0`).
   5. Corrected CLI parsing in `main.car` for `-prompt`, `-tokens`, and `-temp`.
   6. Empirically validated loss descent (5.69 to 4.12) through the full neural manifold and coherent multi-token chat generation. All 62 compiler tests pass (62/62 PASS).
+
+---
+
+## [ISSUE-074] [FIXED] Cloze Curriculum Routing Omission and Stage Manifest Coupling in Trainer CLI
+- **Severity**: High (Curriculum Pipeline Execution & Workflow Defect)
+- **Component**: `test/geomind/main.car`, `test/geomind/train.cl`, `test/geomind/trainingdata/cloze_manifest.json`
+- **Description**:
+  1. `main.car` contained two competing `--train-cloze` CLI flag blocks: a legacy stub at line 167 (default LR 0.001) and an unreachable shadowed duplicate at line 353 (LR 0.002).
+  2. `check_and_apply_manifest_reset` hardcoded `test/geomind/trainingdata/corpus.json`, causing `-reset-manifest` during Cloze training to reset the narrative pre-training corpus instead of the cloze manifest.
+  3. `train.cl` hardcoded `test/geomind/trainingdata/corpus.json` as default manifest across all training stages, causing Stage 1 Cloze training to inadvertently read narrative text (`storytelling_corpus.txt`) rather than cloze datasets.
+  4. The 7 distinct cloze corpora (~47.5 MB total) were not unified into a multi-dataset manifest.
+- **Resolution (Sprint 325)**:
+  1. Synthesized `test/geomind/trainingdata/cloze_manifest.json` sequencing across all 7 cloze datasets (`conversational_storytelling_dataset.jsonl` and `mined_expanded_corpus_cloze_part01.jsonl` through `part06.jsonl`).
+  2. Wired `stage_mode == 1.0` in `train.cl` to default to `cloze_manifest.json`.
+  3. Extended `check_and_apply_manifest_reset(target, arg_count, default_manifest)` in `main.car` to reset stage-specific manifests.
+  4. Removed shadow duplicate `--train-cloze` CLI branch and calibrated default parameters (`epochs = 3.0`, `lr = 0.002`, `target_loss = 4.20`).
+  5. Empirically verified Stage 1 Cloze execution, beginning at theoretical cross-entropy baseline loss of 6.12. All 62 compiler tests pass (62/62 PASS).
+
