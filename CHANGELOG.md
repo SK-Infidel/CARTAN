@@ -1,3 +1,17 @@
+## [8.285.0] - 2026-09-08 (Sprint 328: Console Code Page Terminal Corruption Resolution)
+
+### Completed & Validated
+- **Console Code Page Terminal Corruption Resolution (`src/cartanc/llvm_codegen.car`, `[ISSUE-077]`)**:
+  - Removed unconditional Win32 `SetConsoleCP(65001)` and `SetConsoleOutputCP(65001)` calls from `@cartan_crt_init` and module header declarations.
+  - Eliminated host terminal corruption in Windows Console Host (`conhost.exe`) where code page 65001 persisted after process exit, breaking PSReadLine syntax highlighting and causing console text to become invisible unless highlighted.
+- **Compiler Rebuild & Binary Synchronization**:
+  - Recompiled self-hosted compiler `cartanc.exe` (`cartanc.exe build src/cartanc/main.car -o cartanc.exe`).
+  - Recompiled production binary `geomind.exe` and synchronized identically across `bin/geomind.exe`, `build/geomind.exe`, and `./geomind.exe`.
+  - Verified generated LLVM IR is 100% free of `SetConsole` Win32 codepage mutations.
+- **Empirical Verification**:
+  - Verified console code page preservation (`chcp 437` remains `437` before and after running `geomind.exe`).
+  - Ran 62-target compiler regression suite with 100% pass rate (**62/62 PASS**).
+
 ## [8.284.0] - 2026-09-08 (Sprint 327: Cloze Manifest Purification, CWD Path Resilience & Checkpoint Protection)
 
 ### Completed & Validated

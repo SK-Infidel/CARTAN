@@ -993,5 +993,21 @@ This file tracks technical debt and bugs identified during repository code revie
   5. Restored 52.4 MB steady-state weights from `geomind_steady_state_weights.bin.prior_run`.
   6. Recompiled `geomind.exe` with `cartanc.exe` and synchronized across all distribution targets (`build/`, `bin/`, `./`).
 
+---
+
+## [ISSUE-077] [FIXED] Host Terminal Display Corruption from Injected SetConsoleCP(65001) in Runtime Entrypoint
+- **Severity**: High (Host Terminal Usability & Display Degradation)
+- **Component**: `src/cartanc/llvm_codegen.car`, `cartan_crt_init`
+- **Description**:
+  1. `src/cartanc/llvm_codegen.car` unconditionally emitted Win32 calls `SetConsoleCP(65001)` and `SetConsoleOutputCP(65001)` inside `@cartan_crt_init`, called at the entry of `@main` across all compiled binaries.
+  2. In Windows Console Host (`conhost.exe`), changing the console session code page to 65001 persists across process exit/interruption.
+  3. In `conhost.exe`, code page 65001 corrupts PSReadLine syntax coloring and GDI text rendering, causing foreground characters to match the terminal background (invisible text unless highlighted/selected with the mouse).
+- **Resolution (Sprint 328)**:
+  1. Removed `SetConsoleCP` and `SetConsoleOutputCP` extern declarations from `src/cartanc/llvm_codegen.car`.
+  2. Modified `cartan_crt_init` in `src/cartanc/llvm_codegen.car` to emit a clean `ret void` without modifying the caller's console session code page.
+  3. Recompiled self-hosted compiler `cartanc.exe` with `cartanc.exe build src/cartanc/main.car -o cartanc.exe`.
+  4. Recompiled and synchronized `geomind.exe` across `bin/geomind.exe`, `build/geomind.exe`, and `./geomind.exe`.
+  5. Empirically verified with `cmd /c "chcp 437 > nul && chcp && geomind.exe --help > nul && chcp"` that console code page is 100% preserved.
+
 
 
