@@ -379,13 +379,19 @@ fn main(argc: float, argv: ptr) -> float {
     cartan_flush(0.0);
     system(t61_cmd);
 
-    // [62/62] Positive test: test_doubt_reflective_rewind
+    // [62/63] Positive test: test_doubt_reflective_rewind
     let t62_cmd = "cartanc.exe build test/compiler_suite/test_doubt_reflective_rewind.car -o build/test_doubt_reflective_rewind.exe && build\\test_doubt_reflective_rewind.exe";
-    printf("[62/62] [// run-pass] Building and Executing Reflective Doubt Verification & Context Rewind: %s\n", t62_cmd);
+    printf("[62/63] [// run-pass] Building and Executing Reflective Doubt Verification & Context Rewind: %s\n", t62_cmd);
     cartan_flush(0.0);
     system(t62_cmd);
 
-    printf("\nAll 62 compiler snapshot test targets executed!\n", "");
+    // [63/63] Positive test: test_markov_conscious_agent
+    let t63_cmd = "cartanc.exe build test/compiler_suite/test_markov_conscious_agent.car -o build/test_markov_conscious_agent.exe && build\\test_markov_conscious_agent.exe";
+    printf("[63/63] [// run-pass] Building and Executing Hoffman Conscious Agent Network & Markov Test: %s\n", t63_cmd);
+    cartan_flush(0.0);
+    system(t63_cmd);
+
+    printf("\nAll 63 compiler snapshot test targets executed!\n", "");
     return 0.0;
 }
 

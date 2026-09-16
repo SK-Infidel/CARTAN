@@ -1,0 +1,144 @@
+// tools/markov_agent_testbed.car
+// Interactive CLI Test Bed for Donald Hoffman's Conscious Realism & Markovian Agent Networks
+// Non-Euclidean Information Geometry | Ising Glauber Attractors | Emergent 3D Spacetime
+
+include "src/std/math.cl";
+include "src/std/tensor.cl";
+include "src/std/markov.cl";
+include "src/std/conscious_agent.cl";
+include "src/std/fs.cl";
+include "src/std/string.cl";
+include "src/std/io.cl";
+
+fn main() -> float {
+    printf("================================================================================\n");
+    printf("  HOFFMAN CONSCIOUS REALISM: MARKOVIAN AGENT NETWORK TEST BED\n");
+    printf("  Experience (X) + Change over Time (ΔX) | Emergent Spacetime Headset\n");
+    printf("================================================================================\n\n");
+
+    let log_path = "logs/conscious_agent_telemetry.jsonl";
+    cartan_write_file(log_path, ""); // Initialize clean log
+
+    let d_x = 8.0;
+    let d_g = 6.0;
+    let d_w = 8.0;
+    let beta = 1.25;
+
+    printf("[Test Bed] Instantiating Conscious Agent 1 (X=%s, G=%s, W=%s, Beta=%s)...\n",
+        cartan_float_to_string(d_x), cartan_float_to_string(d_g),
+        cartan_float_to_string(d_w), cartan_float_to_string(beta));
+    let agent1 = conscious_agent_create(d_x, d_g, d_w, beta);
+
+    printf("[Test Bed] Instantiating Conscious Agent 2 (X=%s, G=%s, W=%s, Beta=%s)...\n",
+        cartan_float_to_string(d_x), cartan_float_to_string(d_g),
+        cartan_float_to_string(d_w), cartan_float_to_string(beta));
+    let agent2 = conscious_agent_create(d_x, d_g, d_w, beta);
+
+    // Initial world states on probability simplex
+    let w1 = tensor_alloc(d_w);
+    let w2 = tensor_alloc(d_w);
+    let w1_next = tensor_alloc(d_w);
+    let w2_next = tensor_alloc(d_w);
+
+    var i = 0.0;
+    var sum1 = 0.0;
+    var sum2 = 0.0;
+    while (i < d_w) {
+        w1[i] = exp((i + 1.0) * 0.2);
+        w2[i] = exp((d_w - i) * 0.2);
+        sum1 = sum1 + w1[i];
+        sum2 = sum2 + w2[i];
+        i = i + 1.0;
+    }
+    i = 0.0;
+    while (i < d_w) {
+        w1[i] = w1[i] / sum1;
+        w2[i] = w2[i] / sum2;
+        i = i + 1.0;
+    }
+
+    let temp_v = tensor_alloc(d_w);
+    let temp_out = tensor_alloc(d_w);
+    let coords_3d = tensor_alloc(d_w * 3.0);
+
+    let T1: ptr = agent1.T_composite;
+    let pi1: ptr = agent1.pi_stationary;
+
+    printf("[Test Bed] Initialized Closed-Network Dynamics (W1 = X2, W2 = X1).\n");
+    printf("[Test Bed] Telemetry Log Target: %s\n\n", log_path);
+    printf("--- [LIVE CONSOLE TELEMETRY STREAM] --------------------------------------------\n");
+    cartan_flush(0.0);
+
+    var step = 1.0;
+    let total_steps = 100.0;
+    while (step <= total_steps) {
+        // Execute coupled non-Euclidean interaction step
+        let mean_fe = conscious_network_step(agent1, agent2, w1, w2, w1_next, w2_next, 4.0, 0.04);
+
+        // Update world distribution states
+        i = 0.0;
+        while (i < d_w) {
+            w1[i] = w1_next[i];
+            w2[i] = w2_next[i];
+            i = i + 1.0;
+        }
+
+        // Measure Hoffman Experience (X) & Temporal Change (ΔX = d_FR(X_t, X_{t-1}))
+        let delta_x1 = conscious_agent_experiential_change(agent1);
+        let q_id1 = conscious_agent_dominant_qualia(agent1);
+        let q_int1 = conscious_agent_dominant_qualia_intensity(agent1);
+        let hx1 = conscious_agent_experiential_entropy(agent1);
+
+        // Measure non-Euclidean Bhattacharyya distance between agents' experiential states
+        let inter_agent_dist = markov_bhattacharyya_distance(agent1.x_buf, agent2.x_buf, d_x);
+
+        // Measure spectral gap & relaxation timescale (Arrow of Time)
+        let gamma = markov_spectral_gap(T1, pi1, d_w, temp_v, temp_out);
+        var tau = 999.0;
+        if (gamma > 0.0001) { tau = 1.0 / gamma; }
+
+        // Compute emergent 3D diffusion coordinates from Markov spectral decomposition (Hoffman Desktop Interface)
+        markov_diffusion_coordinates(T1, pi1, d_w, coords_3d);
+        let x0 = coords_3d[0];
+        let y0 = coords_3d[1];
+        let z0 = coords_3d[2];
+
+        // Serialize full-fidelity state to JSONL telemetry log
+        conscious_telemetry_log_step(log_path, step, tau, q_id1, q_int1, hx1, delta_x1, mean_fe, x0, y0, z0);
+
+        // Print sampled live console telemetry line every 10 steps or at start/end
+        if (math_mod_val(step, 10.0) == 0.0 || step == 1.0 || step == total_steps) {
+            printf("[Step %s/%s] Time t: %s (τ: %s) | Qualia: #%s (Salience: %s) | H(X): %s | ΔX: %s | Inter-Agent d(X1,X2): %s | Headset 3D: (%s, %s, %s)\n",
+                cartan_float_to_string(step), cartan_float_to_string(total_steps),
+                cartan_float_to_string(step), cartan_float_to_string(tau),
+                cartan_float_to_string(q_id1), cartan_float_to_string(q_int1),
+                cartan_float_to_string(hx1), cartan_float_to_string(delta_x1),
+                cartan_float_to_string(inter_agent_dist),
+                cartan_float_to_string(x0), cartan_float_to_string(y0), cartan_float_to_string(z0));
+            cartan_flush(0.0);
+        }
+
+        step = step + 1.0;
+    }
+
+    printf("--------------------------------------------------------------------------------\n\n");
+    printf("[Hoffman Conscious Realism Analysis]\n");
+    printf("  1. Experience (X): Qualia distribution on simplex with Shannon entropy H(X)\n");
+    printf("  2. Temporal Change (ΔX): Fisher-Rao / Bhattacharyya distance between X_t and X_{t-1}\n");
+    printf("  3. Arrow of Time (τ): Irreversible relaxation timescale derived from Markov spectral gap\n");
+    printf("  4. Inter-Agent Synchronization: Mutual experiential convergence d_FR(X1, X2)\n");
+    printf("  5. Emergent Spacetime Headset: Diffusion eigenvectors define 3D desktop interface\n");
+    printf("  6. Full Telemetry Archive: %s\n\n", log_path);
+
+    conscious_agent_free(agent1);
+    conscious_agent_free(agent2);
+    free(w1);
+    free(w2);
+    free(w1_next);
+    free(w2_next);
+    free(temp_v);
+    free(temp_out);
+    free(coords_3d);
+
+    return 0.0;
+}

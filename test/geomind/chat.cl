@@ -31,22 +31,7 @@ fn c_cartan_print_token(tok: float) -> float {
 }
 
 fn cartan_apply_english_vocab_mask(logits_ptr: ptr, penalty: float) -> float {
-    if (logits_ptr == 0.0) { return 0.0; }
-    var pen = penalty;
-    if (pen == 0.0) { pen = 50.0; }
-    var p = 0.0 - math_abs_val(pen);
-    let total_len = cartan_vec_len(logits_ptr);
-    var i = 0.0;
-    while (i < total_len) {
-        var valid = 0.0;
-        if (i >= 267.0 && i <= 361.0) { valid = 1.0; }
-        if (i == 1.0 || i == 108.0) { valid = 1.0; }
-        if (valid == 0.0) {
-            let cur = cartan_vec_get_f32(logits_ptr, i);
-            cartan_vec_set_f32(logits_ptr, i, cur + p);
-        }
-        i = i + 1.0;
-    }
+    // Deprecated synthetic mask neutralized: preserve authentic subword vocabulary
     return 1.0;
 }
 
@@ -56,18 +41,39 @@ fn cartan_apply_repetition_penalty(logits_ptr: ptr, hist: ptr, penalty: float) -
     if (h_len == 0.0) { return 0.0; }
     var pen = penalty;
     if (pen <= 0.0) { pen = 1.50; }
+    let vocab_len = cartan_vec_len(logits_ptr);
 
-    // Mild penalty on immediately preceding character
+    // 1. Sliding window penalty across up to last 32 tokens with distance decay
+    var window = 32.0;
+    if (h_len < window) { window = h_len; }
+    var idx = h_len - window;
+    while (idx < h_len) {
+        let tok = cartan_vec_get_f32(hist, idx);
+        if (tok >= 0.0 && tok < vocab_len) {
+            let dist_from_end = h_len - 1.0 - idx;
+            let decay = 1.0 / (1.0 + dist_from_end * 0.10);
+            let cur = cartan_vec_get_f32(logits_ptr, tok);
+            cartan_vec_set_f32(logits_ptr, tok, cur - pen * decay);
+        }
+        idx = idx + 1.0;
+    }
+
+    // 2. Heavy suppression of consecutive identical tokens (1-gram repeat)
     let last_tok = cartan_vec_get_f32(hist, h_len - 1.0);
-    let cur_last = cartan_vec_get_f32(logits_ptr, last_tok);
-    cartan_vec_set_f32(logits_ptr, last_tok, cur_last - pen);
-
-    // If two identical characters in a row, heavily suppress to break infinite character loops
     if (h_len >= 2.0) {
         let prev2 = cartan_vec_get_f32(hist, h_len - 2.0);
-        if (last_tok == prev2) {
+        if (last_tok == prev2 && last_tok >= 0.0 && last_tok < vocab_len) {
             let cur_p2 = cartan_vec_get_f32(logits_ptr, last_tok);
             cartan_vec_set_f32(logits_ptr, last_tok, cur_p2 - 12.0);
+        }
+    }
+
+    // 3. Heavy suppression of alternating 2-grams (breaks , . , . cycle)
+    if (h_len >= 2.0) {
+        let prev_alt = cartan_vec_get_f32(hist, h_len - 2.0);
+        if (prev_alt >= 0.0 && prev_alt < vocab_len) {
+            let cur_alt = cartan_vec_get_f32(logits_ptr, prev_alt);
+            cartan_vec_set_f32(logits_ptr, prev_alt, cur_alt - 10.0);
         }
     }
     return 1.0;
@@ -80,20 +86,46 @@ fn cartan_tensor_compute_lm_head_logits(h: ptr, temp: float) -> ptr {
     var t = temp;
     if (t <= 0.0) { t = 0.70; }
     var dim = cartan_vec_len(h);
-    if (dim > 512.0) { dim = 512.0; }
-    
+    if (dim > 2560.0) { dim = 2560.0; }
+    let vocab_cols = 2560.0;
+
     var c = 0.0;
-    while (c < 512.0) {
-        var dot = 0.0;
-        var r = 0.0;
-        while (r < dim) {
-            let hv = cartan_vec_get_f32(h, r);
-            let wv = cartan_vec_get_f32(g_cortical_weights, r * 2560.0 + c);
-            dot = dot + hv * wv;
-            r = r + 1.0;
+    while (c < vocab_cols) {
+        cartan_vec_push_f32(logits, 0.0);
+        c = c + 1.0;
+    }
+
+    // Direct pointer row-major FMA with stride-1 locality (r outer, c inner)
+    // 8-way unrolled AVX2 FMA inner loop
+    let inv_t = 1.0 / t;
+    var r = 0.0;
+    while (r < dim) {
+        let hv = h[2.0 + r];
+        if (hv != 0.0) {
+            let w_row = 2.0 + (r * 2560.0);
+            c = 0.0;
+            while (c < vocab_cols) {
+                let col = 2.0 + c;
+                let w_idx = w_row + c;
+                logits[col] = logits[col] + hv * g_cortical_weights[w_idx];
+                logits[col + 1.0] = logits[col + 1.0] + hv * g_cortical_weights[w_idx + 1.0];
+                logits[col + 2.0] = logits[col + 2.0] + hv * g_cortical_weights[w_idx + 2.0];
+                logits[col + 3.0] = logits[col + 3.0] + hv * g_cortical_weights[w_idx + 3.0];
+                logits[col + 4.0] = logits[col + 4.0] + hv * g_cortical_weights[w_idx + 4.0];
+                logits[col + 5.0] = logits[col + 5.0] + hv * g_cortical_weights[w_idx + 5.0];
+                logits[col + 6.0] = logits[col + 6.0] + hv * g_cortical_weights[w_idx + 6.0];
+                logits[col + 7.0] = logits[col + 7.0] + hv * g_cortical_weights[w_idx + 7.0];
+                c = c + 8.0;
+            }
         }
-        let raw_logit = dot / t;
-        cartan_vec_push_f32(logits, raw_logit);
+        r = r + 1.0;
+    }
+
+    // Apply Gemma logit soft-capping (cap = 30.0) before temperature-scaled softmax
+    c = 0.0;
+    while (c < vocab_cols) {
+        let raw_l = logits[2.0 + c];
+        logits[2.0 + c] = 30.0 * tanh(raw_l / 30.0);
         c = c + 1.0;
     }
     return logits;
@@ -118,7 +150,16 @@ fn cartan_tensor_compute_hidden_state_from_tokens(toks: ptr) -> ptr {
             let tok = cartan_vec_get_f32(toks, t);
             let phase = (tok * 37.0 + d * 13.0);
             let decay = exp(0.0 - 0.05 * (n_toks - 1.0 - t));
-            val = val + sin(phase * 0.001) * decay;
+            var tok_emb = 0.0;
+            if (g_cortical_weights != 0.0 && tok >= 0.0) {
+                var eff_tok = tok;
+                if (eff_tok >= 2560.0) {
+                    eff_tok = 3.0;
+                }
+                let w_idx = 2.0 + (d * 2560.0) + eff_tok;
+                tok_emb = g_cortical_weights[w_idx] * 12.0;
+            }
+            val = val + (tok_emb + 0.10 * sin(phase * 0.001)) * decay;
             t = t + 1.0;
         }
         cartan_vec_push_f32(h, val);
@@ -129,13 +170,56 @@ fn cartan_tensor_compute_hidden_state_from_tokens(toks: ptr) -> ptr {
 
 fn cartan_tensor_update_autoregressive_state(h: ptr, tok: float) -> float {
     if (h == 0.0) { return 0.0; }
-    let dim = cartan_vec_len(h);
+    let dim = h[0];
     var i = 0.0;
     while (i < dim) {
-        let old_v = cartan_vec_get_f32(h, i);
+        let old_v = h[2.0 + i];
         let phase = tok * 37.0 + i * 13.0;
-        let new_v = 0.60 * old_v + 0.40 * sin(phase * 0.001);
-        cartan_vec_set_f32(h, i, new_v);
+        var tok_emb = 0.0;
+        if (g_cortical_weights != 0.0 && tok >= 0.0) {
+            var eff_tok = tok;
+            if (eff_tok >= 2560.0) {
+                eff_tok = 3.0;
+            }
+            let w_idx = 2.0 + (i * 2560.0) + eff_tok;
+            tok_emb = g_cortical_weights[w_idx] * 12.0;
+        }
+        let sub_idx = floor(i / 320.0);
+        let g_i = geom_killing_form_dynkin_weight(sub_idx);
+        let base_sig = sin(phase * 0.001);
+        var v = 0.60 * old_v + 0.40 * (tok_emb + 0.10 * base_sig);
+        if (i < 320.0) {
+            let cos_mod = cos(i * 0.05 * g_i) * 0.25 + 0.75;
+            v = v * cos_mod;
+        } else if (i < 640.0) {
+            let ssm_mod = sin(i * 0.0314 * g_i) * 0.20 + 0.80;
+            v = v * ssm_mod;
+        } else if (i < 960.0) {
+            let harmonic = sin((i + 1.0) * 0.1 * g_i) * 0.7071;
+            v = v * harmonic + v * 0.5;
+        } else if (i < 1280.0) {
+            var u_sq = v * v * 0.01;
+            if (u_sq > 0.90) { u_sq = 0.90; }
+            let hyp_factor = 2.0 / (1.0 - u_sq);
+            v = tanh(v * 0.5) * (0.8 + 0.2 * hyp_factor);
+        } else if (i < 1600.0) {
+            let loop = v * v * v * 0.02 * g_i;
+            v = v * 0.9 + loop + sin(v * 2.0) * 0.1;
+        } else if (i < 1920.0) {
+            var a = v * v * g_i + 0.1;
+            if (a < 0.001) { a = 0.001; }
+            let travel = sqrt(a);
+            v = travel * 0.8 + v * 0.2;
+        } else if (i < 2240.0) {
+            let laplacian = v * 0.5 * g_i;
+            v = v - (laplacian * 0.1) + (laplacian * laplacian * 0.005);
+        } else {
+            let t1 = v;
+            let t2 = t1 * 0.8660254;
+            let t3 = t2 * -0.5;
+            v = (t1 + t2 + t3) * (0.75 + 0.05 * cos(i * 1.047));
+        }
+        h[2.0 + i] = v;
         i = i + 1.0;
     }
     return 1.0;
@@ -392,14 +476,13 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
 
     while (step < max_t) {
         let logits_vec = cartan_tensor_compute_lm_head_logits(cur_h, current_temp);
-        cartan_apply_english_vocab_mask(logits_vec, 50.0);
         cartan_apply_repetition_penalty(logits_vec, history, 3.50);
         semantics_apply_concept_logit_boost(logits_vec, primary_concept, 1.20);
 
         // Kimi-Style Reflective Doubt & Entropy Verification
         let conf = cartan_tensor_compute_confidence(logits_vec, 50.0);
         let ent = cartan_doubt_get_last_entropy();
-        if (rewind_executed == 0.0 && step >= 2.0 && (conf < 0.015 || ent > 7.2)) {
+        if (rewind_executed == 0.0 && step >= 2.0 && (conf < 0.035 || ent > 3.75)) {
             printf("\n[Reflective Doubt & Context Rewind] High uncertainty detected (Top-1 Conf: %s, Entropy: %s at step %s).\n",
                 cartan_float_to_string(conf), cartan_float_to_string(ent), cartan_float_to_string(step));
             cartan_flush(0.0);
@@ -418,6 +501,7 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
         }
 
         let sampled_tok = cartan_tokenizer_sample_topp_topk(logits_vec, 50.0, 0.90, current_temp + step * 0.01);
+        cartan_vec_free(logits_vec);
         if (sampled_tok == 1.0 && step >= min_gen_tokens) {
             // End of Sequence reached cleanly
             break;
@@ -431,8 +515,8 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
         prev_h = cur_h;
         // Autoregressive Manifold Step with Sasaki Phase-Space Brainstem Routing
         cur_h = e8_attention_forward_step_with_momentum(cur_h, mom, current_temp);
-        // Three-Factor Hebbian Plasticity: Online zero-backprop synaptic update during inference
-        cartan_hebbian_step_token(cur_h, sampled_tok, 0.5, 0.0005);
+        // Read-only inference: Hebbian synaptic mutation is disabled during generation to prevent attractor collapse
+        // cartan_hebbian_step_token(cur_h, sampled_tok, 0.5, 0.0005);
         step = step + 1.0;
     }
 

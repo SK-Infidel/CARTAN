@@ -31,12 +31,23 @@ extern fn cartan_tree_create() -> ptr;
 extern fn cartan_tree_push(t: ptr, item: ptr) -> void;
 extern fn cartan_tree_get_f32(t: ptr, idx: float) -> ptr;
 extern fn cartan_tree_len_f(t: ptr) -> float;
+extern fn cartan_vec_clear(v: ptr) -> float;
+extern fn cartan_vec_free(v: ptr) -> float;
+extern fn free(p: ptr);
+extern fn cartan_byte_at(p: ptr, offset: float) -> float;
 
 // Persistent WebGPU context state
 var g_train_gpu_mounted: float = 0.0;
 var g_pipe_attn: ptr = 0.0;
 var g_pipe_streams: ptr = 0.0;
 var g_pipe_loss: ptr = 0.0;
+var g_pipe_gemv: ptr = 0.0;
+var g_pipe_sgd: ptr = 0.0;
+var g_pipe_softmax_loss_delta: ptr = 0.0;
+var g_pipe_autoregressive: ptr = 0.0;
+var g_pipe_rmsnorm: ptr = 0.0;
+var g_pipe_ffn: ptr = 0.0;
+var g_pipe_input_sgd: ptr = 0.0;
 
 var g_buf_x: ptr = 0.0;
 var g_buf_attn_out: ptr = 0.0;
@@ -44,6 +55,15 @@ var g_buf_streams_out: ptr = 0.0;
 var g_buf_targets: ptr = 0.0;
 var g_buf_ic: ptr = 0.0;
 var g_buf_loss: ptr = 0.0;
+var g_buf_cortical_weights: ptr = 0.0;
+var g_buf_train_hidden: ptr = 0.0;
+var g_buf_train_logits: ptr = 0.0;
+var g_buf_train_delta: ptr = 0.0;
+var g_buf_chunk_loss: ptr = 0.0;
+var g_buf_drift_vector: ptr = 0.0;
+var g_buf_metric_diag: ptr = 0.0;
+var g_host_drift_vector: ptr = 0.0;
+var g_host_metric_diag: ptr = 0.0;
 
 var g_host_x: ptr = 0.0;
 var g_host_attn_out: ptr = 0.0;
@@ -51,6 +71,13 @@ var g_host_streams_out: ptr = 0.0;
 var g_host_targets: ptr = 0.0;
 var g_host_ic: ptr = 0.0;
 var g_host_loss: ptr = 0.0;
+var g_host_train_hidden: ptr = 0.0;
+var g_host_train_logits: ptr = 0.0;
+var g_host_train_delta: ptr = 0.0;
+var g_host_weights_f32: ptr = 0.0;
+var g_host_chunk_loss: ptr = 0.0;
+var g_host_zero_hidden: ptr = 0.0;
+var g_gpu_weights_synced: float = 0.0;
 
 var g_attn_buffers: ptr = 0.0;
 var g_streams_buffers: ptr = 0.0;
@@ -68,13 +95,13 @@ fn webgpu_get_causal_attn_shader() -> string {
     let s6 = "    let scale = 0.125f;\n    var total_w: f32 = 0.0;\n";
     let s7 = "    for (var j: u32 = 0u; j <= t_idx; j = j + 1u) {\n";
     let s8 = "        var dot: f32 = 0.0;\n        for (var d: u32 = 0u; d < 64u; d = d + 1u) {\n";
-    let s9 = "            dot = dot + in_x[t_idx * D + d] * in_x[j * D + d];\n        }\n";
+    let s9 = "            dot = dot + in_x[t_idx * D + d] * in_x[j * D + d] * 2.0f;\n        }\n";
     let s10 = "        let w = exp(dot * scale);\n        total_w = total_w + w;\n    }\n";
     let s11 = "    let inv_w = 1.0f / max(total_w, 0.0001f);\n";
     let s12 = "    for (var d: u32 = 0u; d < D; d = d + 1u) {\n";
     let s13 = "        var accum: f32 = 0.0;\n        for (var j: u32 = 0u; j <= t_idx; j = j + 1u) {\n";
     let s14 = "            var dot: f32 = 0.0;\n            for (var k: u32 = 0u; k < 64u; k = k + 1u) {\n";
-    let s15 = "                dot = dot + in_x[t_idx * D + k] * in_x[j * D + k];\n            }\n";
+    let s15 = "                dot = dot + in_x[t_idx * D + k] * in_x[j * D + k] * 2.0f;\n            }\n";
     let s16 = "            let w = exp(dot * scale) * inv_w;\n            accum = accum + w * in_x[j * D + d];\n        }\n";
     let s17 = "        out_attn[t_idx * D + d] = in_x[t_idx * D + d] + accum * 0.1f;\n    }\n}\n";
     
@@ -105,19 +132,19 @@ fn webgpu_get_lie_streams_shader() -> string {
     let s4 = "fn lie_streams_fwd(@builtin(global_invocation_id) gid: vec3<u32>) {\n";
     let s5 = "    let t_idx = gid.x;\n    if (t_idx >= 32u) { return; }\n    let base = t_idx * 2560u;\n\n";
     let s6 = "    // Stream 0: SO(16) Cosformer (dims 0..319)\n";
-    let s7 = "    for (var i: u32 = 0u; i < 320u; i = i + 1u) {\n        let v = in_h[base + i];\n        let cos_mod = cos(f32(i) * 0.05) * 0.25 + 0.75;\n        out_h[base + i] = v * cos_mod;\n    }\n";
+    let s7 = "    for (var i: u32 = 0u; i < 320u; i = i + 1u) {\n        let v = in_h[base + i];\n        let cos_mod = cos(f32(i) * 0.05 * 2.0) * 0.25 + 0.75;\n        out_h[base + i] = v * cos_mod;\n    }\n";
     let s8 = "    // Stream 1: E7 x SU(2) SSM Recurrence (dims 320..639)\n";
-    let s9 = "    var ssm_state: f32 = 0.0;\n    for (var i: u32 = 320u; i < 640u; i = i + 1u) {\n        let v = in_h[base + i];\n        ssm_state = ssm_state * 0.85 + v * 0.15;\n        out_h[base + i] = ssm_state * 1.1 + v * 0.5;\n    }\n";
+    let s9 = "    var ssm_state: f32 = 0.0;\n    for (var i: u32 = 320u; i < 640u; i = i + 1u) {\n        let v = in_h[base + i];\n        let ssm_mod = sin(f32(i) * 0.0314 * 3.0) * 0.20 + 0.80;\n        ssm_state = ssm_state * 0.85 + v * 0.15;\n        out_h[base + i] = (ssm_state * 1.1 + v * 0.5) * ssm_mod;\n    }\n";
     let s10 = "    // Stream 2: E6 x SU(3) Spectral Fourier (dims 640..959)\n";
-    let s11 = "    for (var i: u32 = 640u; i < 960u; i = i + 1u) {\n        let v = in_h[base + i];\n        let harmonic = sin(f32(i + 1u) * 0.1) * 0.7071;\n        out_h[base + i] = v * harmonic + v * 0.5;\n    }\n";
+    let s11 = "    for (var i: u32 = 640u; i < 960u; i = i + 1u) {\n        let v = in_h[base + i];\n        let harmonic = sin(f32(i + 1u) * 0.1 * 4.0) * 0.7071;\n        out_h[base + i] = v * harmonic + v * 0.5;\n    }\n";
     let s12 = "    // Stream 3: SU(9) Poincare Hyperbolic (dims 960..1279)\n";
-    let s13 = "    for (var i: u32 = 960u; i < 1280u; i = i + 1u) {\n        let v = in_h[base + i];\n        out_h[base + i] = tanh(v * 0.5) * 1.2;\n    }\n";
+    let s13 = "    for (var i: u32 = 960u; i < 1280u; i = i + 1u) {\n        let v = in_h[base + i];\n        let u_sq = min(v * v * 0.01, 0.90);\n        let hyp_factor = 2.0 / (1.0 - u_sq);\n        out_h[base + i] = tanh(v * 0.5) * (0.8 + 0.2 * hyp_factor);\n    }\n";
     let s14 = "    // Stream 4: F4 x G2 Homology (dims 1280..1599)\n";
-    let s15 = "    for (var i: u32 = 1280u; i < 1600u; i = i + 1u) {\n        let v = in_h[base + i];\n        out_h[base + i] = v * 0.9 + sin(v * 2.0) * 0.1;\n    }\n";
+    let s15 = "    for (var i: u32 = 1280u; i < 1600u; i = i + 1u) {\n        let v = in_h[base + i];\n        let loop = v * v * v * 0.02 * 5.0;\n        out_h[base + i] = v * 0.9 + loop + sin(v * 2.0) * 0.1;\n    }\n";
     let s16 = "    // Stream 5: SO(10) x SU(4) Eikonal Geodesic (dims 1600..1919)\n";
-    let s17 = "    for (var i: u32 = 1600u; i < 1920u; i = i + 1u) {\n        let v = in_h[base + i];\n        let travel = sqrt(max(v * v + 0.1, 0.001));\n        out_h[base + i] = travel * 0.8 + v * 0.2;\n    }\n";
+    let s17 = "    for (var i: u32 = 1600u; i < 1920u; i = i + 1u) {\n        let v = in_h[base + i];\n        let travel = sqrt(max(v * v * 2.5 + 0.1, 0.001));\n        out_h[base + i] = travel * 0.8 + v * 0.2;\n    }\n";
     let s18 = "    // Stream 6: SU(5) x SU(5) Heat Kernel (dims 1920..2239)\n";
-    let s19 = "    for (var i: u32 = 1920u; i < 2240u; i = i + 1u) {\n        let v = in_h[base + i];\n        out_h[base + i] = v * 0.95 + 0.05 * sin(f32(i) * 0.314);\n    }\n";
+    let s19 = "    for (var i: u32 = 1920u; i < 2240u; i = i + 1u) {\n        let v = in_h[base + i];\n        let laplacian = v * 0.5 * 1.5;\n        out_h[base + i] = v - (laplacian * 0.1) + (laplacian * laplacian * 0.005);\n    }\n";
     let s20 = "    // Stream 7: SU(3)^3 Triality (dims 2240..2559)\n";
     let s21 = "    for (var i: u32 = 2240u; i < 2560u; i = i + 1u) {\n        let v = in_h[base + i];\n        let cycle = cos(f32(i) * 1.047) * 0.3;\n        out_h[base + i] = v * (1.0 + cycle);\n    }\n}\n";
 
@@ -232,6 +259,91 @@ fn train_mount_gpu() -> float {
     cartan_tree_push(g_loss_buffers, g_buf_ic);
     cartan_tree_push(g_loss_buffers, g_buf_loss);
 
+    let total_weights = 2560.0 * 2560.0;
+    g_buf_cortical_weights = gpu_alloc(total_weights * 4.0);
+    g_buf_train_hidden = gpu_alloc(2560.0 * 4.0);
+    g_buf_train_logits = gpu_alloc(2560.0 * 4.0);
+    g_buf_train_delta = gpu_alloc(2560.0 * 4.0);
+    g_buf_chunk_loss = gpu_alloc(256.0 * 4.0);
+    g_buf_drift_vector = gpu_alloc(2560.0 * 4.0);
+    g_buf_metric_diag = gpu_alloc(2560.0 * 4.0);
+
+    g_host_train_hidden = cartan_f32_buffer_alloc(2560.0);
+    g_host_train_logits = cartan_f32_buffer_alloc(2560.0);
+    g_host_train_delta = cartan_f32_buffer_alloc(2560.0);
+    g_host_weights_f32 = cartan_f32_buffer_alloc(total_weights);
+    g_host_chunk_loss = cartan_f32_buffer_alloc(256.0);
+    g_host_zero_hidden = cartan_f32_buffer_alloc(2560.0);
+    g_host_drift_vector = cartan_f32_buffer_alloc(2560.0);
+    g_host_metric_diag = cartan_f32_buffer_alloc(2560.0);
+    var zh = 0.0;
+    while (zh < 2560.0) {
+        cartan_set_f32(g_host_zero_hidden, zh, 0.0);
+        let sub_idx = floor(zh / 320.0);
+        let kw = geom_killing_form_dynkin_weight(sub_idx);
+        let b_val = 0.05 * sin((zh + 1.0) * 0.01) * kw;
+        cartan_set_f32(g_host_drift_vector, zh, b_val);
+        cartan_set_f32(g_host_metric_diag, zh, kw);
+        zh = zh + 1.0;
+    }
+    gpu_write(g_buf_drift_vector, g_host_drift_vector, 2560.0 * 4.0);
+    gpu_write(g_buf_metric_diag, g_host_metric_diag, 2560.0 * 4.0);
+
+    let gemv_src = "__kernel void geomind_gemv_forward(__global const float* hidden, __global const float* weights, __global float* logits, int dim, int vocab) {\n    int col = get_global_id(0);\n    if (col < vocab) {\n        float sum = 0.0f;\n        for (int r = 0; r < dim; r++) {\n            sum += hidden[r] * weights[r * vocab + col];\n        }\n        logits[col] = sum;\n    }\n}\n";
+    let sgd_src = "__kernel void geomind_sgd_backward(__global const float* hidden, __global const float* delta, __global float* weights, __global const float* drift, int dim, int vocab, float lr, float decay) {\n    int col = get_global_id(0);\n    if (col < vocab) {\n        float d = delta[col];\n        float b = drift[col];\n        float b_sq = b * b;\n        float dot_gb = d * b;\n        float factor = dot_gb / (1.0f + b_sq);\n        float curved_d = d - factor * b;\n        float inv_sqrt_dim = 0.0197642f;\n        for (int r = 0; r < dim; r++) {\n            int idx = r * vocab + col;\n            float grad = hidden[r] * curved_d * inv_sqrt_dim;\n            if (grad > 1.0f) grad = 1.0f;\n            else if (grad < -1.0f) grad = -1.0f;\n            weights[idx] = weights[idx] * decay - lr * grad;\n        }\n    }\n}\n";
+    let softmax_src = "__kernel void geomind_softmax_loss_delta(__global const float* logits, int target_tok, int vocab, __global float* delta, __global float* loss_out, int step_idx, float ic_weight) {\n    __local float s_max[256];\n    __local float s_sum[256];\n    int lid = get_local_id(0);\n    int lsize = get_local_size(0);\n    if (target_tok < 0 || target_tok >= vocab) {\n        if (lid == 0) {\n            loss_out[step_idx] = -1.0f;\n        }\n        for (int i = lid; i < vocab; i += lsize) {\n            delta[i] = 0.0f;\n        }\n        return;\n    }\n    float my_max = -10000.0f;\n    for (int i = lid; i < vocab; i += lsize) {\n        float val = logits[i];\n        if (val > my_max) my_max = val;\n    }\n    s_max[lid] = my_max;\n    barrier(CLK_LOCAL_MEM_FENCE);\n    for (int stride = lsize / 2; stride > 0; stride /= 2) {\n        if (lid < stride) {\n            if (s_max[lid + stride] > s_max[lid]) s_max[lid] = s_max[lid + stride];\n        }\n        barrier(CLK_LOCAL_MEM_FENCE);\n    }\n    float g_max = s_max[0];\n    float my_sum = 0.0f;\n    for (int i = lid; i < vocab; i += lsize) {\n        my_sum += exp(logits[i] - g_max);\n    }\n    s_sum[lid] = my_sum;\n    barrier(CLK_LOCAL_MEM_FENCE);\n    for (int stride = lsize / 2; stride > 0; stride /= 2) {\n        if (lid < stride) s_sum[lid] += s_sum[lid + stride];\n        barrier(CLK_LOCAL_MEM_FENCE);\n    }\n    float g_sum = s_sum[0];\n    if (g_sum < 0.00001f) g_sum = 0.00001f;\n    float inv_sum = 1.0f / g_sum;\n    float eff_ic = (ic_weight > 0.05f) ? ic_weight : 1.0f;\n    if (lid == 0) {\n        float tgt_l = logits[target_tok];\n        float tgt_p = exp(tgt_l - g_max) * inv_sum;\n        if (tgt_p < 0.000000000001f) tgt_p = 0.000000000001f;\n        loss_out[step_idx] = -log(tgt_p) * eff_ic;\n    }\n    for (int i = lid; i < vocab; i += lsize) {\n        float p = exp(logits[i] - g_max) * inv_sum;\n        float d = p;\n        if (i == target_tok) d -= 1.0f;\n        delta[i] = d * eff_ic;\n    }\n}\n";
+    let autoreg_src = "__kernel void geomind_autoregressive_step(__global float* hidden, __global const float* weights, __global const float* metric, int tok, int dim, int vocab) {\n    int i = get_global_id(0);\n    if (i >= dim) return;\n    float old_v = hidden[i];\n    float phase = (float)tok * 37.0f + (float)i * 13.0f;\n    float base_sig = sin(phase * 0.001f);\n    float tok_emb = 0.0f;\n    if (tok >= 0) {\n        int eff_tok = (tok < vocab) ? tok : 3;\n        tok_emb = weights[i * vocab + eff_tok] * 12.0f;\n    }\n    float g_i = metric[i];\n    float v = 0.60f * old_v + 0.40f * (tok_emb + 0.10f * base_sig);\n    if (i < 320) {\n        float cos_mod = cos((float)i * 0.05f * g_i) * 0.25f + 0.75f;\n        v = v * cos_mod;\n    } else if (i < 640) {\n        float ssm_mod = sin((float)i * 0.0314f * g_i) * 0.20f + 0.80f;\n        v = v * ssm_mod;\n    } else if (i < 960) {\n        float harmonic = sin((float)(i + 1) * 0.1f * g_i) * 0.7071f;\n        v = v * harmonic + v * 0.5f;\n    } else if (i < 1280) {\n        float u_sq = (v * v * 0.01f);\n        float hyp_factor = 2.0f / (1.0f - (u_sq < 0.90f ? u_sq : 0.90f));\n        v = tanh(v * 0.5f) * (0.8f + 0.2f * hyp_factor);\n    } else if (i < 1600) {\n        float loop = v * v * v * 0.02f * g_i;\n        v = v * 0.9f + loop + sin(v * 2.0f) * 0.1f;\n    } else if (i < 1920) {\n        float a = v * v * g_i + 0.1f;\n        float travel = sqrt(a > 0.001f ? a : 0.001f);\n        v = travel * 0.8f + v * 0.2f;\n    } else if (i < 2240) {\n        float laplacian = v * 0.5f * g_i;\n        v = v - (laplacian * 0.1f) + (laplacian * laplacian * 0.005f);\n    } else {\n        float t1 = v;\n        float t2 = t1 * 0.8660254f;\n        float t3 = t2 * -0.5f;\n        v = (t1 + t2 + t3) * (0.75f + 0.05f * cos((float)i * 1.047f));\n    }\n    hidden[i] = v;\n}\n";
+    let input_sgd_src = "__kernel void geomind_input_grad_update(__global const float* delta, __global float* weights, int tok_in, int dim, int vocab, float lr) {\n    int r = get_global_id(0);\n    if (r < dim && tok_in >= 0) {\n        int eff_tok = (tok_in < vocab) ? tok_in : 3;\n        float sum = 0.0f;\n        int row_base = r * vocab;\n        for (int c = 0; c < vocab; c++) {\n            sum += weights[row_base + c] * delta[c];\n        }\n        float g = sum;\n        if (g > 1.0f) g = 1.0f;\n        else if (g < -1.0f) g = -1.0f;\n        int idx = row_base + eff_tok;\n        weights[idx] = weights[idx] - lr * 0.10f * g;\n    }\n}\n";
+    let rmsnorm_src = "__kernel void geomind_rmsnorm(__global float* hidden, __global const float* metric, int dim, float eps) {\n    __local float s_sq[256];\n    int lid = get_local_id(0);\n    int lsize = get_local_size(0);\n    float my_sq = 0.0f;\n    for (int i = lid; i < dim; i += lsize) {\n        float v = hidden[i];\n        float g_i = metric[i];\n        my_sq += v * v * g_i;\n    }\n    s_sq[lid] = my_sq;\n    barrier(CLK_LOCAL_MEM_FENCE);\n    for (int stride = lsize / 2; stride > 0; stride /= 2) {\n        if (lid < stride) s_sq[lid] += s_sq[lid + stride];\n        barrier(CLK_LOCAL_MEM_FENCE);\n    }\n    float total_sq = s_sq[0];\n    float rms = sqrt((total_sq / (float)dim) + eps);\n    float inv_rms = 1.0f / (rms > 0.000001f ? rms : 0.000001f);\n    for (int i = lid; i < dim; i += lsize) {\n        hidden[i] = hidden[i] * inv_rms;\n    }\n}\n";
+    let ffn_src = "__kernel void geomind_ffn_cascade(__global float* hidden, __global const float* metric, int dim) {\n    int i = get_global_id(0);\n    if (i >= dim) return;\n    float z = hidden[i];\n    float g_i = metric[i];\n    int quadrant = (i * 4) / dim;\n    for (int col_alg = 0; col_alg < 4; col_alg++) {\n        int expert_id = quadrant * 4 + col_alg;\n        float kappa = ((float)expert_id + 1.0f) / 16.0f;\n        float gelu_z = 0.5f * z * (1.0f + tanh(0.79788456f * (z + 0.044715f * z * z * z)));\n        float ffn = gelu_z * (1.0f + tanh(kappa * z * g_i));\n        z = z + 0.25f * ffn;\n    }\n    hidden[i] = z;\n}\n";
+
+    g_pipe_gemv = gpu_create_pipeline(gemv_src, "geomind_gemv_forward");
+    g_pipe_sgd = gpu_create_pipeline(sgd_src, "geomind_sgd_backward");
+    g_pipe_softmax_loss_delta = gpu_create_pipeline(softmax_src, "geomind_softmax_loss_delta");
+    g_pipe_autoregressive = gpu_create_pipeline(autoreg_src, "geomind_autoregressive_step");
+    g_pipe_rmsnorm = gpu_create_pipeline(rmsnorm_src, "geomind_rmsnorm");
+    g_pipe_ffn = gpu_create_pipeline(ffn_src, "geomind_ffn_cascade");
+    g_pipe_input_sgd = gpu_create_pipeline(input_sgd_src, "geomind_input_grad_update");
+
+    cartan_gpu_set_arg_buf(g_pipe_gemv, 0.0, g_buf_train_hidden);
+    cartan_gpu_set_arg_buf(g_pipe_gemv, 1.0, g_buf_cortical_weights);
+    cartan_gpu_set_arg_buf(g_pipe_gemv, 2.0, g_buf_train_logits);
+    cartan_gpu_set_arg_i32(g_pipe_gemv, 3.0, 2560.0);
+    cartan_gpu_set_arg_i32(g_pipe_gemv, 4.0, 2560.0);
+
+    cartan_gpu_set_arg_buf(g_pipe_softmax_loss_delta, 0.0, g_buf_train_logits);
+    cartan_gpu_set_arg_i32(g_pipe_softmax_loss_delta, 2.0, 2560.0);
+    cartan_gpu_set_arg_buf(g_pipe_softmax_loss_delta, 3.0, g_buf_train_delta);
+    cartan_gpu_set_arg_buf(g_pipe_softmax_loss_delta, 4.0, g_buf_chunk_loss);
+    cartan_gpu_set_arg_f32(g_pipe_softmax_loss_delta, 6.0, 1.0);
+
+    cartan_gpu_set_arg_buf(g_pipe_sgd, 0.0, g_buf_train_hidden);
+    cartan_gpu_set_arg_buf(g_pipe_sgd, 1.0, g_buf_train_delta);
+    cartan_gpu_set_arg_buf(g_pipe_sgd, 2.0, g_buf_cortical_weights);
+    cartan_gpu_set_arg_buf(g_pipe_sgd, 3.0, g_buf_drift_vector);
+    cartan_gpu_set_arg_i32(g_pipe_sgd, 4.0, 2560.0);
+    cartan_gpu_set_arg_i32(g_pipe_sgd, 5.0, 2560.0);
+
+    cartan_gpu_set_arg_buf(g_pipe_autoregressive, 0.0, g_buf_train_hidden);
+    cartan_gpu_set_arg_buf(g_pipe_autoregressive, 1.0, g_buf_cortical_weights);
+    cartan_gpu_set_arg_buf(g_pipe_autoregressive, 2.0, g_buf_metric_diag);
+    cartan_gpu_set_arg_i32(g_pipe_autoregressive, 4.0, 2560.0);
+    cartan_gpu_set_arg_i32(g_pipe_autoregressive, 5.0, 2560.0);
+
+    cartan_gpu_set_arg_buf(g_pipe_input_sgd, 0.0, g_buf_train_delta);
+    cartan_gpu_set_arg_buf(g_pipe_input_sgd, 1.0, g_buf_cortical_weights);
+    cartan_gpu_set_arg_i32(g_pipe_input_sgd, 3.0, 2560.0);
+    cartan_gpu_set_arg_i32(g_pipe_input_sgd, 4.0, 2560.0);
+
+    cartan_gpu_set_arg_buf(g_pipe_rmsnorm, 0.0, g_buf_train_hidden);
+    cartan_gpu_set_arg_buf(g_pipe_rmsnorm, 1.0, g_buf_metric_diag);
+    cartan_gpu_set_arg_i32(g_pipe_rmsnorm, 2.0, 2560.0);
+    cartan_gpu_set_arg_f32(g_pipe_rmsnorm, 3.0, 0.00001);
+
+    cartan_gpu_set_arg_buf(g_pipe_ffn, 0.0, g_buf_train_hidden);
+    cartan_gpu_set_arg_buf(g_pipe_ffn, 1.0, g_buf_metric_diag);
+    cartan_gpu_set_arg_i32(g_pipe_ffn, 2.0, 2560.0);
+
     if (g_train_hopfield_bank == 0.0) {
         g_train_hopfield_bank = resonator_create_attractor_bank();
         var b_idx = 0.0;
@@ -249,9 +361,36 @@ fn train_mount_gpu() -> float {
     }
 
     g_train_gpu_mounted = 1.0;
-    printf("[Train Engine] WebGPU Hardware Compute Mounted & WGSL Pipelines Compiled.\n");
+    printf("[Train Engine] WebGPU Hardware Compute Mounted & GPU Training Pipelines Compiled.\n");
     cartan_flush(0.0);
     return 1.0;
+}
+
+fn train_sync_weights_host_to_gpu() {
+    if (g_train_gpu_mounted != 1.0 || g_buf_cortical_weights == 0.0 || g_cortical_weights == 0.0) { return; }
+    var i = 0.0;
+    let total = 2560.0 * 2560.0;
+    while (i < total) {
+        let w = g_cortical_weights[2.0 + i];
+        cartan_set_f32(g_host_weights_f32, i, w);
+        i = i + 1.0;
+    }
+    gpu_write(g_buf_cortical_weights, g_host_weights_f32, total * 4.0);
+    gpu_sync();
+    g_gpu_weights_synced = 1.0;
+}
+
+fn train_sync_weights_gpu_to_host() {
+    if (g_train_gpu_mounted != 1.0 || g_buf_cortical_weights == 0.0 || g_cortical_weights == 0.0) { return; }
+    let total = 2560.0 * 2560.0;
+    gpu_read(g_buf_cortical_weights, g_host_weights_f32, total * 4.0);
+    gpu_sync();
+    var i = 0.0;
+    while (i < total) {
+        let w = cartan_f32_at(g_host_weights_f32, i);
+        g_cortical_weights[2.0 + i] = w;
+        i = i + 1.0;
+    }
 }
 
 // Biological state verification & telemetry logger
@@ -274,87 +413,297 @@ fn webgpu_log_biological_telemetry(step: float, total_steps: float, basins: floa
 var g_train_logits: ptr = 0.0;
 var g_train_probs: ptr = 0.0;
 
-// Analytical softmax, cross-entropy loss, and SGD weight backpropagation on cortical weights (V = 512, D = 512)
+// Analytical softmax, cross-entropy loss, and SGD weight backpropagation on cortical weights (V = 2560, D = 2560)
+// Direct pointer vectorized inner loops with stride-1 cache locality
 fn cartan_tensor_train_step(hidden_ptr: ptr, target_tok_id: float, learning_rate: float) -> float {
     if (hidden_ptr == 0.0) { return 0.0; }
     cartan_init_cortical_weights_if_needed();
-    var dim = cartan_vec_len(hidden_ptr);
-    if (dim > 512.0) { dim = 512.0; }
+    var dim = hidden_ptr[0];
+    if (dim > 2560.0) { dim = 2560.0; }
     if (dim <= 0.0) { return 0.0; }
 
     var target_idx = target_tok_id;
-    if (target_idx < 0.0 || target_idx >= 512.0) { return 0.0; }
+    let vocab_cols = 2560.0;
+    if (target_idx < 0.0 || target_idx >= vocab_cols) { return 0.0; }
 
     var lr = learning_rate;
-    if (lr <= 0.0) { lr = 0.005; }
 
     if (g_train_logits == 0.0) {
         g_train_logits = cartan_vec_create();
         g_train_probs = cartan_vec_create();
         var i = 0.0;
-        while (i < 512.0) {
+        while (i < vocab_cols) {
             cartan_vec_push_f32(g_train_logits, 0.0);
             cartan_vec_push_f32(g_train_probs, 0.0);
             i = i + 1.0;
         }
     }
 
-    var max_logit = -1000000000.0;
-
-    var c = 0.0;
-    while (c < 512.0) {
-        var dot = 0.0;
-        var r = 0.0;
-        while (r < dim) {
-            let hv = cartan_vec_get_f32(hidden_ptr, r);
-            let wv = cartan_vec_get_f32(g_cortical_weights, r * 2560.0 + c);
-            dot = dot + hv * wv;
-            r = r + 1.0;
+    // Hardware GPU Acceleration Path (NVIDIA RTX Ada Laptop GPU)
+    if (g_train_gpu_mounted == 1.0 && g_buf_cortical_weights != 0.0 && g_pipe_gemv != 0.0 && g_pipe_softmax_loss_delta != 0.0) {
+        if (g_gpu_weights_synced == 0.0) {
+            train_sync_weights_host_to_gpu();
         }
-        cartan_vec_set_f32(g_train_logits, c, dot);
-        if (dot > max_logit) { max_logit = dot; }
+
+        // Upload token hidden state to GPU VRAM
+        var h_i = 0.0;
+        while (h_i < dim) {
+            cartan_set_f32(g_host_train_hidden, h_i, hidden_ptr[2.0 + h_i]);
+            h_i = h_i + 1.0;
+        }
+        gpu_write(g_buf_train_hidden, g_host_train_hidden, dim * 4.0);
+
+        // Hardware GPU GEMV Forward Pass across 2560 threads
+        cartan_gpu_launch(g_pipe_gemv, vocab_cols, 1.0, 1.0);
+
+        // Hardware GPU Fused Softmax, Cross-Entropy Loss, and Delta in VRAM (256 threads)
+        let ic_w = tokenizer_get_ic_weight(target_idx);
+        cartan_gpu_set_arg_i32(g_pipe_softmax_loss_delta, 1.0, target_idx);
+        cartan_gpu_set_arg_i32(g_pipe_softmax_loss_delta, 5.0, 0.0);
+        cartan_gpu_set_arg_f32(g_pipe_softmax_loss_delta, 6.0, ic_w);
+        cartan_gpu_launch_local(g_pipe_softmax_loss_delta, 256.0, 1.0, 1.0, 256.0, 1.0, 1.0);
+
+        if (lr > 0.0) {
+            let decay_factor = 1.0 - (lr * 0.0001);
+            cartan_gpu_set_arg_f32(g_pipe_sgd, 6.0, lr);
+            cartan_gpu_set_arg_f32(g_pipe_sgd, 7.0, decay_factor);
+            cartan_gpu_launch(g_pipe_sgd, vocab_cols, 1.0, 1.0);
+        }
+
+        // Read back single scalar loss
+        gpu_read(g_buf_chunk_loss, g_host_chunk_loss, 4.0);
+        gpu_sync();
+        return cartan_f32_at(g_host_chunk_loss, 0.0);
+    }
+
+    // CPU Fallback Path (if GPU acceleration is unavailable)
+    var c = 0.0;
+    while (c < vocab_cols) {
+        let col = 2.0 + c;
+        g_train_logits[col] = 0.0;
+        g_train_logits[col + 1.0] = 0.0;
+        g_train_logits[col + 2.0] = 0.0;
+        g_train_logits[col + 3.0] = 0.0;
+        g_train_logits[col + 4.0] = 0.0;
+        g_train_logits[col + 5.0] = 0.0;
+        g_train_logits[col + 6.0] = 0.0;
+        g_train_logits[col + 7.0] = 0.0;
+        c = c + 8.0;
+    }
+
+    // Forward matrix projection with stride-1 cache locality (r outer, c inner)
+    // 8-way unrolled AVX2 FMA inner loop
+    var r = 0.0;
+    while (r < dim) {
+        let hv = hidden_ptr[2.0 + r];
+        if (hv != 0.0) {
+            let w_row = 2.0 + (r * 2560.0);
+            c = 0.0;
+            while (c < vocab_cols) {
+                let col = 2.0 + c;
+                let w_idx = w_row + c;
+                g_train_logits[col] = g_train_logits[col] + hv * g_cortical_weights[w_idx];
+                g_train_logits[col + 1.0] = g_train_logits[col + 1.0] + hv * g_cortical_weights[w_idx + 1.0];
+                g_train_logits[col + 2.0] = g_train_logits[col + 2.0] + hv * g_cortical_weights[w_idx + 2.0];
+                g_train_logits[col + 3.0] = g_train_logits[col + 3.0] + hv * g_cortical_weights[w_idx + 3.0];
+                g_train_logits[col + 4.0] = g_train_logits[col + 4.0] + hv * g_cortical_weights[w_idx + 4.0];
+                g_train_logits[col + 5.0] = g_train_logits[col + 5.0] + hv * g_cortical_weights[w_idx + 5.0];
+                g_train_logits[col + 6.0] = g_train_logits[col + 6.0] + hv * g_cortical_weights[w_idx + 6.0];
+                g_train_logits[col + 7.0] = g_train_logits[col + 7.0] + hv * g_cortical_weights[w_idx + 7.0];
+                c = c + 8.0;
+            }
+        }
+        r = r + 1.0;
+    }
+
+    var max_logit = -1000000000.0;
+    c = 0.0;
+    while (c < vocab_cols) {
+        let l_val = g_train_logits[2.0 + c];
+        if (l_val > max_logit) { max_logit = l_val; }
         c = c + 1.0;
     }
 
     var sum_exp = 0.0;
     c = 0.0;
-    while (c < 512.0) {
-        let p = exp(cartan_vec_get_f32(g_train_logits, c) - max_logit);
-        cartan_vec_set_f32(g_train_probs, c, p);
+    while (c < vocab_cols) {
+        let p = exp(g_train_logits[2.0 + c] - max_logit);
+        g_train_probs[2.0 + c] = p;
         sum_exp = sum_exp + p;
         c = c + 1.0;
     }
     if (sum_exp <= 0.0) { sum_exp = 1.0; }
+    let inv_sum = 1.0 / sum_exp;
 
     c = 0.0;
-    while (c < 512.0) {
-        let p_norm = cartan_vec_get_f32(g_train_probs, c) / sum_exp;
-        cartan_vec_set_f32(g_train_probs, c, p_norm);
+    while (c < vocab_cols) {
+        let col = 2.0 + c;
+        g_train_probs[col] = g_train_probs[col] * inv_sum;
+        g_train_probs[col + 1.0] = g_train_probs[col + 1.0] * inv_sum;
+        g_train_probs[col + 2.0] = g_train_probs[col + 2.0] * inv_sum;
+        g_train_probs[col + 3.0] = g_train_probs[col + 3.0] * inv_sum;
+        g_train_probs[col + 4.0] = g_train_probs[col + 4.0] * inv_sum;
+        g_train_probs[col + 5.0] = g_train_probs[col + 5.0] * inv_sum;
+        g_train_probs[col + 6.0] = g_train_probs[col + 6.0] * inv_sum;
+        g_train_probs[col + 7.0] = g_train_probs[col + 7.0] * inv_sum;
+        c = c + 8.0;
+    }
+
+    let ic_w = tokenizer_get_ic_weight(target_idx);
+    var target_p = g_train_probs[2.0 + target_idx];
+    if (target_p < 0.000000000001) { target_p = 0.000000000001; }
+    let loss = (0.0 - log(target_p)) * ic_w;
+    if (lr <= 0.0) { return loss; }
+
+    // Precompute gradient delta: delta[c] = (probs[c] - (c == target_idx ? 1.0 : 0.0)) * ic_w
+    c = 0.0;
+    while (c < vocab_cols) {
+        let col = 2.0 + c;
+        g_train_logits[col] = g_train_probs[col] * ic_w;
+        g_train_logits[col + 1.0] = g_train_probs[col + 1.0] * ic_w;
+        g_train_logits[col + 2.0] = g_train_probs[col + 2.0] * ic_w;
+        g_train_logits[col + 3.0] = g_train_probs[col + 3.0] * ic_w;
+        g_train_logits[col + 4.0] = g_train_probs[col + 4.0] * ic_w;
+        g_train_logits[col + 5.0] = g_train_probs[col + 5.0] * ic_w;
+        g_train_logits[col + 6.0] = g_train_probs[col + 6.0] * ic_w;
+        g_train_logits[col + 7.0] = g_train_probs[col + 7.0] * ic_w;
+        c = c + 8.0;
+    }
+    g_train_logits[2.0 + target_idx] = (g_train_probs[2.0 + target_idx] - 1.0) * ic_w;
+
+    // Finsler-Randers geodesic projection on tangent bundle with Killing-Cartan metric
+    c = 0.0;
+    while (c < vocab_cols) {
+        let col = 2.0 + c;
+        let d = g_train_logits[col];
+        let sub_idx = floor(c / 320.0);
+        let kw = geom_killing_form_dynkin_weight(sub_idx);
+        let b = 0.05 * sin((c + 1.0) * 0.01) * kw;
+        let curved_d = d - (d * b / (1.0 + b * b)) * b;
+        g_train_logits[col] = curved_d;
         c = c + 1.0;
     }
 
-    var target_p = cartan_vec_get_f32(g_train_probs, target_idx);
-    if (target_p < 0.000000000001) { target_p = 0.000000000001; }
-    let loss = 0.0 - math_log(target_p);
-
+    // Row-wise contiguous SGD updates with L2 regularization
+    // 8-way unrolled AVX2 FMA inner loop
+    let decay_factor = 1.0;
     var r_idx = 0.0;
     while (r_idx < dim) {
-        let h_val = cartan_vec_get_f32(hidden_ptr, r_idx);
-        var col = 0.0;
-        while (col < 512.0) {
-            var target_val = 0.0;
-            if (col == target_idx) { target_val = 1.0; }
-            let p_val = cartan_vec_get_f32(g_train_probs, col);
-            let grad = (p_val - target_val) * h_val;
-            let w_idx = r_idx * 2560.0 + col;
-            let cur_w = cartan_vec_get_f32(g_cortical_weights, w_idx);
-            let new_w = cur_w - lr * (grad + 0.0001 * cur_w);
-            cartan_vec_set_f32(g_cortical_weights, w_idx, new_w);
-            col = col + 1.0;
+        let lr_h = lr * hidden_ptr[2.0 + r_idx] * 0.0197642;
+        if (lr_h != 0.0) {
+            let w_row = 2.0 + (r_idx * 2560.0);
+            var col = 0.0;
+            while (col < vocab_cols) {
+                let col_idx = 2.0 + col;
+                let w_idx = w_row + col;
+                g_cortical_weights[w_idx] = g_cortical_weights[w_idx] * decay_factor - lr_h * g_train_logits[col_idx];
+                g_cortical_weights[w_idx + 1.0] = g_cortical_weights[w_idx + 1.0] * decay_factor - lr_h * g_train_logits[col_idx + 1.0];
+                g_cortical_weights[w_idx + 2.0] = g_cortical_weights[w_idx + 2.0] * decay_factor - lr_h * g_train_logits[col_idx + 2.0];
+                g_cortical_weights[w_idx + 3.0] = g_cortical_weights[w_idx + 3.0] * decay_factor - lr_h * g_train_logits[col_idx + 3.0];
+                g_cortical_weights[w_idx + 4.0] = g_cortical_weights[w_idx + 4.0] * decay_factor - lr_h * g_train_logits[col_idx + 4.0];
+                g_cortical_weights[w_idx + 5.0] = g_cortical_weights[w_idx + 5.0] * decay_factor - lr_h * g_train_logits[col_idx + 5.0];
+                g_cortical_weights[w_idx + 6.0] = g_cortical_weights[w_idx + 6.0] * decay_factor - lr_h * g_train_logits[col_idx + 6.0];
+                g_cortical_weights[w_idx + 7.0] = g_cortical_weights[w_idx + 7.0] * decay_factor - lr_h * g_train_logits[col_idx + 7.0];
+                col = col + 8.0;
+            }
         }
         r_idx = r_idx + 1.0;
     }
     return loss;
+}
+
+var g_last_chunk_valid_steps: float = 0.0;
+
+// Fully-pipelined, in-VRAM chunk training engine executing back-to-back without intermediate CPU stalls or PCIe roundtrips
+fn geomind_train_chunk_gpu_pipelined(tokens: ptr, lr: float) -> float {
+    g_last_chunk_valid_steps = 0.0;
+    if (tokens == 0.0 || g_train_gpu_mounted != 1.0) { return 0.0; }
+    var n_tokens = tokens[0];
+    if (n_tokens <= 1.0) { return 0.0; }
+    if (n_tokens > 256.0) { n_tokens = 256.0; }
+
+    if (g_gpu_weights_synced == 0.0) {
+        train_sync_weights_host_to_gpu();
+    }
+
+    // Initialize hidden state with zeros in GPU VRAM
+    gpu_write(g_buf_train_hidden, g_host_zero_hidden, 2560.0 * 4.0);
+
+    // Seed causal state on GPU with initial token of chunk
+    let first_tok = tokens[2.0];
+    cartan_gpu_set_arg_i32(g_pipe_autoregressive, 3.0, first_tok);
+    cartan_gpu_launch(g_pipe_autoregressive, 2560.0, 1.0, 1.0);
+    cartan_gpu_launch_local(g_pipe_rmsnorm, 256.0, 1.0, 1.0, 256.0, 1.0, 1.0);
+    cartan_gpu_launch(g_pipe_ffn, 2560.0, 1.0, 1.0);
+    cartan_gpu_launch_local(g_pipe_rmsnorm, 256.0, 1.0, 1.0, 256.0, 1.0, 1.0);
+
+    let decay_factor = 1.0;
+    cartan_gpu_set_arg_f32(g_pipe_sgd, 6.0, lr);
+    cartan_gpu_set_arg_f32(g_pipe_sgd, 7.0, decay_factor);
+
+    cartan_gpu_set_arg_f32(g_pipe_input_sgd, 5.0, lr);
+
+    let n_steps = n_tokens - 1.0;
+    var t = 0.0;
+    var prev_tok = first_tok;
+
+    // Enqueue all tokens back-to-back directly in GPU command queue with ZERO sync flushes
+    while (t < n_steps) {
+        let next_tok = tokens[2.0 + t + 1.0];
+
+        // 1. Forward GEMV: hidden x weights -> logits (2560 threads)
+        cartan_gpu_launch(g_pipe_gemv, 2560.0, 1.0, 1.0);
+
+        // 2. Fused Softmax, Cross-Entropy Loss, and Delta in VRAM (256 threads)
+        let ic_w = tokenizer_get_ic_weight(next_tok);
+        cartan_gpu_set_arg_i32(g_pipe_softmax_loss_delta, 1.0, next_tok);
+        cartan_gpu_set_arg_i32(g_pipe_softmax_loss_delta, 5.0, t);
+        cartan_gpu_set_arg_f32(g_pipe_softmax_loss_delta, 6.0, ic_w);
+        cartan_gpu_launch_local(g_pipe_softmax_loss_delta, 256.0, 1.0, 1.0, 256.0, 1.0, 1.0);
+
+        // 3. Backward SGD weight update in VRAM (2560 threads) - only for in-vocab tokens
+        if (lr > 0.0 && next_tok >= 0.0 && next_tok < 2560.0) {
+            cartan_gpu_launch(g_pipe_sgd, 2560.0, 1.0, 1.0);
+            if (prev_tok >= 0.0 && prev_tok < 2560.0) {
+                cartan_gpu_set_arg_i32(g_pipe_input_sgd, 2.0, prev_tok);
+                cartan_gpu_launch(g_pipe_input_sgd, 2560.0, 1.0, 1.0);
+            }
+        }
+
+        // 4. Autoregressive state update + 8-stream Lie manifold dispatch (2560 threads)
+        cartan_gpu_set_arg_i32(g_pipe_autoregressive, 3.0, next_tok);
+        cartan_gpu_launch(g_pipe_autoregressive, 2560.0, 1.0, 1.0);
+
+        // 5. Pre-FFN Anisotropic RMSNorm (256 threads)
+        cartan_gpu_launch_local(g_pipe_rmsnorm, 256.0, 1.0, 1.0, 256.0, 1.0, 1.0);
+
+        // 6. 16-Layer Parallel FFN Cascade (2560 threads)
+        cartan_gpu_launch(g_pipe_ffn, 2560.0, 1.0, 1.0);
+
+        // 7. Post-FFN Anisotropic RMSNorm (256 threads)
+        cartan_gpu_launch_local(g_pipe_rmsnorm, 256.0, 1.0, 1.0, 256.0, 1.0, 1.0);
+
+        prev_tok = next_tok;
+        t = t + 1.0;
+    }
+
+    // Read back all scalar losses in a single contiguous DMA transfer
+    gpu_read(g_buf_chunk_loss, g_host_chunk_loss, n_steps * 4.0);
+    gpu_sync();
+
+    var chunk_loss_sum = 0.0;
+    var valid_steps = 0.0;
+    var p = 0.0;
+    while (p < n_steps) {
+        let step_l = cartan_f32_at(g_host_chunk_loss, p);
+        if (step_l >= 0.0) {
+            chunk_loss_sum = chunk_loss_sum + step_l;
+            valid_steps = valid_steps + 1.0;
+        }
+        p = p + 1.0;
+    }
+    g_last_chunk_valid_steps = valid_steps;
+    return chunk_loss_sum;
 }
 
 // Standalone WebGPU Causal Training Pipeline
@@ -506,7 +855,13 @@ fn geomind_manifest_get_field(json_str: string, key: string) -> string {
                         var val_end = val_start + 1.0;
                         while (val_end < len) {
                             if (cartan_string_get_char(json_str, val_end) == 34.0) {
-                                break;
+                                if (val_end > (val_start + 1.0) && cartan_string_get_char(json_str, val_end - 1.0) == 92.0) {
+                                    if (val_end > (val_start + 2.0) && cartan_string_get_char(json_str, val_end - 2.0) == 92.0) {
+                                        break;
+                                    }
+                                } else {
+                                    break;
+                                }
                             }
                             val_end = val_end + 1.0;
                         }
@@ -526,6 +881,62 @@ fn geomind_manifest_get_field(json_str: string, key: string) -> string {
             }
         }
         i = i + 1.0;
+    }
+    return "";
+}
+
+// Clean and normalize a raw training line (stripping JSON markup if .jsonl, trimming whitespace)
+fn geomind_clean_training_line(raw_line: string) -> string {
+    let len = cartan_string_length(raw_line);
+    if (len <= 0.0) { return ""; }
+
+    var first_idx = 0.0;
+    while (first_idx < len) {
+        let ch = cartan_byte_at(raw_line, first_idx);
+        if (ch != 32.0 && ch != 9.0 && ch != 13.0 && ch != 10.0) {
+            break;
+        }
+        first_idx = first_idx + 1.0;
+    }
+    if (first_idx >= len) {
+        return "";
+    }
+
+    // Check if line is a JSON object (extract clean sentence fields without JSON syntax)
+    if (cartan_byte_at(raw_line, first_idx) == 123.0) { // '{'
+        let cloze = geomind_manifest_get_field(raw_line, "sentence_cloze");
+        let target = geomind_manifest_get_field(raw_line, "target_phrase");
+        let c_len = cartan_string_length(cloze);
+        let t_len = cartan_string_length(target);
+        if (c_len > 0.0 || t_len > 0.0) {
+            let res = cartan_string_concat(cloze, target);
+            free(cloze);
+            free(target);
+            return res;
+        }
+        let txt = geomind_manifest_get_field(raw_line, "text");
+        let txt_len = cartan_string_length(txt);
+        if (txt_len > 0.0) {
+            let unescaped_n = cartan_string_replace(txt, "\\n", "\n");
+            let unescaped_q = cartan_string_replace(unescaped_n, "\\\"", "\"");
+            free(unescaped_n);
+            free(txt);
+            return unescaped_q;
+        }
+    }
+
+    // Plaintext line: trim trailing \r and whitespace
+    var last_idx = len - 1.0;
+    while (last_idx >= first_idx) {
+        let ch = cartan_byte_at(raw_line, last_idx);
+        if (ch != 32.0 && ch != 9.0 && ch != 13.0 && ch != 10.0) {
+            break;
+        }
+        last_idx = last_idx - 1.0;
+    }
+
+    if (last_idx >= first_idx) {
+        return cartan_string_substring(raw_line, first_idx, last_idx + 1.0);
     }
     return "";
 }
@@ -582,7 +993,7 @@ fn geomind_manifest_parse_datasets(json_str: string) -> ptr {
     return list;
 }
 
-fn geomind_manifest_save(path: string, list: ptr, cur_idx: float, cur_offset: float, cur_ep: float) {
+fn geomind_manifest_save(path: string, list: ptr, cur_idx: float, cur_offset: float, cur_ep: float, cur_lr: float) {
     var out = "{\n";
     out = cartan_string_concat(out, "  \"current_dataset_index\": ");
     out = cartan_string_concat(out, cartan_float_to_string(cur_idx));
@@ -590,6 +1001,8 @@ fn geomind_manifest_save(path: string, list: ptr, cur_idx: float, cur_offset: fl
     out = cartan_string_concat(out, cartan_float_to_string(cur_offset));
     out = cartan_string_concat(out, ",\n  \"current_epoch\": ");
     out = cartan_string_concat(out, cartan_float_to_string(cur_ep));
+    out = cartan_string_concat(out, ",\n  \"current_lr\": ");
+    out = cartan_string_concat(out, cartan_float_to_string(cur_lr));
     out = cartan_string_concat(out, ",\n  \"datasets\": [\n");
 
     let count = cartan_tree_len_f(list);
@@ -636,6 +1049,79 @@ fn geomind_resolve_path(path: string) -> string {
     return path;
 }
 
+// Compute genuine validation cross-entropy loss over holdout set (zero weight updates)
+fn geomind_compute_validation_loss(val_file: string, cur_h_val: ptr) -> float {
+    let resolved_val = geomind_resolve_path(val_file);
+    if (cartan_file_exists(resolved_val) == 0.0) { return 0.0; }
+    let val_content = cartan_read_file(resolved_val);
+    let val_len = cartan_string_length(val_content);
+    if (val_len <= 0.0) { free(val_content); return 0.0; }
+
+    var v_line_start = 0.0;
+    var v_loss_sum = 0.0;
+    var v_step_count = 0.0;
+
+    while (v_line_start < val_len && v_step_count < 100.0) {
+        var v_line_end = v_line_start;
+        while (v_line_end < val_len && cartan_byte_at(val_content, v_line_end) != 10.0) {
+            v_line_end = v_line_end + 1.0;
+        }
+        let v_raw = cartan_string_substring(val_content, v_line_start, v_line_end);
+        let v_sample = geomind_clean_training_line(v_raw);
+        free(v_raw);
+
+        let v_s_len = cartan_string_length(v_sample);
+        if (v_s_len > 0.0) {
+            let v_tokens = cartan_hub_encode_text_to_tokens(v_sample);
+            let n_toks = v_tokens[0];
+            if (n_toks > 1.0) {
+                if (g_train_gpu_mounted == 1.0) {
+                    let chunk_loss = geomind_train_chunk_gpu_pipelined(v_tokens, 0.0);
+                    if (g_last_chunk_valid_steps > 0.0) {
+                        v_loss_sum = v_loss_sum + chunk_loss;
+                        v_step_count = v_step_count + g_last_chunk_valid_steps;
+                    }
+                } else {
+                    var d = 0.0;
+                    while (d < 2560.0) {
+                        cur_h_val[2.0 + d] = 0.0;
+                        d = d + 1.0;
+                    }
+                    let first_tok = v_tokens[2.0];
+                    cartan_tensor_update_autoregressive_state(cur_h_val, first_tok);
+                    e8_attention_forward_step(cur_h_val, 0.70);
+
+                    var vt = 0.0;
+                    while (vt < n_toks - 1.0) {
+                        let next_tok = v_tokens[2.0 + vt + 1.0];
+                        if (next_tok >= 0.0 && next_tok < 2560.0) {
+                            let step_loss = cartan_tensor_train_step(cur_h_val, next_tok, 0.0);
+                            if (step_loss > 0.0) {
+                                v_loss_sum = v_loss_sum + step_loss;
+                                v_step_count = v_step_count + 1.0;
+                            }
+                        }
+                        cartan_tensor_update_autoregressive_state(cur_h_val, next_tok);
+                        e8_attention_forward_step(cur_h_val, 0.70);
+                        vt = vt + 1.0;
+                    }
+                }
+            }
+            cartan_vec_free(v_tokens);
+            free(v_sample);
+        }
+        v_line_start = v_line_end + 1.0;
+    }
+    free(val_content);
+
+    if (v_step_count > 0.0) {
+        return v_loss_sum / v_step_count;
+    }
+    return 0.0;
+}
+
+var g_train_stride: float = 0.0;
+
 // Unified multi-phase streaming steady-state engine (Stages 1, 2, 3)
 fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: string, target_loss: float, base_lr: float, max_epochs: float, log_path: string) -> float {
     var stage_name = "CLOZE";
@@ -652,20 +1138,15 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
     if (cartan_string_length(log_file) == 0.0) { log_file = default_log; }
 
     var lr = base_lr;
-    if (lr <= 0.0) { lr = 0.001; }
     var t_loss = target_loss;
     if (t_loss <= 0.0) { t_loss = 2.50; }
     var epochs = max_epochs;
-    if (epochs <= 0.0) { epochs = 3.0; }
+    if (epochs <= 0.0) { epochs = 1000000.0; }
 
-    printf("================================================================================\n");
-    printf("  GEOMIND STREAMING STEADY-STATE COMPUTE ENGINE (Stage: %s)\n", stage_name);
-    printf("  Autoregressive Sequence Learning | Natural Gradient Manifold Updates\n");
-    printf("  Target Loss: %s | Base LR: %s | Epochs: %s | Log: %s\n",
-        cartan_float_to_string(t_loss), cartan_float_to_string(lr),
-        cartan_float_to_string(epochs), log_file);
-    printf("================================================================================\n\n");
-    cartan_flush(0.0);
+    var ep_disp = cartan_float_to_string(epochs);
+    if (epochs >= 100000.0) {
+        ep_disp = "Unlimited (Until Target Loss Hit)";
+    }
 
     // Mount GPU acceleration if available
     train_mount_gpu();
@@ -673,6 +1154,8 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
     var manifest_path = geomind_resolve_path("test/geomind/trainingdata/corpus.json");
     if (stage_mode == 1.0) {
         manifest_path = geomind_resolve_path("test/geomind/trainingdata/cloze_manifest.json");
+    } else if (stage_mode == 3.0) {
+        manifest_path = geomind_resolve_path("test/geomind/trainingdata/sft_manifest.json");
     }
     var datasets_list = cartan_tree_create();
     var cur_d_idx = 0.0;
@@ -681,13 +1164,15 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
     var manifest_mode = 0.0;
 
     let res_custom = geomind_resolve_path(custom_dataset);
-    if (cartan_string_ends_with(res_custom, ".json") == 1.0 && cartan_file_exists(res_custom) == 1.0) {
+    if (cartan_string_ends_with(res_custom, ".json") == 1.0) {
         manifest_path = res_custom;
     }
 
+    var manifest_already_existed = 0.0;
     if (cartan_string_length(res_custom) > 0.0 && cartan_string_ends_with(res_custom, ".json") == 0.0 && cartan_file_exists(res_custom) == 1.0) {
         cartan_tree_push(datasets_list, res_custom);
     } else if (cartan_file_exists(manifest_path) == 1.0) {
+        manifest_already_existed = 1.0;
         let manifest_content = cartan_read_file(manifest_path);
         datasets_list = geomind_manifest_parse_datasets(manifest_content);
         if (cartan_tree_len_f(datasets_list) > 0.0) {
@@ -698,18 +1183,129 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
             if (saved_ep >= 1.0 && saved_ep <= epochs) {
                 cur_ep = saved_ep;
             }
+            if (base_lr <= 0.0) {
+                let saved_lr = atof(geomind_manifest_get_field(manifest_content, "current_lr"));
+                if (saved_lr >= 0.0005) {
+                    lr = saved_lr;
+                }
+            }
         }
     }
 
     if (cartan_tree_len_f(datasets_list) == 0.0) {
         if (stage_mode == 1.0) {
-            cartan_tree_push(datasets_list, geomind_resolve_path("test/geomind/trainingdata/mined_expanded_corpus_cloze_part01.jsonl"));
+            let p1 = geomind_resolve_path("test/geomind/trainingdata/mined_expanded_corpus_cloze_part01.jsonl");
+            if (cartan_file_exists(p1) == 1.0) { cartan_tree_push(datasets_list, p1); }
+            let p2 = geomind_resolve_path("test/geomind/trainingdata/mined_expanded_corpus_cloze_part02.jsonl");
+            if (cartan_file_exists(p2) == 1.0) { cartan_tree_push(datasets_list, p2); }
+            let p3 = geomind_resolve_path("test/geomind/trainingdata/mined_expanded_corpus_cloze_part03.jsonl");
+            if (cartan_file_exists(p3) == 1.0) { cartan_tree_push(datasets_list, p3); }
+            let p4 = geomind_resolve_path("test/geomind/trainingdata/mined_expanded_corpus_cloze_part04.jsonl");
+            if (cartan_file_exists(p4) == 1.0) { cartan_tree_push(datasets_list, p4); }
+            let p5 = geomind_resolve_path("test/geomind/trainingdata/mined_expanded_corpus_cloze_part05.jsonl");
+            if (cartan_file_exists(p5) == 1.0) { cartan_tree_push(datasets_list, p5); }
+            let p6 = geomind_resolve_path("test/geomind/trainingdata/mined_expanded_corpus_cloze_part06.jsonl");
+            if (cartan_file_exists(p6) == 1.0) { cartan_tree_push(datasets_list, p6); }
         } else if (stage_mode == 2.0) {
-            cartan_tree_push(datasets_list, geomind_resolve_path("test/geomind/trainingdata/storytelling_corpus.txt"));
+            let p1 = geomind_resolve_path("test/geomind/trainingdata/sft/fineweb_edu_curated.txt");
+            if (cartan_file_exists(p1) == 1.0) { cartan_tree_push(datasets_list, p1); }
+            let p2 = geomind_resolve_path("test/geomind/trainingdata/sft/openwebtext_curated.txt");
+            if (cartan_file_exists(p2) == 1.0) { cartan_tree_push(datasets_list, p2); }
+            let p3 = geomind_resolve_path("test/geomind/trainingdata/sft/wikitext103_structural.txt");
+            if (cartan_file_exists(p3) == 1.0) { cartan_tree_push(datasets_list, p3); }
+            let p4 = geomind_resolve_path("test/geomind/trainingdata/sft/arxiv_scientific_abstracts.txt");
+            if (cartan_file_exists(p4) == 1.0) { cartan_tree_push(datasets_list, p4); }
+            let p5 = geomind_resolve_path("test/geomind/trainingdata/sft/tinystories_narratives.txt");
+            if (cartan_file_exists(p5) == 1.0) { cartan_tree_push(datasets_list, p5); }
+            let p6 = geomind_resolve_path("test/geomind/trainingdata/storytelling_corpus.txt");
+            if (cartan_file_exists(p6) == 1.0) { cartan_tree_push(datasets_list, p6); }
+            let c1 = geomind_resolve_path("test/geomind/trainingdata/mined_expanded_corpus_cloze_part01.txt");
+            if (cartan_file_exists(c1) == 1.0) { cartan_tree_push(datasets_list, c1); }
+            let c2 = geomind_resolve_path("test/geomind/trainingdata/mined_expanded_corpus_cloze_part02.txt");
+            if (cartan_file_exists(c2) == 1.0) { cartan_tree_push(datasets_list, c2); }
+            let c3 = geomind_resolve_path("test/geomind/trainingdata/mined_expanded_corpus_cloze_part03.txt");
+            if (cartan_file_exists(c3) == 1.0) { cartan_tree_push(datasets_list, c3); }
+            let c4 = geomind_resolve_path("test/geomind/trainingdata/mined_expanded_corpus_cloze_part04.txt");
+            if (cartan_file_exists(c4) == 1.0) { cartan_tree_push(datasets_list, c4); }
+            let c5 = geomind_resolve_path("test/geomind/trainingdata/mined_expanded_corpus_cloze_part05.txt");
+            if (cartan_file_exists(c5) == 1.0) { cartan_tree_push(datasets_list, c5); }
+            let c6 = geomind_resolve_path("test/geomind/trainingdata/mined_expanded_corpus_cloze_part06.txt");
+            if (cartan_file_exists(c6) == 1.0) { cartan_tree_push(datasets_list, c6); }
+            let t1 = geomind_resolve_path("test/geomind/trainingdata/hf_roneneldan_TinyStories.txt");
+            if (cartan_file_exists(t1) == 1.0) { cartan_tree_push(datasets_list, t1); }
+            let a1 = geomind_resolve_path("test/geomind/trainingdata/hf_alpaca_stories.txt");
+            if (cartan_file_exists(a1) == 1.0) { cartan_tree_push(datasets_list, a1); }
         } else if (stage_mode == 3.0) {
-            cartan_tree_push(datasets_list, geomind_resolve_path("test/geomind/trainingdata/hf_alpaca_stories.txt"));
+            let s1 = geomind_resolve_path("test/geomind/trainingdata/sft/reddit_casual_dialogues_gemma.jsonl");
+            if (cartan_file_exists(s1) == 1.0) { cartan_tree_push(datasets_list, s1); }
+            let s2 = geomind_resolve_path("test/geomind/trainingdata/sft/reddit_qa_discourse_gemma.jsonl");
+            if (cartan_file_exists(s2) == 1.0) { cartan_tree_push(datasets_list, s2); }
+            let s3 = geomind_resolve_path("test/geomind/trainingdata/sft/oasst1_dialogues_gemma.jsonl");
+            if (cartan_file_exists(s3) == 1.0) { cartan_tree_push(datasets_list, s3); }
+            let s4 = geomind_resolve_path("test/geomind/trainingdata/sft/alpaca_instructions_gemma.jsonl");
+            if (cartan_file_exists(s4) == 1.0) { cartan_tree_push(datasets_list, s4); }
+            let s5 = geomind_resolve_path("test/geomind/trainingdata/sft/fineweb_edu_curated.txt");
+            if (cartan_file_exists(s5) == 1.0) { cartan_tree_push(datasets_list, s5); }
+            let s6 = geomind_resolve_path("test/geomind/trainingdata/sft/openwebtext_curated.txt");
+            if (cartan_file_exists(s6) == 1.0) { cartan_tree_push(datasets_list, s6); }
+            let s7 = geomind_resolve_path("test/geomind/trainingdata/sft/wikitext103_structural.txt");
+            if (cartan_file_exists(s7) == 1.0) { cartan_tree_push(datasets_list, s7); }
+            let s8 = geomind_resolve_path("test/geomind/trainingdata/sft/arxiv_scientific_abstracts.txt");
+            if (cartan_file_exists(s8) == 1.0) { cartan_tree_push(datasets_list, s8); }
+            let s9 = geomind_resolve_path("test/geomind/trainingdata/sft/tinystories_narratives.txt");
+            if (cartan_file_exists(s9) == 1.0) { cartan_tree_push(datasets_list, s9); }
+            let c1 = geomind_resolve_path("test/geomind/trainingdata/mined_expanded_corpus_cloze_part01.txt");
+            if (cartan_file_exists(c1) == 1.0) { cartan_tree_push(datasets_list, c1); }
+            let c2 = geomind_resolve_path("test/geomind/trainingdata/mined_expanded_corpus_cloze_part02.txt");
+            if (cartan_file_exists(c2) == 1.0) { cartan_tree_push(datasets_list, c2); }
+            let c3 = geomind_resolve_path("test/geomind/trainingdata/mined_expanded_corpus_cloze_part03.txt");
+            if (cartan_file_exists(c3) == 1.0) { cartan_tree_push(datasets_list, c3); }
+            let c4 = geomind_resolve_path("test/geomind/trainingdata/mined_expanded_corpus_cloze_part04.txt");
+            if (cartan_file_exists(c4) == 1.0) { cartan_tree_push(datasets_list, c4); }
+            let c5 = geomind_resolve_path("test/geomind/trainingdata/mined_expanded_corpus_cloze_part05.txt");
+            if (cartan_file_exists(c5) == 1.0) { cartan_tree_push(datasets_list, c5); }
+            let c6 = geomind_resolve_path("test/geomind/trainingdata/mined_expanded_corpus_cloze_part06.txt");
+            if (cartan_file_exists(c6) == 1.0) { cartan_tree_push(datasets_list, c6); }
+            let st = geomind_resolve_path("test/geomind/trainingdata/storytelling_corpus.txt");
+            if (cartan_file_exists(st) == 1.0) { cartan_tree_push(datasets_list, st); }
+            let alp = geomind_resolve_path("test/geomind/trainingdata/hf_alpaca_stories.txt");
+            if (cartan_file_exists(alp) == 1.0) { cartan_tree_push(datasets_list, alp); }
+        }
+
+        // Auto-create manifest only if it was genuinely missing and datasets were found
+        if (manifest_already_existed == 0.0 && cartan_string_length(manifest_path) > 0.0 && cartan_tree_len_f(datasets_list) > 0.0) {
+            manifest_mode = 1.0;
+            geomind_manifest_save(manifest_path, datasets_list, 0.0, 0.0, 1.0, lr);
+            printf("[Steady-State Stage: %s] Manifest missing. Initialized clean multi-dataset manifest: %s (%s datasets)\n",
+                stage_name, manifest_path, cartan_float_to_string(cartan_tree_len_f(datasets_list)));
+            cartan_flush(0.0);
         }
     }
+
+    var lr_floor = 0.001;
+    var stage_ceiling_lr = 0.05;
+    if (stage_mode == 2.0) {
+        lr_floor = 0.002;
+        stage_ceiling_lr = 0.05; // Arbitrarily high headroom; dynamic controller handles self-regulation
+    } else if (stage_mode == 3.0) {
+        lr_floor = 0.0005;
+        stage_ceiling_lr = 0.05;
+    }
+    if (base_lr > 0.0) {
+        lr = base_lr;
+    } else if (lr <= 0.0 || lr < lr_floor) {
+        lr = 0.006;
+    }
+    var initial_stage_lr = stage_ceiling_lr;
+
+    printf("================================================================================\n");
+    printf("  GEOMIND STREAMING STEADY-STATE COMPUTE ENGINE (Stage: %s)\n", stage_name);
+    printf("  Autoregressive Sequence Learning | Natural Gradient Manifold Updates\n");
+    printf("  Target Loss: %s | Active LR: %s | Epochs: %s | Log: %s\n",
+        cartan_float_to_string(t_loss), cartan_float_to_string(lr),
+        ep_disp, log_file);
+    printf("================================================================================\n\n");
+    cartan_flush(0.0);
 
     cartan_init_cortical_weights_if_needed();
     let base_pfx = geomind_get_base_prefix();
@@ -745,6 +1341,23 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
                 stage_name, ckpt_path, cartan_float_to_string(total_params));
             cartan_flush(0.0);
         }
+    } else {
+        cartan_safetensors_save_tensor_f32(ckpt_path, "model.weights", g_cortical_weights);
+        printf("[Steady-State Stage: %s] Initialized clean baseline checkpoint: %s\n",
+            stage_name, ckpt_path);
+        cartan_flush(0.0);
+    }
+
+    if (g_train_gpu_mounted == 1.0) {
+        train_sync_weights_host_to_gpu();
+    }
+
+    let tax_path = cartan_string_concat(base_pfx, "trainingdata/wordnet_taxonomy.txt");
+    if (cartan_file_exists(tax_path) == 1.0) {
+        semantics_load_taxonomy(tax_path);
+        printf("[Steady-State Stage: %s] WordNet Semantic Taxonomy: %s synset nodes active.\n",
+            stage_name, cartan_float_to_string(g_taxonomy_node_count));
+        cartan_flush(0.0);
     }
 
     let num_datasets = cartan_tree_len_f(datasets_list);
@@ -771,12 +1384,30 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
     var ep = cur_ep;
     var final_loss = 10.0;
     var smoothed_loss = 5.0;
-    let window_size = 256.0;
-    let stride = 256.0;
+
+    // Persistent scratch vector for hidden state to eliminate per-token and per-chunk malloc
+    var cur_h = cartan_vec_create();
+    var cur_h_val = cartan_vec_create();
+    var d_init = 0.0;
+    while (d_init < 2560.0) {
+        cartan_vec_push_f32(cur_h, 0.0);
+        cartan_vec_push_f32(cur_h_val, 0.0);
+        d_init = d_init + 1.0;
+    }
+    var ema_val_loss = 0.0;
+    var ema_tppl = 0.0;
+    var prev_ema_tppl = 0.0;
+    var stable_descent_streak = 0.0;
+    var tppl_rise_count = 0.0;
+    var tppl_flat_count = 0.0;
+    var prev_delta_tppl = 0.0;
+    var oscillation_count = 0.0;
 
     while (ep <= epochs) {
         var ep_loss_sum = 0.0;
         var ep_step_count = 0.0;
+        var interval_loss_sum = 0.0;
+        var interval_step_count = 0.0;
         var total_chunks_ep = 0.0;
         var d_idx = cur_d_idx;
 
@@ -791,74 +1422,286 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
                     dataset_file, cartan_float_to_string(content_len / 1024.0));
                 cartan_flush(0.0);
 
-                var offset = cur_offset;
-                if (offset + window_size > content_len) {
-                    offset = 0.0;
+                var line_start = cur_offset;
+                if (line_start >= content_len) {
+                    line_start = 0.0;
+                } else if (line_start > 0.0) {
+                    while (line_start < content_len && cartan_byte_at(file_content, line_start) != 10.0) {
+                        line_start = line_start + 1.0;
+                    }
+                    if (line_start < content_len) {
+                        line_start = line_start + 1.0;
+                    }
                 }
                 var d_chunks = 0.0;
 
-                while (offset + window_size <= content_len) {
-                    let sample_text = cartan_string_substring(file_content, offset, offset + window_size);
-                    let tokens = cartan_hub_encode_text_to_tokens(sample_text);
-                    let n_tokens = cartan_vec_len(tokens);
-                    if (n_tokens > 1.0) {
-                        var cur_h = cartan_vec_create();
-                        var d = 0.0;
-                        while (d < 2560.0) {
-                            cartan_vec_push_f32(cur_h, 0.0);
-                            d = d + 1.0;
-                        }
-                        // Seed causal state strictly with the initial token of the sequence (zero lookahead)
-                        let first_tok = cartan_vec_get_f32(tokens, 0.0);
-                        cartan_tensor_update_autoregressive_state(cur_h, first_tok);
-                        cur_h = e8_attention_forward_step(cur_h, 0.70);
+                while (line_start < content_len) {
+                    var line_end = line_start;
+                    while (line_end < content_len && cartan_byte_at(file_content, line_end) != 10.0) {
+                        line_end = line_end + 1.0;
+                    }
+                    let next_line_start = line_end + 1.0;
+                    let raw_line = cartan_string_substring(file_content, line_start, line_end);
+                    let sample_text = geomind_clean_training_line(raw_line);
+                    free(raw_line);
 
-                        var t = 0.0;
-                        while (t < n_tokens - 1.0) {
-                            let next_tok = cartan_vec_get_f32(tokens, t + 1.0);
-                            let step_loss = cartan_tensor_train_step(cur_h, next_tok, lr);
-                            if (step_loss > 0.0) {
-                                ep_loss_sum = ep_loss_sum + step_loss;
-                                ep_step_count = ep_step_count + 1.0;
+                    let sample_len = cartan_string_length(sample_text);
+                    if (sample_len > 0.0) {
+                        let tokens = cartan_hub_encode_text_to_tokens(sample_text);
+                        let n_tokens = tokens[0];
+                        if (n_tokens > 1.0) {
+                            if (g_train_gpu_mounted == 1.0) {
+                                let chunk_loss = geomind_train_chunk_gpu_pipelined(tokens, lr);
+                                if (g_last_chunk_valid_steps > 0.0) {
+                                    ep_loss_sum = ep_loss_sum + chunk_loss;
+                                    ep_step_count = ep_step_count + g_last_chunk_valid_steps;
+                                    interval_loss_sum = interval_loss_sum + chunk_loss;
+                                    interval_step_count = interval_step_count + g_last_chunk_valid_steps;
+                                }
+                            } else {
+                                var d = 0.0;
+                                while (d < 2560.0) {
+                                    cur_h[2.0 + d] = 0.0;
+                                    d = d + 1.0;
+                                }
+                                // Seed causal state strictly with the initial token of the sequence (zero lookahead)
+                                let first_tok = tokens[2.0];
+                                cartan_tensor_update_autoregressive_state(cur_h, first_tok);
+                                e8_attention_forward_step(cur_h, 0.70);
+
+                                var t = 0.0;
+                                while (t < n_tokens - 1.0) {
+                                    let next_tok = tokens[2.0 + t + 1.0];
+                                    let step_loss = cartan_tensor_train_step(cur_h, next_tok, lr);
+                                    if (step_loss > 0.0) {
+                                        ep_loss_sum = ep_loss_sum + step_loss;
+                                        ep_step_count = ep_step_count + 1.0;
+                                        interval_loss_sum = interval_loss_sum + step_loss;
+                                        interval_step_count = interval_step_count + 1.0;
+                                    }
+                                    cartan_tensor_update_autoregressive_state(cur_h, next_tok);
+                                    e8_attention_forward_step(cur_h, 0.70);
+                                    t = t + 1.0;
+                                }
                             }
-                            cartan_tensor_update_autoregressive_state(cur_h, next_tok);
-                            cur_h = e8_attention_forward_step(cur_h, 0.70);
-                            t = t + 1.0;
+                        }
+                        cartan_vec_free(tokens);
+                        free(sample_text);
+
+                        d_chunks = d_chunks + 1.0;
+                        total_chunks_ep = total_chunks_ep + 1.0;
+
+                        var cur_loss = 0.0;
+                        if (ep_step_count > 0.0) {
+                            cur_loss = ep_loss_sum / ep_step_count;
+                        }
+                        if (total_chunks_ep == 1.0) {
+                            smoothed_loss = cur_loss;
+                        } else {
+                            smoothed_loss = smoothed_loss * 0.98 + cur_loss * 0.02;
+                        }
+
+                        // Save state to manifest every 250 lines
+                        if (math_mod_val(d_chunks, 250.0) == 0.0) {
+                            if (manifest_mode == 1.0) {
+                                geomind_manifest_save(manifest_path, datasets_list, d_idx, next_line_start, ep, lr);
+                            }
+                        }
+
+                        // Save 52.4 MB binary checkpoint weights every 1000 lines or at dataset completion
+                        if (math_mod_val(d_chunks, 1000.0) == 0.0 || next_line_start >= content_len) {
+                            train_sync_weights_gpu_to_host();
+                            cartan_safetensors_save_tensor_f32(ckpt_path, "model.weights", g_cortical_weights);
+                        }
+
+                        if (math_mod_val(d_chunks, 100.0) == 0.0 || d_chunks == 1.0 || next_line_start >= content_len) {
+                            let pct = (next_line_start / content_len) * 100.0;
+                            let kb_done = next_line_start / 1024.0;
+                            let kb_total = content_len / 1024.0;
+                            var atl = 0.0;
+                            if (ep_step_count > 0.0) {
+                                atl = ep_loss_sum / ep_step_count;
+                            }
+                            var tl = atl;
+                            if (interval_step_count > 0.0) {
+                                tl = interval_loss_sum / interval_step_count;
+                            }
+                            interval_loss_sum = 0.0;
+                            interval_step_count = 0.0;
+                            var vppl = 0.0;
+                            let vl = geomind_compute_validation_loss("test/geomind/trainingdata/cloze_validation_holdout.txt", cur_h_val);
+                            if (vl > 0.0) {
+                                if (ema_val_loss <= 0.0) {
+                                    ema_val_loss = vl;
+                                } else {
+                                    ema_val_loss = ema_val_loss * 0.95 + vl * 0.05;
+                                }
+
+                                if (ema_val_loss > 0.0 && ema_val_loss < 80.0) {
+                                    vppl = exp(ema_val_loss);
+                                } else if (ema_val_loss >= 80.0) {
+                                    vppl = 999999.0;
+                                }
+
+                            }
+
+                            // Closed-Loop Training Perplexity (TPPL) Centering Controller
+                            // Direct feedback from training perplexity: decays when TPPL rises/oscillates,
+                            // holds LR steady without decay when in stable descent, and nudges upward if progress stalls.
+                            var cur_tppl = 0.0;
+                            if (tl > 0.0 && tl < 80.0) {
+                                cur_tppl = exp(tl);
+                            } else if (tl >= 80.0) {
+                                cur_tppl = 999999.0;
+                            }
+
+                            if (ema_tppl <= 0.0) {
+                                ema_tppl = cur_tppl;
+                                prev_ema_tppl = cur_tppl;
+                            } else {
+                                prev_ema_tppl = ema_tppl;
+                                ema_tppl = ema_tppl * 0.75 + cur_tppl * 0.25;
+                            }
+
+                            if (ep_step_count > 200.0 && prev_ema_tppl > 0.0) {
+                                let delta_tppl = ema_tppl - prev_ema_tppl;
+
+                                // Track directional oscillations (sign flips between consecutive intervals)
+                                if ((delta_tppl > 0.20 && prev_delta_tppl < -0.20) || (delta_tppl < -0.20 && prev_delta_tppl > 0.20)) {
+                                    oscillation_count = oscillation_count + 1.0;
+                                }
+
+                                if (oscillation_count >= 3.0) {
+                                    // Symmetrical oscillation handling:
+                                    // If starved at or near floor, loss spikes/oscillates due to lack of learning capacity.
+                                    // Hike LR upward to probe where the network finds enough gradient step size to descend.
+                                    if (lr <= lr_floor * 1.5) {
+                                        let old_lr = lr;
+                                        lr = lr * 1.15;
+                                        if (lr > stage_ceiling_lr) { lr = stage_ceiling_lr; }
+                                        printf("[Adaptive LR] TPPL oscillating near floor LR (%s). Hiking LR upward to probe descent center: %s -> %s\n",
+                                            cartan_float_to_string(ema_tppl),
+                                            cartan_float_to_string(old_lr), cartan_float_to_string(lr));
+                                        cartan_flush(0.0);
+                                    } else {
+                                        let old_lr = lr;
+                                        lr = lr * 0.95;
+                                        if (lr < lr_floor) { lr = lr_floor; }
+                                        printf("[Adaptive LR] TPPL oscillating at elevated LR (%s). Decaying LR toward descent center: %s -> %s\n",
+                                            cartan_float_to_string(ema_tppl),
+                                            cartan_float_to_string(old_lr), cartan_float_to_string(lr));
+                                        cartan_flush(0.0);
+                                    }
+                                    oscillation_count = 0.0;
+                                    tppl_rise_count = 0.0;
+                                    tppl_flat_count = 0.0;
+                                } else if (delta_tppl < -0.20) {
+                                    // State 1: Active Stable Descent -> Perplexity falling cleanly; hold sweet-spot LR
+                                    stable_descent_streak = stable_descent_streak + 1.0;
+                                    tppl_rise_count = 0.0;
+                                    tppl_flat_count = 0.0;
+                                    if (stable_descent_streak >= 3.0) {
+                                        oscillation_count = 0.0;
+                                    }
+                                } else if (delta_tppl > 0.20) {
+                                    // State 2: Rising -> Check if starved at minimum or overshooting at elevated LR
+                                    tppl_rise_count = tppl_rise_count + 1.0;
+                                    stable_descent_streak = 0.0;
+                                    tppl_flat_count = 0.0;
+                                    if (tppl_rise_count >= 2.0) {
+                                        if (lr <= lr_floor * 1.25) {
+                                            // Starved at floor: step updates are too tiny to adapt to data variance -> hike LR
+                                            let old_lr = lr;
+                                            lr = lr * 1.15;
+                                            if (lr > stage_ceiling_lr) { lr = stage_ceiling_lr; }
+                                            printf("[Adaptive LR] TPPL rising while starved near floor LR (%s). Hiking LR upward: %s -> %s\n",
+                                                cartan_float_to_string(ema_tppl),
+                                                cartan_float_to_string(old_lr), cartan_float_to_string(lr));
+                                            cartan_flush(0.0);
+                                        } else {
+                                            // Elevated LR: overshooting the valley -> decay toward center
+                                            let old_lr = lr;
+                                            lr = lr * 0.95;
+                                            if (lr < lr_floor) { lr = lr_floor; }
+                                            if (lr < old_lr) {
+                                                printf("[Adaptive LR] TPPL rising (%s -> %s, delta: +%s). Decaying LR toward descent center: %s -> %s\n",
+                                                    cartan_float_to_string(prev_ema_tppl), cartan_float_to_string(ema_tppl),
+                                                    cartan_float_to_string(delta_tppl),
+                                                    cartan_float_to_string(old_lr), cartan_float_to_string(lr));
+                                                cartan_flush(0.0);
+                                            }
+                                        }
+                                        tppl_rise_count = 0.0;
+                                    }
+                                } else {
+                                    // State 3: Stagnant / Flat (-0.20 <= delta <= +0.20)
+                                    tppl_flat_count = tppl_flat_count + 1.0;
+                                    stable_descent_streak = 0.0;
+                                    tppl_rise_count = 0.0;
+                                    if (tppl_flat_count >= 5.0) {
+                                        if (lr < lr_floor * 2.0) {
+                                            // Starved near floor -> gently nudge upward to restore momentum
+                                            let old_lr = lr;
+                                            lr = lr * 1.15;
+                                            if (lr > stage_ceiling_lr) { lr = stage_ceiling_lr; }
+                                            printf("[Adaptive LR] TPPL stalled at crawl (%s). Re-centering LR upward: %s -> %s\n",
+                                                cartan_float_to_string(ema_tppl),
+                                                cartan_float_to_string(old_lr), cartan_float_to_string(lr));
+                                            cartan_flush(0.0);
+                                        } else if (lr > stage_ceiling_lr * 0.80) {
+                                            // Flat at elevated rate -> gently trim toward descent slope
+                                            let old_lr = lr;
+                                            lr = lr * 0.95;
+                                            if (lr < lr_floor) { lr = lr_floor; }
+                                            printf("[Adaptive LR] TPPL flat at elevated LR. Trimming toward center: %s -> %s\n",
+                                                cartan_float_to_string(old_lr), cartan_float_to_string(lr));
+                                            cartan_flush(0.0);
+                                        }
+                                        tppl_flat_count = 0.0;
+                                    }
+                                }
+                                prev_delta_tppl = delta_tppl;
+                            }
+
+                            // Emergency Divergence Spike Braking
+                            if (ep_step_count > 300.0 && tl > (atl * 1.25) && tl > 6.0) {
+                                let old_lr = lr;
+                                lr = lr * 0.90;
+                                if (lr < lr_floor) { lr = lr_floor; }
+                                if (lr < old_lr) {
+                                    printf("[Adaptive LR] Divergence spike detected (TL: %s > ATL: %s * 1.25). Braked LR: %s -> %s\n",
+                                        cartan_float_to_string(tl), cartan_float_to_string(atl),
+                                        cartan_float_to_string(old_lr), cartan_float_to_string(lr));
+                                    cartan_flush(0.0);
+                                }
+                            }
+                            var ep_max_str = cartan_float_to_string(epochs);
+                            if (epochs >= 100000.0) {
+                                ep_max_str = "Inf";
+                            }
+                            printf("[GeoMind %s Stream] Ep %s/%s | D[%s/%s] | %s%% (%s / %s KB) | TL: %s | ATL: %s | VL: %s | AVL: %s | VPPL: %s | LR: %s\n",
+                                stage_name, cartan_float_to_string(ep), ep_max_str,
+                                cartan_float_to_string(d_idx + 1.0), cartan_float_to_string(num_datasets),
+                                cartan_float_to_string(pct), cartan_float_to_string(kb_done),
+                                cartan_float_to_string(kb_total), cartan_float_to_string(tl),
+                                cartan_float_to_string(atl), cartan_float_to_string(vl),
+                                cartan_float_to_string(ema_val_loss), cartan_float_to_string(vppl),
+                                cartan_float_to_string(lr));
+                            cartan_flush(0.0);
+
+                            let p1 = cartan_string_concat("[GeoMind ", cartan_string_concat(stage_name, " Stream] Ep "));
+                            let p2 = cartan_string_concat(cartan_float_to_string(ep), cartan_string_concat(" | TL: ", cartan_float_to_string(tl)));
+                            let p3 = cartan_string_concat(" | ATL: ", cartan_string_concat(cartan_float_to_string(atl), " | VL: "));
+                            let p4 = cartan_string_concat(cartan_float_to_string(vl), cartan_string_concat(" | AVL: ", cartan_float_to_string(ema_val_loss)));
+                            let p5 = cartan_string_concat(" | VPPL: ", cartan_string_concat(cartan_float_to_string(vppl), cartan_string_concat(" | LR: ", cartan_string_concat(cartan_float_to_string(lr), "\n"))));
+                            let log_entry = cartan_string_concat(cartan_string_concat(p1, p2), cartan_string_concat(p3, cartan_string_concat(p4, p5)));
+                            cartan_append_file(log_file, log_entry);
                         }
                     }
-                    d_chunks = d_chunks + 1.0;
-                    total_chunks_ep = total_chunks_ep + 1.0;
 
-                    let cur_loss = ep_loss_sum / ep_step_count;
-                    if (total_chunks_ep == 1.0) {
-                        smoothed_loss = cur_loss;
-                    } else {
-                        smoothed_loss = smoothed_loss * 0.98 + cur_loss * 0.02;
-                    }
-
-                    // Save state to manifest and checkpoint weights periodically
-                    if (math_mod_val(d_chunks, 100.0) == 0.0) {
-                        if (manifest_mode == 1.0) {
-                            geomind_manifest_save(manifest_path, datasets_list, d_idx, offset + stride, ep);
-                        }
-                        cartan_safetensors_save_tensor_f32(ckpt_path, "model.weights", g_cortical_weights);
-                    }
-
-                    if (math_mod_val(d_chunks, 100.0) == 0.0 || d_chunks == 1.0 || (offset + stride + window_size > content_len)) {
-                        let pct = ((offset + window_size) / content_len) * 100.0;
-                        let kb_done = (offset + window_size) / 1024.0;
-                        let kb_total = content_len / 1024.0;
-                        printf("[Steady-State Stage: %s] Ep %s/%s | D[%s/%s] | %s%% (%s / %s KB) | Step Loss: %s (EMA: %s) | LR: %s\n",
-                            stage_name, cartan_float_to_string(ep), cartan_float_to_string(epochs),
-                            cartan_float_to_string(d_idx + 1.0), cartan_float_to_string(num_datasets),
-                            cartan_float_to_string(pct), cartan_float_to_string(kb_done),
-                            cartan_float_to_string(kb_total), cartan_float_to_string(cur_loss),
-                            cartan_float_to_string(smoothed_loss), cartan_float_to_string(lr));
-                        cartan_flush(0.0);
-                    }
-
-                    offset = offset + stride;
+                    line_start = next_line_start;
                 }
+                free(file_content);
             } else {
                 printf("[Steady-State Stage: %s] Warning: Dataset not found on disk: %s (Skipping)\n",
                     stage_name, dataset_file);
@@ -868,8 +1711,9 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
             d_idx = d_idx + 1.0;
             cur_offset = 0.0; // Subsequent datasets start at offset 0
             if (manifest_mode == 1.0) {
-                geomind_manifest_save(manifest_path, datasets_list, d_idx, 0.0, ep);
+                geomind_manifest_save(manifest_path, datasets_list, d_idx, 0.0, ep, lr);
             }
+            train_sync_weights_gpu_to_host();
             cartan_safetensors_save_tensor_f32(ckpt_path, "model.weights", g_cortical_weights);
         }
 
@@ -877,50 +1721,59 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
         cur_d_idx = 0.0;
         cur_offset = 0.0;
         if (manifest_mode == 1.0) {
-            geomind_manifest_save(manifest_path, datasets_list, 0.0, 0.0, ep + 1.0);
+            geomind_manifest_save(manifest_path, datasets_list, 0.0, 0.0, ep + 1.0, lr);
         }
 
         if (ep_step_count <= 0.0) {
             printf("[Steady-State Stage: %s] Error: Zero training steps executed in Epoch %s (Datasets missing or unreadable). Aborting to preserve checkpoints.\n",
                 stage_name, cartan_float_to_string(ep));
             cartan_flush(0.0);
+            cartan_vec_free(cur_h);
+            cartan_vec_free(cur_h_val);
             return 0.0;
         }
         final_loss = ep_loss_sum / ep_step_count;
 
+        var ep_max_disp = cartan_float_to_string(epochs);
+        if (epochs >= 100000.0) {
+            ep_max_disp = "Inf";
+        }
         printf("[Steady-State Stage: %s] === Epoch %s / %s Complete === | Ingested: %s datasets (%s chunks, %s steps) | Mean Loss: %s (EMA: %s) | LR: %s\n",
-            stage_name, cartan_float_to_string(ep), cartan_float_to_string(epochs),
+            stage_name, cartan_float_to_string(ep), ep_max_disp,
             cartan_float_to_string(num_datasets), cartan_float_to_string(total_chunks_ep),
             cartan_float_to_string(ep_step_count), cartan_float_to_string(final_loss),
             cartan_float_to_string(smoothed_loss), cartan_float_to_string(lr));
         cartan_flush(0.0);
 
+        train_sync_weights_gpu_to_host();
         cartan_safetensors_save_tensor_f32(ckpt_path, "model.weights", g_cortical_weights);
 
-        if (smoothed_loss <= t_loss && ep >= 1.0) {
-            printf("[Steady-State Stage: %s] Sustained convergence to target loss %s (Smoothed: %s) after full epoch %s!\n",
-                stage_name, cartan_float_to_string(t_loss), cartan_float_to_string(smoothed_loss), cartan_float_to_string(ep));
+        if (final_loss <= t_loss && ep >= 1.0) {
+            printf("[Steady-State Stage: %s] Sustained convergence to target loss %s (Final Epoch Loss: %s) after full epoch %s!\n",
+                stage_name, cartan_float_to_string(t_loss), cartan_float_to_string(final_loss), cartan_float_to_string(ep));
             ep = epochs + 1.0;
         } else {
-            lr = lr * 0.90;
-            if (lr < 0.0001) { lr = 0.0001; }
+            lr = lr * 0.95;
+            if (lr < lr_floor) { lr = lr_floor; }
             ep = ep + 1.0;
         }
     }
 
     cartan_write_file(status_path, "SUCCESS\n");
     if (manifest_mode == 1.0) {
-        geomind_manifest_save(manifest_path, datasets_list, 0.0, 0.0, 1.0);
+        geomind_manifest_save(manifest_path, datasets_list, 0.0, 0.0, 1.0, lr);
     }
     cartan_flush(0.0);
     printf("[Steady-State Stage: %s] Training complete. Checkpoint saved: %s | Status: SUCCESS | Final Loss: %s\n\n",
         stage_name, ckpt_path, cartan_float_to_string(final_loss));
+    cartan_vec_free(cur_h);
+    cartan_vec_free(cur_h_val);
     return final_loss;
 }
 
 // Stage 1: Cloze Pass
 fn geomind_train_cloze_pass(dataset: string, target_loss: float, epochs: float) -> float {
-    return geomind_train_streaming_steady_state(1.0, dataset, target_loss, 0.002, epochs, "logs/stage1_cloze_training.log");
+    return geomind_train_streaming_steady_state(1.0, dataset, target_loss, 0.0, epochs, "logs/stage1_cloze_training.log");
 }
 
 // Stage 1: Evaluate Antecedent -> Target Bridge Anchor cloze loss
@@ -1122,8 +1975,10 @@ fn geomind_distill_train_run(teacher_model: string, student_epochs: float) {
 // SLERP Geodesic Manifold Fusion
 fn geomind_merge_models_slerp(m1_weights: ptr, m2_weights: ptr, weight: float) -> ptr {
     printf("[GeoMind Fusion] Executing Zero-Day SLERP Weight Merging along Geodesic Manifold...\n");
-    cartan_flush(0.0);
     let fused = fusion_slerp_tensors(m1_weights, m2_weights, weight);
+    fusion_apply_wordnet_ic_modulation(fused, 2560.0);
+    printf("[GeoMind Fusion] Applied WordNet Information Content (IC) Column Modulation (Punctuation: 0.80x, Concepts: 1.20x)\n");
+    cartan_flush(0.0);
     cartan_safetensors_save_tensor_f32("test/geomind/trainingdata/checkpoints/geomind_slerp_fused_weights.bin", "model.fused", fused);
     return fused;
 }

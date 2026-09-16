@@ -87,6 +87,8 @@ double cartan_export_cartan_vec_get_f32(double* args);
 double cartan_export_cartan_vec_len(double* args);
 double cartan_export_cartan_vec_set_f32(double* args);
 double cartan_export_cartan_vec_pop_f32(double* args);
+double cartan_export_cartan_vec_clear(double* args);
+double cartan_export_cartan_vec_free(double* args);
 double cartan_export_cartan_queue_create(double* args);
 double cartan_export_cartan_queue_enqueue(double* args);
 double cartan_export_cartan_queue_dequeue(double* args);

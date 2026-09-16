@@ -415,6 +415,21 @@ fn cartan_vec_pop_f32(v_ptr: ptr) -> float {
     return val;
 }
 
+// Reset vector logical length to 0 without reallocating underlying memory
+fn cartan_vec_clear(v_ptr: ptr) -> float {
+    if (v_ptr == 0.0) { return 0.0; }
+    v_ptr[0] = 0.0;
+    return 0.0;
+}
+
+// Deallocate vector heap buffer back to OS
+fn cartan_vec_free(v_ptr: ptr) -> float {
+    if (v_ptr == 0.0) { return 0.0; }
+    if (cartan_c_is_tree(v_ptr) != 0.0) { return 0.0; }
+    free(v_ptr);
+    return 1.0;
+}
+
 fn cartan_queue_create() -> ptr {
     let q = malloc(16384.0);
     if (q == 0.0) { return 0.0; }

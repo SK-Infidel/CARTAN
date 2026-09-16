@@ -7,6 +7,7 @@
 
 include "math.cl";
 include "collections.cl";
+include "geom.cl";
 
 // Outer product of pre-synaptic vector (len M) and post-synaptic vector (len N)
 // Returns flattened row-major tensor of dimension M x N.
@@ -167,13 +168,15 @@ fn cartan_tensor_hebbian_update(pre: ptr, post: ptr, neuromodulator: float, lr: 
     var r = 0.0;
     while (r < pre_len) {
         let pre_val = cartan_vec_get_f32(pre, r);
+        let sub_r = math_mod_val(floor(r / 320.0), 8.0);
+        let g_r = geom_killing_form_dynkin_weight(sub_r);
         var c = 0.0;
         while (c < post_len) {
             let post_val = cartan_vec_get_f32(post, c);
             let idx = r * 2560.0 + c;
             let cur_w = cartan_vec_get_f32(g_cortical_weights, idx);
             let oja_term = alpha * (post_val * post_val) * cur_w;
-            let delta = eta * m * (pre_val * post_val - oja_term);
+            let delta = eta * m * (pre_val * post_val * g_r - oja_term);
             cartan_vec_set_f32(g_cortical_weights, idx, cur_w + delta);
             c = c + 1.0;
         }
@@ -190,8 +193,8 @@ fn cartan_hebbian_step_token(hidden_ptr: ptr, tok_id: float, neuromodulator: flo
     if (h_len > 2560.0) { h_len = 2560.0; }
     if (h_len == 0.0) { return 0.0; }
 
-    var target_idx = math_mod_val(tok_id, 2560.0);
-    if (target_idx < 0.0) { target_idx = 0.0; }
+    var target_idx = tok_id;
+    if (target_idx >= 2560.0 || target_idx < 0.0) { target_idx = 3.0; }
 
     var m = neuromodulator;
     if (m == 0.0) { m = 1.0; }
@@ -202,10 +205,12 @@ fn cartan_hebbian_step_token(hidden_ptr: ptr, tok_id: float, neuromodulator: flo
     var r = 0.0;
     while (r < h_len) {
         let pre_val = cartan_vec_get_f32(hidden_ptr, r);
+        let sub_r = math_mod_val(floor(r / 320.0), 8.0);
+        let g_r = geom_killing_form_dynkin_weight(sub_r);
         let post_val = 1.0;
         let idx = r * 2560.0 + target_idx;
         let cur_w = cartan_vec_get_f32(g_cortical_weights, idx);
-        let delta = eta * m * (pre_val * post_val - alpha * cur_w);
+        let delta = eta * m * (pre_val * post_val * g_r - alpha * cur_w);
         cartan_vec_set_f32(g_cortical_weights, idx, cur_w + delta);
         r = r + 1.0;
     }

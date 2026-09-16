@@ -1,0 +1,61 @@
+include "src/std/fs.cl";
+include "src/std/string.cl";
+include "src/std/tokenizer.cl";
+
+fn main() -> float {
+    printf("Initializing BPE trie...\n");
+    cartan_hub_init_bpe_trie_if_needed();
+
+    let content = cartan_read_file("test/geomind/trainingdata/mined_expanded_corpus_cloze_part01.txt");
+    if (content == 0.0) {
+        printf("Failed to read file!\n");
+        return 1.0;
+    }
+
+    let clen = cartan_string_length(content);
+    printf("Read %s bytes of training text.\n", cartan_float_to_string(clen));
+
+    var total_toks = 0.0;
+    var in_vocab = 0.0;
+    var out_vocab = 0.0;
+
+    var pos = 0.0;
+    var lines = 0.0;
+
+    while (pos < clen && lines < 200.0) {
+        var end_p = pos;
+        while (end_p < clen && cartan_byte_at(content, end_p) != 10.0) {
+            end_p = end_p + 1.0;
+        }
+        let line = cartan_string_substring(content, pos, end_p);
+        if (cartan_string_length(line) > 0.0) {
+            let toks = cartan_hub_encode_text_to_tokens(line);
+            let n = toks[0];
+            var i = 0.0;
+            while (i < n) {
+                let t_id = toks[2.0 + i];
+                total_toks = total_toks + 1.0;
+                if (t_id >= 0.0 && t_id < 2560.0) {
+                    in_vocab = in_vocab + 1.0;
+                } else {
+                    out_vocab = out_vocab + 1.0;
+                }
+                i = i + 1.0;
+            }
+            cartan_vec_free(toks);
+            lines = lines + 1.0;
+        }
+        free(line);
+        pos = end_p + 1.0;
+    }
+
+    let in_pct = (in_vocab * 100.0) / total_toks;
+    let out_pct = (out_vocab * 100.0) / total_toks;
+
+    printf("Analysis of 200 lines:\n");
+    printf("Total tokens: %s\n", cartan_float_to_string(total_toks));
+    printf("In-vocab (< 2560): %s (%s%%)\n", cartan_float_to_string(in_vocab), cartan_float_to_string(in_pct));
+    printf("Out-of-vocab (>= 2560): %s (%s%%)\n", cartan_float_to_string(out_vocab), cartan_float_to_string(out_pct));
+
+    return 0.0;
+}

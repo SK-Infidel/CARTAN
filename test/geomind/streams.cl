@@ -4,16 +4,18 @@
 
 include "../../src/std/math.cl";
 include "../../src/std/collections.cl";
+include "../../src/std/geom.cl";
 
 // Stream 0: SO(16) Cosformer Linear Attention Stream
 fn stream_cosformer_process(x: ptr, dim: float) -> ptr {
     if (x == 0.0 || dim <= 0.0) { return x; }
     let out = cartan_vec_create();
+    let kw = geom_killing_form_dynkin_weight(0.0);
     var i = 0.0;
     while (i < dim) {
         let val = cartan_vec_get_f32(x, i);
-        // Linear causal cosine attention modulation
-        let cos_mod = cos(i * 0.05) * 0.25 + 0.75;
+        // Linear causal cosine attention modulation with Killing metric
+        let cos_mod = cos(i * 0.05 * kw) * 0.25 + 0.75;
         cartan_vec_push_f32(out, val * cos_mod);
         i = i + 1.0;
     }
@@ -24,13 +26,15 @@ fn stream_cosformer_process(x: ptr, dim: float) -> ptr {
 fn stream_ssm_process(x: ptr, dim: float) -> ptr {
     if (x == 0.0 || dim <= 0.0) { return x; }
     let out = cartan_vec_create();
+    let kw = geom_killing_form_dynkin_weight(1.0);
     var running_state = 0.0;
     var i = 0.0;
     while (i < dim) {
         let val = cartan_vec_get_f32(x, i);
+        let ssm_mod = sin(i * 0.0314 * kw) * 0.20 + 0.80;
         // Continuous selective state-space integration (A = 0.85, B = 0.15)
         running_state = running_state * 0.85 + val * 0.15;
-        let ssm_out = running_state * 1.1 + val * 0.5;
+        let ssm_out = (running_state * 1.1 + val * 0.5) * ssm_mod;
         cartan_vec_push_f32(out, ssm_out);
         i = i + 1.0;
     }
@@ -41,11 +45,12 @@ fn stream_ssm_process(x: ptr, dim: float) -> ptr {
 fn stream_spectral_process(x: ptr, dim: float) -> ptr {
     if (x == 0.0 || dim <= 0.0) { return x; }
     let out = cartan_vec_create();
+    let kw = geom_killing_form_dynkin_weight(2.0);
     var i = 0.0;
     while (i < dim) {
         let val = cartan_vec_get_f32(x, i);
         // Harmonic spectral frequency filter (DFT modulation)
-        let harmonic = sin((i + 1.0) * 0.1) * 0.7071;
+        let harmonic = sin((i + 1.0) * 0.1 * kw) * 0.7071;
         cartan_vec_push_f32(out, val * harmonic + val * 0.5);
         i = i + 1.0;
     }
@@ -56,23 +61,24 @@ fn stream_spectral_process(x: ptr, dim: float) -> ptr {
 fn stream_poincare_process(x: ptr, dim: float) -> ptr {
     if (x == 0.0 || dim <= 0.0) { return x; }
     let out = cartan_vec_create();
-    // Compute norm squared in Poincare ball
+    let kw = geom_killing_form_dynkin_weight(3.0);
+    // Compute norm squared on Riemannian manifold
     var norm_sq = 0.0;
     var i = 0.0;
     while (i < dim) {
         let val = cartan_vec_get_f32(x, i);
-        norm_sq = norm_sq + val * val;
+        norm_sq = norm_sq + (val * val) * kw;
         i = i + 1.0;
     }
     // Poincare conformal metric scale: 2 / (1 - ||u||^2)
-    var denom = 1.0 - norm_sq * 0.001;
-    if (denom < 0.1) { denom = 0.1; }
-    let hyp_scale = 1.0 / denom;
+    var u_sq = norm_sq * 0.001;
+    if (u_sq > 0.90) { u_sq = 0.90; }
+    let hyp_scale = 2.0 / (1.0 - u_sq);
     
     i = 0.0;
     while (i < dim) {
         let val = cartan_vec_get_f32(x, i);
-        cartan_vec_push_f32(out, val * hyp_scale * 0.5);
+        cartan_vec_push_f32(out, tanh(val * 0.5) * (0.8 + 0.2 * hyp_scale));
         i = i + 1.0;
     }
     return out;
@@ -82,12 +88,13 @@ fn stream_poincare_process(x: ptr, dim: float) -> ptr {
 fn stream_homology_process(x: ptr, dim: float) -> ptr {
     if (x == 0.0 || dim <= 0.0) { return x; }
     let out = cartan_vec_create();
+    let kw = geom_killing_form_dynkin_weight(4.0);
     var i = 0.0;
     while (i < dim) {
         let val = cartan_vec_get_f32(x, i);
         // Topological 3-node simplicial complex loop density
-        let loop_density = val * val * val * 0.05;
-        cartan_vec_push_f32(out, val + loop_density);
+        let loop_density = val * val * val * 0.02 * kw;
+        cartan_vec_push_f32(out, val * 0.9 + loop_density + sin(val * 2.0) * 0.1);
         i = i + 1.0;
     }
     return out;
@@ -97,20 +104,22 @@ fn stream_homology_process(x: ptr, dim: float) -> ptr {
 fn stream_eikonal_process(x: ptr, dim: float) -> ptr {
     if (x == 0.0 || dim <= 0.0) { return x; }
     let out = cartan_vec_create();
+    let kw = geom_killing_form_dynkin_weight(5.0);
     var speed_sq = 0.0;
     var i = 0.0;
     while (i < dim) {
         let val = cartan_vec_get_f32(x, i);
-        speed_sq = speed_sq + val * val;
+        speed_sq = speed_sq + (val * val) * kw;
         i = i + 1.0;
     }
-    // Eikonal ray optical travel time factor
-    let travel_factor = 1.0 / (1.0 + speed_sq * 0.005);
+    var a = speed_sq * 0.01 + 0.1;
+    if (a < 0.001) { a = 0.001; }
+    let travel = sqrt(a);
     
     i = 0.0;
     while (i < dim) {
         let val = cartan_vec_get_f32(x, i);
-        cartan_vec_push_f32(out, val * travel_factor);
+        cartan_vec_push_f32(out, travel * 0.8 + val * 0.2);
         i = i + 1.0;
     }
     return out;
@@ -120,10 +129,11 @@ fn stream_eikonal_process(x: ptr, dim: float) -> ptr {
 fn stream_heat_kernel_process(x: ptr, dim: float) -> ptr {
     if (x == 0.0 || dim <= 0.0) { return x; }
     let out = cartan_vec_create();
+    let kw = geom_killing_form_dynkin_weight(6.0);
     var i = 0.0;
     while (i < dim) {
         let val = cartan_vec_get_f32(x, i);
-        let laplacian = val * 0.5;
+        let laplacian = val * 0.5 * kw;
         // Heat diffusion: Y = x - 0.1 * L + 0.005 * L^2
         let diffusion = val - (laplacian * 0.1) + (laplacian * laplacian * 0.005);
         cartan_vec_push_f32(out, diffusion);
@@ -136,12 +146,13 @@ fn stream_heat_kernel_process(x: ptr, dim: float) -> ptr {
 fn stream_triality_process(x: ptr, dim: float) -> ptr {
     if (x == 0.0 || dim <= 0.0) { return x; }
     let out = cartan_vec_create();
+    let kw = geom_killing_form_dynkin_weight(7.0);
     var i = 0.0;
     while (i < dim) {
         let t1 = cartan_vec_get_f32(x, i);
         let t2 = t1 * 0.8660254; // cos(30 deg)
         let t3 = t2 * -0.5;      // cyclic symplectic phase
-        let triality_fused = (t1 + t2 + t3) * 0.75;
+        let triality_fused = (t1 + t2 + t3) * (0.75 + 0.05 * cos(i * 1.047));
         cartan_vec_push_f32(out, triality_fused);
         i = i + 1.0;
     }
@@ -202,81 +213,91 @@ fn geomind_streams_manifold_forward(x: ptr, mix: float) -> ptr {
     let out = cartan_vec_create();
 
     // Stream 0: SO(16) Cosformer (0..319)
+    let kw0 = geom_killing_form_dynkin_weight(0.0);
     var i = 0.0;
     while (i < 320.0) {
         let v = cartan_vec_get_f32(x, i);
-        let cos_mod = cos(i * 0.05) * 0.25 + 0.75;
+        let cos_mod = cos(i * 0.05 * kw0) * 0.25 + 0.75;
         let trans = v * cos_mod;
         cartan_vec_push_f32(out, (1.0 - m) * v + m * trans);
         i = i + 1.0;
     }
 
     // Stream 1: E7 x SU(2) SSM (320..639)
+    let kw1 = geom_killing_form_dynkin_weight(1.0);
     var ssm_state = 0.0;
     while (i < 640.0) {
         let v = cartan_vec_get_f32(x, i);
+        let ssm_mod = sin(i * 0.0314 * kw1) * 0.20 + 0.80;
         ssm_state = ssm_state * 0.85 + v * 0.15;
-        let ssm_out = ssm_state * 1.1 + v * 0.5;
+        let ssm_out = (ssm_state * 1.1 + v * 0.5) * ssm_mod;
         cartan_vec_push_f32(out, (1.0 - m) * v + m * ssm_out);
         i = i + 1.0;
     }
 
     // Stream 2: E6 x SU(3) Spectral (640..959)
+    let kw2 = geom_killing_form_dynkin_weight(2.0);
     while (i < 960.0) {
         let v = cartan_vec_get_f32(x, i);
-        let harmonic = sin((i + 1.0) * 0.1) * 0.7071;
+        let harmonic = sin((i + 1.0) * 0.1 * kw2) * 0.7071;
         let spec_out = v * harmonic + v * 0.5;
         cartan_vec_push_f32(out, (1.0 - m) * v + m * spec_out);
         i = i + 1.0;
     }
 
     // Stream 3: SU(9) Poincare (960..1279)
+    let kw3 = geom_killing_form_dynkin_weight(3.0);
     var norm_sq = 0.0;
     var k = 960.0;
     while (k < 1280.0) {
         let val = cartan_vec_get_f32(x, k);
-        norm_sq = norm_sq + (val * val);
+        norm_sq = norm_sq + (val * val) * kw3;
         k = k + 1.0;
     }
-    var denom = 1.0 - norm_sq * 0.001;
-    if (denom < 0.1) { denom = 0.1; }
-    let hyp_scale = 1.0 / denom;
+    var u_sq = norm_sq * 0.001;
+    if (u_sq > 0.90) { u_sq = 0.90; }
+    let hyp_scale = 2.0 / (1.0 - u_sq);
     while (i < 1280.0) {
         let v = cartan_vec_get_f32(x, i);
-        let poincare_out = v * hyp_scale * 0.5;
+        let poincare_out = tanh(v * 0.5) * (0.8 + 0.2 * hyp_scale);
         cartan_vec_push_f32(out, (1.0 - m) * v + m * poincare_out);
         i = i + 1.0;
     }
 
     // Stream 4: F4 x G2 Homology (1280..1599)
+    let kw4 = geom_killing_form_dynkin_weight(4.0);
     while (i < 1600.0) {
         let v = cartan_vec_get_f32(x, i);
-        let loop_density = v * v * v * 0.05;
-        let hom_out = v + loop_density;
+        let loop_density = v * v * v * 0.02 * kw4;
+        let hom_out = v * 0.9 + loop_density + sin(v * 2.0) * 0.1;
         cartan_vec_push_f32(out, (1.0 - m) * v + m * hom_out);
         i = i + 1.0;
     }
 
     // Stream 5: SO(10) x SU(4) Eikonal (1600..1919)
+    let kw5 = geom_killing_form_dynkin_weight(5.0);
     var speed_sq = 0.0;
     k = 1600.0;
     while (k < 1920.0) {
         let val = cartan_vec_get_f32(x, k);
-        speed_sq = speed_sq + (val * val);
+        speed_sq = speed_sq + (val * val) * kw5;
         k = k + 1.0;
     }
-    let travel_factor = 1.0 / (1.0 + speed_sq * 0.005);
+    var a = speed_sq * 0.01 + 0.1;
+    if (a < 0.001) { a = 0.001; }
+    let travel = sqrt(a);
     while (i < 1920.0) {
         let v = cartan_vec_get_f32(x, i);
-        let eik_out = v * travel_factor;
+        let eik_out = travel * 0.8 + v * 0.2;
         cartan_vec_push_f32(out, (1.0 - m) * v + m * eik_out);
         i = i + 1.0;
     }
 
     // Stream 6: SU(5) x SU(5) Heat Kernel (1920..2239)
+    let kw6 = geom_killing_form_dynkin_weight(6.0);
     while (i < 2240.0) {
         let v = cartan_vec_get_f32(x, i);
-        let laplacian = v * 0.5;
+        let laplacian = v * 0.5 * kw6;
         let diff_out = v - (laplacian * 0.1) + (laplacian * laplacian * 0.005);
         cartan_vec_push_f32(out, (1.0 - m) * v + m * diff_out);
         i = i + 1.0;
@@ -287,7 +308,7 @@ fn geomind_streams_manifold_forward(x: ptr, mix: float) -> ptr {
         let t1 = cartan_vec_get_f32(x, i);
         let t2 = t1 * 0.8660254;
         let t3 = t2 * -0.5;
-        let tri_out = (t1 + t2 + t3) * 0.75;
+        let tri_out = (t1 + t2 + t3) * (0.75 + 0.05 * cos(i * 1.047));
         cartan_vec_push_f32(out, (1.0 - m) * t1 + m * tri_out);
         i = i + 1.0;
     }
@@ -304,144 +325,152 @@ fn geomind_streams_layer_step(x: ptr, layer_idx: float) -> ptr {
 
 fn geomind_streams_manifold_forward_routed(x: ptr, weights: ptr) -> ptr {
     if (x == 0.0) { return x; }
-    let len = cartan_vec_len(x);
+    let len = x[0];
     if (len < 2560.0) {
         return geomind_multistream_forward(x, -1.0);
     }
-    let out = cartan_vec_create();
-
     // Stream 0: SO(16) Cosformer (0..319)
+    let kw0 = geom_killing_form_dynkin_weight(0.0);
     var w0 = 0.125;
-    if (weights != 0.0 && cartan_vec_len(weights) >= 8.0) { w0 = cartan_vec_get_f32(weights, 0.0); }
+    if (weights != 0.0 && weights[0] >= 8.0) { w0 = weights[2.0]; }
     var m0 = 0.10 * (8.0 * w0);
     if (m0 < 0.02) { m0 = 0.02; }
     if (m0 > 0.65) { m0 = 0.65; }
     var i = 0.0;
     while (i < 320.0) {
-        let v = cartan_vec_get_f32(x, i);
-        let cos_mod = cos(i * 0.05) * 0.25 + 0.75;
+        let v = x[2.0 + i];
+        let cos_mod = cos(i * 0.05 * kw0) * 0.25 + 0.75;
         let trans = v * cos_mod;
-        cartan_vec_push_f32(out, (1.0 - m0) * v + m0 * trans);
+        x[2.0 + i] = (1.0 - m0) * v + m0 * trans;
         i = i + 1.0;
     }
 
     // Stream 1: E7 x SU(2) SSM (320..639)
+    let kw1 = geom_killing_form_dynkin_weight(1.0);
     var w1 = 0.125;
-    if (weights != 0.0 && cartan_vec_len(weights) >= 8.0) { w1 = cartan_vec_get_f32(weights, 1.0); }
+    if (weights != 0.0 && weights[0] >= 8.0) { w1 = weights[2.0 + 1.0]; }
     var m1 = 0.10 * (8.0 * w1);
     if (m1 < 0.02) { m1 = 0.02; }
     if (m1 > 0.65) { m1 = 0.65; }
     var ssm_state = 0.0;
     while (i < 640.0) {
-        let v = cartan_vec_get_f32(x, i);
+        let v = x[2.0 + i];
+        let ssm_mod = sin(i * 0.0314 * kw1) * 0.20 + 0.80;
         ssm_state = ssm_state * 0.85 + v * 0.15;
-        let ssm_out = ssm_state * 1.1 + v * 0.5;
-        cartan_vec_push_f32(out, (1.0 - m1) * v + m1 * ssm_out);
+        let ssm_out = (ssm_state * 1.1 + v * 0.5) * ssm_mod;
+        x[2.0 + i] = (1.0 - m1) * v + m1 * ssm_out;
         i = i + 1.0;
     }
 
     // Stream 2: E6 x SU(3) Spectral (640..959)
+    let kw2 = geom_killing_form_dynkin_weight(2.0);
     var w2 = 0.125;
-    if (weights != 0.0 && cartan_vec_len(weights) >= 8.0) { w2 = cartan_vec_get_f32(weights, 2.0); }
+    if (weights != 0.0 && weights[0] >= 8.0) { w2 = weights[2.0 + 2.0]; }
     var m2 = 0.10 * (8.0 * w2);
     if (m2 < 0.02) { m2 = 0.02; }
     if (m2 > 0.65) { m2 = 0.65; }
     while (i < 960.0) {
-        let v = cartan_vec_get_f32(x, i);
-        let harmonic = sin((i + 1.0) * 0.1) * 0.7071;
+        let v = x[2.0 + i];
+        let harmonic = sin((i + 1.0) * 0.1 * kw2) * 0.7071;
         let spec_out = v * harmonic + v * 0.5;
-        cartan_vec_push_f32(out, (1.0 - m2) * v + m2 * spec_out);
+        x[2.0 + i] = (1.0 - m2) * v + m2 * spec_out;
         i = i + 1.0;
     }
 
     // Stream 3: SU(9) Poincare (960..1279)
+    let kw3 = geom_killing_form_dynkin_weight(3.0);
     var w3 = 0.125;
-    if (weights != 0.0 && cartan_vec_len(weights) >= 8.0) { w3 = cartan_vec_get_f32(weights, 3.0); }
+    if (weights != 0.0 && weights[0] >= 8.0) { w3 = weights[2.0 + 3.0]; }
     var m3 = 0.10 * (8.0 * w3);
     if (m3 < 0.02) { m3 = 0.02; }
     if (m3 > 0.65) { m3 = 0.65; }
     var norm_sq = 0.0;
     var k = 960.0;
     while (k < 1280.0) {
-        let val = cartan_vec_get_f32(x, k);
-        norm_sq = norm_sq + (val * val);
+        let val = x[2.0 + k];
+        norm_sq = norm_sq + (val * val) * kw3;
         k = k + 1.0;
     }
-    var denom = 1.0 - norm_sq * 0.001;
-    if (denom < 0.1) { denom = 0.1; }
-    let hyp_scale = 1.0 / denom;
+    var u_sq = norm_sq * 0.001;
+    if (u_sq > 0.90) { u_sq = 0.90; }
+    let hyp_scale = 2.0 / (1.0 - u_sq);
     while (i < 1280.0) {
-        let v = cartan_vec_get_f32(x, i);
-        let poincare_out = v * hyp_scale * 0.5;
-        cartan_vec_push_f32(out, (1.0 - m3) * v + m3 * poincare_out);
+        let v = x[2.0 + i];
+        let poincare_out = tanh(v * 0.5) * (0.8 + 0.2 * hyp_scale);
+        x[2.0 + i] = (1.0 - m3) * v + m3 * poincare_out;
         i = i + 1.0;
     }
 
     // Stream 4: F4 x G2 Homology (1280..1599)
+    let kw4 = geom_killing_form_dynkin_weight(4.0);
     var w4 = 0.125;
-    if (weights != 0.0 && cartan_vec_len(weights) >= 8.0) { w4 = cartan_vec_get_f32(weights, 4.0); }
+    if (weights != 0.0 && weights[0] >= 8.0) { w4 = weights[2.0 + 4.0]; }
     var m4 = 0.10 * (8.0 * w4);
     if (m4 < 0.02) { m4 = 0.02; }
     if (m4 > 0.65) { m4 = 0.65; }
     while (i < 1600.0) {
-        let v = cartan_vec_get_f32(x, i);
-        let loop_density = v * v * v * 0.05;
-        let hom_out = v + loop_density;
-        cartan_vec_push_f32(out, (1.0 - m4) * v + m4 * hom_out);
+        let v = x[2.0 + i];
+        let loop_density = v * v * v * 0.02 * kw4;
+        let hom_out = v * 0.9 + loop_density + sin(v * 2.0) * 0.1;
+        x[2.0 + i] = (1.0 - m4) * v + m4 * hom_out;
         i = i + 1.0;
     }
 
     // Stream 5: SO(10) x SU(4) Eikonal (1600..1919)
+    let kw5 = geom_killing_form_dynkin_weight(5.0);
     var w5 = 0.125;
-    if (weights != 0.0 && cartan_vec_len(weights) >= 8.0) { w5 = cartan_vec_get_f32(weights, 5.0); }
+    if (weights != 0.0 && weights[0] >= 8.0) { w5 = weights[2.0 + 5.0]; }
     var m5 = 0.10 * (8.0 * w5);
     if (m5 < 0.02) { m5 = 0.02; }
     if (m5 > 0.65) { m5 = 0.65; }
     var speed_sq = 0.0;
     k = 1600.0;
     while (k < 1920.0) {
-        let val = cartan_vec_get_f32(x, k);
-        speed_sq = speed_sq + (val * val);
+        let val = x[2.0 + k];
+        speed_sq = speed_sq + (val * val) * kw5;
         k = k + 1.0;
     }
-    let travel_factor = 1.0 / (1.0 + speed_sq * 0.005);
+    var a = speed_sq * 0.01 + 0.1;
+    if (a < 0.001) { a = 0.001; }
+    let travel = sqrt(a);
     while (i < 1920.0) {
-        let v = cartan_vec_get_f32(x, i);
-        let eik_out = v * travel_factor;
-        cartan_vec_push_f32(out, (1.0 - m5) * v + m5 * eik_out);
+        let v = x[2.0 + i];
+        let eik_out = travel * 0.8 + v * 0.2;
+        x[2.0 + i] = (1.0 - m5) * v + m5 * eik_out;
         i = i + 1.0;
     }
 
     // Stream 6: SU(5) x SU(5) Heat Kernel (1920..2239)
+    let kw6 = geom_killing_form_dynkin_weight(6.0);
     var w6 = 0.125;
-    if (weights != 0.0 && cartan_vec_len(weights) >= 8.0) { w6 = cartan_vec_get_f32(weights, 6.0); }
+    if (weights != 0.0 && weights[0] >= 8.0) { w6 = weights[2.0 + 6.0]; }
     var m6 = 0.10 * (8.0 * w6);
     if (m6 < 0.02) { m6 = 0.02; }
     if (m6 > 0.65) { m6 = 0.65; }
     while (i < 2240.0) {
-        let v = cartan_vec_get_f32(x, i);
-        let laplacian = v * 0.5;
+        let v = x[2.0 + i];
+        let laplacian = v * 0.5 * kw6;
         let diff_out = v - (laplacian * 0.1) + (laplacian * laplacian * 0.005);
-        cartan_vec_push_f32(out, (1.0 - m6) * v + m6 * diff_out);
+        x[2.0 + i] = (1.0 - m6) * v + m6 * diff_out;
         i = i + 1.0;
     }
 
     // Stream 7: SU(3)^3 Triality (2240..2559)
     var w7 = 0.125;
-    if (weights != 0.0 && cartan_vec_len(weights) >= 8.0) { w7 = cartan_vec_get_f32(weights, 7.0); }
+    if (weights != 0.0 && weights[0] >= 8.0) { w7 = weights[2.0 + 7.0]; }
     var m7 = 0.10 * (8.0 * w7);
     if (m7 < 0.02) { m7 = 0.02; }
     if (m7 > 0.65) { m7 = 0.65; }
     while (i < 2560.0) {
-        let t1 = cartan_vec_get_f32(x, i);
+        let t1 = x[2.0 + i];
         let t2 = t1 * 0.8660254;
         let t3 = t2 * -0.5;
-        let tri_out = (t1 + t2 + t3) * 0.75;
-        cartan_vec_push_f32(out, (1.0 - m7) * t1 + m7 * tri_out);
+        let tri_out = (t1 + t2 + t3) * (0.75 + 0.05 * cos(i * 1.047));
+        x[2.0 + i] = (1.0 - m7) * t1 + m7 * tri_out;
         i = i + 1.0;
     }
 
-    return out;
+    return x;
 }
 
 fn geomind_streams_layer_step_routed(x: ptr, weights: ptr) -> ptr {

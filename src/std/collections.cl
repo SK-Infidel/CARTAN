@@ -9,6 +9,8 @@ extern fn cartan_vec_get_f32(v: ptr, idx: float) -> float;
 extern fn cartan_vec_set_f32(v: ptr, idx: float, val: float) -> float;
 extern fn cartan_vec_len(v: ptr) -> float;
 extern fn cartan_vec_pop_f32(v: ptr) -> float;
+extern fn cartan_vec_clear(v: ptr) -> float;
+extern fn cartan_vec_free(v: ptr) -> float;
 extern fn cartan_queue_create() -> ptr;
 extern fn cartan_queue_enqueue(q: ptr, val: float) -> float;
 extern fn cartan_queue_dequeue(q: ptr) -> float;

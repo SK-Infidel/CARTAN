@@ -5,6 +5,7 @@ include "src/std/ingest.cl";
 include "src/std/tokenizer.cl";
 include "src/std/tensor.cl";
 include "src/std/collections.cl";
+include "src/std/fs.cl";
 
 struct SafetensorTensor {
     name: string;
@@ -163,16 +164,17 @@ fn cartan_safetensors_save_tensor_f32(path: string, name: string, t_data: ptr) -
     if (count <= 0.0) { return 0.0; }
     let f = fopen(path, "wb");
     if (f == 0.0) { return 0.0; }
-    let buf = cartan_f32_buffer_alloc(count);
+    let buf = malloc(count * 8.0);
+    if (buf == 0.0) { fclose(f); return 0.0; }
     var i = 0.0;
     while (i < count) {
         let val = cartan_vec_get_f32(t_data, i);
-        cartan_f32_buffer_set(buf, i, val);
+        buf[i] = val;
         i = i + 1.0;
     }
     fwrite(buf, 8.0, count, f);
     fclose(f);
-    cartan_f32_buffer_free(buf);
+    free(buf);
     return 1.0;
 }
 
@@ -182,17 +184,36 @@ fn cartan_safetensors_load_raw_tensor_f32(path: string, num_elements: float) -> 
     if (f == 0.0) { return 0.0; }
     let t_out = cartan_tensor_alloc(num_elements);
     if (t_out == 0.0) { fclose(f); return 0.0; }
-    let buf = cartan_f32_buffer_alloc(num_elements);
-    if (buf == 0.0) { fclose(f); return t_out; }
-    fread(buf, 8.0, num_elements, f);
-    fclose(f);
-    var i = 0.0;
-    while (i < num_elements) {
-        let val = cartan_f32_buffer_get(buf, i);
-        cartan_vec_set_f32(t_out, i, val);
-        i = i + 1.0;
+    fseek(f, 0.0, 2.0); // SEEK_END
+    let file_sz = ftell(f);
+    fseek(f, 0.0, 0.0); // SEEK_SET
+
+    if (file_sz >= num_elements * 8.0) {
+        let buf = malloc(num_elements * 8.0);
+        if (buf == 0.0) { fclose(f); return t_out; }
+        fread(buf, 8.0, num_elements, f);
+        fclose(f);
+        var i = 0.0;
+        while (i < num_elements) {
+            let val = buf[i];
+            cartan_vec_set_f32(t_out, i, val);
+            i = i + 1.0;
+        }
+        free(buf);
+        return t_out;
     }
-    cartan_f32_buffer_free(buf);
+
+    let buf_f32 = cartan_f32_buffer_alloc(num_elements);
+    if (buf_f32 == 0.0) { fclose(f); return t_out; }
+    fread(buf_f32, 4.0, num_elements, f);
+    fclose(f);
+    var j = 0.0;
+    while (j < num_elements) {
+        let val = cartan_f32_buffer_get(buf_f32, j);
+        cartan_vec_set_f32(t_out, j, val);
+        j = j + 1.0;
+    }
+    cartan_f32_buffer_free(buf_f32);
     return t_out;
 }
 

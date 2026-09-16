@@ -1,6 +1,7 @@
 // test/geomind/main.cl
 // GeoMind Unified Multi-Phase Model Driver
 
+include "src/std/geom.cl";
 include "test/geomind/geometry.cl";
 include "test/geomind/ode_solver.cl";
 include "test/geomind/ising_state_machine.cl";
@@ -55,13 +56,16 @@ fn print_help_dialogue() -> float {
     printf("  --train-webgpu  Run pure native CARTAN WebGPU Causal Training Engine\n");
     printf("  --help, -h      Display this help dialogue and exit\n\n");
     printf("Training & Optimization Flags (Optional - All have calibrated defaults):\n");
-    printf("  -epochs <num>        Full dataset passes / epochs (Default: 3.0)\n");
+    printf("  -training-loss <float>, -target-loss, -tl, -loss: Target loss stopping threshold\n");
+    printf("                       Default: 3.80 Cloze, 3.00 CE, 2.00 SFT. Training runs continuously\n");
+    printf("                       across unlimited epochs until reaching this loss (no 3-epoch cutoff).\n");
+    printf("  -epochs <num>, -ep   Optional maximum epoch ceiling (Default: Unlimited until target loss reached)\n");
     printf("                       Each epoch traverses 100%% of the dataset corpus from start to finish.\n");
-    printf("  -target-loss <float> Early stopping loss threshold (Default: 4.20 Cloze, 3.00 CE, 2.00 SFT)\n");
     printf("  -lr <float>          Starting base learning rate ceiling (Default: 0.001)\n");
     printf("                       Omitting -lr uses the optimal default: starts at 0.001,\n");
     printf("                       decays 0.90/epoch to 0.0001 floor. Never exceeds this ceiling.\n");
     printf("  -target <file>       Explicit dataset file path on disk (Defaults to stage corpus)\n");
+    printf("  -stride <bytes>      Sliding curriculum stride in bytes (Default: 2048 Cloze, 1024 CE)\n");
     printf("  -manifest <file>     Multi-dataset JSON manifest path (Default: test/geomind/trainingdata/corpus.json)\n");
     printf("  -reset-manifest      Reset manifest position to dataset 0, offset 0.0, epoch 1.0\n\n");
     printf("Targeting & Multimodal Flags:\n");
@@ -80,11 +84,74 @@ fn print_help_dialogue() -> float {
     return 0.0;
 }
 
+// Validate pre-training mode flags and aliases
+fn is_pre_mode(flag: string) -> float {
+    if (cartan_string_eq(flag, "--train-pre") == 1.0 ||
+        cartan_string_eq(flag, "-train-pre") == 1.0 ||
+        cartan_string_eq(flag, "train-pre") == 1.0 ||
+        cartan_string_eq(flag, "--pre") == 1.0 ||
+        cartan_string_eq(flag, "-pre") == 1.0 ||
+        cartan_string_eq(flag, "pre") == 1.0) {
+        return 1.0;
+    }
+    return 0.0;
+}
+
+// Validate cloze curriculum mode flags and aliases
+fn is_cloze_mode(flag: string) -> float {
+    if (cartan_string_eq(flag, "--train-cloze") == 1.0 ||
+        cartan_string_eq(flag, "-train-cloze") == 1.0 ||
+        cartan_string_eq(flag, "train-cloze") == 1.0 ||
+        cartan_string_eq(flag, "--cloze") == 1.0 ||
+        cartan_string_eq(flag, "-cloze") == 1.0 ||
+        cartan_string_eq(flag, "cloze") == 1.0) {
+        return 1.0;
+    }
+    return 0.0;
+}
+
+// Validate cross-entropy mode flags and aliases
+fn is_ce_mode(flag: string) -> float {
+    if (cartan_string_eq(flag, "--train-ce") == 1.0 ||
+        cartan_string_eq(flag, "-train-ce") == 1.0 ||
+        cartan_string_eq(flag, "train-ce") == 1.0 ||
+        cartan_string_eq(flag, "--ce") == 1.0 ||
+        cartan_string_eq(flag, "-ce") == 1.0 ||
+        cartan_string_eq(flag, "ce") == 1.0) {
+        return 1.0;
+    }
+    return 0.0;
+}
+
+// Validate supervised fine-tuning mode flags and aliases
+fn is_sft_mode(flag: string) -> float {
+    if (cartan_string_eq(flag, "--train-sft") == 1.0 ||
+        cartan_string_eq(flag, "-train-sft") == 1.0 ||
+        cartan_string_eq(flag, "train-sft") == 1.0 ||
+        cartan_string_eq(flag, "--sft") == 1.0 ||
+        cartan_string_eq(flag, "-sft") == 1.0 ||
+        cartan_string_eq(flag, "sft") == 1.0) {
+        return 1.0;
+    }
+    return 0.0;
+}
+
+// Retrieve string CLI parameter value matching single or double dash
 fn get_cli_param(flag_name: string, arg_count: float) -> string {
     var i = 1.0;
     while (i < arg_count) {
         let arg = sys_get_arg(i);
-        if (cartan_string_eq(arg, flag_name) == 1.0 && (i + 1.0) < arg_count) {
+        var is_matched = 0.0;
+        if (cartan_string_eq(arg, flag_name) == 1.0) {
+            is_matched = 1.0;
+        }
+        if (is_matched == 0.0 && cartan_string_starts_with(flag_name, "-") == 1.0) {
+            let dbl = cartan_string_concat("-", flag_name);
+            if (cartan_string_eq(arg, dbl) == 1.0) {
+                is_matched = 1.0;
+            }
+        }
+        if (is_matched == 1.0 && (i + 1.0) < arg_count) {
             return sys_get_arg(i + 1.0);
         }
         i = i + 1.0;
@@ -92,12 +159,19 @@ fn get_cli_param(flag_name: string, arg_count: float) -> string {
     return "";
 }
 
+// Check presence of CLI flag matching single or double dash
 fn get_cli_flag_present(flag_name: string, arg_count: float) -> float {
     var i = 1.0;
     while (i < arg_count) {
         let arg = sys_get_arg(i);
         if (cartan_string_eq(arg, flag_name) == 1.0) {
             return 1.0;
+        }
+        if (cartan_string_starts_with(flag_name, "-") == 1.0) {
+            let dbl = cartan_string_concat("-", flag_name);
+            if (cartan_string_eq(arg, dbl) == 1.0) {
+                return 1.0;
+            }
         }
         i = i + 1.0;
     }
@@ -126,8 +200,12 @@ fn check_and_apply_manifest_reset(target: string, arg_count: float, default_mani
         if (cartan_file_exists(m_path) == 1.0) {
             let m_content = cartan_read_file(m_path);
             let list = geomind_manifest_parse_datasets(m_content);
-            geomind_manifest_save(m_path, list, 0.0, 0.0, 1.0);
-            printf("[GeoMind Main] Manifest reset to dataset 0, offset 0.0, epoch 1.0: %s\n", m_path);
+            var reset_lr = 0.05;
+            if (cartan_string_contains(m_path, "corpus.json") == 1.0) {
+                reset_lr = 0.001;
+            }
+            geomind_manifest_save(m_path, list, 0.0, 0.0, 1.0, reset_lr);
+            printf("[GeoMind Main] Manifest reset to dataset 0, offset 0.0, epoch 1.0 (LR: %s): %s\n", cartan_float_to_string(reset_lr), m_path);
             cartan_flush(0.0);
         }
     }
@@ -141,26 +219,58 @@ fn get_cli_param_float(flag_name: string, arg_count: float, default_val: float) 
     return default_val;
 }
 
+// Parse target loss stopping threshold across all aliases
 fn get_cli_target_loss(arg_count: float, default_val: float) -> float {
-    let p = get_cli_param("-target-loss", arg_count);
-    if (cartan_string_length(p) > 0.0) {
-        return atof(p);
-    }
-    let p2 = get_cli_param("-tl", arg_count);
-    if (cartan_string_length(p2) > 0.0) {
-        return atof(p2);
+    var i = 1.0;
+    while (i < arg_count) {
+        let arg = sys_get_arg(i);
+        if (cartan_string_eq(arg, "-training-loss") == 1.0 ||
+            cartan_string_eq(arg, "--training-loss") == 1.0 ||
+            cartan_string_eq(arg, "-target-loss") == 1.0 ||
+            cartan_string_eq(arg, "--target-loss") == 1.0 ||
+            cartan_string_eq(arg, "-tl") == 1.0 ||
+            cartan_string_eq(arg, "--tl") == 1.0 ||
+            cartan_string_eq(arg, "-loss") == 1.0 ||
+            cartan_string_eq(arg, "--loss") == 1.0) {
+            if ((i + 1.0) < arg_count) {
+                return atof(sys_get_arg(i + 1.0));
+            }
+        }
+        i = i + 1.0;
     }
     return default_val;
 }
 
-fn get_cli_epochs(arg_count: float, default_val: float) -> float {
-    let p = get_cli_param("-epochs", arg_count);
-    if (cartan_string_length(p) > 0.0) {
-        return atof(p);
+// Check if user explicitly provided an epoch ceiling
+fn has_cli_epochs(arg_count: float) -> float {
+    var i = 1.0;
+    while (i < arg_count) {
+        let arg = sys_get_arg(i);
+        if (cartan_string_eq(arg, "-epochs") == 1.0 ||
+            cartan_string_eq(arg, "--epochs") == 1.0 ||
+            cartan_string_eq(arg, "-ep") == 1.0 ||
+            cartan_string_eq(arg, "--ep") == 1.0) {
+            return 1.0;
+        }
+        i = i + 1.0;
     }
-    let p2 = get_cli_param("-ep", arg_count);
-    if (cartan_string_length(p2) > 0.0) {
-        return atof(p2);
+    return 0.0;
+}
+
+// Retrieve user-specified epoch ceiling or return default
+fn get_cli_epochs(arg_count: float, default_val: float) -> float {
+    var i = 1.0;
+    while (i < arg_count) {
+        let arg = sys_get_arg(i);
+        if (cartan_string_eq(arg, "-epochs") == 1.0 ||
+            cartan_string_eq(arg, "--epochs") == 1.0 ||
+            cartan_string_eq(arg, "-ep") == 1.0 ||
+            cartan_string_eq(arg, "--ep") == 1.0) {
+            if ((i + 1.0) < arg_count) {
+                return atof(sys_get_arg(i + 1.0));
+            }
+        }
+        i = i + 1.0;
     }
     return default_val;
 }
@@ -181,23 +291,31 @@ fn main() -> float {
             return 0.0;
         }
 
-        if (cartan_string_eq(flag, "--train-pre") == 1.0) {
+        if (is_pre_mode(flag) == 1.0) {
             let target = get_cli_train_target(arg_count);
             check_and_apply_manifest_reset(target, arg_count, "test/geomind/trainingdata/corpus.json");
-            let epochs = get_cli_epochs(arg_count, 3.0);
-            let lr = get_cli_param_float("-lr", arg_count, 0.001);
-            let target_loss = get_cli_target_loss(arg_count, 3.50);
+            var epochs = 1000000.0;
+            if (has_cli_epochs(arg_count) == 1.0) {
+                epochs = get_cli_epochs(arg_count, 1000000.0);
+            }
+            let lr = get_cli_param_float("-lr", arg_count, 0.0);
+            let target_loss = get_cli_target_loss(arg_count, 3.00);
+            g_train_stride = get_cli_param_float("-stride", arg_count, 0.0);
             let res = geomind_train_streaming_steady_state(2.0, target, target_loss, lr, epochs, "logs/stage2_ce_training.log");
             cartan_flush(0.0);
             return 0.0;
         }
 
-        if (cartan_string_eq(flag, "--train-cloze") == 1.0) {
+        if (is_cloze_mode(flag) == 1.0) {
             let target = get_cli_train_target(arg_count);
             check_and_apply_manifest_reset(target, arg_count, "test/geomind/trainingdata/cloze_manifest.json");
-            let epochs = get_cli_epochs(arg_count, 3.0);
-            let lr = get_cli_param_float("-lr", arg_count, 0.002);
-            let target_loss = get_cli_target_loss(arg_count, 4.20);
+            var epochs = 1000000.0;
+            if (has_cli_epochs(arg_count) == 1.0) {
+                epochs = get_cli_epochs(arg_count, 1000000.0);
+            }
+            let lr = get_cli_param_float("-lr", arg_count, 0.0);
+            let target_loss = get_cli_target_loss(arg_count, 3.80);
+            g_train_stride = get_cli_param_float("-stride", arg_count, 0.0);
             let res = geomind_train_streaming_steady_state(1.0, target, target_loss, lr, epochs, "logs/stage1_cloze_training.log");
             cartan_flush(0.0);
             return 0.0;
@@ -378,22 +496,28 @@ fn main() -> float {
             return 0.0;
         }
 
-        if (cartan_string_eq(flag, "--train-ce") == 1.0) {
+        if (is_ce_mode(flag) == 1.0) {
             let target = get_cli_train_target(arg_count);
             check_and_apply_manifest_reset(target, arg_count, "test/geomind/trainingdata/corpus.json");
-            let epochs = get_cli_epochs(arg_count, 3.0);
-            let lr = get_cli_param_float("-lr", arg_count, 0.001);
+            var epochs = 1000000.0;
+            if (has_cli_epochs(arg_count) == 1.0) {
+                epochs = get_cli_epochs(arg_count, 1000000.0);
+            }
+            let lr = get_cli_param_float("-lr", arg_count, 0.0);
             let target_loss = get_cli_target_loss(arg_count, 3.00);
             let res = geomind_train_streaming_steady_state(2.0, target, target_loss, lr, epochs, "logs/stage2_ce_training.log");
             cartan_flush(0.0);
             return 0.0;
         }
 
-        if (cartan_string_eq(flag, "--train-sft") == 1.0) {
+        if (is_sft_mode(flag) == 1.0) {
             let target = get_cli_train_target(arg_count);
-            check_and_apply_manifest_reset(target, arg_count, "test/geomind/trainingdata/corpus.json");
-            let epochs = get_cli_epochs(arg_count, 3.0);
-            let lr = get_cli_param_float("-lr", arg_count, 0.0005);
+            check_and_apply_manifest_reset(target, arg_count, "test/geomind/trainingdata/sft_manifest.json");
+            var epochs = 1000000.0;
+            if (has_cli_epochs(arg_count) == 1.0) {
+                epochs = get_cli_epochs(arg_count, 1000000.0);
+            }
+            let lr = get_cli_param_float("-lr", arg_count, 0.0);
             let target_loss = get_cli_target_loss(arg_count, 2.00);
             let res = geomind_train_streaming_steady_state(3.0, target, target_loss, lr, epochs, "logs/stage3_sft_training.log");
             cartan_flush(0.0);
@@ -412,13 +536,13 @@ fn main() -> float {
             printf("[GeoMind Distill] Initializing Teacher vs GeoMind Student Logit Buffers...\n");
             let teacher_logits = cartan_vec_create();
             let student_logits = cartan_vec_create();
-            var i = 0.0;
-            while (i < 100.0) {
-                let t_val = 2.0 + sin((i + 1.0) * 0.1) * 0.5;
-                let s_val = 0.5 + cos((i + 1.0) * 0.1) * 0.3;
+            var k = 0.0;
+            while (k < 100.0) {
+                let t_val = 2.0 + sin((k + 1.0) * 0.1) * 0.5;
+                let s_val = 0.5 + cos((k + 1.0) * 0.1) * 0.3;
                 cartan_vec_push_f32(teacher_logits, t_val);
                 cartan_vec_push_f32(student_logits, s_val);
-                i = i + 1.0;
+                k = k + 1.0;
             }
             let initial_loss = distill_kl_divergence_loss(teacher_logits, student_logits, 2.0);
             printf("[GeoMind Distill] Step 0 Initial KL Divergence Loss: %s\n", cartan_float_to_string(initial_loss));
@@ -429,26 +553,26 @@ fn main() -> float {
                 // Compute softmax partition functions for teacher and student
                 var sum_p = 0.0;
                 var sum_q = 0.0;
-                i = 0.0;
-                while (i < 100.0) {
-                    sum_p = sum_p + exp(cartan_vec_get_f32(teacher_logits, i) / temp);
-                    sum_q = sum_q + exp(cartan_vec_get_f32(student_logits, i) / temp);
-                    i = i + 1.0;
+                k = 0.0;
+                while (k < 100.0) {
+                    sum_p = sum_p + exp(cartan_vec_get_f32(teacher_logits, k) / temp);
+                    sum_q = sum_q + exp(cartan_vec_get_f32(student_logits, k) / temp);
+                    k = k + 1.0;
                 }
                 if (sum_p <= 0.0) { sum_p = 1.0; }
                 if (sum_q <= 0.0) { sum_q = 1.0; }
 
                 // Apply analytical KL gradient updates: dz_s = temp * (p_i - q_i)
-                i = 0.0;
-                while (i < 100.0) {
-                    let z_t = cartan_vec_get_f32(teacher_logits, i);
-                    let z_s = cartan_vec_get_f32(student_logits, i);
+                k = 0.0;
+                while (k < 100.0) {
+                    let z_t = cartan_vec_get_f32(teacher_logits, k);
+                    let z_s = cartan_vec_get_f32(student_logits, k);
                     let p_i = exp(z_t / temp) / sum_p;
                     let q_i = exp(z_s / temp) / sum_q;
                     let grad = temp * (p_i - q_i);
                     let updated_z = z_s + (lr * grad);
-                    cartan_vec_set_f32(student_logits, i, updated_z);
-                    i = i + 1.0;
+                    cartan_vec_set_f32(student_logits, k, updated_z);
+                    k = k + 1.0;
                 }
                 step = step + 1.0;
             }
@@ -464,8 +588,9 @@ fn main() -> float {
             let t1 = hub_load_safetensors_tensor(weight_path, "model.language_model.embed_tokens.weight", 2621440.0);
             let t2 = hub_load_safetensors_tensor(weight_path, "model.language_model.embed_tokens.weight", 2621440.0);
             let fused = fusion_tangent_space_slerp(t1, t2, 0.5);
+            fusion_apply_wordnet_ic_modulation(fused, 2560.0);
             let mid_val = cartan_vec_get_f32(fused, 0.0);
-            printf("[GeoMind Fusion] Tangent Space Geodesic SLERP Merging Complete!\n");
+            printf("[GeoMind Fusion] Tangent Space Geodesic SLERP Merging Complete with WordNet IC Modulation!\n");
             let out_fused_path = "test/geomind/trainingdata/checkpoints/geomind_slerp_fused_weights.bin";
             cartan_safetensors_save_tensor_f32(out_fused_path, "model.fused", fused);
             printf("[GeoMind Fusion] Saved Tangent-Space Merged Checkpoint: %s\n", out_fused_path);
@@ -487,6 +612,7 @@ fn main() -> float {
             cartan_flush(0.0);
             return 0.0;
         }
+        i = i + 1.0;
     }
 
     print_help_dialogue();

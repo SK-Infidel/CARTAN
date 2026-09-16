@@ -100,6 +100,12 @@ fn llvm_codegen_init() -> LLVMGenerator {
     cartan_dict_set(l.func_return_types, "cartan_slice_nd", "ptr");
     cartan_dict_set(l.func_return_types, "cartan_byte_at", "double");
     cartan_dict_set(l.func_return_types, "cartan_set_byte", "void");
+    cartan_dict_set(l.func_return_types, "cartan_f32_at", "double");
+    cartan_dict_set(l.func_return_types, "cartan_set_f32", "void");
+    cartan_dict_set(l.func_return_types, "cartan_i32_at", "double");
+    cartan_dict_set(l.func_return_types, "cartan_set_i32", "void");
+    cartan_dict_set(l.func_return_types, "cartan_i64_at", "double");
+    cartan_dict_set(l.func_return_types, "cartan_set_i64", "void");
     cartan_dict_set(l.func_return_types, "cartan_alloc_binary_buffer", "ptr");
     cartan_dict_set(l.func_return_types, "cartan_read_binary_file_data", "ptr");
     cartan_dict_set(l.func_return_types, "cartan_get_binary_file_size", "double");
@@ -355,6 +361,12 @@ fn llvm_codegen_init() -> LLVMGenerator {
         cartan_tree_push(self_ptr.declared_externs, "c_cartan_string_char_at");
         cartan_tree_push(self_ptr.declared_externs, "cartan_byte_at");
         cartan_tree_push(self_ptr.declared_externs, "cartan_set_byte");
+        cartan_tree_push(self_ptr.declared_externs, "cartan_f32_at");
+        cartan_tree_push(self_ptr.declared_externs, "cartan_set_f32");
+        cartan_tree_push(self_ptr.declared_externs, "cartan_i32_at");
+        cartan_tree_push(self_ptr.declared_externs, "cartan_set_i32");
+        cartan_tree_push(self_ptr.declared_externs, "cartan_i64_at");
+        cartan_tree_push(self_ptr.declared_externs, "cartan_set_i64");
         cartan_tree_push(self_ptr.declared_externs, "cartan_c_memcpy");
         cartan_tree_push(self_ptr.declared_externs, "cartan_c_strncmp");
         cartan_tree_push(self_ptr.declared_externs, "cartan_c_ptr_add");
@@ -654,6 +666,27 @@ fn llvm_codegen_init() -> LLVMGenerator {
                     if (fn_name == "rename") { params = "ptr, ptr"; abi_ret = "i32"; } else {}
                     if (fn_name == "exit") { params = "i32"; abi_ret = "void"; } else {}
                     if (fn_name == "__acrt_iob_func") { params = "i32"; abi_ret = "ptr"; } else {}
+                    if (fn_name == "clGetPlatformIDs") { params = "i32, ptr, ptr"; abi_ret = "i32"; } else {}
+                    if (fn_name == "clGetPlatformInfo") { params = "ptr, i32, i64, ptr, ptr"; abi_ret = "i32"; } else {}
+                    if (fn_name == "clGetDeviceIDs") { params = "ptr, i64, i32, ptr, ptr"; abi_ret = "i32"; } else {}
+                    if (fn_name == "clGetDeviceInfo") { params = "ptr, i32, i64, ptr, ptr"; abi_ret = "i32"; } else {}
+                    if (fn_name == "clCreateContext") { params = "ptr, i32, ptr, ptr, ptr, ptr"; abi_ret = "ptr"; } else {}
+                    if (fn_name == "clCreateCommandQueue") { params = "ptr, ptr, i64, ptr"; abi_ret = "ptr"; } else {}
+                    if (fn_name == "clCreateBuffer") { params = "ptr, i64, i64, ptr, ptr"; abi_ret = "ptr"; } else {}
+                    if (fn_name == "clEnqueueWriteBuffer") { params = "ptr, ptr, i32, i64, i64, ptr, i32, ptr, ptr"; abi_ret = "i32"; } else {}
+                    if (fn_name == "clEnqueueReadBuffer") { params = "ptr, ptr, i32, i64, i64, ptr, i32, ptr, ptr"; abi_ret = "i32"; } else {}
+                    if (fn_name == "clCreateProgramWithSource") { params = "ptr, i32, ptr, ptr, ptr"; abi_ret = "ptr"; } else {}
+                    if (fn_name == "clBuildProgram") { params = "ptr, i32, ptr, ptr, ptr, ptr"; abi_ret = "i32"; } else {}
+                    if (fn_name == "clGetProgramBuildInfo") { params = "ptr, ptr, i32, i64, ptr, ptr"; abi_ret = "i32"; } else {}
+                    if (fn_name == "clCreateKernel") { params = "ptr, ptr, ptr"; abi_ret = "ptr"; } else {}
+                    if (fn_name == "clSetKernelArg") { params = "ptr, i32, i64, ptr"; abi_ret = "i32"; } else {}
+                    if (fn_name == "clEnqueueNDRangeKernel") { params = "ptr, ptr, i32, ptr, ptr, ptr, i32, ptr, ptr"; abi_ret = "i32"; } else {}
+                    if (fn_name == "clFinish") { params = "ptr"; abi_ret = "i32"; } else {}
+                    if (fn_name == "clReleaseMemObject") { params = "ptr"; abi_ret = "i32"; } else {}
+                    if (fn_name == "clReleaseKernel") { params = "ptr"; abi_ret = "i32"; } else {}
+                    if (fn_name == "clReleaseProgram") { params = "ptr"; abi_ret = "i32"; } else {}
+                    if (fn_name == "clReleaseCommandQueue") { params = "ptr"; abi_ret = "i32"; } else {}
+                    if (fn_name == "clReleaseContext") { params = "ptr"; abi_ret = "i32"; } else {}
                     cartan_dict_set(self_ptr.func_return_types, fn_name, logical_ret);
                     cartan_tree_push(self_ptr.decls, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("declare ", abi_ret), " @"), fn_name), "("), params), ")\n"));
                     cartan_dict_set(self_ptr.symbols, fn_name, cartan_string_concat("@", fn_name));
@@ -891,6 +924,12 @@ while (idx_method < cartan_tree_len_f(methods)) {
         cartan_tree_push(self_ptr.output, "define double @c_cartan_string_char_at(ptr %s, double %idx) {\nentry:\n  %is_null = icmp eq ptr %s, null\n  br i1 %is_null, label %ret_zero, label %check_bounds\ncheck_bounds:\n  %len = call i64 @strlen(ptr %s)\n  %i = fptosi double %idx to i64\n  %neg = icmp slt i64 %i, 0\n  %over = icmp uge i64 %i, %len\n  %bad = or i1 %neg, %over\n  br i1 %bad, label %ret_zero, label %load_char\nload_char:\n  %char_ptr = getelementptr inbounds i8, ptr %s, i64 %i\n  %ch = load i8, ptr %char_ptr, align 1\n  %ch_u32 = zext i8 %ch to i32\n  %res = uitofp i32 %ch_u32 to double\n  ret double %res\nret_zero:\n  ret double 0.0\n}\n\n");
         cartan_tree_push(self_ptr.output, "define double @cartan_byte_at(ptr %p, double %offset) {\nentry:\n  %is_null = icmp eq ptr %p, null\n  br i1 %is_null, label %ret_zero, label %load_byte\nload_byte:\n  %i = fptosi double %offset to i64\n  %byte_ptr = getelementptr inbounds i8, ptr %p, i64 %i\n  %b = load i8, ptr %byte_ptr, align 1\n  %b_u32 = zext i8 %b to i32\n  %res = uitofp i32 %b_u32 to double\n  ret double %res\nret_zero:\n  ret double 0.0\n}\n\n");
         cartan_tree_push(self_ptr.output, "define void @cartan_set_byte(ptr %p, double %offset, double %val) {\nentry:\n  %is_null = icmp eq ptr %p, null\n  br i1 %is_null, label %ret_void, label %store_byte\nstore_byte:\n  %i = fptosi double %offset to i64\n  %byte_ptr = getelementptr inbounds i8, ptr %p, i64 %i\n  %v_i32 = fptoui double %val to i32\n  %v_i8 = trunc i32 %v_i32 to i8\n  store i8 %v_i8, ptr %byte_ptr, align 1\n  ret void\nret_void:\n  ret void\n}\n\n");
+        cartan_tree_push(self_ptr.output, "define double @cartan_f32_at(ptr %p, double %offset) {\nentry:\n  %is_null = icmp eq ptr %p, null\n  br i1 %is_null, label %ret_zero, label %load_f32\nload_f32:\n  %i = fptosi double %offset to i64\n  %f_ptr = getelementptr inbounds float, ptr %p, i64 %i\n  %f = load float, ptr %f_ptr, align 4\n  %res = fpext float %f to double\n  ret double %res\nret_zero:\n  ret double 0.0\n}\n\n");
+        cartan_tree_push(self_ptr.output, "define void @cartan_set_f32(ptr %p, double %offset, double %val) {\nentry:\n  %is_null = icmp eq ptr %p, null\n  br i1 %is_null, label %ret_void, label %store_f32\nstore_f32:\n  %i = fptosi double %offset to i64\n  %f_ptr = getelementptr inbounds float, ptr %p, i64 %i\n  %f_val = fptrunc double %val to float\n  store float %f_val, ptr %f_ptr, align 4\n  ret void\nret_void:\n  ret void\n}\n\n");
+        cartan_tree_push(self_ptr.output, "define double @cartan_i32_at(ptr %p, double %offset) {\nentry:\n  %is_null = icmp eq ptr %p, null\n  br i1 %is_null, label %ret_zero, label %load_i32\nload_i32:\n  %i = fptosi double %offset to i64\n  %ptr = getelementptr inbounds i32, ptr %p, i64 %i\n  %v = load i32, ptr %ptr, align 4\n  %res = sitofp i32 %v to double\n  ret double %res\nret_zero:\n  ret double 0.0\n}\n\n");
+        cartan_tree_push(self_ptr.output, "define void @cartan_set_i32(ptr %p, double %offset, double %val) {\nentry:\n  %is_null = icmp eq ptr %p, null\n  br i1 %is_null, label %ret_void, label %store_i32\nstore_i32:\n  %i = fptosi double %offset to i64\n  %ptr = getelementptr inbounds i32, ptr %p, i64 %i\n  %v = fptosi double %val to i32\n  store i32 %v, ptr %ptr, align 4\n  ret void\nret_void:\n  ret void\n}\n\n");
+        cartan_tree_push(self_ptr.output, "define double @cartan_i64_at(ptr %p, double %offset) {\nentry:\n  %is_null = icmp eq ptr %p, null\n  br i1 %is_null, label %ret_zero, label %load_i64\nload_i64:\n  %i = fptosi double %offset to i64\n  %ptr = getelementptr inbounds i64, ptr %p, i64 %i\n  %v = load i64, ptr %ptr, align 8\n  %res = uitofp i64 %v to double\n  ret double %res\nret_zero:\n  ret double 0.0\n}\n\n");
+        cartan_tree_push(self_ptr.output, "define void @cartan_set_i64(ptr %p, double %offset, double %val) {\nentry:\n  %is_null = icmp eq ptr %p, null\n  br i1 %is_null, label %ret_void, label %store_i64\nstore_i64:\n  %i = fptosi double %offset to i64\n  %ptr = getelementptr inbounds i64, ptr %p, i64 %i\n  %v = fptoui double %val to i64\n  store i64 %v, ptr %ptr, align 8\n  ret void\nret_void:\n  ret void\n}\n\n");
         cartan_tree_push(self_ptr.output, "define ptr @cartan_c_memcpy(ptr %dest, ptr %src, double %count) {\nentry:\n  %dest_null = icmp eq ptr %dest, null\n  %src_null = icmp eq ptr %src, null\n  %either_null = or i1 %dest_null, %src_null\n  %le_zero = fcmp ole double %count, 0.0\n  %skip = or i1 %either_null, %le_zero\n  br i1 %skip, label %ret_dest, label %do_copy\ndo_copy:\n  %n = fptoui double %count to i64\n  %res = call ptr @memcpy(ptr %dest, ptr %src, i64 %n)\n  ret ptr %res\nret_dest:\n  ret ptr %dest\n}\n\n");
         cartan_tree_push(self_ptr.output, "define double @cartan_c_strncmp(ptr %s1, ptr %s2, double %n) {\nentry:\n  %s1_null = icmp eq ptr %s1, null\n  %s2_null = icmp eq ptr %s2, null\n  %either_null = or i1 %s1_null, %s2_null\n  %le_zero = fcmp ole double %n, 0.0\n  %skip = or i1 %either_null, %le_zero\n  br i1 %skip, label %ret_zero, label %do_cmp\ndo_cmp:\n  %count = fptoui double %n to i64\n  %res_i32 = call i32 @strncmp(ptr %s1, ptr %s2, i64 %count)\n  %res = sitofp i32 %res_i32 to double\n  ret double %res\nret_zero:\n  ret double 0.0\n}\n\n");
         cartan_tree_push(self_ptr.output, "define ptr @cartan_c_ptr_add(ptr %p, double %offset) {\nentry:\n  %is_null = icmp eq ptr %p, null\n  br i1 %is_null, label %ret_null, label %do_add\ndo_add:\n  %off_i64 = fptosi double %offset to i64\n  %res = getelementptr inbounds i8, ptr %p, i64 %off_i64\n  ret ptr %res\nret_null:\n  ret ptr null\n}\n\n");
@@ -2726,23 +2765,35 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 if (cartan_string_starts_with(arg_reg, "array:") != 0.0) { is_arg_ptr = 1.0; }
                 if (cartan_string_starts_with(arg_reg, "struct:") != 0.0) { is_arg_ptr = 1.0; }
 
+                var is_cl_i32 = 0.0;
+                var is_cl_i64 = 0.0;
+                let is_cl_fn = cartan_string_starts_with(name, "cl");
+                if (is_cl_fn != 0.0) {
+                    if ((cartan_string_eq(name, "clGetPlatformIDs") != 0.0 && idx_a == 0.0) || (cartan_string_eq(name, "clGetPlatformInfo") != 0.0 && idx_a == 1.0) || (cartan_string_eq(name, "clGetDeviceIDs") != 0.0 && idx_a == 2.0) || (cartan_string_eq(name, "clGetDeviceInfo") != 0.0 && idx_a == 1.0) || (cartan_string_eq(name, "clCreateContext") != 0.0 && idx_a == 1.0) || (cartan_string_eq(name, "clCreateProgramWithSource") != 0.0 && idx_a == 1.0) || (cartan_string_eq(name, "clBuildProgram") != 0.0 && idx_a == 1.0) || (cartan_string_eq(name, "clGetProgramBuildInfo") != 0.0 && idx_a == 2.0) || (cartan_string_eq(name, "clSetKernelArg") != 0.0 && idx_a == 1.0) || ((cartan_string_eq(name, "clEnqueueWriteBuffer") != 0.0 || cartan_string_eq(name, "clEnqueueReadBuffer") != 0.0) && (idx_a == 2.0 || idx_a == 6.0)) || (cartan_string_eq(name, "clEnqueueNDRangeKernel") != 0.0 && (idx_a == 2.0 || idx_a == 6.0))) {
+                        is_cl_i32 = 1.0;
+                    }
+                    if ((cartan_string_eq(name, "clGetPlatformInfo") != 0.0 && idx_a == 2.0) || (cartan_string_eq(name, "clGetDeviceIDs") != 0.0 && idx_a == 1.0) || (cartan_string_eq(name, "clGetDeviceInfo") != 0.0 && idx_a == 2.0) || (cartan_string_eq(name, "clCreateCommandQueue") != 0.0 && idx_a == 2.0) || (cartan_string_eq(name, "clCreateBuffer") != 0.0 && (idx_a == 1.0 || idx_a == 2.0)) || ((cartan_string_eq(name, "clEnqueueWriteBuffer") != 0.0 || cartan_string_eq(name, "clEnqueueReadBuffer") != 0.0) && (idx_a == 3.0 || idx_a == 4.0)) || (cartan_string_eq(name, "clGetProgramBuildInfo") != 0.0 && idx_a == 3.0) || (cartan_string_eq(name, "clSetKernelArg") != 0.0 && idx_a == 2.0)) {
+                        is_cl_i64 = 1.0;
+                    }
+                }
+
                 if (is_arg_ptr != 0.0) {
                     let clean = clean_reg(arg_reg);
                     formatted_arg = cartan_string_concat("ptr ", clean);
-                } else if ((idx_a == 0.0 && (cartan_string_starts_with(name, "cartan_tree_") != 0.0 || cartan_string_starts_with(name, "cartan_c_tree_") != 0.0 || cartan_string_starts_with(name, "cartan_vec_") != 0.0 || cartan_string_starts_with(name, "cartan_queue_") != 0.0 || cartan_string_starts_with(name, "cartan_dict_") != 0.0 || cartan_string_starts_with(name, "cartan_slice_") != 0.0 || cartan_string_eq(name, "contains_string") != 0.0)) || ((idx_a == 2.0 || idx_a == 0.0) && (cartan_string_eq(name, "cartan_tree_set") != 0.0 || cartan_string_eq(name, "cartan_c_tree_set") != 0.0 || cartan_string_eq(name, "cartan_dict_set") != 0.0)) || (cartan_string_eq(name, "cartan_tree_push") != 0.0 || cartan_string_eq(name, "cartan_c_tree_push") != 0.0) || ((cartan_string_eq(name, "sprintf") != 0.0 || cartan_string_eq(name, "memcpy") != 0.0 || cartan_string_eq(name, "strncmp") != 0.0 || cartan_string_eq(name, "strstr") != 0.0 || cartan_string_eq(name, "fflush") != 0.0 || cartan_string_eq(name, "free") != 0.0 || cartan_string_eq(name, "fclose") != 0.0 || cartan_string_eq(name, "ftell") != 0.0) && (idx_a == 0.0 || idx_a == 1.0)) || ((cartan_string_eq(name, "fread") != 0.0 || cartan_string_eq(name, "fwrite") != 0.0) && (idx_a == 0.0 || idx_a == 3.0)) || (cartan_string_eq(name, "fputs") != 0.0 && idx_a == 1.0) || (cartan_string_eq(name, "fgets") != 0.0 && (idx_a == 0.0 || idx_a == 2.0)) || (cartan_string_eq(name, "fseek") != 0.0 && idx_a == 0.0)) {
-                    let int_cast = next_reg(self_ptr);
-                    let ptr_cast = next_reg(self_ptr);
-                    cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", int_cast), " = fptoui double "), as_float(self_ptr, arg_reg)), " to i64\n"));
-                    cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", ptr_cast), " = inttoptr i64 "), int_cast), " to ptr\n"));
-                    formatted_arg = cartan_string_concat("ptr ", ptr_cast);
-                } else if (cartan_string_eq(name, "malloc") != 0.0 || cartan_string_eq(name, "calloc") != 0.0 || (cartan_string_eq(name, "fseek") != 0.0 && idx_a == 1.0) || ((cartan_string_eq(name, "fread") != 0.0 || cartan_string_eq(name, "fwrite") != 0.0) && (idx_a == 1.0 || idx_a == 2.0)) || (cartan_string_eq(name, "strncmp") != 0.0 && idx_a == 2.0) || (cartan_string_eq(name, "memcpy") != 0.0 && idx_a == 2.0)) {
-                    let int_cast = next_reg(self_ptr);
-                    cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", int_cast), " = fptoui double "), as_float(self_ptr, arg_reg)), " to i64\n"));
-                    formatted_arg = cartan_string_concat("i64 ", int_cast);
-                } else if ((cartan_string_eq(name, "fseek") != 0.0 && idx_a == 2.0) || cartan_string_eq(name, "__acrt_iob_func") != 0.0 || cartan_string_eq(name, "exit") != 0.0 || (cartan_string_eq(name, "fgets") != 0.0 && idx_a == 1.0)) {
+                } else if (is_cl_i32 != 0.0 || (cartan_string_eq(name, "fseek") != 0.0 && idx_a == 2.0) || cartan_string_eq(name, "__acrt_iob_func") != 0.0 || cartan_string_eq(name, "exit") != 0.0 || (cartan_string_eq(name, "fgets") != 0.0 && idx_a == 1.0)) {
                     let int_cast = next_reg(self_ptr);
                     cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", int_cast), " = fptosi double "), as_float(self_ptr, arg_reg)), " to i32\n"));
                     formatted_arg = cartan_string_concat("i32 ", int_cast);
+                } else if (is_cl_i64 != 0.0 || cartan_string_eq(name, "malloc") != 0.0 || cartan_string_eq(name, "calloc") != 0.0 || (cartan_string_eq(name, "fseek") != 0.0 && idx_a == 1.0) || ((cartan_string_eq(name, "fread") != 0.0 || cartan_string_eq(name, "fwrite") != 0.0) && (idx_a == 1.0 || idx_a == 2.0)) || (cartan_string_eq(name, "strncmp") != 0.0 && idx_a == 2.0) || (cartan_string_eq(name, "memcpy") != 0.0 && idx_a == 2.0)) {
+                    let int_cast = next_reg(self_ptr);
+                    cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", int_cast), " = fptoui double "), as_float(self_ptr, arg_reg)), " to i64\n"));
+                    formatted_arg = cartan_string_concat("i64 ", int_cast);
+                } else if (is_cl_fn != 0.0 || (idx_a == 0.0 && (cartan_string_starts_with(name, "cartan_tree_") != 0.0 || cartan_string_starts_with(name, "cartan_c_tree_") != 0.0 || cartan_string_starts_with(name, "cartan_vec_") != 0.0 || cartan_string_starts_with(name, "cartan_queue_") != 0.0 || cartan_string_starts_with(name, "cartan_dict_") != 0.0 || cartan_string_starts_with(name, "cartan_slice_") != 0.0 || cartan_string_eq(name, "contains_string") != 0.0)) || ((idx_a == 2.0 || idx_a == 0.0) && (cartan_string_eq(name, "cartan_tree_set") != 0.0 || cartan_string_eq(name, "cartan_c_tree_set") != 0.0 || cartan_string_eq(name, "cartan_dict_set") != 0.0)) || (cartan_string_eq(name, "cartan_tree_push") != 0.0 || cartan_string_eq(name, "cartan_c_tree_push") != 0.0) || ((cartan_string_eq(name, "sprintf") != 0.0 || cartan_string_eq(name, "memcpy") != 0.0 || cartan_string_eq(name, "strncmp") != 0.0 || cartan_string_eq(name, "strstr") != 0.0 || cartan_string_eq(name, "fflush") != 0.0 || cartan_string_eq(name, "free") != 0.0 || cartan_string_eq(name, "fclose") != 0.0 || cartan_string_eq(name, "ftell") != 0.0) && (idx_a == 0.0 || idx_a == 1.0)) || ((cartan_string_eq(name, "fread") != 0.0 || cartan_string_eq(name, "fwrite") != 0.0) && (idx_a == 0.0 || idx_a == 3.0)) || (cartan_string_eq(name, "fputs") != 0.0 && idx_a == 1.0) || (cartan_string_eq(name, "fgets") != 0.0 && (idx_a == 0.0 || idx_a == 2.0)) || (cartan_string_eq(name, "fseek") != 0.0 && idx_a == 0.0)) {
+                    let int_cast = next_reg(self_ptr);
+                    let ptr_cast = next_reg(self_ptr);
+                    cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", int_cast), " = bitcast double "), as_float(self_ptr, arg_reg)), " to i64\n"));
+                    cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", ptr_cast), " = inttoptr i64 "), int_cast), " to ptr\n"));
+                    formatted_arg = cartan_string_concat("ptr ", ptr_cast);
                 } else {
                     formatted_arg = cartan_string_concat("double ", as_float(self_ptr, arg_reg));
                 }
@@ -2797,7 +2848,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 } else if (cartan_string_eq(ret_type, "void") != 0.0) {
                     ret_type_str = "void";
                 }
-            } else if (cartan_string_eq(name, "cartan_tree_create") != 0.0 || cartan_string_eq(name, "malloc") != 0.0 || cartan_string_eq(name, "calloc") != 0.0 || cartan_string_eq(name, "cartan_tensor_alloc") != 0.0) {
+            } else if (cartan_string_eq(name, "cartan_tree_create") != 0.0 || cartan_string_eq(name, "malloc") != 0.0 || cartan_string_eq(name, "calloc") != 0.0 || cartan_string_eq(name, "cartan_tensor_alloc") != 0.0 || cartan_string_starts_with(name, "clCreate") != 0.0) {
                 ret_type_str = "ptr";
                 is_ptr_ret = 1.0;
             }
@@ -2824,7 +2875,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 let flt_reg = next_reg(self_ptr);
                 cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", flt_reg), " = uitofp i64 "), res_reg), " to double\n"));
                 return flt_reg;
-            } else if (cartan_string_eq(name, "strcmp") != 0.0 || cartan_string_eq(name, "strncmp") != 0.0 || cartan_string_eq(name, "fseek") != 0.0 || cartan_string_eq(name, "fflush") != 0.0 || cartan_string_eq(name, "fclose") != 0.0 || cartan_string_eq(name, "system") != 0.0 || cartan_string_eq(name, "remove") != 0.0 || cartan_string_eq(name, "rename") != 0.0 || cartan_string_eq(name, "fputs") != 0.0) {
+            } else if (cartan_string_eq(name, "strcmp") != 0.0 || cartan_string_eq(name, "strncmp") != 0.0 || cartan_string_eq(name, "fseek") != 0.0 || cartan_string_eq(name, "fflush") != 0.0 || cartan_string_eq(name, "fclose") != 0.0 || cartan_string_eq(name, "system") != 0.0 || cartan_string_eq(name, "remove") != 0.0 || cartan_string_eq(name, "rename") != 0.0 || cartan_string_eq(name, "fputs") != 0.0 || (cartan_string_starts_with(name, "cl") != 0.0 && is_ptr_ret == 0.0)) {
                 let call_prefix = cartan_string_concat("  ", cartan_string_concat(res_reg, cartan_string_concat(" = call i32 @", cartan_string_concat(name, "("))));
                 let call_full = cartan_string_concat(call_prefix, cartan_string_concat(arg_str, ")\n"));
                 cartan_tree_push(self_ptr.output, call_full);

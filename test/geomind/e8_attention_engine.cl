@@ -72,7 +72,9 @@ fn e8_multihead_sliding_window_attention(h_vec: ptr, num_heads: float, head_dim:
                     let k_idx = s * hidden_dim + h * head_dim + d;
                     let q_val = cartan_vec_get_f32(h_vec, q_idx);
                     let k_val = cartan_vec_get_f32(h_vec, k_idx);
-                    dot = dot + (q_val * k_val);
+                    let sub_idx = floor((h * head_dim + d) / 320.0);
+                    let kw = geom_killing_form_dynkin_weight(sub_idx);
+                    dot = dot + (q_val * k_val) * kw;
                     d = d + 1.0;
                 }
                 let score = dot * scale;
@@ -128,7 +130,9 @@ fn e8_attention_compute_energy(h: ptr) -> float {
     let n = cartan_vec_len(h);
     while (i < n) {
         let v = cartan_vec_get_f32(h, i);
-        sum_sq = sum_sq + (v * v);
+        let sub_idx = floor(i / 320.0);
+        let kw = geom_killing_form_dynkin_weight(sub_idx);
+        sum_sq = sum_sq + (v * v) * kw;
         i = i + 1.0;
     }
     return 0.5 * sum_sq;
@@ -137,45 +141,48 @@ fn e8_attention_compute_energy(h: ptr) -> float {
 // Anisotropic RMSNorm layer normalization bounding manifold activation energy to 1.0
 fn cartan_tensor_rmsnorm(v: ptr, eps: float) {
     if (v == 0.0) { return; }
-    let dim = cartan_vec_len(v);
+    let dim = v[0];
     if (dim <= 0.0) { return; }
     var sum_sq = 0.0;
     var i = 0.0;
     while (i < dim) {
-        let val = cartan_vec_get_f32(v, i);
-        sum_sq = sum_sq + (val * val);
+        let val = v[2.0 + i];
+        let sub_idx = floor(i / 320.0);
+        let kw = geom_killing_form_dynkin_weight(sub_idx);
+        sum_sq = sum_sq + (val * val) * kw;
         i = i + 1.0;
     }
-    let rms = math_sqrt((sum_sq / dim) + eps);
+    let rms = sqrt((sum_sq / dim) + eps);
     if (rms <= 0.000001) { return; }
     let inv_rms = 1.0 / rms;
     i = 0.0;
     while (i < dim) {
-        let val = cartan_vec_get_f32(v, i);
-        cartan_vec_set_f32(v, i, val * inv_rms);
+        v[2.0 + i] = v[2.0 + i] * inv_rms;
         i = i + 1.0;
     }
 }
 
 fn e8_attention_forward_step_with_momentum(hidden_ptr: ptr, mom_ptr: ptr, temp: float) -> ptr {
     if (hidden_ptr == 0.0) { return cartan_vec_create(); }
-    let h_len = cartan_vec_len(hidden_ptr);
+    let h_len = hidden_ptr[0];
     if (h_len == 0.0) { return cartan_vec_create(); }
     let weights = cartan_sasaki_brainstem_route_vec(hidden_ptr, mom_ptr, temp);
     let h_cur = geomind_streams_manifold_forward_routed(hidden_ptr, weights);
     
     // Normalize manifold activations before and after 16-layer FFN cascade
     cartan_tensor_rmsnorm(h_cur, 0.00001);
+    let dim = h_cur[0];
     var l = 0.0;
     while (l < 16.0) {
         let kappa = (l + 1.0) / 16.0;
         var d = 0.0;
-        let dim = cartan_vec_len(h_cur);
         while (d < dim) {
-            let z = cartan_vec_get_f32(h_cur, d);
-            let gelu_z = 0.5 * z * (1.0 + math_tanh(0.79788456 * (z + 0.044715 * z * z * z)));
-            let ffn = gelu_z * (1.0 + math_tanh(kappa * z));
-            cartan_vec_set_f32(h_cur, d, z + 0.25 * ffn);
+            let z = h_cur[2.0 + d];
+            let sub_idx = floor(d / 320.0);
+            let kw = geom_killing_form_dynkin_weight(sub_idx);
+            let gelu_z = 0.5 * z * (1.0 + tanh(0.79788456 * (z + 0.044715 * z * z * z)));
+            let ffn = gelu_z * (1.0 + tanh(kappa * z * kw));
+            h_cur[2.0 + d] = z + 0.25 * ffn;
             d = d + 1.0;
         }
         l = l + 1.0;

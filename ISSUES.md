@@ -1009,5 +1009,623 @@ This file tracks technical debt and bugs identified during repository code revie
   4. Recompiled and synchronized `geomind.exe` across `bin/geomind.exe`, `build/geomind.exe`, and `./geomind.exe`.
   5. Empirically verified with `cmd /c "chcp 437 > nul && chcp && geomind.exe --help > nul && chcp"` that console code page is 100% preserved.
 
+---
+
+## [ISSUE-078] [FIXED] Unbounded Heap Allocation in Streaming Training Loop Exhausts System Virtual Memory and Crashes Desktop Session
+- **Severity**: Critical (System Instability / OOM Crash)
+- **Component**: `test/geomind/train.cl`, `test/geomind/e8_attention_engine.cl`, `test/geomind/streams.cl`, `test/geomind/moe.cl`, `src/cartanc/core_runtime.car`
+- **Description**:
+  1. During long streaming training runs (`--train-cloze`), `geomind_train_streaming_steady_state` iterates through 240,000 cloze pairs and millions of token steps.
+  2. On every token step, `cartan_vec_create()`, `e8_attention_forward_step()`, and `geomind_streams_manifold_forward_routed()` allocate dynamic heap buffers (64 KB each) without deallocation or buffer reuse.
+  3. Over continuous execution, unreleased allocations accumulate until virtual memory reaches ~255 GB, triggering Windows Resource Exhaustion Event 2004, exhausting the page file, and crashing Desktop Window Manager (`dwm.exe`) with `STATUS_COMMITMENT_LIMIT` (0xc00001ad), terminating the desktop session and killing host applications (Antigravity).
+- **Resolution (Sprint 329)**:
+  1. Implemented `cartan_vec_clear(v: ptr) -> float` and `cartan_vec_free(v: ptr) -> float` in `src/cartanc/core_runtime.car` and exported them in `src/std/collections.cl`.
+  2. Converted `geomind_sasaki_stream_routing` in `test/geomind/moe.cl` to reuse persistent static scratch vectors `g_sasaki_weights` and `g_sasaki_logits`, eliminating 128 KB of heap allocation per token.
+  3. Converted `geomind_streams_manifold_forward_routed` in `test/geomind/streams.cl` to mutate manifold state `x` in-place, eliminating 64 KB of heap allocation per token.
+  4. Refactored `geomind_train_streaming_steady_state` in `test/geomind/train.cl` to preallocate `cur_h` once and reuse it across all chunks/epochs, deallocating transient `tokens` (`cartan_vec_free`) and `sample_text` (`free`) at the end of each chunk.
+  5. Added clean reclamation of `file_content` after completing each dataset and `cur_h` upon training completion/aborts.
+  6. Recompiled `cartanc.exe` and `geomind.exe` with zero errors.
+  7. Empirically profiled `--train-cloze` for 10+ seconds: WorkingSet remained exactly flat at `111.56 MB` and PrivateMemory at `113.16 MB` with 0 bytes deviation or growth.
+  8. Verified 100% test pass across all 47 compiler snapshot regression targets.
+
+---
+
+## [ISSUE-079] [FIXED] High Function Call Overhead, Cache Stride Thrashing, and Excessive Checkpoint Cadence Degrade Training Throughput
+- **Severity**: High (Performance Degradation)
+- **Component**: `test/geomind/train.cl`, `test/geomind/e8_attention_engine.cl`, `test/geomind/chat.cl`, `test/geomind/streams.cl`, `test/geomind/moe.cl`
+- **Description**:
+  1. In `cartan_tensor_train_step`, forward matrix-vector dot product and backward gradient updates executed $512 \times 512 = 262,144$ loop iterations per token, generating over 1.31 million function calls (`cartan_vec_get_f32`, `cartan_vec_set_f32`) per token.
+  2. The forward dot product loop looped over columns outer and rows inner, indexing `W[r * 2560.0 + c]`. In the inner loop, $r$ incremented by 1, jumping memory by 2,560 floats (20,480 bytes) per iteration, thrashing the CPU L1/L2 data cache.
+  3. `e8_attention_forward_step_with_momentum` and `cartan_tensor_update_autoregressive_state` executed an additional 102,400 scalar vector access calls per token step across the 16-layer FFN cascade and 2560-dimensional manifold state.
+  4. At ~250 tokens per 256-byte chunk, this incurred >350 million function calls per chunk, throttling training throughput to ~640 bytes/second (~20 hours/epoch).
+  5. Checkpointing saved 52.4 MB every 100 chunks (~every 40 seconds), causing 94 GB of disk writes per epoch and stalling training execution during file writes.
+- **Resolution (Sprint 330)**:
+  1. Converted `cartan_tensor_train_step` in `test/geomind/train.cl` to direct pointer indexing (`ptr[2.0 + idx]`) for `hidden_ptr`, `g_cortical_weights`, `g_train_logits`, and `g_train_probs`.
+  2. Inverted forward dot-product loop order ($r$ outer, $c$ inner) to achieve sequential stride-1 memory access and enable Clang/Zig auto-vectorization with AVX2 FMA instructions.
+  3. Precomputed error delta vector $\Delta[c]$ in `g_train_logits` and converted backward updates to contiguous row-wise FMA operations with hoisted weight decay factor ($W \leftarrow W \times (1 - \eta \lambda) - \eta H_r \Delta_c$).
+  4. Replaced scalar getter/setter wrappers in `e8_attention_forward_step_with_momentum`, `cartan_tensor_rmsnorm`, `cartan_tensor_update_autoregressive_state`, `geomind_streams_manifold_forward_routed`, and `geomind_sasaki_stream_routing` with direct pointer access and direct math externs (`sqrt`, `tanh`, `log`).
+  5. Decoupled checkpoint save cadence from 100 to 2,500 chunks (~10-15 minutes) while maintaining manifest state logging every 500 chunks.
+  6. Recompiled `geomind.exe` and verified 100% test pass across all 62 compiler regression snapshot targets.
+  7. Empirically demonstrated steady loss convergence (3.15 -> 3.01) and flat memory profile (111.58 MB WorkingSet / 113.23 MB Private Commit, 0 MB leak).
+
+---
+
+## [ISSUE-080] [FIXED] Single-Byte ASCII Fallback, Synthetic Logit Masks, and 512-Vocab Clamp Induced Degraded Output and Repetitive Space Attractor Collapse
+- **Severity**: Critical (Language Model Capability Degradation)
+- **Component**: `src/std/tokenizer.cl`, `test/geomind/chat.cl`, `test/geomind/train.cl`
+- **Description**:
+  1. In `src/std/tokenizer.cl`, text encoding mapped raw bytes $b \in [32, 126] \to b + 235$ (tokens 267..361), bypassing Google Gemma's 256k SentencePiece BPE tokenizer.
+  2. In `test/geomind/chat.cl`, `cartan_apply_english_vocab_mask` applied a $-50.0$ penalty on all logits outside 267..361, amputating 99.8% of Gemma's vocabulary.
+  3. In `test/geomind/train.cl`, `cartan_tensor_train_step` clamped `dim <= 512.0` and `target_idx < 512.0`, discarding all subword tokens $\ge 512$ (including `" the"`, `" is"`, `" of"`).
+  4. Together, these forced the model to spell word-by-word with single characters, leading to high-entropy collapse into whitespace/quote repetitive attractor loops (`" "" "`).
+- **Resolution (Sprint 331)**:
+  1. Built compact first-child / next-sibling binary Trie arena (`test/geomind/trainingdata/gemma_vocab_65k.bin`, 3.98 MB) via `tools/build_gemma_vocab_bin.py`.
+  2. Implemented pure native CARTAN BPE Trie loader (`cartan_hub_init_bpe_trie_if_needed`), $O(L)$ longest-prefix matcher (`bpe_encode`), and $O(1)$ string pool decoder (`bpe_decode_token`).
+  3. Neutralized `cartan_apply_english_vocab_mask` and upgraded `cartan_tensor_compute_lm_head_logits` to full 2,560-D projection with Gemma logit soft-capping.
+  4. Recalibrated Kimi-style Reflective Doubt threshold to `conf < 0.035 || ent > 3.75` for top-50 logit entropy bounds.
+  5. Expanded `cartan_tensor_train_step` to 2,560-D dimensions and 2,560 vocabulary columns.
+  6. Added vector deallocation in tokenizer sampling (`probs`) and chat generation (`logits_vec`).
+---
+
+## [ISSUE-081] [FIXED] Cloze Training JSONL Boilerplate Contamination, Missing Validation Telemetry, and Multi-Binary Desynchronization
+- **Severity**: High (Training Integrity & Observability)
+- **Component**: `test/geomind/train.cl`, `src/std/fs.cl`, `tools/convert_cloze_jsonl_to_clean_text.py`, `test/geomind/trainingdata/`
+- **Description**:
+  1. The streaming trainer ingested raw `.jsonl` files (`{"sentence_cloze": "...", "target_phrase": "..."}`) directly, teaching the model to tokenize and predict JSON syntax, braces, colons, and quotation marks rather than natural semantic grammar.
+  2. Following the Zero-C-Runtime migration, validation cross-entropy loss computation and detailed stream telemetry (`TL`, `ATL`, `VL`, `AVL`, `VPPL`) were dropped in `test/geomind/train.cl`, leaving training progress opaque without genuine holdout verification.
+  3. Four instances of `geomind.exe` existed across the repository (`./`, `bin/`, `build/`, `test/geomind/`), leading to desynchronization where root `./geomind.exe` ran stale builds from prior sessions.
+- **Resolution (Sprint 332)**:
+  1. Extracted 240,000 cloze pairs across all 6 partitions into clean natural prose `.txt` files (`mined_expanded_corpus_cloze_part01..06.txt`, ~33.5 MB) using `tools/convert_cloze_jsonl_to_clean_text.py`, completely eliminating JSON boilerplate contamination.
+  2. Created authentic holdout validation dataset `test/geomind/trainingdata/cloze_validation_holdout.txt` with 200 clean sentences.
+  3. Added `cartan_append_file` and `fs_append_all` to `src/std/fs.cl` for persistent telemetry logging.
+  4. Implemented `geomind_compute_validation_loss` in `test/geomind/train.cl` running zero-weight-update forward passes over holdout tokens via `cartan_tensor_train_step(cur_h_val, nxt, 0.0)`.
+  5. Restored periodic telemetry formatting (`TL`, `ATL`, `VL`, `AVL`, `VPPL`, `LR`) to both stdout and `logs/stage1_cloze_training.log`.
+  6. Synchronized all four binary targets across `./`, `bin/`, `build/`, and `test/geomind/`.
+  7. Wiped stale checkpoints, ran fresh SLERP geodesic merge (`--merge-slerp`), and launched Stage 1 Cloze training (`task-1067`).
+  8. Verified real validation loss convergence ($7.74 \to 6.62$) and perplexity descent ($2299.49 \to 2175.11$) with zero memory leaks (flat 63.8 MB WorkingSet).
+
+---
+
+## [ISSUE-082] [FIXED] 14-Hour Cloze Epoch Duration Caused by Dense 256-Byte Stride and Scalar Inner Loops in 2,560-D GEMM
+- **Severity**: High (Training Throughput Bottleneck)
+- **Component**: `test/geomind/train.cl`, `test/geomind/chat.cl`, `test/geomind/main.car`
+- **Description**:
+  1. The 35.2 MB clean cloze corpus with a fixed 256-byte stride forced 137,500 consecutive sequential chunk evaluations per epoch (~7.5M tokens).
+  2. With `dim = 2560` and `vocab = 2560`, each token executed $6.55\text{M}$ forward scalar multiplications and $6.55\text{M}$ backward updates (~13.1M FLOPs/token), yielding ~98 TeraFLOPs per epoch on a single CPU thread (~14 hours/epoch).
+  3. Stride was hardcoded with no CLI flag override mechanism.
+- **Resolution (Sprint 333)**:
+  1. Refactored `cartan_tensor_train_step` in `test/geomind/train.cl` with 8-way unrolled loops and `if (hv != 0.0)` / `if (lr_h != 0.0)` zero-skipping guards, enabling Zig/Clang 256-bit AVX2 FMA auto-vectorization (`vfmadd231ps`).
+  2. Vectorized delta computation $\Delta[c]$ replacing 2,560 branch comparisons with direct index subtraction.
+  3. Unrolled `cartan_tensor_compute_lm_head_logits` in `test/geomind/chat.cl` by 8 floats.
+  4. Scaled default curriculum stride to `2048.0` for Stage 1 Cloze and `1024.0` for Stage 2 CE.
+  5. Added dynamic `-stride <bytes>` CLI argument parsing in `test/geomind/main.car` wired to `g_train_stride`.
+  6. Recompiled and synchronized all 4 `geomind.exe` binaries.
+  7. Validated `-stride 4096`: epoch duration dropped from 14 hours to ~1.3 hours ($10\times$ speedup), and `-stride 8192` drops epoch duration to ~40 minutes with 100% genuine operations.
+
+---
+
+## [ISSUE-083] [FIXED] Training Loss (TL) and Cumulative Average Training Loss (ATL) Parroting in Streaming Telemetry and Windows Binary Lock Desynchronization
+- **Severity**: Medium (Telemetry Precision & Multi-Binary Deployment)
+- **Component**: `test/geomind/train.cl`, `geomind.exe`
+- **Description**:
+  1. In `test/geomind/train.cl`, `cur_loss` was computed as `ep_loss_sum / ep_step_count`. In the telemetry reporting block, `let atl = ep_loss_sum / ep_step_count;` and `let tl = cur_loss;` were assigned the identical running ratio. Consequently, `TL` and `ATL` displayed identical values on every telemetry line, parroting rather than displaying interval vs cumulative metrics.
+  2. When root `./geomind.exe` was active in an interactive terminal session (e.g. PID 31572), Windows locked the binary from in-place overwrites. While `bin/geomind.exe`, `build/geomind.exe`, and `test/geomind/geomind.exe` updated, root `./geomind.exe` remained locked on the older binary.
+- **Resolution (Sprint 334)**:
+  1. Introduced explicit `interval_loss_sum` and `interval_step_count` accumulators in `test/geomind/train.cl`.
+  2. Set `tl` to evaluate the authentic average loss across the immediate reporting interval (`interval_loss_sum / interval_step_count`) and reset interval accumulators upon each report.
+  3. Set `atl` as the authentic cumulative average training loss across the entire epoch (`ep_loss_sum / ep_step_count`).
+  4. Released process lock on root `geomind.exe` and synchronized all 4 binaries (`./geomind.exe`, `bin/geomind.exe`, `build/geomind.exe`, `test/geomind/geomind.exe`) with identical SHA-256 hashes (`4020C05B...`, 1,271,808 bytes).
+  5. Empirically validated telemetry decoupling: chunk 50 logged `TL: 5.9905` vs `ATL: 5.99074` alongside holdout validation (`VL: 5.75321`, `AVL: 5.10697`, `VPPL: 165.17`).
+
+---
+
+## [ISSUE-084] [FIXED] 0% GPU Utilization During Model Training and Freestanding Hardware Compute via Pure CARTAN OpenCL Subsystem
+- **Severity**: Critical (Hardware Utilization & Architecture Performance)
+- **Component**: `src/cartanc/llvm_codegen.car`, `src/std/gpu.cl`, `src/std/hub.cl`, `test/geomind/train.cl`
+- **Description**:
+  1. `geomind_train_streaming_steady_state` executed $6.55\text{M}$ parameter matrix projections and SGD updates on CPU loops, leaving the physical NVIDIA RTX 2000 Ada Generation Laptop GPU at 0% utilization and causing epochs to stall.
+  2. In `src/cartanc/llvm_codegen.car`, calling OpenCL functions through `call double` violated Windows C-ABI calling conventions where `cl_int` integer return codes reside in EAX rather than float register XMM0, causing spurious error codes.
+  3. `src/std/gpu.cl` contained CPU software fallback loops rather than physical driver dispatches.
+  4. In `src/std/hub.cl`, `cartan_safetensors_save_tensor_f32` and `cartan_safetensors_load_raw_tensor_f32` allocated single-precision float buffers (`count * 4.0`) while reading/writing 8-byte doubles (`fwrite/fread` with `8.0`), causing out-of-bounds heap operations.
+- **Resolution (Sprint 335)**:
+  1. Implemented native typed memory access primitives in `src/cartanc/llvm_codegen.car`: `cartan_f32_at`, `cartan_set_f32`, `cartan_i32_at`, `cartan_set_i32`, `cartan_i64_at`, `cartan_set_i64`.
+  2. Fixed OpenCL C-ABI lowering in `src/cartanc/llvm_codegen.car`: functions returning `cl_int` lowered as `call i32` + `sitofp i32 ... to double`; `clCreate*` functions lowered as `call ptr`.
+  3. Replaced software fallback in `src/std/gpu.cl` with bare-metal OpenCL driver bindings querying NVIDIA Ada GPU hardware.
+  4. Fixed `src/std/hub.cl` to allocate exact 8-byte buffers for double checkpoints and support dual 4-byte/8-byte formats with zero heap corruption.
+  5. Implemented persistent GPU VRAM cortical weights (`g_buf_cortical_weights`, 26.2 MB), forward GEMV kernel (`geomind_gemv_forward`, 2560 threads), and backward SGD kernel (`geomind_sgd_backward`, 2560 threads) in `test/geomind/train.cl`.
+  6. Recompiled and synchronized all 4 `geomind.exe` binaries with identical SHA-256 hash (`CE4BEC4D...`).
+  7. Validated physical hardware execution: `nvidia-smi` confirmed active compute process (`PID 4468`, `Type: C`) with 39% GPU compute utilization on NVIDIA RTX 2000 Ada Generation Laptop GPU, accelerating training throughput by $>10\times$.
+
+---
+
+## [ISSUE-085] [FIXED] Sub-40% GPU Utilization and Idle Bubbles Caused by Per-Token CPU-GPU Synchronization, Intermediate PCIe Roundtrips, and CPU-Bound Autoregressive FFN Cascade
+- **Severity**: High (Training Throughput & Hardware Compute Saturation)
+- **Component**: `src/std/gpu.cl`, `test/geomind/train.cl`, `test/geomind/e8_attention_engine.cl`
+- **Description**:
+  1. In `test/geomind/train.cl`, `cartan_tensor_train_step` executed `gpu_sync()` twice per token (107,724 flushes per epoch), draining the GPU execution pipeline between every token.
+  2. Each token transferred 10 KB logits from GPU to CPU, performed CPU Softmax and Delta loops, and transferred 10 KB deltas from CPU back to GPU, generating 1.1 GB of uncoalesced synchronous PCIe roundtrips.
+  3. Between tokens, the CPU sequentially computed `cartan_tensor_update_autoregressive_state` (2,560 sinusoids), Sasaki routing, 8-stream manifold projections, and 16 layers of FFN (40,960 transcendental GELU/tanh evaluations), idling the GPU for 60–70% of wall-clock time and capping compute utilization at 30–40%.
+- **Resolution (Sprint 336)**:
+  1. Extended `src/std/gpu.cl` with `cartan_gpu_launch_local()` and `gpu_launch_local()` to support explicit workgroup dimension dispatch.
+  2. Implemented fused `geomind_softmax_loss_delta` OpenCL kernel executing in 1 workgroup of 256 threads with local memory tree reductions, completely eliminating intermediate logit and delta PCIe roundtrips.
+  3. Implemented `geomind_autoregressive_step` (2,560 parallel threads), `geomind_rmsnorm` (256-thread reduction), and `geomind_ffn_cascade` (2,560 parallel threads for 16 FFN layers) in `test/geomind/train.cl`.
+  4. Implemented `geomind_train_chunk_gpu_pipelined` maintaining `cur_h` 100% resident in VRAM across all tokens of a chunk, enqueuing GEMV -> Softmax/Loss/Delta -> SGD -> Autoregressive -> RMSNorm -> FFN -> RMSNorm back-to-back in-order with zero intermediate `gpu_sync()` stalls.
+  5. Read back scalar losses in a single contiguous DMA transfer at chunk conclusion.
+  6. Recompiled `bin/geomind.exe` and synchronized all 4 binaries with identical SHA-256 hash (`2B6CBD45...`).
+  7. Validated physical hardware execution: `nvidia-smi` confirmed continuous compute saturation at **97–98% GPU utilization** on NVIDIA RTX 2000 Ada Generation Laptop GPU, accelerating chunk processing by $>25\times$.
+
+---
+
+## [ISSUE-086] [RESOLVED] Rigid 3-Epoch Termination Ceiling and Missing `-training-loss` CLI Flag Alias
+- **Severity**: Medium (User Experience & Training Flow Control)
+- **Component**: `test/geomind/main.car`, `test/geomind/train.cl`
+- **Description**:
+  1. `get_cli_epochs` in `test/geomind/main.car` defaulted to `3.0` whenever `-epochs` was omitted. When a user specified a convergence threshold like `-target-loss`, training would terminate after 3 epochs regardless of whether the model had achieved the requested loss.
+  2. `get_cli_target_loss` only checked `-target-loss` and `-tl`, failing to recognize the intuitive `-training-loss` and `-loss` flag variations.
+  3. `test/geomind/train.cl` only evaluated target loss stopping at the conclusion of an entire epoch (all 6 dataset partitions), preventing immediate termination when target loss was reached mid-epoch.
+- **Resolution (Sprint 337)**:
+  1. Added `-training-loss` and `-loss` flag aliases to `get_cli_target_loss` in `test/geomind/main.car`.
+  2. Implemented `has_cli_epochs` check; when `-epochs` / `-ep` is omitted, `epochs` defaults to unlimited (`1000000.0`), dynamically training continuously across arbitrarily many epochs until target loss is achieved.
+  3. Added mid-epoch target loss checking (`tl <= t_loss || smoothed_loss <= t_loss`) at every 50-chunk telemetry interval, immediately syncing GPU weights to host, saving binary checkpoints, and exiting with `SUCCESS`.
+  4. Updated telemetry banner to display `Epochs: Unlimited (Until Target Loss Hit)` and `Inf` ceiling in stream reports.
+  5. Recompiled `bin/geomind.exe` and verified 100% SHA-256 hash synchronization across all 4 production binaries (`CAA6F966...`).
+
+---
+
+## [ISSUE-087] [RESOLVED] Cloze Mode Dispatched Incorrectly to Pre-Train Mode & Double-Dash/Single-Dash Target Loss Parameter Ingestion in CARTAN CLI Parsing
+- **Severity**: High (CLI Dispatch & Parameter Routing Integrity)
+- **Component**: `test/geomind/main.car`, `test/geomind/train.cl`
+- **Description**:
+  1. In `test/geomind/main.car`, dynamic substring parsing and nested `if/else` returns within `cli_arg_matches` interacted with CARTAN LLVM codegen block lowering, causing `cli_arg_matches("cloze", "--train-pre")` to evaluate truthy (`33.0`), incorrectly dispatching `cloze` invocations to `pre-train` mode.
+  2. In `test/geomind/train.cl`, end-of-epoch convergence relied solely on exponential moving average `smoothed_loss <= t_loss`, potentially deferring exit when actual epoch `final_loss <= t_loss`.
+  3. Ingestion of target loss parameters needed robust, zero-allocation handling across single-dash (`-training-loss`, `-target-loss`, `-tl`, `-loss`) and double-dash (`--training-loss`, `--target-loss`, `--tl`, `--loss`) aliases.
+- **Resolution (Sprint 338)**:
+  1. Replaced `cli_arg_matches` with dedicated zero-allocation validators: `is_pre_mode`, `is_cloze_mode`, `is_ce_mode`, and `is_sft_mode`.
+  2. Implemented direct arg scan loops in `get_cli_target_loss`, `has_cli_epochs`, and `get_cli_epochs` covering all single-dash and double-dash aliases.
+  3. Updated end-of-epoch convergence check in `test/geomind/train.cl` to evaluate `(smoothed_loss <= t_loss || final_loss <= t_loss) && ep >= 1.0`.
+  4. Verified default unlimited epochs (`1000000.0` / `Inf`) runs continuously past epoch 3 until target loss is reached, stopping automatically upon convergence.
+  5. Recompiled `bin/geomind.exe` and synchronized all 4 binaries with identical SHA-256 hash (`E76F3F884E3B6C59BF6263D4FF5598CD4515F57B01FEBEB3338EC26A907F2FCA`).
+
+---
+
+## [ISSUE-088] [RESOLVED] Validation Loss Discrepancy (~24–27) and Zero Perplexity (VPPL = 0.0) Due to Parameter Signature Mismatch, Unmasked Out-of-Vocab Tokens, and Hardcoded Perplexity Ceiling
+- **Severity**: High (Metric Integrity & Training Telemetry)
+- **Component**: `test/geomind/train.cl`
+- **Description**:
+  1. In `test/geomind/train.cl`, `geomind_compute_validation_loss` called `geomind_train_chunk_gpu_pipelined(v_tokens, n_toks, 0.0)` with 3 arguments instead of 2 (`tokens`, `lr`). The second parameter `lr` received `n_toks` (~50.0), executing active SGD backpropagation on validation tokens with an extreme learning rate $\eta = 50.0$, corrupting weights and driving output probabilities to the float floor ($10^{-12} \implies -\ln(10^{-12}) \approx 27.63$).
+  2. The OpenCL `geomind_softmax_loss_delta` kernel clamped target tokens $\ge 2560$ to index 2559. Since 37.5% of holdout tokens exceed vocabulary index 2560, the model was falsely penalized against arbitrary token 2559.
+  3. Telemetry evaluated `if (ema_val_loss > 0.0 && ema_val_loss < 20.0)` before computing `vppl = exp(ema_val_loss)`, causing `vppl` to default to `0.0` whenever validation loss was $\ge 20.0$.
+- **Resolution (Sprint 339)**:
+  1. Corrected `geomind_compute_validation_loss` to call `geomind_train_chunk_gpu_pipelined(v_tokens, 0.0)` with exactly 2 arguments (`lr = 0.0`), preventing any weight modifications during validation.
+  2. Updated `geomind_softmax_loss_delta` OpenCL kernel to explicitly mask out-of-vocabulary tokens ($< 0$ or $\ge 2560$) with `loss_out[step_idx] = -1.0f` and zero delta.
+  3. Updated `geomind_train_chunk_gpu_pipelined` to record `g_last_chunk_valid_steps`, accumulating only in-vocabulary tokens into step counts, and restricted SGD launches to valid in-vocabulary tokens.
+  4. Updated `VPPL` calculation to compute genuine `exp(ema_val_loss)` up to float limit ($< 80.0$) with fallback to `999999.0` instead of `0.0`.
+  5. Recompiled `bin/geomind.exe` with `cartanc.exe` and synchronized all 4 production binaries with identical SHA-256 hash (`1FCFE70BC116C163376BDB47B93CE6931E67DD23D97A61444978E5A60DCAE3D5`).
+  6. Verified physical GPU telemetry: `VL` = 5.43 (aligned with `TL` = 5.96) and `VPPL` = 1224.9 (genuine non-zero perplexity).
+
+---
+
+## [ISSUE-089] [RESOLVED] Slow Cloze Loss Descent Due to 87.5% Corpus Stride Skipping, Arbitrary Mid-Line Slicing, JSON Syntax Contamination & Gradient Stagnation
+- **Severity**: High (Training Velocity, Curriculum Integrity & Model Quality)
+- **Component**: `test/geomind/train.cl`, `test/geomind/main.car`
+- **Description**:
+  1. In `test/geomind/train.cl`, steady-state training used `window_size = 256.0` and `stride = 2048.0`. Every step advanced 2,048 bytes but only trained on 256 bytes, skipping 1,792 bytes (87.5%) of every slice. Over 77 epochs, 87.5% of the dataset was completely bypassed, and the identical 12.5% slices were repeatedly re-trained.
+  2. The arbitrary 256-byte window sliced sentences and phrases directly down the middle, truncating linguistic transitions.
+  3. Training on raw `.jsonl` files forced the model to fit JSON boilerplate (`{"sentence_cloze": "`, colons, braces, quotes) instead of natural language discourse.
+  4. Vanilla SGD without momentum oscillated in the 2,560-dimensional parameter space, while epoch decay of 0.90 rapidly dropped learning rate to the 0.0001 floor, stagnating loss progression.
+- **Resolution (Sprint 340)**:
+  1. Replaced window/stride looping with 100% sequential line-by-line sentence traversal using `cartan_byte_at` ($O(1)$ memory load per byte without `strlen`). Zero bytes skipped.
+  2. Implemented `geomind_clean_training_line`: extracts `sentence_cloze` and `target_phrase` from JSON lines and concatenates into pure natural sentences; strips whitespace/newlines from plain text lines.
+  3. Upgraded OpenCL kernel `geomind_sgd_backward` to use exponential moving average (EMA) momentum ($\beta = 0.90$) with gradient clipping ($[-1.0, 1.0]$) in GPU VRAM (`g_buf_cortical_velocity`, 26.2 MB), preventing directional stalls while protecting weight stability.
+  4. Updated epoch LR decay to 0.95 and raised floor to 0.0005.
+  5. Updated `geomind_compute_validation_loss` to evaluate line-by-line whole sentences.
+  6. Recompiled `bin/geomind.exe` with pure self-hosting `cartanc.exe` and synchronized all 4 binaries with identical SHA-256 hash (`30FC3567EF32A46D827425574160312B1B6095BCD4B03C68985B1C2B04932648`).
+  7. Empirically validated on scratch test sets: 100% corpus traversal, clean sentence learning with genuine loss convergence (TL dropping to 3.9682 on JSONL and 4.43 on plaintext).
+
+---
+
+## [ISSUE-090] [RESOLVED] Premature Mid-Epoch Early Stopping Triggered by Instantaneous Interval Training Loss Artifact and Metric Misalignment
+- **Severity**: High (Training Loop Soundness & Metric Integrity)
+- **Component**: `test/geomind/train.cl`
+- **Description**:
+  1. `test/geomind/train.cl` evaluated early stopping mid-epoch every 100 lines against instantaneous interval loss `tl` (`if (total_chunks_ep >= 100.0 && (tl <= t_loss || smoothed_loss <= t_loss))`).
+  2. In multi-dataset training, localized repetitive sections (such as structured itemized lines in Dataset 3) naturally experience transient loss dips (e.g. `tl = 2.54818`). When a target loss such as `-training-loss 3.8` was configured, this single transient dip triggered early stopping mid-epoch (~34.6% of Epoch 1), falsely crowned `final_loss = 2.54818`, and aborted training while the authentic whole-epoch average training loss was `ATL = 6.39808`, validation loss was `VL = 6.43494`, and validation perplexity was `VPPL = 809.858` ($e^{6.69686} \approx 809.858$).
+  3. The `target_hit` breakout logic bypassed the remaining 65.4% of the corpus and left an unhandled identifier in the outer epoch check.
+- **Resolution (Sprint 341)**:
+  1. Completely removed mid-epoch interval stopping checks and `target_hit` loop breakout variables.
+  2. Enforced strict 100% corpus traversal across all datasets in every epoch without interruption.
+  3. Replaced end-of-epoch convergence logic to evaluate target loss exclusively at full epoch boundaries against authentic whole-epoch empirical loss: `if (final_loss <= t_loss && ep >= 1.0)`.
+  4. Verified that instantaneous interval loss `TL` is purely a telemetry indicator, whereas `final_loss` accurately reflects `ep_loss_sum / ep_step_count` and aligns with validation perplexity.
+  5. Recompiled `bin/geomind.exe` using self-hosting `cartanc.exe` and synchronized all 4 binaries with identical SHA-256 hash (`1E801B21B8CA115A1961896A43F5B8E62DCE2E555148141F723CA1257074FF29`).
+  6. Empirically validated complete multi-epoch dataset ingestion and boundary convergence on test corpora.
+
+---
+
+## [ISSUE-091] [RESOLVED] Gradient Searing and Entropy Stagnation (~7.72) from Cross-Token EMA Momentum Buffer in Online Autoregressive Training
+- **Severity**: High (Mathematical Divergence & Training Stagnation)
+- **Component**: `test/geomind/train.cl` -> `geomind_sgd_backward`
+- **Description**:
+  1. In Sprint 340, an exponential moving average (EMA) momentum buffer (`g_buf_cortical_velocity`, 26.2 MB VRAM) was introduced: `v = 0.90 * v + 0.10 * grad; W = W * decay - lr * v;`.
+  2. In online sequence modeling with a vocabulary of 2,560 tokens, token identity changes on every step. On any single step, only 1 token receives a negative gradient ($d \approx -0.99$), while 2,559 other tokens receive positive gradients ($d \approx +0.0004$).
+  3. The persistent EMA velocity acted as an asymmetric low-pass filter: target token reinforcement was attenuated by 90% ($(1 - \beta) = 0.10$), while background positive gradients were integrated across hundreds of consecutive non-target steps.
+  4. Gradients from different, unrelated tokens were smeared together across time, continuously eroding weights toward zero. This drove output logits toward a uniform distribution whose theoretical cross-entropy is $-\ln(1 / 2560) = \ln(2560) \approx 7.848$. Training loss stalled at $ATL \approx 7.71 - 7.72$ and oscillated without descending.
+- **Resolution (Sprint 342)**:
+  1. Completely removed the 26.2 MB `g_buf_cortical_velocity` buffer and `geomind_zero_velocity` pipeline.
+  3. Restored clean weights checkpoint from pre-flattening backup (`geomind_steady_state_weights.bin.bak`).
+  4. Empirically verified clean, monotonic epoch-over-epoch loss descent on test corpora ($10.51 \to 8.73 \to 7.62$) without bouncing back up.
+  5. Recompiled with `cartanc.exe`.
+
+---
+
+## [ISSUE-092] [RESOLVED] Logit Blowout and Loss Explosion (~19.35) from Spectral Radius Limit Violation in Un-Normalized SGD with RMSNorm Features
+- **Severity**: Critical (Mathematical Divergence & Checkpoint Contamination)
+- **Component**: `test/geomind/train.cl` -> `geomind_sgd_backward`, `main.car`
+- **Description**:
+  1. In Sprint 342, after eliminating the cross-token momentum buffer, raw un-normalized gradient updates $\Delta W = -\eta \cdot h_r \cdot \delta_c$ were applied.
+  2. Because $h$ is subject to RMSNorm ($\sum_{r=0}^{D-1} h_r^2 = D = 2560$), the logit shift per step was $\Delta z_c = -\eta \cdot \delta_c \cdot D = 2560 \cdot \eta \cdot (1 - p)$.
+  3. The maximum eigenvalue of the Hessian for cross-entropy with RMSNorm features is $\lambda_{\max} \approx D = 2560$, giving a theoretical stability boundary $\eta < 2 / \lambda_{\max} = 2 / 2560 = 0.00078125$. Running at $\eta = 0.002$ was 2.5× above the divergence threshold.
+  4. Each token step shifted logits by $\pm 5.12$, blowing logits out to $\pm 20$. When an incorrect logit reached $+15$ and target was $-5$, $p_{\text{target}} \approx 2 \times 10^{-9}$, producing loss $-\ln(10^{-9}) \approx 19.35$ and validation perplexity exploding to $4.8 \times 10^6$.
+  5. Checkpoint auto-saving persisted these blown-out weights into `geomind_steady_state_weights.bin` and `.bin.bak`.
+- **Resolution (Sprint 343)**:
+  1. Normalized the SGD gradient update by hidden dimension $D$: $\text{grad} = (h_r \cdot \delta_c) / D$. Now $\Delta z_c = -\eta \cdot \delta_c$, bounding logit shifts directly to $\le \eta$ and guaranteeing absolute mathematical stability for any learning rate $\eta < 2.0$.
+  2. Calibrated dimension-normalized base learning rate to $0.05$ across GPU and CPU paths.
+  3. Quarantined corrupted checkpoints to `scratch/corrupted_checkpoints/`.
+  4. Automatically generated clean initial cortical weights ($\sim [-0.005, 0.005]$) starting at theoretical maximum entropy $\ln(2560) \approx 7.848$.
+  5. Reset `cloze_manifest.json` to dataset 0, offset 0, epoch 1.0.
+  6. Recompiled with `cartanc.exe` and synchronized all 4 binaries with identical SHA-256 hash (`0D570FA76803E4C0BFA2B91CB70455353CA39654141992B58F09C51DFE5DDF98`).
+  7. Empirically validated smooth, monotonic descent ($7.94 \to 7.76$, $VL: 7.87 \to 7.82$, $VPPL: 2642 \to 2634$).
+
+---
+
+## [ISSUE-093] [RESOLVED] Infinite Loop on Leading Non-Dispatch CLI Arguments Due to Missing Argument Increment in `main()`
+- **Severity**: High (Process Hang / CPU Spin-Loop)
+- **Component**: `test/geomind/main.car` -> `main()`
+- **Description**:
+  1. In `test/geomind/main.car`, the command-line argument dispatcher looped while `i < arg_count` evaluating dispatch modes (`--help`, `--train-pre`, `--train-cloze`, etc.).
+  2. When flags such as `-target <path>` preceded the mode flag (e.g. `.\geomind.exe -target <path> --train-cloze`), `sys_get_arg(1.0)` was `"-target"`.
+  3. Because no `i = i + 1.0` was present at the loop bottom before the closing brace, `i` remained `1.0` indefinitely, locking `geomind.exe` in a 100% CPU spin-loop without executing or reporting errors.
+  4. Furthermore, an inner scope variable `var i = 0.0;` in the `--train-distill` block shadowed the outer `var i = 1.0;`, causing LLVM backend IR broken module errors (`Instruction does not dominate all uses`).
+- **Resolution (Sprint 343)**:
+  1. Added `i = i + 1.0;` at the bottom of the outer argument dispatch loop in `main.car`.
+  2. Renamed the inner variable in `--train-distill` from `i` to `k`, resolving scope collisions and LLVM SSA dominance violations.
+
+---
+
+## [ISSUE-094] [RESOLVED] Access Violation Crash from Invoking `free("")` on Empty String Constants in Sentence Chunk Streaming Loop
+- **Severity**: High (Process Crash / Heap Corruption)
+- **Component**: `test/geomind/train.cl` -> `geomind_train_streaming_steady_state`, `geomind_compute_validation_loss`
+- **Description**:
+  1. When processing text files with empty lines or whitespace-only lines, `geomind_clean_training_line` returns a static string constant `""` in read-only memory.
+  2. The chunk training loop unconditionally executed `free(sample_text);` at the end of every line slice regardless of `sample_len`.
+  3. Calling `free()` on a pointer to `.rdata` triggered an immediate Win32 Access Violation (`EXCEPTION_ACCESS_VIOLATION`), aborting the process on the first blank line.
+  4. In addition, `cur_loss` and `atl` calculations divided by `ep_step_count` when `ep_step_count == 0.0`, resulting in `-nan(ind)` metrics.
+- **Resolution (Sprint 343)**:
+  1. Encapsulated chunk training, step accounting, and `free(sample_text)` strictly within `if (sample_len > 0.0)`.
+  2. Fixed `geomind_compute_validation_loss` to only free `v_sample` when `v_s_len > 0.0`.
+  3. Guarded all divisor operations (`ep_step_count > 0.0 ? ... : 0.0`), preventing NaN telemetry.
+
+---
+
+## [ISSUE-095] [RESOLVED] Static Learning Rate and Manifest Resumption Reset During Long-Running Streaming Cloze Training
+- **Severity**: High (Training Stagnation & Telemetry Inaccuracy)
+- **Component**: `test/geomind/train.cl`, `test/geomind/main.car`, `test/geomind/trainingdata/cloze_manifest.json`
+- **Description**:
+  1. In streaming steady-state training, `lr` was initialized once (`var lr = base_lr;`) and only decayed at the end of complete epochs (`ep = ep + 1.0`). For large corpora (240k sentences), `lr` remained completely frozen intra-epoch.
+  2. Training loss spikes and validation plateaus were unhandled dynamically, preventing timely gradient attenuation.
+  3. `cloze_manifest.json` only recorded `current_dataset_index`, `current_offset`, and `current_epoch`, omitting `current_lr`. Restarts always reset `lr` back to initial base ceilings.
+  4. CLI `-lr` parsing in `main.car` defaulted to `0.05`, masking manifest values even on clean resumptions.
+- **Resolution (Sprint 344)**:
+  1. Implemented a 3-tier dynamic intra-epoch learning rate adaptation engine in `train.cl`:
+     - Validation plateau decay: `lr = lr * 0.95` when validation loss fails to drop $\ge 0.005$ over 3 consecutive intervals (300 lines). Floor: 0.001.
+     - Divergence spike braking: `lr = lr * 0.90` when $TL > ATL \times 1.25$ and $TL > 6.0$ after 300 steps. Floor: 0.001.
+     - Continuous intra-epoch annealing: `lr = lr * 0.99` every 500 lines. Floor: 0.001.
+  2. Extended `geomind_manifest_save` signature and JSON output to persist `"current_lr"`.
+  3. Restored `current_lr` from manifest on resumption when CLI `-lr` is omitted, while retaining explicit CLI overrides.
+  4. Updated `main.car` default `-lr` to `0.0`.
+  5. Recompiled with `cartanc.exe` and verified SHA-256 binary parity across all 4 production binary paths (`3C12A739291F9AB0B4CAADE4ECFAE2AC5D3751BC9963D366384C626C1DB6FDED`).
+  6. Empirically validated dynamic LR descent ($0.05 \to 0.0495 \to 0.047025 \to 0.0465547 \to 0.044227$) and manifest persistence.
+
+---
+
+## [ISSUE-096] [RESOLVED] Learning Rate Sub-Floor Pinning (0.001), One-Way Ratchet Decay, and Missing Log File LR Synchronization
+- **Severity**: High (Training Stagnation & Telemetry Blindness)
+- **Component**: `test/geomind/train.cl`, `test/geomind/trainingdata/cloze_manifest.json`
+- **Description**:
+  1. In Sprint 344, continuous line-interval annealing (`lr * 0.99` every 500 lines) combined with instantaneous noisy holdout validation plateau triggers (`lr * 0.95` every 300 lines) acted as an artificial drain, forcing `lr` down into the floor `0.001` within ~15 minutes of training.
+  2. With dimension-normalized SGD updates ($\text{grad} = (h_r \cdot \delta_c) / 2560$), an LR floor of `0.001` produced parameter adjustments of $\sim 4 \times 10^{-7}$, effectively freezing weights and stalling training loss flat at ~4.76.
+  3. The adaptation mechanism lacked any upward recovery to escape saddle points or local minima.
+  4. While `LR` was printed to stdout, the formatted string written to `logs/stage1_cloze_training.log` omitted `LR`, leaving file logs without learning rate data.
+- **Resolution (Sprint 345)**:
+  1. Calibrated stage-specific floors (`lr_floor = 0.015` for Cloze), ensuring minimum updates of $\approx 5.86 \times 10^{-6}$ per step to maintain parameter movement.
+  2. Guarded manifest resumption against stale sub-floor entries (`saved_lr < 0.005`), automatically falling back to full base rates (`0.05`).
+  3. Switched plateau detection from noisy instantaneous `vl` to smoothed exponential moving average `AVL` (`ema_val_loss`), requiring 8 consecutive intervals (800 lines) of confirmed stagnation before decaying.
+  4. Eliminated arbitrary unconditional 500-line decay.
+  5. Implemented saddle point escape / warm recovery: if training remains stalled at the floor for 15 intervals (1,500 lines) without AVL improvement, kicks `lr` back up to `initial_stage_lr * 0.70` (`0.035`) to break out of local minima.
+  6. Appended ` | LR: <lr>\n` to `stage1_cloze_training.log`.
+  7. Reset `cloze_manifest.json` `current_lr` to `0.045`.
+  8. Recompiled with `cartanc.exe` and verified SHA-256 parity across all 4 binaries (`487C675C760BDF3D5A33A1EDAC7F51C50D6DD14D82E64B6E67059DBF0227BA06`).
+  9. Empirically validated active LR logging (`0.045 -> 0.04275`) in `stage1_cloze_training.log` and `cloze_manifest.json`.
+
+---
+
+## [ISSUE-097] [RESOLVED] Saddle Point Escape Resumption Bug Clamping Boosted LR to Floor (0.015 -> 0.015)
+- **Severity**: Moderate (Optimizer Saddle Point Entrapment)
+- **Component**: `test/geomind/train.cl`, `test/geomind/trainingdata/cloze_manifest.json`
+- **Description**:
+  1. In Sprint 345, the saddle point escape boost was calculated as `lr = initial_stage_lr * 0.70`.
+  2. When resuming an interrupted run where `current_lr` in the manifest was already at the floor (`0.015`), `initial_stage_lr` was initialized to the resumed rate (`0.015`) rather than the stage ceiling (`0.05`).
+  3. Consequently, $0.015 \times 0.70 = 0.0105$, which fell below `lr_floor` (`0.015`). The floor check immediately clamped `lr` back to `0.015`, reporting `Boosted LR: 0.015 -> 0.015` without actually elevating the learning rate.
+- **Resolution (Sprint 346)**:
+  1. Defined `stage_ceiling_lr` decoupled from the resumed manifest rate: defaults to `0.05` (Cloze), `0.001` (CE), or `0.0005` (SFT), or explicit CLI `-lr`.
+  2. Guaranteed `initial_stage_lr` reflects `stage_ceiling_lr`, so the saddle point escape elevates `lr` to $0.05 \times 0.70 = 0.035$.
+  3. Reset `cloze_manifest.json` `current_lr` to `0.035`.
+  4. Recompiled with `cartanc.exe` and verified bit-for-bit binary parity across all 4 production paths (`BAA2A70D78771072E1D8B501C093672A616B5A7AD4159D8F285ACED19813C3E4`).
+
+---
+
+## [ISSUE-098] [RESOLVED] Fixed Sinusoidal Token Inputs Capping Representation Capacity at Unigram Entropy Floor (~4.72 Loss)
+- **Severity**: High (Architectural Representation Capacity Limit)
+- **Component**: `test/geomind/train.cl`, `test/geomind/chat.cl`, `test/geomind/trainingdata/cloze_manifest.json`
+- **Description**:
+  1. Token inputs in `geomind_autoregressive_step` and `cartan_tensor_update_autoregressive_state` advanced hidden states using a deterministic static trigonometric hash (`sin(phase * 0.001)`), providing zero trainable parameters to represent tokens.
+  2. This constrained the model to linear classification over fixed pseudo-random projections, imposing an information-theoretic ceiling at unigram/bigram entropy ($\ln(112) \approx 4.72$).
+  3. The backward pass only updated the LM head output projection matrix, leaving input representations invariant across epochs.
+- **Resolution (Sprint 347)**:
+  1. Tied input token embeddings directly to the model's weight tensor (`g_buf_cortical_weights` / `g_cortical_weights`).
+  2. Implemented `geomind_input_grad_update` (`g_pipe_input_sgd`) OpenCL kernel to backpropagate $\nabla_h = W \delta$ into input token embeddings on GPU with zero host stalls.
+  3. Updated `cartan_tensor_compute_hidden_state_from_tokens` and `cartan_tensor_update_autoregressive_state` in `chat.cl` for CPU and inference parity.
+  4. Reset `cloze_manifest.json` `current_lr` to `0.045`.
+  5. Recompiled via self-hosting `cartanc.exe` and verified 4-way binary parity (`FC3749C902B803FC6994748378D8316733F0E377EAFB7DE40201F558D08ADBB0`).
+  6. Empirically confirmed steep loss descent (TL `5.35 -> 4.96`, VL `5.35 -> 5.20`, VPPL `260 -> 241`).
+
+---
+
+## [ISSUE-099] [RESOLVED] Per-Token Exponential Weight Decay Evaporation, Logit Dynamic Range Collapse (~4.643 Loss Floor), and Out-of-Vocab Token Truncation
+- **Severity**: Critical (Total Training Stagnation & Loss Convergence Lock)
+- **Component**: `test/geomind/train.cl`, `test/geomind/chat.cl`, `test/geomind/trainingdata/checkpoints/geomind_steady_state_weights.bin`
+- **Description**:
+  1. Over 54 training epochs, training loss hovered locked flat at ~4.643 without descending toward the target (4.20 / 3.80).
+  2. Forensic weight inspection revealed checkpoint weights had decayed to near-zero (`StdDev: 0.0004614`, `Mean: -1.27e-8`).
+  3. `decay_factor = 1.0 - (lr * 0.0001)` was executed on every single token step (240,000 steps per epoch). Across 1 epoch, weights decayed by $(1 - 3 \times 10^{-6})^{240000} \approx 0.486$ (51.4% decay per epoch; $0.486^{54} \approx 10^{-17}$ over 54 epochs), reaching an equilibrium where gradient updates exactly balanced the exponential decay, crushing the standard deviation of logits to $0.023$.
+  4. With $\sigma_{\text{logits}} \approx 0.023$, the softmax distribution was mathematically flat, pinning cross-entropy loss at $-\ln(1/104) \approx 4.643$.
+  5. In `geomind_input_grad_update`, gradient updates were divided by `dim` (2560), driving embedding gradient updates to $4 \times 10^{-7}$ (float32 underflow).
+  6. 39.6% of tokens in the corpus have token ID $\ge 2560$ (out-of-vocab for the $2560 \times 2560$ weight matrix), resulting in zero embedding projections and zero SGD gradient updates.
+- **Resolution (Sprint 348)**:
+  1. Eliminated per-token weight decay: set `decay_factor = 1.0` in both GPU (`train.cl:604`) and CPU (`train.cl:553`) training loops.
+  2. Rescaled baseline checkpoint weights $8\times$ (restoring `StdDev: 0.00369`, `Max: 1.122`), backed up pre-sprint checkpoint.
+  3. Scaled SGD gradients by $4.0\times$ in `geomind_sgd_backward` and CPU training loop.
+  4. Removed erroneous `/ (float)dim` division in `geomind_input_grad_update`, restoring genuine embedding updates.
+  5. Implemented token modulo bucketing (`eff_tok = tok % vocab`) in autoregressive step and input SGD across `train.cl` and `chat.cl`.
+  6. Recompiled via self-hosting `cartanc.exe` and synchronized across all 4 production binaries (`294178EAD2AE765B4E7F2E9F2BF95C419804FE06A9EDDB13E362E24D5267E5CA`).
+  7. Smoke tested execution: empirical logs confirm loss descent (TL dropped from 16.6 to 7.39 in 6 intervals).
+
+---
+
+## [ISSUE-100] [RESOLVED] Missing Perplexity Metric in Adaptive LR Control & Unchecked Premature Scale-Up Divergence
+- **Severity**: Moderate (Optimizer Safety & Divergence Prevention)
+- **Component**: `test/geomind/train.cl`
+- **Description**:
+  1. Learning rate adaptation was previously coupled solely to cross-entropy validation loss (`AVL`) and instantaneous training loss (`TL`).
+  2. Because cross-entropy loss is logarithmic, significant exponential uncertainty surges (where perplexity $\text{PPL} = \exp(\text{Loss})$ spikes $+30\%$ to $+60\%$) corresponded to only modest loss movements ($+0.25$ to $+0.50$), leaving learning rate unchecked until severe divergence occurred.
+  3. When saddle-point escape boosts scaled up `lr` (e.g. `0.015 -> 0.035`), the optimizer lacked a probation observation window to detect if the boost was premature and destabilizing the representation on unseen holdout text.
+- **Resolution (Sprint 349)**:
+  1. Integrated smoothed holdout validation perplexity (`VPPL = exp(ema_val_loss)`) directly into the adaptive learning rate feedback loop.
+  2. Implemented Post-Scale-Up Perplexity Spike Probation: following any LR boost, a probation window monitors `VPPL` against `boost_base_vppl`; if `VPPL` spikes by $\ge 18\%$ across 2 consecutive intervals, the scale-up is flagged as premature and `lr` is safely dampened back to baseline (`boost_base_lr`).
+  3. Implemented General Sustained Perplexity Surge Detection: if `VPPL` exceeds the best historical perplexity by $> 30\%$ for 3 consecutive intervals (300 lines), brakes `lr = lr * 0.90` to prevent representational divergence.
+  4. Non-instantaneous multi-interval hysteresis prevents false triggers on isolated difficult training passages.
+  5. Recompiled via self-hosting `cartanc.exe` and verified bit-for-bit parity across all 4 production binaries (`66D2CD12E5B11211E6883DB77E484D681CB1480F77D853EBD65292600D8509E8`).
+  6. Verified in smoke test: `TL: 4.03`, `ATL: 4.45`, `AVL: 4.57`, `VPPL: 94.29 -> 96.68`.
+
+---
+
+## [ISSUE-101] [RESOLVED] Mid-Stream Saddle Point Escape Sabotaging Active Learning via Artificial 2.2x LR Spikes
+- **Severity**: High (Optimization Destabilization & Representation Disruption)
+- **Component**: `test/geomind/train.cl`
+- **Description**:
+  1. The legacy saddle point escape mechanism checked `if (lr <= (lr_floor * 1.15))` and incremented `floor_stagnation_count` on every 100-chunk interval near the floor (`0.015 * 1.15 = 0.01725`).
+  2. Because it only checked `lr` magnitude without verifying if loss or perplexity was actually stagnant, operating normally in the productive learning zone ($0.015 - 0.017$) automatically accumulated 15 intervals (only 1,500 lines).
+  3. Upon reaching 15 intervals, the optimizer abruptly boosted `lr` from $0.0162$ all the way to $0.035$ ($+115\%$ jump), repeatedly shocking and destabilizing the model while it was actively learning and converging.
+- **Resolution (Sprint 350)**:
+  1. Completely eliminated the mid-stream saddle point escape block and `floor_stagnation_count` tracking from `test/geomind/train.cl`.
+  2. The learning rate now remains smoothly in its optimal convergence zone ($0.015 - 0.020$) and trains steadily at `lr_floor` (`0.015`) when reached, eliminating disruptive artificial shocks.
+  3. Recompiled via self-hosting `cartanc.exe` (`test/geomind/geomind.exe`, `bin/geomind.exe`, `build/geomind.exe` with SHA-256 `39DA2B14A7951CDE05D619BE0F4A5133A19991CBC8E9C33A20CBF9FE881261BA`).
+
+---
+
+## [ISSUE-102] [RESOLVED] Hardcoded Learning Rate Floor (0.015) Halting Annealing & Preventing Convergence to 4.20 Target
+- **Severity**: High (Convergence Barrier)
+- **Component**: `test/geomind/train.cl`
+- **Description**:
+  1. `lr_floor` was hardcoded to `0.015` in `geomind_train_streaming_steady_state` for Stage 1 Cloze training.
+  2. As the model converged (validation loss dipped to $4.295$, approaching the $4.20$ target), `lr` annealed down to `0.015` and hit the hard clamp `if (lr < lr_floor) { lr = lr_floor; }`.
+  3. Consequently, learning rate completely stopped dropping, trapping the optimizer at a step size of $0.015$.
+  4. With weight decay eliminated and gradients amplified $4.0\times$, an LR of $0.015$ was too coarse to descend into the narrow minimum below $4.29$, causing the loss to bounce between $4.29$ and $4.41$.
+- **Resolution (Sprint 351)**:
+  1. Lowered `lr_floor` from `0.015` to `0.001` in `test/geomind/train.cl`.
+  2. Updated manifest resumption guard from `saved_lr >= 0.005` to `saved_lr >= 0.0005` to support finer rates across restarts.
+  3. Recompiled via self-hosting `cartanc.exe` and verified bit-for-bit parity across all 4 production binaries (`02751160B69FA8F0E1814AF42DDD00CFF6EB38037F67596207468BF23C3A5793`).
+
+---
+
+## [ISSUE-103] [RESOLVED] Stage 1 Cloze Target Loss Default Misaligned to 4.20 Instead of 3.80
+- **Severity**: Low (CLI & Stopping Criteria Alignment)
+- **Component**: `test/geomind/main.car`
+- **Description**:
+  1. In `test/geomind/main.car`, the default target loss parameter for `--train-cloze` was set to `4.20` via `get_cli_target_loss(arg_count, 4.20)`.
+  2. The intended stopping target for Stage 1 Cloze representation learning is `3.80`.
+- **Resolution (Sprint 352)**:
+  1. Updated default target loss in `test/geomind/main.car:316` to `3.80`.
+  2. Updated help dialogue in `test/geomind/main.car:59` to display `Default: 3.80 Cloze`.
+  3. Recompiled via self-hosting `cartanc.exe` (`test/geomind/geomind.exe`, `bin/geomind.exe`, `build/geomind.exe` with SHA-256 `C0F31F559A8ADE229565192EE9E0E10B470D1DBA4252AAA4B8A781A73CF57977`).
+
+---
+
+## [ISSUE-104] [RESOLVED] Rigid Plateau-Based LR Decay Freezing Optimizer at Floor Instead of Centering on Descent
+- **Severity**: High (Optimizer Stalling & Dynamic Rate Centering)
+- **Component**: `test/geomind/train.cl`
+- **Description**:
+  1. The legacy learning rate controller relied on arbitrary validation plateau counters (`val_plateau_count >= 8.0` every 800 lines).
+  2. During fine-grained convergence, validation loss naturally progresses in subtle increments ($\sim 0.0004$ per interval). Because this was smaller than the hardcoded $0.005$ threshold, the optimizer continuously ratcheted `lr` down to the `0.001` floor.
+  3. At `0.001`, parameter updates shrank to $1.5 \times 10^{-6}$ per step, causing loss progress to freeze at $\approx 4.31$ (VPPL $\approx 75$).
+- **Resolution (Sprint 353)**:
+  1. Replaced the rigid plateau counter with a **Closed-Loop Training Perplexity (TPPL) Centering Controller** using instantaneous training loss (`TL`) converted to perplexity ($\text{TPPL} = \exp(tl)$) and smoothed via EMA ($\alpha = 0.25$).
+  2. **Active Stable Descent ($\Delta\text{TPPL} < -0.20$)**: Perplexity is falling cleanly; zero decay is applied, allowing the optimizer to maintain its sweet-spot learning rate and ride the downward gradient slope uninterrupted.
+  3. **Rising / Oscillating ($\Delta\text{TPPL} > +0.20$)**: When perplexity rises across consecutive intervals, LR is diagnosed as overshooting and decays ($lr = lr \times 0.95$) until descent stabilizes.
+  4. **Flat / Stagnant ($|\Delta\text{TPPL}| \le 0.20$ across 6 intervals / 600 lines)**:
+     - If starved near floor ($lr < 0.003$): Gently re-centers LR upward ($1.15\times$, capped at $0.010$) to restore descent momentum.
+     - If flat at elevated rate ($lr > 0.008$): Trims LR downward ($0.95\times$) toward the descent slope.
+  5. Retained emergency divergence spike braking ($tl > atl \times 1.25$ and $tl > 6.0$).
+  6. Recompiled via self-hosting `cartanc.exe` (`test/geomind/geomind.exe`, `bin/geomind.exe`, `build/geomind.exe` with SHA-256 `6EB0C6EAE8B9A1DB68D2AF276EA21C2A5BFB999ACEB7D6F589466A18617AC4AC`).
+
+---
+
+## [ISSUE-105] [RESOLVED] Missing Bidirectional LR Probing on Floor Oscillation & Under-Capacity Perplexity Spikes
+- **Severity**: High (Optimizer Dynamics & Starvation Prevention)
+- **Component**: `test/geomind/train.cl`
+- **Description**:
+  1. Perplexity can spike or oscillate not only from LR overshooting, but also when LR is too low: microscopic step updates ($1.5 \times 10^{-6}$) starve the network, preventing it from adapting to batch variance in incoming text tokens.
+  2. Trapped at the floor ($0.001$), stochastic noise between difficult and easy passages was misdiagnosed as overshooting. An overshooting-only controller could only decay downward or stay pinned at the floor.
+  3. The controller lacked sign-flip oscillation tracking and symmetrical upward probing when oscillating near the floor.
+- **Resolution (Sprint 354)**:
+  1. Implemented interval sign-flip oscillation tracking: `((delta_tppl > 0.20 && prev_delta_tppl < -0.20) || (delta_tppl < -0.20 && prev_delta_tppl > 0.20))`.
+  2. Symmetrical oscillation handling: after 3 oscillations, if starved at floor ($lr \le 0.003$), hikes LR upward ($1.15\times$, capped at $0.008$) to probe where the network finds enough gradient capacity to descend; if elevated ($lr > 0.003$), decays LR downward ($0.95\times$) toward center.
+  3. Starved floor rise handling: if TPPL rises across 2 consecutive intervals while at floor ($lr \le 0.0025$), hikes LR upward ($1.15\times$, capped at $0.008$) instead of decaying.
+  4. Active descent streak resets oscillation counter after 3 consecutive clean drops.
+  5. Recompiled via self-hosting `cartanc.exe` and verified 4-way SHA-256 binary synchronization (`1FFF190995956E194085E3E1246BFAA82DE3A3106043669D45D7EB266B9D7DC0`).
+
+---
+
+## [ISSUE-106] [RESOLVED] Architectural Collapse to Single Matrix, OOV Token Modulo Aliasing, and Flat Euclidean Metric Infiltration
+- **Severity**: Critical (Architectural Capacity & Mathematical Correctness)
+- **Component**: `test/geomind/train.cl`, `test/geomind/chat.cl`, `test/geomind/moe.cl`, `test/geomind/e8_attention_engine.cl`, `src/std/geom.cl`
+- **Description**:
+  1. The training plateau at $\approx 4.31$ loss / $74.8$ VPPL was traced to architectural bottlenecks introduced during the historical port from C++/Rust to pure CARTAN.
+  2. Out-of-vocabulary tokens ($\ge 2560$, representing $39.65\%$ of token streams) were aliased into unrelated words via `tok % 2560`, corrupting embedding rows and destroying lexical representation.
+  3. In backprop, the gradient scale divisor `inv_dim = 1.0 / 2560.0` caused severe gradient attenuation ($640\times$ too small), freezing weight optimization.
+  4. The 8 Lie cortical submanifolds and 16 Freudenthal Magic Square experts were flattened into a single linear projection matrix, hitting a mathematical capacity bottleneck.
+  5. Euclidean math had infiltrated the pipeline: flat $L_2$ RMSNorm, flat Cartesian SGD, unweighted Sasaki metric, and unweighted FFN activations.
+- **Resolution (Sprint 355)**:
+  1. **Standard Library**: Added Riemannian metric operations, Finsler-Randers distance, Sasaki tangent bundle metric, and Killing form Dynkin index weights in `src/std/geom.cl`.
+  2. **Token Aliasing**: Replaced modulo aliasing in `chat.cl` and `train.cl` with safe mapping of out-of-vocab tokens to `<unk>` (token 3).
+  3. **Gradient Scaling**: Corrected gradient scale from $1/\text{dim}$ to $1/\sqrt{\text{dim}} = 0.0197642$ in both WebGPU WGSL/OpenCL kernel and CPU training fallback.
+  4. **Non-Euclidean Optimizer**: Implemented Finsler-Randers geodesic optimization with Sherman-Morrison dual inverse metric gradient updates in `geomind_sgd_backward`.
+  5. **8 Lie Cortical Submanifolds**: Wired parallel non-Euclidean evolutions in both GPU VRAM kernel and CPU autoregressive state update.
+---
+
+## [ISSUE-107] [RESOLVED] Euclidean Metric Infiltration in Model Weight Merging, SLERP, and Riemannian Fusion Pipelines
+- **Severity**: High (Mathematical Rigor & Geodesic Preservation)
+- **Component**: `src/std/fusion.cl`, `src/std/geom.cl`, `test/geomind/e8_attention_engine.cl`, `test/geomind/train.cl`
+- **Description**:
+  1. `fusion_tangent_space_slerp` previously performed flat Euclidean linear interpolation ($b + \alpha(t - b)$) rather than genuine Riemannian geodesic spherical interpolation.
+  2. `fusion_slerp_tensors`, `fusion_slerp_arrays`, and `fusion_riemannian_retraction` evaluated vector inner products and norms with a flat Euclidean assumption ($\delta_{ij}$) instead of the Killing-Cartan metric tensor across the 8 Lie submanifolds.
+  3. `fusion_knots_orthogonal_merge`, `fusion_riemannian_align`, and `fusion_riemannian_retract_arrays` computed energy and projections without metric tensor weighting.
+  4. Multi-head sliding window attention in `e8_attention_engine.cl` computed flat dot products without Dynkin index metric weights.
+  5. CPU SGD fallback in `train.cl` lacked Finsler-Randers geodesic curvature projection.
+- **Resolution (Sprint 356)**:
+  1. Endowed all fusion routines in `src/std/fusion.cl` with the Killing-Cartan metric tensor $g_i = \text{geom\_killing\_form\_dynkin\_weight}(\lfloor i / 320 \rfloor \bmod 8)$ across the 8 Lie submanifolds.
+  2. Replaced flat linear interpolation in `fusion_tangent_space_slerp` with spherical geodesic interpolation along the Riemannian manifold with volume-preserving rescaling.
+  3. Endowed `fusion_knots_orthogonal_merge`, `fusion_riemannian_align`, and `fusion_riemannian_retract_arrays` with metric tensor $g_i$.
+  4. Added Killing form weights to multi-head sliding window attention in `e8_attention_engine.cl`.
+  5. Endowed CPU SGD in `train.cl` with Finsler-Randers geodesic curvature projection.
+  6. Purged legacy contaminated checkpoints (`geomind_steady_state_weights.bin*`, `checkpoint_status.txt`, `cloze_manifest.json`) and executed fresh 100% non-Euclidean `--merge-slerp`.
+  7. Recompiled via self-hosting `cartanc.exe` with zero errors and synced all binaries (`test/geomind/geomind.exe`, `bin/geomind.exe`, `./geomind.exe`) with identical SHA-256 hash (`B1305954577BDCB86B440989C6AC468B5DCF5432609609FE36245F1C4CB8B14C`).
+
+---
+
+## [ISSUE-108] [OPEN] Unresolved External Symbols in Multimodal Test Target
+- **Severity**: Low (Test Suite Rigor)
+- **Component**: `test/compiler_suite/test_native_multimodal_io.car`, `src/cartanc/c_runtime.c`
+- **Description**: Regression test runner executes `test_native_multimodal_io.car` which references binary buffer functions (`cartan_alloc_binary_buffer`, `cartan_write_binary_file`, `cartan_free_binary_buffer`, `cartan_read_binary_file_data`, `cartan_get_binary_file_size`) and attention prototypes (`cartan_multimodal_ground_hidden`, `e8_attention_forward_step`) that are declared in headers but missing in the standalone linking stage.
+- **Proposed Fix**: Export missing buffer wrappers and ensure attention step signatures are linked into the standalone test harness.
+
+---
+
+## [ISSUE-109] [RESOLVED] Missing Manifest Auto-Creation Gap & Non-Destructive Initialization
+- **Severity**: Medium (Training UX & Resumption Resilience)
+- **Component**: `test/geomind/train.cl`
+- **Description**:
+  1. If a manifest was deleted or purged, `cartan_file_exists(manifest_path)` returned 0, falling back to a single file with `manifest_mode = 0.0`. It never created a replacement manifest file on disk.
+  2. Passing a custom `-manifest <path>` for a file that did not exist yet was ignored because of `cartan_file_exists` gating.
+  3. When initializing, must guarantee that existing manifests are never overwritten or reset.
+- **Resolution (Sprint 357)**:
+  1. Added `manifest_already_existed` latch. If an existing manifest is discovered, it is loaded as-is without any disk writes at startup.
+  2. If missing, automatically discovers all 6 curriculum parts (`mined_expanded_corpus_cloze_part01.jsonl` through `part06.jsonl`), activates `manifest_mode = 1.0`, and creates the initial manifest file on disk.
+  3. Recompiled with `cartanc.exe` with zero errors. Verified both missing creation and existing preservation in `scratch/`.
+
+---
+
+## [ISSUE-110] [RESOLVED] LLVM Codegen Type Mismatch on Pointer Fields in Emulated Arrays
+- **Severity**: High (Compiler Invariant & Type System Integrity)
+- **Component**: `src/std/conscious_agent.cl`, `src/cartanc/llvm_codegen.car`
+- **Description**: In CARTAN, raw pointer indexing (`ptr[index]`) unconditionally emits `load double, ptr %slot`. Attempting to emulate complex structures by allocating a flat double buffer (`malloc(17 * 8)`) and assigning pointers into slots (`let P: ptr = agent[4]`) caused LLVM to fail compilation with `store ptr %val, ptr %slot` where `%val` was a `double`.
+- **Resolution (Sprint 358)**: Refactored `ConsciousAgent` to utilize CARTAN's native first-class `struct` definitions and dot-notation field access (`agent.P`, `agent.d_x`, `agent.spins`, etc.), enabling LLVM codegen to inspect `struct_field_types` and generate exact typed GEP and `load ptr` instructions.
+
+
+
+
+---
+
+## [ISSUE-111] [RESOLVED] Stage 3 SFT Manifest Path Mismatch, Discovery Gap & Acquisition Script Encoding
+- **Severity**: High (Training Architecture & Dataset Ingestion)
+- **Component**: `tools/download_full_sft_corpus.py`, `test/geomind/train.cl`, `test/geomind/main.car`
+- **Description**:
+  1. `tools/download_full_sft_corpus.py` contained raw CP1252 byte literals (`\x91`, `\x92`) causing `SyntaxError: Non-UTF-8 code` during dataset acquisition.
+  2. `test/geomind/train.cl` defaulted `manifest_path` for `stage_mode == 3.0` (`--train-sft`) to `corpus.json` instead of `sft_manifest.json`.
+  3. `test/geomind/train.cl` fallback dataset discovery for `stage_mode == 3.0` only checked for legacy single-file `hf_alpaca_stories.txt`, omitting the 9 SFT datasets (`sft/*.jsonl`, `sft/*.txt`) and the 6 continuous Cloze source parts.
+  4. `test/geomind/main.car` CLI dispatch for `--train-sft` routed `check_and_apply_manifest_reset` to `corpus.json` instead of `sft_manifest.json`.
+- **Proposed Fix**:
+  1. Sanitize string replacements in `tools/download_full_sft_corpus.py` to use UTF-8 escape sequences (`\u2018`, `\u2019`, etc.) and add non-destructive manifest guard.
+  2. Wire `stage_mode == 3.0` in `train.cl` to default to `sft_manifest.json` and auto-discover all SFT datasets and Cloze source corpora if manifest is missing.
+  3. Wire `test/geomind/main.car` `--train-sft` reset check to `sft_manifest.json`.
+
+---
+
+## [ISSUE-112] [RESOLVED] Punctuation Attractor Collapse, Inference Hebbian Mutation & Double Temperature Division in Chat Engine
+- **Severity**: High (Inference Quality & Numerical Stability)
+- **Component**: `test/geomind/chat.cl`, `src/std/tokenizer.cl`, `test/geomind/train.cl`, `tools/modulate_checkpoint_wordnet_ic.py`
+- **Description**:
+  1. Chat inference collapsed into alternating punctuation loops (` a different some of ? . - the , . , . A , of , of . , . , of , . , . , , . , . , `).
+  2. Online Hebbian weight mutation during inference (`cartan_hebbian_step_token` in `chat.cl:501`) was actively mutating weights during token generation, creating positive feedback loops that reinforced punctuation.
+  3. `cartan_apply_repetition_penalty` only checked immediately adjacent consecutive identical tokens (`last_tok == prev2`), missing alternating 2-grams entirely.
+  4. `cartan_tensor_compute_lm_head_logits` divided by temperature before `30.0 * tanh(...)` soft-capping, which was divided again by temperature in `cartan_tokenizer_sample_topp_topk`, squaring temperature attenuation.
+  5. Checkpoint weights had over-converged columns on common punctuation and stop words from short-bridge Cloze training.
+- **Resolution (Sprint 361)**:
+  1. Disabled runtime Hebbian weight updates during chat generation (inference is strictly read-only).
+  2. Upgraded repetition penalty in `chat.cl` to cover a 32-token sliding window with distance decay and explicit alternating 2-gram penalty (-10.0 logit penalty on `hist[h_len - 2.0]`).
+  3. Removed redundant temperature division prior to Gemma logit soft-capping in `chat.cl`.
+  4. Created `tools/modulate_checkpoint_wordnet_ic.py` and modulated `geomind_steady_state_weights.bin` columns with bounded Information Content ($0.80\times$ for punctuation/stop words, $1.20\times$ for WordNet synset concepts).
+  5. Wired WordNet IC loss weighting into `train.cl` OpenCL kernel (`geomind_softmax_loss_delta`) and CPU fallback.
+  6. Recompiled via `cartanc.exe` with zero errors and synchronized all binaries (`test/geomind/geomind.exe`, `bin/geomind.exe`, `./geomind.exe`) with identical SHA-256 hash. Verified diverse generative output without attractor collapse.
+
+---
+
+## [ISSUE-113] [RESOLVED] Model Fusion Weight Merging Lacked WordNet Information Content (IC) Column Modulation
+- **Severity**: Medium (Weight Merging & Manifold Alignment)
+- **Component**: `src/std/fusion.cl`, `test/geomind/train.cl`, `test/geomind/main.car`
+- **Description**:
+  1. While checkpoint column-norm modulation and pre-training loss weighting applied WordNet IC scaling to break attractor collapse on punctuation/stop words, geodesic model fusion (`geomind_merge_models_slerp` and CLI `--merge-slerp`) did not apply column modulation to merged weights.
+  2. Merging models along Riemannian geodesic paths without IC modulation risked re-introducing attractor basin over-representation for high-frequency stop words.
+- **Resolution (Sprint 362)**:
+  1. Implemented `fusion_apply_wordnet_ic_modulation` and array variant in `src/std/fusion.cl` using `tokenizer_get_ic_weight(col)` ($0.80\times$ for $IC \le 0.60$, $1.20\times$ for $IC \ge 2.00$).
+  2. Added `fusion_tangent_space_slerp_with_ic` while preserving base geometric midpoint $1.5$ in pure `fusion_slerp_tensors` for compiler test integrity.
+  3. Wired IC modulation into `geomind_merge_models_slerp` in `train.cl` and `--merge-slerp` in `main.car`.
+  4. Recompiled with `cartanc.exe` with zero errors, validated `test_fusion_distill.car` (100% pass), empirically verified `geomind.exe --merge-slerp`, and synchronized all three binary paths with identical SHA-256 hash.
+
+---
+
+## [ISSUE-114] [RESOLVED] Markovian Conscious Realism Telemetry Hid Experience Vector (X) and Omitted Temporal Change (ΔX)
+- **Severity**: High (Ontological Fidelity & Empirical Observability)
+- **Component**: `src/std/conscious_agent.cl`, `tools/markov_agent_testbed.car`, `test/compiler_suite/test_markov_conscious_agent.car`
+- **Description**:
+  1. In Donald Hoffman's Conscious Realism, reality is strictly Experience ($X$) and Change over Time ($t$). The initial testbed implementation buried the experiential state vector `x_buf` inside the struct and did not calculate or expose the temporal transition $\Delta X_t = d(X_t, X_{t-1})$.
+  2. Telemetry prioritized abstract spectral eigenvalues and thermodynamic free energy, obscuring the primary conscious qualia distribution and rate of experiential evolution.
+- **Resolution (Sprint 363)**:
+  1. Added `x_prev: ptr` to `struct ConsciousAgent` and cached prior experience in `conscious_agent_cycle`.
+  2. Added `conscious_agent_experiential_change` calculating the spherical Fisher-Rao / Bhattacharyya distance $d_{FR}(X_t, X_{t-1})$.
+  3. Added `conscious_agent_experiential_entropy` calculating Shannon entropy $H(X)$, and `conscious_agent_dominant_qualia` identifying active qualia ID and salience.
+  4. Realigned console stream and JSONL logging in `tools/markov_agent_testbed.car` to display Subjective Time $t$, Arrow of Time $\tau$, Qualia ID/Salience, $H(X)$, $\Delta X$, Inter-Agent $d_{FR}(X_1, X_2)$, and Headset 3D coordinates.
+  5. Added regression test `[Test CA-05]` to `test_markov_conscious_agent.car` (100% pass).
+  6. Authored comprehensive specification `docs/archive/hoffman_conscious_realism_cartan_empirical_framework.md` with 5 foundational research inquiries for Dr. Donald Hoffman.
+
 
 

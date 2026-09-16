@@ -32,6 +32,19 @@ fn fs_write_all(path: string, content: string) -> float {
     return cartan_write_file(path, content);
 }
 
+fn cartan_append_file(path: string, content: string) -> float {
+    if (path == 0.0 || content == 0.0) { return 0.0; }
+    let f = fopen(path, "a");
+    if (f == 0.0) { return 0.0; }
+    fputs(content, f);
+    fclose(f);
+    return 1.0;
+}
+
+fn fs_append_all(path: string, content: string) -> float {
+    return cartan_append_file(path, content);
+}
+
 extern fn cartan_byte_at(buf: ptr, offset: float) -> float;
 extern fn cartan_set_byte(buf: ptr, offset: float, val: float);
 
