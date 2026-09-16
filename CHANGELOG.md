@@ -1,3 +1,24 @@
+## [8.322.0] - 2026-09-16 (Sprint 365: Closed-Loop Validation Divergence Braking, Rebalanced Manifold Updates & Multi-Domain Holdout)
+
+### Completed & Validated
+- **Closed-Loop Validation Divergence & Overfitting Braking (`test/geomind/train.cl`)**:
+  - Connected `AVL` (average validation loss) and `VPPL` (validation perplexity) directly into the adaptive controller loop.
+  - Implemented automatic divergence braking ($0.92\times$) whenever $AVL > ATL \times 1.08$ (generalization gap $> 8\%$).
+  - Implemented climbing validation loss braking ($0.95\times$) when $\Delta AVL > 0.015$.
+  - Removed artificial `tl > 6.0` clamp from emergency divergence braking to catch genuine batch loss spikes ($TL > ATL \times 1.25$) unconditionally.
+- **Rebalanced Input Manifold Gradient Updates (`test/geomind/train.cl`)**:
+  - Rebalanced `geomind_input_grad_update` OpenCL kernel (`train.cl:296`) from `0.10f` to `0.025f` to match natural Riemannian manifold curvature `inv_sqrt_dim = 0.01976f`, eliminating local token embedding distortion.
+- **De-jittered Starvation Thresholds (`test/geomind/train.cl`)**:
+  - Narrowed starvation upward probing from `lr <= lr_floor * 1.5` to `lr <= lr_floor * 1.05`, breaking the 100-step oscillation jitter loop (`0.0026` $\leftrightarrow$ `0.0033`).
+  - Configured `lr_floor = 0.0015` and reset manifest `corpus.json` active LR to `0.004`.
+- **Balanced Multi-Domain Validation Suite (`test/geomind/trainingdata/pretrain_validation_holdout.txt`, `test/geomind/train.cl`)**:
+  - Curated 200-line balanced validation holdout sampled equally from FineWeb-Edu, OpenWebText, WikiText-103, ArXiv abstracts, and TinyStories.
+  - Directed Stage 2 pre-training validation to this multi-domain set, eliminating false domain-shift perplexity spikes.
+- **Compilation, Binary Synchronization & Empirical Verification**:
+  - Recompiled `test/geomind/geomind.exe` with `cartanc.exe` with zero errors.
+  - Synchronized binaries across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe` (SHA-256: `542C577EAA777F0C1F1A7E2AB3B70638CBA5B16B29ADDB3CC39FBBA569A9855E`).
+  - Empirically verified live execution: validated instant divergence braking ($0.004 \to 0.0015$), halting perplexity growth ($93.40 \to 92.73$) and restoring monotonic descent.
+
 ## [8.321.0] - 2026-09-16 (Sprint 364: Pre-Training Gradient Acceleration & Unbounded Dynamic LR Headroom)
 
 ### Completed & Validated

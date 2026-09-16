@@ -293,7 +293,7 @@ fn train_mount_gpu() -> float {
     let sgd_src = "__kernel void geomind_sgd_backward(__global const float* hidden, __global const float* delta, __global float* weights, __global const float* drift, int dim, int vocab, float lr, float decay) {\n    int col = get_global_id(0);\n    if (col < vocab) {\n        float d = delta[col];\n        float b = drift[col];\n        float b_sq = b * b;\n        float dot_gb = d * b;\n        float factor = dot_gb / (1.0f + b_sq);\n        float curved_d = d - factor * b;\n        float inv_sqrt_dim = 0.0197642f;\n        for (int r = 0; r < dim; r++) {\n            int idx = r * vocab + col;\n            float grad = hidden[r] * curved_d * inv_sqrt_dim;\n            if (grad > 1.0f) grad = 1.0f;\n            else if (grad < -1.0f) grad = -1.0f;\n            weights[idx] = weights[idx] * decay - lr * grad;\n        }\n    }\n}\n";
     let softmax_src = "__kernel void geomind_softmax_loss_delta(__global const float* logits, int target_tok, int vocab, __global float* delta, __global float* loss_out, int step_idx, float ic_weight) {\n    __local float s_max[256];\n    __local float s_sum[256];\n    int lid = get_local_id(0);\n    int lsize = get_local_size(0);\n    if (target_tok < 0 || target_tok >= vocab) {\n        if (lid == 0) {\n            loss_out[step_idx] = -1.0f;\n        }\n        for (int i = lid; i < vocab; i += lsize) {\n            delta[i] = 0.0f;\n        }\n        return;\n    }\n    float my_max = -10000.0f;\n    for (int i = lid; i < vocab; i += lsize) {\n        float val = logits[i];\n        if (val > my_max) my_max = val;\n    }\n    s_max[lid] = my_max;\n    barrier(CLK_LOCAL_MEM_FENCE);\n    for (int stride = lsize / 2; stride > 0; stride /= 2) {\n        if (lid < stride) {\n            if (s_max[lid + stride] > s_max[lid]) s_max[lid] = s_max[lid + stride];\n        }\n        barrier(CLK_LOCAL_MEM_FENCE);\n    }\n    float g_max = s_max[0];\n    float my_sum = 0.0f;\n    for (int i = lid; i < vocab; i += lsize) {\n        my_sum += exp(logits[i] - g_max);\n    }\n    s_sum[lid] = my_sum;\n    barrier(CLK_LOCAL_MEM_FENCE);\n    for (int stride = lsize / 2; stride > 0; stride /= 2) {\n        if (lid < stride) s_sum[lid] += s_sum[lid + stride];\n        barrier(CLK_LOCAL_MEM_FENCE);\n    }\n    float g_sum = s_sum[0];\n    if (g_sum < 0.00001f) g_sum = 0.00001f;\n    float inv_sum = 1.0f / g_sum;\n    float eff_ic = (ic_weight > 0.05f) ? ic_weight : 1.0f;\n    if (lid == 0) {\n        float tgt_l = logits[target_tok];\n        float tgt_p = exp(tgt_l - g_max) * inv_sum;\n        if (tgt_p < 0.000000000001f) tgt_p = 0.000000000001f;\n        loss_out[step_idx] = -log(tgt_p) * eff_ic;\n    }\n    for (int i = lid; i < vocab; i += lsize) {\n        float p = exp(logits[i] - g_max) * inv_sum;\n        float d = p;\n        if (i == target_tok) d -= 1.0f;\n        delta[i] = d * eff_ic;\n    }\n}\n";
     let autoreg_src = "__kernel void geomind_autoregressive_step(__global float* hidden, __global const float* weights, __global const float* metric, int tok, int dim, int vocab) {\n    int i = get_global_id(0);\n    if (i >= dim) return;\n    float old_v = hidden[i];\n    float phase = (float)tok * 37.0f + (float)i * 13.0f;\n    float base_sig = sin(phase * 0.001f);\n    float tok_emb = 0.0f;\n    if (tok >= 0) {\n        int eff_tok = (tok < vocab) ? tok : 3;\n        tok_emb = weights[i * vocab + eff_tok] * 12.0f;\n    }\n    float g_i = metric[i];\n    float v = 0.60f * old_v + 0.40f * (tok_emb + 0.10f * base_sig);\n    if (i < 320) {\n        float cos_mod = cos((float)i * 0.05f * g_i) * 0.25f + 0.75f;\n        v = v * cos_mod;\n    } else if (i < 640) {\n        float ssm_mod = sin((float)i * 0.0314f * g_i) * 0.20f + 0.80f;\n        v = v * ssm_mod;\n    } else if (i < 960) {\n        float harmonic = sin((float)(i + 1) * 0.1f * g_i) * 0.7071f;\n        v = v * harmonic + v * 0.5f;\n    } else if (i < 1280) {\n        float u_sq = (v * v * 0.01f);\n        float hyp_factor = 2.0f / (1.0f - (u_sq < 0.90f ? u_sq : 0.90f));\n        v = tanh(v * 0.5f) * (0.8f + 0.2f * hyp_factor);\n    } else if (i < 1600) {\n        float loop = v * v * v * 0.02f * g_i;\n        v = v * 0.9f + loop + sin(v * 2.0f) * 0.1f;\n    } else if (i < 1920) {\n        float a = v * v * g_i + 0.1f;\n        float travel = sqrt(a > 0.001f ? a : 0.001f);\n        v = travel * 0.8f + v * 0.2f;\n    } else if (i < 2240) {\n        float laplacian = v * 0.5f * g_i;\n        v = v - (laplacian * 0.1f) + (laplacian * laplacian * 0.005f);\n    } else {\n        float t1 = v;\n        float t2 = t1 * 0.8660254f;\n        float t3 = t2 * -0.5f;\n        v = (t1 + t2 + t3) * (0.75f + 0.05f * cos((float)i * 1.047f));\n    }\n    hidden[i] = v;\n}\n";
-    let input_sgd_src = "__kernel void geomind_input_grad_update(__global const float* delta, __global float* weights, int tok_in, int dim, int vocab, float lr) {\n    int r = get_global_id(0);\n    if (r < dim && tok_in >= 0) {\n        int eff_tok = (tok_in < vocab) ? tok_in : 3;\n        float sum = 0.0f;\n        int row_base = r * vocab;\n        for (int c = 0; c < vocab; c++) {\n            sum += weights[row_base + c] * delta[c];\n        }\n        float g = sum;\n        if (g > 1.0f) g = 1.0f;\n        else if (g < -1.0f) g = -1.0f;\n        int idx = row_base + eff_tok;\n        weights[idx] = weights[idx] - lr * 0.10f * g;\n    }\n}\n";
+    let input_sgd_src = "__kernel void geomind_input_grad_update(__global const float* delta, __global float* weights, int tok_in, int dim, int vocab, float lr) {\n    int r = get_global_id(0);\n    if (r < dim && tok_in >= 0) {\n        int eff_tok = (tok_in < vocab) ? tok_in : 3;\n        float sum = 0.0f;\n        int row_base = r * vocab;\n        for (int c = 0; c < vocab; c++) {\n            sum += weights[row_base + c] * delta[c];\n        }\n        float g = sum;\n        if (g > 1.0f) g = 1.0f;\n        else if (g < -1.0f) g = -1.0f;\n        int idx = row_base + eff_tok;\n        weights[idx] = weights[idx] - lr * 0.025f * g;\n    }\n}\n";
     let rmsnorm_src = "__kernel void geomind_rmsnorm(__global float* hidden, __global const float* metric, int dim, float eps) {\n    __local float s_sq[256];\n    int lid = get_local_id(0);\n    int lsize = get_local_size(0);\n    float my_sq = 0.0f;\n    for (int i = lid; i < dim; i += lsize) {\n        float v = hidden[i];\n        float g_i = metric[i];\n        my_sq += v * v * g_i;\n    }\n    s_sq[lid] = my_sq;\n    barrier(CLK_LOCAL_MEM_FENCE);\n    for (int stride = lsize / 2; stride > 0; stride /= 2) {\n        if (lid < stride) s_sq[lid] += s_sq[lid + stride];\n        barrier(CLK_LOCAL_MEM_FENCE);\n    }\n    float total_sq = s_sq[0];\n    float rms = sqrt((total_sq / (float)dim) + eps);\n    float inv_rms = 1.0f / (rms > 0.000001f ? rms : 0.000001f);\n    for (int i = lid; i < dim; i += lsize) {\n        hidden[i] = hidden[i] * inv_rms;\n    }\n}\n";
     let ffn_src = "__kernel void geomind_ffn_cascade(__global float* hidden, __global const float* metric, int dim) {\n    int i = get_global_id(0);\n    if (i >= dim) return;\n    float z = hidden[i];\n    float g_i = metric[i];\n    int quadrant = (i * 4) / dim;\n    for (int col_alg = 0; col_alg < 4; col_alg++) {\n        int expert_id = quadrant * 4 + col_alg;\n        float kappa = ((float)expert_id + 1.0f) / 16.0f;\n        float gelu_z = 0.5f * z * (1.0f + tanh(0.79788456f * (z + 0.044715f * z * z * z)));\n        float ffn = gelu_z * (1.0f + tanh(kappa * z * g_i));\n        z = z + 0.25f * ffn;\n    }\n    hidden[i] = z;\n}\n";
 
@@ -1285,7 +1285,7 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
     var lr_floor = 0.001;
     var stage_ceiling_lr = 0.05;
     if (stage_mode == 2.0) {
-        lr_floor = 0.002;
+        lr_floor = 0.0015;
         stage_ceiling_lr = 0.05; // Arbitrarily high headroom; dynamic controller handles self-regulation
     } else if (stage_mode == 3.0) {
         lr_floor = 0.0005;
@@ -1294,7 +1294,7 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
     if (base_lr > 0.0) {
         lr = base_lr;
     } else if (lr <= 0.0 || lr < lr_floor) {
-        lr = 0.006;
+        lr = 0.004;
     }
     var initial_stage_lr = stage_ceiling_lr;
 
@@ -1395,6 +1395,7 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
         d_init = d_init + 1.0;
     }
     var ema_val_loss = 0.0;
+    var prev_ema_val_loss = 0.0;
     var ema_tppl = 0.0;
     var prev_ema_tppl = 0.0;
     var stable_descent_streak = 0.0;
@@ -1529,11 +1530,17 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
                             interval_loss_sum = 0.0;
                             interval_step_count = 0.0;
                             var vppl = 0.0;
-                            let vl = geomind_compute_validation_loss("test/geomind/trainingdata/cloze_validation_holdout.txt", cur_h_val);
+                            var holdout_path = "test/geomind/trainingdata/cloze_validation_holdout.txt";
+                            if (stage_mode == 2.0) {
+                                holdout_path = "test/geomind/trainingdata/pretrain_validation_holdout.txt";
+                            }
+                            let vl = geomind_compute_validation_loss(holdout_path, cur_h_val);
                             if (vl > 0.0) {
                                 if (ema_val_loss <= 0.0) {
                                     ema_val_loss = vl;
+                                    prev_ema_val_loss = vl;
                                 } else {
+                                    prev_ema_val_loss = ema_val_loss;
                                     ema_val_loss = ema_val_loss * 0.95 + vl * 0.05;
                                 }
 
@@ -1575,7 +1582,7 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
                                     // Symmetrical oscillation handling:
                                     // If starved at or near floor, loss spikes/oscillates due to lack of learning capacity.
                                     // Hike LR upward to probe where the network finds enough gradient step size to descend.
-                                    if (lr <= lr_floor * 1.5) {
+                                    if (lr <= lr_floor * 1.05) {
                                         let old_lr = lr;
                                         lr = lr * 1.15;
                                         if (lr > stage_ceiling_lr) { lr = stage_ceiling_lr; }
@@ -1609,7 +1616,7 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
                                     stable_descent_streak = 0.0;
                                     tppl_flat_count = 0.0;
                                     if (tppl_rise_count >= 2.0) {
-                                        if (lr <= lr_floor * 1.25) {
+                                        if (lr <= lr_floor * 1.05) {
                                             // Starved at floor: step updates are too tiny to adapt to data variance -> hike LR
                                             let old_lr = lr;
                                             lr = lr * 1.15;
@@ -1639,7 +1646,7 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
                                     stable_descent_streak = 0.0;
                                     tppl_rise_count = 0.0;
                                     if (tppl_flat_count >= 5.0) {
-                                        if (lr < lr_floor * 2.0) {
+                                        if (lr <= lr_floor * 1.05) {
                                             // Starved near floor -> gently nudge upward to restore momentum
                                             let old_lr = lr;
                                             lr = lr * 1.15;
@@ -1663,8 +1670,35 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
                                 prev_delta_tppl = delta_tppl;
                             }
 
-                            // Emergency Divergence Spike Braking
-                            if (ep_step_count > 300.0 && tl > (atl * 1.25) && tl > 6.0) {
+                            // Closed-Loop Validation Divergence & Overfitting Braking
+                            if (ep_step_count > 200.0 && ema_val_loss > 0.0 && atl > 0.0) {
+                                // 1. Generalization gap divergence: validation loss drifting higher than training loss
+                                if (ema_val_loss > (atl * 1.08)) {
+                                    let old_lr = lr;
+                                    lr = lr * 0.92;
+                                    if (lr < lr_floor) { lr = lr_floor; }
+                                    if (lr < old_lr) {
+                                        printf("[Adaptive LR] Validation divergence detected (AVL: %s > ATL: %s * 1.08). Braked LR: %s -> %s\n",
+                                            cartan_float_to_string(ema_val_loss), cartan_float_to_string(atl),
+                                            cartan_float_to_string(old_lr), cartan_float_to_string(lr));
+                                        cartan_flush(0.0);
+                                    }
+                                } else if (prev_ema_val_loss > 0.0 && (ema_val_loss - prev_ema_val_loss) > 0.015) {
+                                    // 2. Rising validation loss trend: validation loss steadily climbing
+                                    let old_lr = lr;
+                                    lr = lr * 0.95;
+                                    if (lr < lr_floor) { lr = lr_floor; }
+                                    if (lr < old_lr) {
+                                        printf("[Adaptive LR] Validation loss climbing (AVL: %s -> %s). Braked LR: %s -> %s\n",
+                                            cartan_float_to_string(prev_ema_val_loss), cartan_float_to_string(ema_val_loss),
+                                            cartan_float_to_string(old_lr), cartan_float_to_string(lr));
+                                        cartan_flush(0.0);
+                                    }
+                                }
+                            }
+
+                            // Emergency Divergence Spike Braking (Unconditional on absolute loss magnitude)
+                            if (ep_step_count > 300.0 && tl > (atl * 1.25)) {
                                 let old_lr = lr;
                                 lr = lr * 0.90;
                                 if (lr < lr_floor) { lr = lr_floor; }

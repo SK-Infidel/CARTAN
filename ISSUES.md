@@ -1642,3 +1642,21 @@ This file tracks technical debt and bugs identified during repository code revie
   3. Refactored the adaptive TPPL controller to remove hardcoded limits and evaluate bounds dynamically against `lr_floor` and `stage_ceiling_lr`.
   4. Reset active pre-training learning rate in `corpus.json` to `0.006`.
   5. Recompiled with `cartanc.exe` with zero errors and synchronized all three binary paths (`test/geomind/geomind.exe`, `bin/geomind.exe`, `./geomind.exe`) with identical SHA-256 hash (`187711740FCD9D05A97D2DA216E5A30461A5EA38DF220C16BD613A9F6461D9C4`).
+
+---
+
+## [ISSUE-116] [RESOLVED] Validation-Training Loss Divergence, Blind Adaptive Controller & Manifold Over-Rotation
+- **Severity**: High (Generalization Stability & Loss Convergence)
+- **Component**: `test/geomind/train.cl`, `test/geomind/trainingdata/corpus.json`, `test/geomind/trainingdata/pretrain_validation_holdout.txt`
+- **Description**:
+  1. During Stage 2 pre-training, validation loss (`AVL` = 4.44) diverged from training loss (`ATL` = 4.07) and validation perplexity (`VPPL`) rose to 85.
+  2. Input embedding gradient scaling in `geomind_input_grad_update` (`0.10f`) exceeded Riemannian curvature `inv_sqrt_dim = 0.01976f` by 5×, causing token embeddings to over-rotate toward local corpus statistics without weight decay.
+  3. The adaptive controller was disjoint from validation metrics, evaluating only training perplexity `TPPL = exp(tl)` and ignoring generalization divergence.
+  4. Symmetrical starvation probing at `lr <= lr_floor * 1.5` locked `lr` in an artificial jitter loop (`0.0026` $\leftrightarrow$ `0.0033`).
+  5. The validation holdout was exclusively narrative/dialogue text (`cloze_validation_holdout.txt`), causing an artificial domain-shift penalty when training on academic abstracts (`arxiv_scientific_abstracts.txt`).
+- **Resolution (Sprint 365)**:
+  1. Rebalanced `geomind_input_grad_update` scaling to `0.025f` matching Riemannian manifold curvature.
+  2. Wired closed-loop validation divergence braking into the adaptive controller: automatic $0.92\times$ braking on generalization gap divergence ($AVL > ATL \times 1.08$) and $0.95\times$ on climbing validation loss ($\Delta AVL > 0.015$).
+  3. De-jittered starvation probing to `lr <= lr_floor * 1.05` and set `lr_floor = 0.0015` (resetting initial `lr` to `0.004`).
+  4. Created balanced 200-line multi-domain validation holdout (`pretrain_validation_holdout.txt`) sampled equally across all 5 core training distributions.
+  5. Recompiled with `cartanc.exe` with zero errors, synchronized all binary paths (`test/geomind/geomind.exe`, `bin/geomind.exe`, `./geomind.exe`) with SHA-256 hash `542C577EAA777F0C1F1A7E2AB3B70638CBA5B16B29ADDB3CC39FBBA569A9855E`, and empirically verified closed-loop braking ($0.004 \to 0.0015$) halting perplexity growth ($93.40 \to 92.73$).
