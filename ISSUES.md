@@ -1627,5 +1627,18 @@ This file tracks technical debt and bugs identified during repository code revie
   5. Added regression test `[Test CA-05]` to `test_markov_conscious_agent.car` (100% pass).
   6. Authored comprehensive specification `docs/archive/hoffman_conscious_realism_cartan_empirical_framework.md` with 5 foundational research inquiries for Dr. Donald Hoffman.
 
+---
 
-
+## [ISSUE-115] [RESOLVED] Sluggish Input Embedding Updates and Artificial LR Ceilings Stalling Pre-Training Descent
+- **Severity**: High (Pre-Training Convergence Velocity & Optimization Dynamics)
+- **Component**: `test/geomind/train.cl`, `test/geomind/trainingdata/corpus.json`
+- **Description**:
+  1. During Stage 2 pre-training across academic and scientific corpora (`arxiv_scientific_abstracts.txt`, etc.), training loss plateaus between 3.60 and 4.20 without hitting the target loss of 3.00.
+  2. Input token embeddings were updated in OpenCL kernel `geomind_input_grad_update` (`train.cl:296`) at an overly conservative rate `lr * 0.02f * g` (1/50th of output projection rate), causing input token representations to remain stagnant.
+  3. The adaptive TPPL controller enforced hardcoded artificial upper clamps of `0.008` / `0.010` on learning rate adjustments, preventing the optimizer from accelerating downward during favorable gradients, while an artificial upper ceiling was redundant given the controller's existing oscillation and divergence braking mechanisms.
+- **Resolution (Sprint 364)**:
+  1. Boosted input embedding update scaling in `geomind_input_grad_update` (`train.cl:296`) by 5× to `lr * 0.10f * g`.
+  2. Defined explicit starvation floor `lr_floor = 0.002` and expanded stage ceiling to `stage_ceiling_lr = 0.05` for pre-training.
+  3. Refactored the adaptive TPPL controller to remove hardcoded limits and evaluate bounds dynamically against `lr_floor` and `stage_ceiling_lr`.
+  4. Reset active pre-training learning rate in `corpus.json` to `0.006`.
+  5. Recompiled with `cartanc.exe` with zero errors and synchronized all three binary paths (`test/geomind/geomind.exe`, `bin/geomind.exe`, `./geomind.exe`) with identical SHA-256 hash (`187711740FCD9D05A97D2DA216E5A30461A5EA38DF220C16BD613A9F6461D9C4`).

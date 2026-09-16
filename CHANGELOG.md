@@ -1,3 +1,18 @@
+## [8.321.0] - 2026-09-16 (Sprint 364: Pre-Training Gradient Acceleration & Unbounded Dynamic LR Headroom)
+
+### Completed & Validated
+- **Dual-Ended Input Embedding Gradient Acceleration (`test/geomind/train.cl`)**:
+  - Boosted input embedding update scaling in `geomind_input_grad_update` OpenCL kernel (`train.cl:296`) from `lr * 0.02f * g` to `lr * 0.10f * g` (5× acceleration).
+  - Restored proportional representation learning between input token projections and hidden state autoregressive transitions.
+- **Unbounded Dynamic Learning Rate Ceiling & Starvation Floor (`test/geomind/train.cl`, `test/geomind/trainingdata/corpus.json`)**:
+  - Configured explicit pre-training lower bound `lr_floor = 0.002` to prevent stalling in low-gradient technical corpora.
+  - Set `stage_ceiling_lr = 0.05`, removing artificial clamps and allowing natural controller dynamics (oscillation decay, divergence braking) to govern the descent ceiling.
+  - Refactored adaptive TPPL controller to dynamically scale oscillation and starvation nudges against `lr_floor` and `stage_ceiling_lr`.
+  - Re-anchored active pre-training learning rate in `corpus.json` to `0.006`.
+- **Compiler Suite & Binary Synchronization**:
+  - Recompiled `test/geomind/geomind.exe` with `cartanc.exe` with zero errors.
+  - Synchronized binaries across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe` (SHA-256: `187711740FCD9D05A97D2DA216E5A30461A5EA38DF220C16BD613A9F6461D9C4`).
+
 ## [8.320.0] - 2026-09-15 (Sprint 363: Markovian Conscious Experience, Temporal Change & Hoffman Empirical Framework)
 
 ### Completed & Validated
