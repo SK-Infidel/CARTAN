@@ -1,3 +1,16 @@
+## [8.324.0] - 2026-09-16 (Sprint 367: Validation-Gated Starvation Probing & Ping-Pong Loop Elimination)
+
+### Completed & Validated
+- **Validation-Gated Starvation Probing (`test/geomind/train.cl`)**:
+  - Identified and resolved the controller tug-of-war loop where TPPL starvation logic blindly hiked `lr` ($1.15\times \to 0.001725$) whenever `lr <= lr_floor * 1.05`, immediately triggering divergence braking ($0.92\times \to 0.0015$) due to active validation divergence ($AVL > ATL \times 1.08$).
+  - Added explicit validation divergence gate `val_divergent = (ema_val_loss > atl * 1.08)` across all upward starvation probing states (oscillating, rising, flat/stalled) in `geomind_train_streaming_steady_state`.
+  - Suppressed upward LR hikes while validation divergence is active, holding `lr` firmly at `lr_floor = 0.0015` to halt local overfitting and allow the generalization gap to close.
+- **Compilation, Issue Tracking & Artifacts**:
+  - Recompiled `test/geomind/geomind.exe` with native `cartanc.exe`.
+  - Synchronized binaries across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe` (SHA-256: `7E96453356AC3173C4120AF16331B9B02D5961B393C56FA2B7D10A2DAD888F1C`).
+  - Recorded technical debt in `ISSUES.md` ([ISSUE-118]).
+  - Archived walkthrough and implementation documentation.
+
 ## [8.323.0] - 2026-09-16 (Sprint 366: Zero-Allocation GPU Dispatch & Pre-Tokenized Validation Caching)
 
 ### Completed & Validated

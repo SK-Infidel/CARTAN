@@ -1639,6 +1639,11 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
                             if (ep_step_count > 200.0 && prev_ema_tppl > 0.0) {
                                 let delta_tppl = ema_tppl - prev_ema_tppl;
 
+                                var val_divergent = 0.0;
+                                if (ema_val_loss > 0.0 && atl > 0.0 && ema_val_loss > (atl * 1.08)) {
+                                    val_divergent = 1.0;
+                                }
+
                                 // Track directional oscillations (sign flips between consecutive intervals)
                                 if ((delta_tppl > 0.20 && prev_delta_tppl < -0.20) || (delta_tppl < -0.20 && prev_delta_tppl > 0.20)) {
                                     oscillation_count = oscillation_count + 1.0;
@@ -1647,15 +1652,22 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
                                 if (oscillation_count >= 3.0) {
                                     // Symmetrical oscillation handling:
                                     // If starved at or near floor, loss spikes/oscillates due to lack of learning capacity.
-                                    // Hike LR upward to probe where the network finds enough gradient step size to descend.
+                                    // Hike LR upward to probe where the network finds enough gradient step size to descend,
+                                    // strictly gated on validation health (suppressed if validation divergence is active).
                                     if (lr <= lr_floor * 1.05) {
-                                        let old_lr = lr;
-                                        lr = lr * 1.15;
-                                        if (lr > stage_ceiling_lr) { lr = stage_ceiling_lr; }
-                                        printf("[Adaptive LR] TPPL oscillating near floor LR (%s). Hiking LR upward to probe descent center: %s -> %s\n",
-                                            cartan_float_to_string(ema_tppl),
-                                            cartan_float_to_string(old_lr), cartan_float_to_string(lr));
-                                        cartan_flush(0.0);
+                                        if (val_divergent == 0.0) {
+                                            let old_lr = lr;
+                                            lr = lr * 1.15;
+                                            if (lr > stage_ceiling_lr) { lr = stage_ceiling_lr; }
+                                            printf("[Adaptive LR] TPPL oscillating near floor LR (%s). Hiking LR upward to probe descent center: %s -> %s\n",
+                                                cartan_float_to_string(ema_tppl),
+                                                cartan_float_to_string(old_lr), cartan_float_to_string(lr));
+                                            cartan_flush(0.0);
+                                        } else {
+                                            printf("[Adaptive LR] TPPL oscillating near floor (%s), but validation divergence active (AVL > ATL * 1.08). Suppressed LR hike, holding at floor: %s\n",
+                                                cartan_float_to_string(ema_tppl), cartan_float_to_string(lr));
+                                            cartan_flush(0.0);
+                                        }
                                     } else {
                                         let old_lr = lr;
                                         lr = lr * 0.95;
@@ -1683,14 +1695,21 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
                                     tppl_flat_count = 0.0;
                                     if (tppl_rise_count >= 2.0) {
                                         if (lr <= lr_floor * 1.05) {
-                                            // Starved at floor: step updates are too tiny to adapt to data variance -> hike LR
-                                            let old_lr = lr;
-                                            lr = lr * 1.15;
-                                            if (lr > stage_ceiling_lr) { lr = stage_ceiling_lr; }
-                                            printf("[Adaptive LR] TPPL rising while starved near floor LR (%s). Hiking LR upward: %s -> %s\n",
-                                                cartan_float_to_string(ema_tppl),
-                                                cartan_float_to_string(old_lr), cartan_float_to_string(lr));
-                                            cartan_flush(0.0);
+                                            // Starved at floor: step updates are too tiny to adapt to data variance -> hike LR,
+                                            // strictly gated on validation health (suppressed if validation divergence is active).
+                                            if (val_divergent == 0.0) {
+                                                let old_lr = lr;
+                                                lr = lr * 1.15;
+                                                if (lr > stage_ceiling_lr) { lr = stage_ceiling_lr; }
+                                                printf("[Adaptive LR] TPPL rising while starved near floor LR (%s). Hiking LR upward: %s -> %s\n",
+                                                    cartan_float_to_string(ema_tppl),
+                                                    cartan_float_to_string(old_lr), cartan_float_to_string(lr));
+                                                cartan_flush(0.0);
+                                            } else {
+                                                printf("[Adaptive LR] TPPL rising near floor (%s), but validation divergence active (AVL > ATL * 1.08). Suppressed LR hike, holding at floor: %s\n",
+                                                    cartan_float_to_string(ema_tppl), cartan_float_to_string(lr));
+                                                cartan_flush(0.0);
+                                            }
                                         } else {
                                             // Elevated LR: overshooting the valley -> decay toward center
                                             let old_lr = lr;
@@ -1713,14 +1732,21 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
                                     tppl_rise_count = 0.0;
                                     if (tppl_flat_count >= 5.0) {
                                         if (lr <= lr_floor * 1.05) {
-                                            // Starved near floor -> gently nudge upward to restore momentum
-                                            let old_lr = lr;
-                                            lr = lr * 1.15;
-                                            if (lr > stage_ceiling_lr) { lr = stage_ceiling_lr; }
-                                            printf("[Adaptive LR] TPPL stalled at crawl (%s). Re-centering LR upward: %s -> %s\n",
-                                                cartan_float_to_string(ema_tppl),
-                                                cartan_float_to_string(old_lr), cartan_float_to_string(lr));
-                                            cartan_flush(0.0);
+                                            // Starved near floor -> gently nudge upward to restore momentum,
+                                            // strictly gated on validation health (suppressed if validation divergence is active).
+                                            if (val_divergent == 0.0) {
+                                                let old_lr = lr;
+                                                lr = lr * 1.15;
+                                                if (lr > stage_ceiling_lr) { lr = stage_ceiling_lr; }
+                                                printf("[Adaptive LR] TPPL stalled at crawl (%s). Re-centering LR upward: %s -> %s\n",
+                                                    cartan_float_to_string(ema_tppl),
+                                                    cartan_float_to_string(old_lr), cartan_float_to_string(lr));
+                                                cartan_flush(0.0);
+                                            } else {
+                                                printf("[Adaptive LR] TPPL stalled at crawl (%s), but validation divergence active (AVL > ATL * 1.08). Suppressed LR hike, holding at floor: %s\n",
+                                                    cartan_float_to_string(ema_tppl), cartan_float_to_string(lr));
+                                                cartan_flush(0.0);
+                                            }
                                         } else if (lr > stage_ceiling_lr * 0.80) {
                                             // Flat at elevated rate -> gently trim toward descent slope
                                             let old_lr = lr;

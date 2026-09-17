@@ -1676,3 +1676,19 @@ This file tracks technical debt and bugs identified during repository code revie
   2. Implemented pre-tokenized validation holdout caching in `test/geomind/train.cl` (`geomind_init_val_cache`, `geomind_free_val_cache`), pre-tokenizing holdout chunks once into `g_cached_val_chunks` and evaluating validation loss directly from memory in `geomind_compute_validation_loss`.
   3. Pre-warmed the validation cache at streaming steady-state stage start and ensured proper deallocation at stage termination.
   4. Successfully recompiled `test/geomind/geomind.exe` with native `cartanc.exe` and synchronized binaries with SHA-256 `52C3E35705E864E600346712AF30EDBE0248C343C993BD2B549B1E5680D47AEF`.
+
+---
+
+## [ISSUE-118] [RESOLVED] Adaptive Controller Ping-Pong Loop from Blind Starvation Probing During Validation Divergence
+- **Severity**: High (Generalization Stability & Controller Tug-of-War)
+- **Component**: `test/geomind/train.cl`
+- **Description**:
+  1. During continuous pre-training on local corpus splits (e.g. `mined_expanded_corpus_cloze_part03.txt`), local training loss dropped to ~3.55 while holdout validation loss hovered at ~4.27, creating a wide ~20% generalization gap ($AVL > ATL \times 1.08$) and elevating validation perplexity (`VPPL` ~71–72).
+  2. The TPPL controller was evaluating learning rate starvation at floor (`lr <= lr_floor * 1.05`) independently of validation health. Whenever `lr` reached `0.0015`, oscillation or stall logic hiked `lr` by $1.15\times \to 0.001725$.
+  3. Divergence braking immediately detected $AVL > ATL \times 1.08$ on subsequent steps and braked `lr` back down to `0.0015` ($0.92\times$).
+  4. This produced a destructive 2-step ping-pong loop (`0.0015` $\leftrightarrow$ `0.001725`) where the controller continuously pumped `lr` into the overfitting regime, feeding local dataset over-rotation and preventing the generalization gap from closing.
+- **Resolution (Sprint 367)**:
+  1. Introduced validation divergence guard `val_divergent = (ema_val_loss > atl * 1.08)` across all upward starvation probing branches (oscillating, rising, stalled) in the TPPL controller (`train.cl:1651, 1685, 1715`).
+  2. Strictly suppressed upward `lr` hikes whenever validation divergence is active, holding `lr` firmly at `lr_floor` until holdout loss realigns.
+  3. Recompiled `test/geomind/geomind.exe` with `cartanc.exe` with zero errors and synchronized binaries across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe` with SHA-256 `7E96453356AC3173C4120AF16331B9B02D5961B393C56FA2B7D10A2DAD888F1C`.
+  4. Empirically verified live execution: validated elimination of the ping-pong loop, with `lr` locked firmly at `0.0015` during divergence.
