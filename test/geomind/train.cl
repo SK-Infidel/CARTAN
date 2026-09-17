@@ -1049,19 +1049,36 @@ fn geomind_resolve_path(path: string) -> string {
     return path;
 }
 
-// Compute genuine validation cross-entropy loss over holdout set (zero weight updates)
-fn geomind_compute_validation_loss(val_file: string, cur_h_val: ptr) -> float {
+// Persistent pre-tokenized validation holdout cache (zero repeated file reads & BPE passes)
+var g_cached_val_file: string = "";
+var g_cached_val_chunks: ptr = 0.0;
+var g_cached_val_count: float = 0.0;
+
+// Initialize or refresh the pre-tokenized validation cache
+fn geomind_init_val_cache(val_file: string) -> float {
+    if (g_cached_val_chunks != 0.0) {
+        var i = 0.0;
+        while (i < g_cached_val_count) {
+            let chunk_vec = cartan_tree_get_f32(g_cached_val_chunks, i);
+            cartan_vec_free(chunk_vec);
+            i = i + 1.0;
+        }
+        g_cached_val_chunks = 0.0;
+        g_cached_val_count = 0.0;
+    }
+
     let resolved_val = geomind_resolve_path(val_file);
     if (cartan_file_exists(resolved_val) == 0.0) { return 0.0; }
     let val_content = cartan_read_file(resolved_val);
     let val_len = cartan_string_length(val_content);
     if (val_len <= 0.0) { free(val_content); return 0.0; }
 
-    var v_line_start = 0.0;
-    var v_loss_sum = 0.0;
-    var v_step_count = 0.0;
+    g_cached_val_chunks = cartan_tree_create();
+    g_cached_val_count = 0.0;
+    g_cached_val_file = val_file;
 
-    while (v_line_start < val_len && v_step_count < 100.0) {
+    var v_line_start = 0.0;
+    while (v_line_start < val_len && g_cached_val_count < 100.0) {
         var v_line_end = v_line_start;
         while (v_line_end < val_len && cartan_byte_at(val_content, v_line_end) != 10.0) {
             v_line_end = v_line_end + 1.0;
@@ -1075,44 +1092,87 @@ fn geomind_compute_validation_loss(val_file: string, cur_h_val: ptr) -> float {
             let v_tokens = cartan_hub_encode_text_to_tokens(v_sample);
             let n_toks = v_tokens[0];
             if (n_toks > 1.0) {
-                if (g_train_gpu_mounted == 1.0) {
-                    let chunk_loss = geomind_train_chunk_gpu_pipelined(v_tokens, 0.0);
-                    if (g_last_chunk_valid_steps > 0.0) {
-                        v_loss_sum = v_loss_sum + chunk_loss;
-                        v_step_count = v_step_count + g_last_chunk_valid_steps;
-                    }
-                } else {
-                    var d = 0.0;
-                    while (d < 2560.0) {
-                        cur_h_val[2.0 + d] = 0.0;
-                        d = d + 1.0;
-                    }
-                    let first_tok = v_tokens[2.0];
-                    cartan_tensor_update_autoregressive_state(cur_h_val, first_tok);
-                    e8_attention_forward_step(cur_h_val, 0.70);
-
-                    var vt = 0.0;
-                    while (vt < n_toks - 1.0) {
-                        let next_tok = v_tokens[2.0 + vt + 1.0];
-                        if (next_tok >= 0.0 && next_tok < 2560.0) {
-                            let step_loss = cartan_tensor_train_step(cur_h_val, next_tok, 0.0);
-                            if (step_loss > 0.0) {
-                                v_loss_sum = v_loss_sum + step_loss;
-                                v_step_count = v_step_count + 1.0;
-                            }
-                        }
-                        cartan_tensor_update_autoregressive_state(cur_h_val, next_tok);
-                        e8_attention_forward_step(cur_h_val, 0.70);
-                        vt = vt + 1.0;
-                    }
-                }
+                cartan_tree_push(g_cached_val_chunks, v_tokens);
+                g_cached_val_count = g_cached_val_count + 1.0;
+            } else {
+                cartan_vec_free(v_tokens);
             }
-            cartan_vec_free(v_tokens);
             free(v_sample);
         }
         v_line_start = v_line_end + 1.0;
     }
     free(val_content);
+    printf("[GeoMind Cache] Pre-tokenized %s validation holdout chunks from %s\n",
+        cartan_float_to_string(g_cached_val_count), val_file);
+    cartan_flush(0.0);
+    return g_cached_val_count;
+}
+
+// Free pre-tokenized validation cache resources
+fn geomind_free_val_cache() -> float {
+    if (g_cached_val_chunks != 0.0) {
+        var i = 0.0;
+        while (i < g_cached_val_count) {
+            let chunk_vec = cartan_tree_get_f32(g_cached_val_chunks, i);
+            cartan_vec_free(chunk_vec);
+            i = i + 1.0;
+        }
+        g_cached_val_chunks = 0.0;
+        g_cached_val_count = 0.0;
+        g_cached_val_file = "";
+    }
+    return 1.0;
+}
+
+// Compute genuine validation cross-entropy loss over pre-tokenized holdout set (zero weight updates)
+fn geomind_compute_validation_loss(val_file: string, cur_h_val: ptr) -> float {
+    if (g_cached_val_chunks == 0.0 || cartan_string_eq(g_cached_val_file, val_file) == 0.0) {
+        geomind_init_val_cache(val_file);
+    }
+    if (g_cached_val_count <= 0.0) { return 0.0; }
+
+    var v_loss_sum = 0.0;
+    var v_step_count = 0.0;
+    var ci = 0.0;
+
+    while (ci < g_cached_val_count) {
+        let v_tokens = cartan_tree_get_f32(g_cached_val_chunks, ci);
+        let n_toks = v_tokens[0];
+        if (n_toks > 1.0) {
+            if (g_train_gpu_mounted == 1.0) {
+                let chunk_loss = geomind_train_chunk_gpu_pipelined(v_tokens, 0.0);
+                if (g_last_chunk_valid_steps > 0.0) {
+                    v_loss_sum = v_loss_sum + chunk_loss;
+                    v_step_count = v_step_count + g_last_chunk_valid_steps;
+                }
+            } else {
+                var d = 0.0;
+                while (d < 2560.0) {
+                    cur_h_val[2.0 + d] = 0.0;
+                    d = d + 1.0;
+                }
+                let first_tok = v_tokens[2.0];
+                cartan_tensor_update_autoregressive_state(cur_h_val, first_tok);
+                e8_attention_forward_step(cur_h_val, 0.70);
+
+                var vt = 0.0;
+                while (vt < n_toks - 1.0) {
+                    let next_tok = v_tokens[2.0 + vt + 1.0];
+                    if (next_tok >= 0.0 && next_tok < 2560.0) {
+                        let step_loss = cartan_tensor_train_step(cur_h_val, next_tok, 0.0);
+                        if (step_loss > 0.0) {
+                            v_loss_sum = v_loss_sum + step_loss;
+                            v_step_count = v_step_count + 1.0;
+                        }
+                    }
+                    cartan_tensor_update_autoregressive_state(cur_h_val, next_tok);
+                    e8_attention_forward_step(cur_h_val, 0.70);
+                    vt = vt + 1.0;
+                }
+            }
+        }
+        ci = ci + 1.0;
+    }
 
     if (v_step_count > 0.0) {
         return v_loss_sum / v_step_count;
@@ -1150,6 +1210,12 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
 
     // Mount GPU acceleration if available
     train_mount_gpu();
+
+    var holdout_init_path = "test/geomind/trainingdata/cloze_validation_holdout.txt";
+    if (stage_mode == 2.0) {
+        holdout_init_path = "test/geomind/trainingdata/pretrain_validation_holdout.txt";
+    }
+    geomind_init_val_cache(holdout_init_path);
 
     var manifest_path = geomind_resolve_path("test/geomind/trainingdata/corpus.json");
     if (stage_mode == 1.0) {
@@ -1762,6 +1828,7 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
             printf("[Steady-State Stage: %s] Error: Zero training steps executed in Epoch %s (Datasets missing or unreadable). Aborting to preserve checkpoints.\n",
                 stage_name, cartan_float_to_string(ep));
             cartan_flush(0.0);
+            geomind_free_val_cache();
             cartan_vec_free(cur_h);
             cartan_vec_free(cur_h_val);
             return 0.0;
@@ -1800,6 +1867,7 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
     cartan_flush(0.0);
     printf("[Steady-State Stage: %s] Training complete. Checkpoint saved: %s | Status: SUCCESS | Final Loss: %s\n\n",
         stage_name, ckpt_path, cartan_float_to_string(final_loss));
+    geomind_free_val_cache();
     cartan_vec_free(cur_h);
     cartan_vec_free(cur_h_val);
     return final_loss;

@@ -1,3 +1,19 @@
+## [8.323.0] - 2026-09-16 (Sprint 366: Zero-Allocation GPU Dispatch & Pre-Tokenized Validation Caching)
+
+### Completed & Validated
+- **Zero-Allocation GPU Dispatch & Kernel Argument Binding (`src/std/gpu.cl`)**:
+  - Replaced per-call dynamic heap allocations (`malloc`/`free`) in `cartan_gpu_set_arg_buf`, `cartan_gpu_set_arg_i32`, `cartan_gpu_set_arg_f32`, `cartan_gpu_launch`, and `cartan_gpu_launch_local` with persistent host slots (`g_gpu_slot_buf`, `g_gpu_slot_i32`, `g_gpu_slot_f32`, `g_gpu_slot_gws`, `g_gpu_slot_lws`).
+  - Initialized slots once in `cartan_gpu_init()`, eliminating ~1,300 heap allocations per chunk (~130,000 per 100-step reporting interval) and completely removing Windows CRT heap lock contention and fragmentation during long-running training.
+- **Pre-Tokenized Validation Holdout Caching (`test/geomind/train.cl`)**:
+  - Implemented `geomind_init_val_cache(val_file)` and `geomind_free_val_cache()` to cache holdout token vectors in dynamic tree `g_cached_val_chunks`.
+  - Refactored `geomind_compute_validation_loss(val_file, cur_h_val)` to evaluate pre-tokenized chunks directly in memory without re-reading files from disk, re-running string slices, or traversing the BPE trie.
+  - Added pre-warming call at streaming steady-state startup in `geomind_train_streaming_steady_state` and automatic cache cleanup at stage exit.
+- **Compilation, Issue Tracking & Artifacts**:
+  - Successfully compiled `test/geomind/geomind.exe` with native `cartanc.exe`.
+  - Synchronized binaries across `test/geomind/geomind.exe` and `bin/geomind.exe` (SHA-256: `52C3E35705E864E600346712AF30EDBE0248C343C993BD2B549B1E5680D47AEF`).
+  - Recorded technical debt resolution in `ISSUES.md` ([ISSUE-117]).
+  - Archived implementation plan and walkthrough to `docs/archive/`.
+
 ## [8.322.0] - 2026-09-16 (Sprint 365: Closed-Loop Validation Divergence Braking, Rebalanced Manifold Updates & Multi-Domain Holdout)
 
 ### Completed & Validated

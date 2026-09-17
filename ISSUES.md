@@ -1660,3 +1660,19 @@ This file tracks technical debt and bugs identified during repository code revie
   3. De-jittered starvation probing to `lr <= lr_floor * 1.05` and set `lr_floor = 0.0015` (resetting initial `lr` to `0.004`).
   4. Created balanced 200-line multi-domain validation holdout (`pretrain_validation_holdout.txt`) sampled equally across all 5 core training distributions.
   5. Recompiled with `cartanc.exe` with zero errors, synchronized all binary paths (`test/geomind/geomind.exe`, `bin/geomind.exe`, `./geomind.exe`) with SHA-256 hash `542C577EAA777F0C1F1A7E2AB3B70638CBA5B16B29ADDB3CC39FBBA569A9855E`, and empirically verified closed-loop braking ($0.004 \to 0.0015$) halting perplexity growth ($93.40 \to 92.73$).
+
+---
+
+## [ISSUE-117] [RESOLVED] Training Slowdown via Repeated Validation Disk/BPE Passes and GPU Heap Allocation Churn
+- **Severity**: High (Training Throughput & Heap Degradation)
+- **Component**: `src/std/gpu.cl`, `test/geomind/train.cl`
+- **Description**:
+  1. As training progressed across multiple epochs, training throughput experienced cumulative slowdown ("why is it that the longer it goes the slower it gets?").
+  2. Profiling identified two primary bottlenecks:
+     a. **Windows Heap Fragmentation & Allocation Lock Contention**: `cartan_gpu_set_arg_buf`, `cartan_gpu_set_arg_i32`, `cartan_gpu_set_arg_f32`, `cartan_gpu_launch`, and `cartan_gpu_launch_local` in `src/std/gpu.cl` performed dynamic `malloc` and `free` for every kernel argument and dispatch. With 13 launches/arguments per token and ~100 tokens per chunk, this generated ~1,300 tiny heap allocations per chunk (~130,000 per 100-step reporting interval), degrading CRT allocator throughput over millions of iterations.
+     b. **Repeated Validation Disk I/O & BPE Re-Tokenization**: `geomind_compute_validation_loss` in `test/geomind/train.cl` re-read `pretrain_validation_holdout.txt` from disk every 100 training steps, performing line slicing, substring allocations (`strlen` on large buffers), line cleaning, and BPE trie traversals for 100 chunks every interval.
+- **Resolution (Sprint 366)**:
+  1. Converted GPU kernel argument passing and NDRange dispatch in `src/std/gpu.cl` to zero-allocation operations using static pre-allocated host buffers (`g_gpu_slot_buf`, `g_gpu_slot_i32`, `g_gpu_slot_f32`, `g_gpu_slot_gws`, `g_gpu_slot_lws`), completely eliminating ~1,300 heap allocations per chunk.
+  2. Implemented pre-tokenized validation holdout caching in `test/geomind/train.cl` (`geomind_init_val_cache`, `geomind_free_val_cache`), pre-tokenizing holdout chunks once into `g_cached_val_chunks` and evaluating validation loss directly from memory in `geomind_compute_validation_loss`.
+  3. Pre-warmed the validation cache at streaming steady-state stage start and ensured proper deallocation at stage termination.
+  4. Successfully recompiled `test/geomind/geomind.exe` with native `cartanc.exe` and synchronized binaries with SHA-256 `52C3E35705E864E600346712AF30EDBE0248C343C993BD2B549B1E5680D47AEF`.

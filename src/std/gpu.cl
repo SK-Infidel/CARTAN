@@ -44,6 +44,13 @@ var g_gpu_context: ptr = 0.0;
 var g_gpu_queue: ptr = 0.0;
 var g_gpu_device_name: string = "";
 
+// Persistent zero-allocation host buffers for kernel arguments and dispatch
+var g_gpu_slot_buf: ptr = 0.0;
+var g_gpu_slot_i32: ptr = 0.0;
+var g_gpu_slot_f32: ptr = 0.0;
+var g_gpu_slot_gws: ptr = 0.0;
+var g_gpu_slot_lws: ptr = 0.0;
+
 // Native hardware GPU initialization hook
 fn cartan_gpu_init() -> float {
     if (g_gpu_initialized == 1.0) {
@@ -109,6 +116,14 @@ fn cartan_gpu_init() -> float {
     free(devices_buf);
     free(num_dev_buf);
     free(err_buf);
+
+    if (g_gpu_slot_buf == 0.0) {
+        g_gpu_slot_buf = malloc(8.0);
+        g_gpu_slot_i32 = malloc(4.0);
+        g_gpu_slot_f32 = malloc(4.0);
+        g_gpu_slot_gws = malloc(24.0);
+        g_gpu_slot_lws = malloc(24.0);
+    }
 
     g_gpu_initialized = 1.0;
     printf("[CARTAN GPU] Bare-Metal Hardware Acceleration Engine Initialized: %s\n", dev_name);
@@ -240,71 +255,62 @@ fn cartan_gpu_dispatch(pipe: ptr, buffers: ptr, num_buffers: float, gx: float, g
     return 0.0;
 }
 
-// Sets a buffer argument on a kernel
+// Sets a buffer argument on a kernel (zero-allocation)
 fn cartan_gpu_set_arg_buf(kernel: ptr, arg_idx: float, buf: ptr) -> float {
-    let slot = malloc(8.0);
-    slot[0.0] = buf;
-    let err = clSetKernelArg(kernel, arg_idx, 8.0, slot);
-    free(slot);
-    return err;
+    if (g_gpu_slot_buf == 0.0) { g_gpu_slot_buf = malloc(8.0); }
+    g_gpu_slot_buf[0.0] = buf;
+    return clSetKernelArg(kernel, arg_idx, 8.0, g_gpu_slot_buf);
 }
 
-// Sets a 32-bit integer scalar argument on a kernel
+// Sets a 32-bit integer scalar argument on a kernel (zero-allocation)
 fn cartan_gpu_set_arg_i32(kernel: ptr, arg_idx: float, val: float) -> float {
-    let slot = malloc(4.0);
-    cartan_set_i32(slot, 0.0, val);
-    let err = clSetKernelArg(kernel, arg_idx, 4.0, slot);
-    free(slot);
-    return err;
+    if (g_gpu_slot_i32 == 0.0) { g_gpu_slot_i32 = malloc(4.0); }
+    cartan_set_i32(g_gpu_slot_i32, 0.0, val);
+    return clSetKernelArg(kernel, arg_idx, 4.0, g_gpu_slot_i32);
 }
 
-// Sets a 32-bit float scalar argument on a kernel
+// Sets a 32-bit float scalar argument on a kernel (zero-allocation)
 fn cartan_gpu_set_arg_f32(kernel: ptr, arg_idx: float, val: float) -> float {
-    let slot = malloc(4.0);
-    cartan_set_f32(slot, 0.0, val);
-    let err = clSetKernelArg(kernel, arg_idx, 4.0, slot);
-    free(slot);
-    return err;
+    if (g_gpu_slot_f32 == 0.0) { g_gpu_slot_f32 = malloc(4.0); }
+    cartan_set_f32(g_gpu_slot_f32, 0.0, val);
+    return clSetKernelArg(kernel, arg_idx, 4.0, g_gpu_slot_f32);
 }
 
-// Dispatches a pre-configured kernel directly
+// Dispatches a pre-configured kernel directly (zero-allocation)
 fn cartan_gpu_launch(kernel: ptr, gx: float, gy: float, gz: float) -> float {
     if (g_gpu_queue == 0.0 || kernel == 0.0) { return 0.0; }
-    let gws = malloc(24.0);
-    cartan_set_i64(gws, 0.0, gx);
-    cartan_set_i64(gws, 1.0, gy);
-    cartan_set_i64(gws, 2.0, gz);
+    if (g_gpu_slot_gws == 0.0) { g_gpu_slot_gws = malloc(24.0); }
+    cartan_set_i64(g_gpu_slot_gws, 0.0, gx);
+    cartan_set_i64(g_gpu_slot_gws, 1.0, gy);
+    cartan_set_i64(g_gpu_slot_gws, 2.0, gz);
 
     var work_dim = 1.0;
     if (gy > 1.0) { work_dim = 2.0; }
     if (gz > 1.0) { work_dim = 3.0; }
 
-    let k_err = clEnqueueNDRangeKernel(g_gpu_queue, kernel, work_dim, 0.0, gws, 0.0, 0.0, 0.0, 0.0);
-    free(gws);
+    let k_err = clEnqueueNDRangeKernel(g_gpu_queue, kernel, work_dim, 0.0, g_gpu_slot_gws, 0.0, 0.0, 0.0, 0.0);
     if (k_err == 0.0) { return 1.0; }
     return 0.0;
 }
 
-// Dispatches a pre-configured kernel directly with explicit global and local workgroup sizes
+// Dispatches a pre-configured kernel directly with explicit global and local workgroup sizes (zero-allocation)
 fn cartan_gpu_launch_local(kernel: ptr, gx: float, gy: float, gz: float, lx: float, ly: float, lz: float) -> float {
     if (g_gpu_queue == 0.0 || kernel == 0.0) { return 0.0; }
-    let gws = malloc(24.0);
-    cartan_set_i64(gws, 0.0, gx);
-    cartan_set_i64(gws, 1.0, gy);
-    cartan_set_i64(gws, 2.0, gz);
+    if (g_gpu_slot_gws == 0.0) { g_gpu_slot_gws = malloc(24.0); }
+    if (g_gpu_slot_lws == 0.0) { g_gpu_slot_lws = malloc(24.0); }
+    cartan_set_i64(g_gpu_slot_gws, 0.0, gx);
+    cartan_set_i64(g_gpu_slot_gws, 1.0, gy);
+    cartan_set_i64(g_gpu_slot_gws, 2.0, gz);
 
-    let lws = malloc(24.0);
-    cartan_set_i64(lws, 0.0, lx);
-    cartan_set_i64(lws, 1.0, ly);
-    cartan_set_i64(lws, 2.0, lz);
+    cartan_set_i64(g_gpu_slot_lws, 0.0, lx);
+    cartan_set_i64(g_gpu_slot_lws, 1.0, ly);
+    cartan_set_i64(g_gpu_slot_lws, 2.0, lz);
 
     var work_dim = 1.0;
     if (gy > 1.0) { work_dim = 2.0; }
     if (gz > 1.0) { work_dim = 3.0; }
 
-    let k_err = clEnqueueNDRangeKernel(g_gpu_queue, kernel, work_dim, 0.0, gws, lws, 0.0, 0.0, 0.0);
-    free(gws);
-    free(lws);
+    let k_err = clEnqueueNDRangeKernel(g_gpu_queue, kernel, work_dim, 0.0, g_gpu_slot_gws, g_gpu_slot_lws, 0.0, 0.0, 0.0);
     if (k_err == 0.0) { return 1.0; }
     return 0.0;
 }
