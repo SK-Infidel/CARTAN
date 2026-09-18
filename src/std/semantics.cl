@@ -6,6 +6,7 @@ include "src/std/math.cl";
 include "src/std/io.cl";
 include "src/std/fs.cl";
 
+extern fn atof(s: string) -> float;
 
 var g_taxonomy_loaded = 0.0;
 var g_taxonomy_node_count = 0.0;
@@ -148,7 +149,7 @@ fn cartan_taxonomy_load_dag(path: string) -> float {
             cur_def = cartan_string_substring(line, 12.0, len);
         } else if (cartan_string_starts_with(line, "IC: ") != 0.0) {
             in_node = 1.0;
-            cur_ic = 1.0;
+            cur_ic = atof(cartan_string_substring(line, 4.0, len));
         }
         i = i + 1.0;
     }

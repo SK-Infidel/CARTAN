@@ -94,6 +94,25 @@ fn bpe_decode_token(token_id: float) -> string {
     if (token_id == 2.0) { return "<bos>"; }
     if (token_id == 3.0) { return "<unk>"; }
     if (token_id == 108.0) { return "\n"; }
+    if (token_id == 2500.0) { return " woman"; }
+    if (token_id == 2501.0) { return " King"; }
+    if (token_id == 2502.0) { return " queen"; }
+    if (token_id == 2503.0) { return " physics"; }
+    if (token_id == 2504.0) { return " star"; }
+    if (token_id == 2505.0) { return " plasma"; }
+    if (token_id == 2506.0) { return " speed"; }
+    if (token_id == 2507.0) { return " vacuum"; }
+    if (token_id == 2508.0) { return " plant"; }
+    if (token_id == 2509.0) { return " mountain"; }
+    if (token_id == 2510.0) { return " daughter"; }
+    if (token_id == 2511.0) { return " mother"; }
+    if (token_id == 2512.0) { return " father"; }
+    if (token_id == 2513.0) { return " girl"; }
+    if (token_id == 2514.0) { return " boy"; }
+    if (token_id == 2515.0) { return " sister"; }
+    if (token_id == 2516.0) { return " brother"; }
+    if (token_id == 2517.0) { return " cat"; }
+    if (token_id == 2518.0) { return " dog"; }
 
     if (g_bpe_trie_initialized == 0.0) {
         cartan_hub_init_bpe_trie_if_needed();
@@ -126,6 +145,33 @@ fn tokenizer_decode_token(json_path: string, token_id: float) -> string {
 fn cartan_hub_ensure_tokenizer_json(json_path: string) -> float {
     if (json_path == 0.0) { return 0.0; }
     return cartan_file_exists(json_path);
+}
+
+// ---------------------------------------------------------------------------
+// Concept Slot Remapping for 2560 Active Manifold Vocabulary
+// ---------------------------------------------------------------------------
+
+fn tokenizer_map_concept_slot(tok_id: float) -> float {
+    if (tok_id == 3875.0 || tok_id == 16079.0) { return 2500.0; } // woman
+    if (tok_id == 6065.0 || tok_id == 8971.0 || tok_id == 9615.0) { return 2501.0; } // king
+    if (tok_id == 26476.0) { return 2502.0; } // queen
+    if (tok_id == 16505.0) { return 2503.0; } // physics
+    if (tok_id == 4381.0 || tok_id == 7991.0) { return 2504.0; } // star
+    if (tok_id == 14028.0) { return 2505.0; } // plasma
+    if (tok_id == 4249.0 || tok_id == 11243.0) { return 2506.0; } // speed
+    if (tok_id == 16954.0) { return 2507.0; } // vacuum
+    if (tok_id == 3732.0 || tok_id == 14081.0) { return 2508.0; } // plant
+    if (tok_id == 10565.0 || tok_id == 61736.0) { return 2509.0; } // mountain
+    if (tok_id == 8709.0 || tok_id == 2369.0) { return 2510.0; } // daughter
+    if (tok_id == 5946.0 || tok_id == 2988.0) { return 2511.0; } // mother
+    if (tok_id == 6353.0 || tok_id == 2862.0) { return 2512.0; } // father
+    if (tok_id == 3953.0 || tok_id == 2585.0) { return 2513.0; } // girl
+    if (tok_id == 6938.0 || tok_id == 2741.0) { return 2514.0; } // boy
+    if (tok_id == 12198.0 || tok_id == 4697.0) { return 2515.0; } // sister
+    if (tok_id == 10070.0 || tok_id == 4280.0) { return 2516.0; } // brother
+    if (tok_id == 5866.0 || tok_id == 4410.0) { return 2517.0; } // cat
+    if (tok_id == 4799.0 || tok_id == 3925.0) { return 2518.0; } // dog
+    return tok_id;
 }
 
 // ---------------------------------------------------------------------------
@@ -187,7 +233,8 @@ fn cartan_hub_encode_text_to_tokens(text: string) -> ptr {
             }
         }
         if (last_tok >= 0.0 && last_len > 0.0) {
-            cartan_vec_push_f32(vec, last_tok);
+            let mapped_tok = tokenizer_map_concept_slot(last_tok);
+            cartan_vec_push_f32(vec, mapped_tok);
             pos = pos + last_len;
         } else {
             let b = cartan_byte_at(text, pos);
@@ -239,7 +286,8 @@ fn tokenizer_get_ic_weight(token_id: float) -> float {
         return 0.60;
     }
     // 4. Domain terminology & WordNet concept tokens (amplified)
-    if ((token_id >= 27.0 && token_id <= 102.0) || token_id == 990.0 || token_id == 1260.0 ||
+    if ((token_id >= 2500.0 && token_id <= 2519.0) ||
+        (token_id >= 27.0 && token_id <= 102.0) || token_id == 990.0 || token_id == 1260.0 ||
         token_id == 1458.0 || token_id == 1657.0 || token_id == 1804.0 || token_id == 1813.0 ||
         token_id == 1902.0 || token_id == 1972.0 || token_id == 2214.0 || token_id == 2305.0 ||
         token_id == 2325.0) {

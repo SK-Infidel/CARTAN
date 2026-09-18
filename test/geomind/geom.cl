@@ -115,12 +115,12 @@ fn geom_frs_adaptive_geodesic_clip(g_val: float, max_norm: float) -> float {
 }
 
 fn geom_frs_riemannian_gradient_step(weight: float, g_val: float, drift_b: float, lr: float) -> float {
-    // Sherman-Morrison dual inverse metric gradient update on Finsler-Randers manifolds:
-    // g_randers = g - ((g . b) / (1 + ||b||^2)) * b
+    // Reverse Randers dual inverse metric gradient update:
+    // nabla^(FR_rev) = (g - ((g . b) / (1 + ||b||^2)) * b) - lambda * b
     let b_sq = drift_b * drift_b;
     let dot_gb = g_val * drift_b;
     let proj = (dot_gb / (1.0 + b_sq)) * drift_b;
-    let g_randers = g_val - proj;
+    let g_randers = (g_val - proj) - (0.10 * drift_b);
     let clipped_g = geom_frs_adaptive_geodesic_clip(g_randers, 5.0);
     return weight - (clipped_g * lr);
 }

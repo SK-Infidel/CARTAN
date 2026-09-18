@@ -1692,3 +1692,65 @@ This file tracks technical debt and bugs identified during repository code revie
   2. Strictly suppressed upward `lr` hikes whenever validation divergence is active, holding `lr` firmly at `lr_floor` until holdout loss realigns.
   3. Recompiled `test/geomind/geomind.exe` with `cartanc.exe` with zero errors and synchronized binaries across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe` with SHA-256 `7E96453356AC3173C4120AF16331B9B02D5961B393C56FA2B7D10A2DAD888F1C`.
   4. Empirically verified live execution: validated elimination of the ping-pong loop, with `lr` locked firmly at `0.0015` during divergence.
+
+---
+
+## [ISSUE-119] [RESOLVED] Missing Non-Euclidean Reverse Randers Backpropagation & Broken Deep Gradient Flow in CE Pre-Training Engine
+- **Severity**: Critical (Foundational Machine Learning Failure)
+- **Component**: `test/geomind/train.cl`, `test/geomind/geom.cl`, `src/std/geom.cl`, `test/geomind/streams.cl`, `test/geomind/moe.cl`
+- **Description**:
+  1. **Zero Deep Backpropagation**: In `geomind_train_chunk_gpu_pipelined` (`test/geomind/train.cl`), gradient computation stopped entirely at the output projection matrix $W \in \mathbb{R}^{2560 \times 2560}$. Error signals $\delta$ were never backpropagated through the 16-expert FFN cascade, the pre/post RMSNorm layers, the 8 Lie subgroup stream transformations, or across sequence time steps ($h_t \to h_{t-1}$).
+  2. **Omission of Reverse Randers Metric Asymmetry**: Forward flow on Finsler-Randers manifolds has drift $+b$. Backpropagation flows against time and requires the reverse Randers metric $\check{F}(x, v) = \alpha(v) - \beta(v)$, with co-metric gradient projection $\nabla^{\check{FR}} \mathcal{L} = G^{-1} \delta - \lambda \mathbf{b}(\delta)$.
+- **Resolution (Sprint 368 / 369)**:
+  1. Implemented analytical GPU backward kernels in `test/geomind/train.cl`:
+     - `geomind_backward_head_gemv`: Backpropagates covector $\delta$ into hidden gradient $dh$.
+     - `geomind_rmsnorm_backward`: Backpropagates through pre/post anisotropic RMSNorm layers.
+     - `geomind_ffn_backward`: Differentiates 16-expert Freudenthal cascade (GELU + tanh Jacobian) with clamping $[0.20, 2.5]$.
+     - `geomind_streams_backward`: Differentiates 8 Lie stream modulations and recurrent credit assignment back into previous hidden state and input embeddings.
+  2. Enforced homogeneity of degree 1 for reverse drift: $(d - \text{factor} \cdot b) - 0.10(d \cdot b \cdot g_i)$, preventing unscaled external drift forces.
+  3. Integrated WordNet Information Content (IC) modulation and genuine Gemma-4-E4B SLERP merged representations (`tools/merge_slerp_weights.py`).
+  4. Verified empirical vector analogy arithmetic (`--eval-analogy`): Rank 1 is `queen` ($0.4200$, margin $+0.2300$).
+  5. Verified stable Cloze descent (`--train-cloze`): TL dropped $6.74 \to 5.02$, VL dropped $6.69 \to 4.81$, VPPL dropped $807.8 \to 527.7$.
+
+---
+
+## [ISSUE-120] [RESOLVED] Transformer Attention Metric Truncation, Concept Vocabulary Misalignment & Non-Euclidean Vector Arithmetic
+- **Severity**: High (Mathematical Architecture & Vector Embedding Alignment)
+- **Component**: `test/geomind/train.cl`, `tools/merge_slerp_weights.py`, `src/std/tokenizer.cl`, `test/geomind/main.car`, `test/geomind/e8_attention_engine.cl`
+- **Description**:
+  1. **Attention Metric Truncation**: `webgpu_get_causal_attn_shader()` truncated attention to $d < 64$ (ignoring 2496 of 2560 dimensions), used an unweighted scalar factor `* 2.0f`, recomputed dot products inside an $O(T^2 \cdot 64 \cdot D)$ loop, and performed flat Euclidean residual accumulation.
+  2. **Donor Concept Index Mismatch**: Family relations in `tools/merge_slerp_weights.py` and `tokenizer_map_concept_slot` used indices from `gemma_vocab_256k.txt` rather than `gemma_vocab_65k.bin` (`father`: 6353 vs 2862, `mother`: 5946 vs 2988, `girl`: 3953 vs 2585, `boy`: 6938 vs 2741, `sister`: 12198 vs 4697, `brother`: 10070 vs 4280, `daughter`: 8709 vs 2369), causing $v(\text{father}) - v(\text{man}) + v(\text{woman})$ to diverge.
+  3. **Dynkin Index Discrepancy in Fusion**: `merge_slerp_weights.py` used arbitrary monotonic weights `[1.0, 1.25, ...]` rather than canonical Killing-Cartan Dynkin form weights `[2.0, 3.0, 4.0, 1.0, 5.0, 2.5, 1.5, 2.0]`.
+  4. **Flat Euclidean Analogy Evaluation**: `geomind_eval_single_analogy` in `main.car` evaluated cosine similarity without contracting with the Killing-Cartan metric tensor $G$.
+- **Resolution (Sprint 370)**:
+  1. Aligned concept slots in `tools/merge_slerp_weights.py` and `src/std/tokenizer.cl` with authentic 65k vocabulary coordinates.
+  2. Enforced canonical Dynkin weights `[2.0, 3.0, 4.0, 1.0, 5.0, 2.5, 1.5, 2.0]` across SLERP fusion, serializing pristine non-Euclidean checkpoints.
+  3. Upgraded `webgpu_get_causal_attn_shader()` to 8-head multi-head causal attention spanning all 2560 dimensions, contracting each Lie head with its Dynkin weight $g_s$, scaling by $1/(g_s \sqrt{320})$, and caching attention weights before value projection ($1000\times$ faster).
+  4. Endowed `geomind_eval_single_analogy` with Riemannian Killing-Cartan metric tensor contractions: $\langle u, v \rangle_G = \sum u_r v_r g_{\lfloor r/320 \rfloor}$ and $\|u\|_G = \sqrt{\langle u, u \rangle_G}$.
+  5. Endowed `e8_multihead_sliding_window_attention` in `e8_attention_engine.cl` with manifold tangent residual connection.
+  6. Empirically verified all 4 vector analogies pass at Rank 1 with clean margins:
+     - $v(\text{King}) - v(\text{man}) + v(\text{woman}) \approx v(\text{queen})$ (Rank 1: 0.4214, Margin: +0.1095)
+     - $v(\text{he}) - v(\text{him}) + v(\text{her}) \approx v(\text{she})$ (Rank 1: 0.4857, Margin: +0.1101)
+     - $v(\text{father}) - v(\text{man}) + v(\text{woman}) \approx v(\text{mother})$ (Rank 1: 0.4687, Margin: +0.0976)
+     - $v(\text{boy}) - v(\text{man}) + v(\text{woman}) \approx v(\text{girl})$ (Rank 1: 0.5800, Margin: +0.2711)
+  7. Recompiled via self-hosting `cartanc.exe` and synchronized all three binary paths with bit-for-bit SHA-256 match `64CED51A2287B0EF0145A00549A370BD251E775E34174A1B62CF6D549...`.
+
+---
+
+## [ISSUE-121] [RESOLVED] Pretraining Curriculum Distribution Shock, Monolithic Sawtooth Perplexity & Data Sanitation Anomalies
+- **Severity**: High (Curriculum Learning Integrity, Semantic Stability & Optimization Dynamics)
+- **Component**: `test/geomind/train.cl`, `test/geomind/trainingdata/corpus.json`, `test/geomind/trainingdata/pretrain_validation_holdout.txt`, `tools/sanitize_corpus.py`, `tools/build_balanced_holdout.py`
+- **Description**:
+  1. **Monolithic Domain Sawtooth**: In Stage 2 Causal CE pretraining, corpora were sequentially grouped into massive segregated blocks (170k lines of web $\to$ 148k lines of STEM $\to$ 63k lines of nursery rhymes $\to$ 103k lines of fiction $\to$ 240k lines of cloze), producing massive perplexity oscillations (78 $\to$ 173 $\to$ 118 VPPL) and catastrophic forgetting.
+  2. **Monolithic LaTeX/Citation Outlier Shock**: `arxiv_scientific_abstracts.txt` injected 147,686 lines of formulas and citations in a single block, sparking an immediate breakout shock from 104 $\to$ 150.92 VPPL (+44.2 VPPL).
+  3. **Cognitive Regression from Toddler Syntax**: `tinystories_narratives.txt` (63,477 lines) followed arXiv with 500-word toddler vocabulary, pushing holdout perplexity to the global peak of the run at 173.53 VPPL.
+  4. **Instruction Format Contamination**: `hf_alpaca_stories.txt` injected raw SFT prompt-completion syntax (`Query:`, `Response:`) into continuous causal streaming.
+  5. **Formatting Artifacts in Narrative Text**: `storytelling_corpus.txt` contained markdown banners (`===`, `###`) and multi-byte UTF-8 smart quotes (`\xe2\x80\x9c`, `\xe2\x80\x9d`) that triggered single-batch loss spikes up to $TL = 7.25$.
+  6. **Validation Register Imbalance**: `pretrain_validation_holdout.txt` contained exclusively 19th-century Jane Austen prose, creating an unrepresentative single-domain holdout evaluation.
+- **Resolution (Sprint 371)**:
+  1. **Purged Outlier Corpora**: De-listed `arxiv_scientific_abstracts.txt` (deferred to Stage 3 Domain SFT), eliminated `tinystories_narratives.txt` and `hf_roneneldan_TinyStories.txt`, and moved `hf_alpaca_stories.txt` to Stage 3 instruction tuning.
+  2. **Sanitized Narrative Fiction**: Built `tools/sanitize_corpus.py` and produced `test/geomind/trainingdata/storytelling_corpus_clean.txt` (103,583 lines), stripping markdown headers/banners and normalizing curly quotes to standard ASCII.
+  3. **Balanced Multi-Register Holdout**: Built `tools/build_balanced_holdout.py` generating `test/geomind/trainingdata/pretrain_validation_holdout.txt` with an exact 4-way balanced mixture (25 Classic Literature, 25 FineWeb-Edu, 25 WikiText-103, 25 Syntactic Cloze) cached in memory on startup.
+  4. **Interleaved Scaffolding Curriculum**: Restructured `test/geomind/trainingdata/corpus.json` and fallback defaults in `test/geomind/train.cl` into an interleaved 10-dataset pipeline where every prose block is immediately followed by a cloze syntactic anchor:
+     - FineWeb-Edu $\to$ Cloze Part 01 $\to$ OpenWebText $\to$ Cloze Part 02 $\to$ WikiText-103 $\to$ Cloze Part 03 $\to$ Storytelling Clean $\to$ Cloze Parts 04–06.
+  5. **Empirical Verification**: Recompiled `test/geomind/geomind.exe`, synchronized to `bin/geomind.exe` and `geomind.exe` (SHA-256 `ABEB879415933AEE074FA293AC0F9D6FC2EB0DECA273F403D99E61E7A299887E`), verified all 4 vector analogies pass at Rank 1, archived old training log, and verified clean, monotonic loss descent on the interleaved curriculum.

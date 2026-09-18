@@ -111,7 +111,8 @@ fn e8_multihead_sliding_window_attention(h_vec: ptr, num_heads: float, head_dim:
                     s_idx = s_idx + 1.0;
                 }
                 let out_idx = t * hidden_dim + h * head_dim + d_out;
-                cartan_vec_set_f32(out_vec, out_idx, acc);
+                let orig = cartan_vec_get_f32(h_vec, out_idx);
+                cartan_vec_set_f32(out_vec, out_idx, orig + 0.25 * acc);
                 d_out = d_out + 1.0;
             }
 
