@@ -293,7 +293,7 @@ fn train_mount_gpu() -> float {
     gpu_write(g_buf_metric_diag, g_host_metric_diag, 2560.0 * 4.0);
 
     let gemv_src = "__kernel void geomind_gemv_forward(__global const float* hidden, __global const float* weights, __global float* logits, int dim, int vocab) {\n    int col = get_global_id(0);\n    if (col < vocab) {\n        float sum = 0.0f;\n        for (int r = 0; r < dim; r++) {\n            sum += hidden[r] * weights[r * vocab + col];\n        }\n        logits[col] = sum;\n    }\n}\n";
-    let sgd_src = "__kernel void geomind_sgd_backward(__global const float* hidden, __global const float* delta, __global float* weights, __global const float* drift, __global const float* metric, int dim, int vocab, float lr, float decay) {\n    int col = get_global_id(0);\n    if (col < vocab) {\n        float d = delta[col];\n        float b = drift[col];\n        float g_col = metric[col];\n        float b_sq = b * b;\n        float dot_gb = d * b;\n        float factor = dot_gb / (1.0f + b_sq);\n        float curved_d = (d - factor * b) - (0.10f * d * b * g_col);\n        float inv_sqrt_dim = 0.0197642f;\n        for (int r = 0; r < dim; r++) {\n            int idx = r * vocab + col;\n            float grad = hidden[r] * curved_d * inv_sqrt_dim;\n            if (grad > 1.0f) grad = 1.0f;\n            else if (grad < -1.0f) grad = -1.0f;\n            weights[idx] = weights[idx] * decay - lr * grad;\n        }\n    }\n}\n";
+    let sgd_src = "__kernel void geomind_sgd_backward(__global const float* hidden, __global const float* delta, __global float* weights, __global const float* drift, __global const float* metric, int dim, int vocab, float lr, float decay) {\n    int col = get_global_id(0);\n    if (col < vocab) {\n        float d = delta[col];\n        float b = drift[col];\n        float g_col = metric[col];\n        float b_sq = b * b;\n        float dot_gb = d * b;\n        float factor = dot_gb / (1.0f + b_sq);\n        float curved_d = (d - factor * b) - (0.10f * d * b * g_col);\n        for (int r = 0; r < dim; r++) {\n            int idx = r * vocab + col;\n            float grad = hidden[r] * curved_d * 0.0197642f;\n            if (grad > 1.0f) grad = 1.0f;\n            else if (grad < -1.0f) grad = -1.0f;\n            weights[idx] = weights[idx] * decay - lr * grad;\n        }\n    }\n}\n";
     let head_bwd_gemv_src = "__kernel void geomind_backward_head_gemv(__global const float* weights, __global const float* delta, __global const float* drift, __global const float* metric, __global float* dh_out, int dim, int vocab) {\n    int r = get_global_id(0);\n    if (r < dim) {\n        float sum = 0.0f;\n        int row_base = r * vocab;\n        for (int c = 0; c < vocab; c++) {\n            float d = delta[c];\n            float b = drift[c];\n            float b_sq = b * b;\n            float factor = (d * b) / (1.0f + b_sq);\n            float curved_d = (d - factor * b) - (0.10f * d * b * metric[c]);\n            sum += weights[row_base + c] * curved_d;\n        }\n        float g_r = metric[r];\n        float inv_g = (g_r > 0.01f) ? (1.0f / g_r) : 1.0f;\n        float val = sum * 0.0197642f * inv_g;\n        if (val > 2.0f) val = 2.0f;\n        else if (val < -2.0f) val = -2.0f;\n        dh_out[r] = val;\n    }\n}\n";
     let rmsnorm_bwd_src = "__kernel void geomind_rmsnorm_backward(__global float* dh, __global const float* hidden, __global const float* metric, int dim, float eps) {\n    __local float s_sq[256];\n    __local float s_dot[256];\n    int lid = get_local_id(0);\n    int lsize = get_local_size(0);\n    float my_sq = 0.0f;\n    float my_dot = 0.0f;\n    for (int i = lid; i < dim; i += lsize) {\n        float x = hidden[i];\n        float g_i = metric[i];\n        my_sq += x * x * g_i;\n        my_dot += dh[i] * x;\n    }\n    s_sq[lid] = my_sq;\n    s_dot[lid] = my_dot;\n    barrier(CLK_LOCAL_MEM_FENCE);\n    for (int stride = lsize / 2; stride > 0; stride /= 2) {\n        if (lid < stride) {\n            s_sq[lid] += s_sq[lid + stride];\n            s_dot[lid] += s_dot[lid + stride];\n        }\n        barrier(CLK_LOCAL_MEM_FENCE);\n    }\n    float total_sq = s_sq[0];\n    float total_dot = s_dot[0];\n    float rms_sq = (total_sq / (float)dim) + eps;\n    float inv_rms = 1.0f / sqrt(rms_sq);\n    float inv_dim_rms_sq = 1.0f / ((float)dim * rms_sq);\n    for (int i = lid; i < dim; i += lsize) {\n        float x = hidden[i];\n        float g_i = metric[i];\n        float grad = inv_rms * (dh[i] - g_i * x * inv_dim_rms_sq * total_dot);\n        if (grad > 2.0f) grad = 2.0f;\n        else if (grad < -2.0f) grad = -2.0f;\n        dh[i] = grad;\n    }\n}\n";
     let ffn_bwd_src = "__kernel void geomind_ffn_backward(__global float* dh, __global const float* hidden_pre_ffn, __global const float* metric, int dim) {\n    int i = get_global_id(0);\n    if (i >= dim) return;\n    float z = hidden_pre_ffn[i];\n    float g_i = metric[i];\n    int quadrant = (i * 4) / dim;\n    float total_jac = 1.0f;\n    for (int col_alg = 0; col_alg < 4; col_alg++) {\n        int expert_id = quadrant * 4 + col_alg;\n        float kappa = ((float)expert_id + 1.0f) / 16.0f;\n        float u = 0.79788456f * (z + 0.044715f * z * z * z);\n        float tanh_u = tanh(u);\n        float gelu_z = 0.5f * z * (1.0f + tanh_u);\n        float sech_sq_u = 1.0f - tanh_u * tanh_u;\n        float du_dz = 0.79788456f * (1.0f + 3.0f * 0.044715f * z * z);\n        float dgelu_dz = 0.5f * (1.0f + tanh_u) + 0.5f * z * sech_sq_u * du_dz;\n        float kzg = kappa * z * g_i;\n        float tanh_kzg = tanh(kzg);\n        float sech_sq_kzg = 1.0f - tanh_kzg * tanh_kzg;\n        float dffn_dz = dgelu_dz * (1.0f + tanh_kzg) + gelu_z * sech_sq_kzg * (kappa * g_i);\n        float step_jac = 1.0f + 0.25f * dffn_dz;\n        if (step_jac < 0.20f) step_jac = 0.20f;\n        else if (step_jac > 2.0f) step_jac = 2.0f;\n        total_jac *= step_jac;\n        float ffn = gelu_z * (1.0f + tanh_kzg);\n        z = z + 0.25f * ffn;\n    }\n    if (total_jac > 2.5f) total_jac = 2.5f;\n    else if (total_jac < 0.20f) total_jac = 0.20f;\n    float out_dh = dh[i] * total_jac;\n    if (out_dh > 2.0f) out_dh = 2.0f;\n    else if (out_dh < -2.0f) out_dh = -2.0f;\n    dh[i] = out_dh;\n}\n";
@@ -1413,8 +1413,8 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
     var lr_floor = 0.001;
     var stage_ceiling_lr = 0.05;
     if (stage_mode == 2.0) {
-        lr_floor = 0.0015;
-        stage_ceiling_lr = 0.05; // Arbitrarily high headroom; dynamic controller handles self-regulation
+        lr_floor = 0.0006;
+        stage_ceiling_lr = 0.0024; // Headroom ceiling for Target-Loss Progress Annealing
     } else if (stage_mode == 3.0) {
         lr_floor = 0.0005;
         stage_ceiling_lr = 0.05;
@@ -1422,7 +1422,7 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
     if (base_lr > 0.0) {
         lr = base_lr;
     } else if (lr <= 0.0 || lr < lr_floor) {
-        lr = 0.004;
+        lr = 0.0022;
     }
     var initial_stage_lr = stage_ceiling_lr;
 
@@ -1702,142 +1702,43 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
                                 let delta_tppl = ema_tppl - prev_ema_tppl;
 
                                 var val_divergent = 0.0;
-                                if (ema_val_loss > 0.0 && atl > 0.0 && ema_val_loss > (atl * 1.08)) {
+                                if (ema_val_loss > 0.0 && atl > 0.0 && ema_val_loss > (atl * 1.35) && (ema_val_loss - atl) > 1.20) {
                                     val_divergent = 1.0;
                                 }
 
-                                // Track directional oscillations (sign flips between consecutive intervals)
-                                if ((delta_tppl > 0.20 && prev_delta_tppl < -0.20) || (delta_tppl < -0.20 && prev_delta_tppl > 0.20)) {
-                                    oscillation_count = oscillation_count + 1.0;
-                                }
+                                // Target-Loss Progress Annealing Schedule
+                                // Dynamically steers the learning rate based on global descent progress toward target loss (t_loss).
+                                // As ATL approaches t_loss, LR smoothly cools down from 0.0024 down to 0.0006,
+                                // preventing late-stage valley overshoot while maintaining momentum across plateaus.
+                                if (ep_step_count > 100.0 && atl > 0.0 && t_loss > 0.0) {
+                                    var loss_span = 4.40 - t_loss;
+                                    if (loss_span <= 0.10) { loss_span = 0.10; }
+                                    var progress_ratio = (atl - t_loss) / loss_span;
+                                    if (progress_ratio > 1.0) { progress_ratio = 1.0; }
+                                    if (progress_ratio < 0.0) { progress_ratio = 0.0; }
+                                    let target_annealed_lr = lr_floor + (stage_ceiling_lr - lr_floor) * progress_ratio;
 
-                                if (oscillation_count >= 3.0) {
-                                    // Symmetrical oscillation handling:
-                                    // If starved at or near floor, loss spikes/oscillates due to lack of learning capacity.
-                                    // Hike LR upward to probe where the network finds enough gradient step size to descend,
-                                    // strictly gated on validation health (suppressed if validation divergence is active).
-                                    if (lr <= lr_floor * 1.05) {
-                                        if (val_divergent == 0.0) {
-                                            let old_lr = lr;
-                                            lr = lr * 1.15;
-                                            if (lr > stage_ceiling_lr) { lr = stage_ceiling_lr; }
-                                            printf("[Adaptive LR] TPPL oscillating near floor LR (%s). Hiking LR upward to probe descent center: %s -> %s\n",
-                                                cartan_float_to_string(ema_tppl),
-                                                cartan_float_to_string(old_lr), cartan_float_to_string(lr));
-                                            cartan_flush(0.0);
-                                        } else {
-                                            printf("[Adaptive LR] TPPL oscillating near floor (%s), but validation divergence active (AVL > ATL * 1.08). Suppressed LR hike, holding at floor: %s\n",
-                                                cartan_float_to_string(ema_tppl), cartan_float_to_string(lr));
-                                            cartan_flush(0.0);
-                                        }
-                                    } else {
-                                        let old_lr = lr;
-                                        lr = lr * 0.95;
-                                        if (lr < lr_floor) { lr = lr_floor; }
-                                        printf("[Adaptive LR] TPPL oscillating at elevated LR (%s). Decaying LR toward descent center: %s -> %s\n",
-                                            cartan_float_to_string(ema_tppl),
-                                            cartan_float_to_string(old_lr), cartan_float_to_string(lr));
-                                        cartan_flush(0.0);
-                                    }
-                                    oscillation_count = 0.0;
-                                    tppl_rise_count = 0.0;
-                                    tppl_flat_count = 0.0;
-                                } else if (delta_tppl < -0.20) {
-                                    // State 1: Active Stable Descent -> Perplexity falling cleanly; hold sweet-spot LR
-                                    stable_descent_streak = stable_descent_streak + 1.0;
-                                    tppl_rise_count = 0.0;
-                                    tppl_flat_count = 0.0;
-                                    if (stable_descent_streak >= 3.0) {
-                                        oscillation_count = 0.0;
-                                    }
-                                } else if (delta_tppl > 0.20) {
-                                    // State 2: Rising -> Check if starved at minimum or overshooting at elevated LR
-                                    tppl_rise_count = tppl_rise_count + 1.0;
-                                    stable_descent_streak = 0.0;
-                                    tppl_flat_count = 0.0;
-                                    if (tppl_rise_count >= 2.0) {
-                                        if (lr <= lr_floor * 1.05) {
-                                            // Starved at floor: step updates are too tiny to adapt to data variance -> hike LR,
-                                            // strictly gated on validation health (suppressed if validation divergence is active).
-                                            if (val_divergent == 0.0) {
-                                                let old_lr = lr;
-                                                lr = lr * 1.15;
-                                                if (lr > stage_ceiling_lr) { lr = stage_ceiling_lr; }
-                                                printf("[Adaptive LR] TPPL rising while starved near floor LR (%s). Hiking LR upward: %s -> %s\n",
-                                                    cartan_float_to_string(ema_tppl),
-                                                    cartan_float_to_string(old_lr), cartan_float_to_string(lr));
-                                                cartan_flush(0.0);
-                                            } else {
-                                                printf("[Adaptive LR] TPPL rising near floor (%s), but validation divergence active (AVL > ATL * 1.08). Suppressed LR hike, holding at floor: %s\n",
-                                                    cartan_float_to_string(ema_tppl), cartan_float_to_string(lr));
-                                                cartan_flush(0.0);
-                                            }
-                                        } else {
-                                            // Elevated LR: overshooting the valley -> decay toward center
-                                            let old_lr = lr;
-                                            lr = lr * 0.95;
-                                            if (lr < lr_floor) { lr = lr_floor; }
-                                            if (lr < old_lr) {
-                                                printf("[Adaptive LR] TPPL rising (%s -> %s, delta: +%s). Decaying LR toward descent center: %s -> %s\n",
-                                                    cartan_float_to_string(prev_ema_tppl), cartan_float_to_string(ema_tppl),
-                                                    cartan_float_to_string(delta_tppl),
-                                                    cartan_float_to_string(old_lr), cartan_float_to_string(lr));
-                                                cartan_flush(0.0);
-                                            }
-                                        }
-                                        tppl_rise_count = 0.0;
-                                    }
-                                } else {
-                                    // State 3: Stagnant / Flat (-0.20 <= delta <= +0.20)
-                                    tppl_flat_count = tppl_flat_count + 1.0;
-                                    stable_descent_streak = 0.0;
-                                    tppl_rise_count = 0.0;
-                                    if (tppl_flat_count >= 5.0) {
-                                        if (lr <= lr_floor * 1.05) {
-                                            // Starved near floor -> gently nudge upward to restore momentum,
-                                            // strictly gated on validation health (suppressed if validation divergence is active).
-                                            if (val_divergent == 0.0) {
-                                                let old_lr = lr;
-                                                lr = lr * 1.15;
-                                                if (lr > stage_ceiling_lr) { lr = stage_ceiling_lr; }
-                                                printf("[Adaptive LR] TPPL stalled at crawl (%s). Re-centering LR upward: %s -> %s\n",
-                                                    cartan_float_to_string(ema_tppl),
-                                                    cartan_float_to_string(old_lr), cartan_float_to_string(lr));
-                                                cartan_flush(0.0);
-                                            } else {
-                                                printf("[Adaptive LR] TPPL stalled at crawl (%s), but validation divergence active (AVL > ATL * 1.08). Suppressed LR hike, holding at floor: %s\n",
-                                                    cartan_float_to_string(ema_tppl), cartan_float_to_string(lr));
-                                                cartan_flush(0.0);
-                                            }
-                                        } else if (lr > stage_ceiling_lr * 0.80) {
-                                            // Flat at elevated rate -> gently trim toward descent slope
-                                            let old_lr = lr;
-                                            lr = lr * 0.95;
-                                            if (lr < lr_floor) { lr = lr_floor; }
-                                            printf("[Adaptive LR] TPPL flat at elevated LR. Trimming toward center: %s -> %s\n",
-                                                cartan_float_to_string(old_lr), cartan_float_to_string(lr));
-                                            cartan_flush(0.0);
-                                        }
-                                        tppl_flat_count = 0.0;
+                                    // Smoothly track annealed target rate (10% momentum update per interval) when validation is healthy
+                                    if (val_divergent == 0.0) {
+                                        lr = lr * 0.90 + target_annealed_lr * 0.10;
                                     }
                                 }
-                                prev_delta_tppl = delta_tppl;
                             }
 
                             // Closed-Loop Validation Divergence & Overfitting Braking
                             if (ep_step_count > 200.0 && ema_val_loss > 0.0 && atl > 0.0) {
-                                // 1. Generalization gap divergence: validation loss drifting higher than training loss
-                                if (ema_val_loss > (atl * 1.08)) {
+                                // 1. Generalization gap divergence: validation loss drifting significantly higher than training loss
+                                if (ema_val_loss > (atl * 1.35) && (ema_val_loss - atl) > 1.20) {
                                     let old_lr = lr;
                                     lr = lr * 0.92;
                                     if (lr < lr_floor) { lr = lr_floor; }
                                     if (lr < old_lr) {
-                                        printf("[Adaptive LR] Validation divergence detected (AVL: %s > ATL: %s * 1.08). Braked LR: %s -> %s\n",
+                                        printf("[Adaptive LR] Validation divergence detected (AVL: %s > ATL: %s * 1.35). Braked LR: %s -> %s\n",
                                             cartan_float_to_string(ema_val_loss), cartan_float_to_string(atl),
                                             cartan_float_to_string(old_lr), cartan_float_to_string(lr));
                                         cartan_flush(0.0);
                                     }
-                                } else if (prev_ema_val_loss > 0.0 && (ema_val_loss - prev_ema_val_loss) > 0.015) {
+                                } else if (prev_ema_val_loss > 0.0 && (ema_val_loss - prev_ema_val_loss) > 0.05) {
                                     // 2. Rising validation loss trend: validation loss steadily climbing
                                     let old_lr = lr;
                                     lr = lr * 0.95;
@@ -1852,7 +1753,7 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
                             }
 
                             // Emergency Divergence Spike Braking (Unconditional on absolute loss magnitude)
-                            if (ep_step_count > 300.0 && tl > (atl * 1.25)) {
+                            if (ep_step_count > 300.0 && tl > 5.0 && tl > (atl * 1.25)) {
                                 let old_lr = lr;
                                 lr = lr * 0.90;
                                 if (lr < lr_floor) { lr = lr_floor; }

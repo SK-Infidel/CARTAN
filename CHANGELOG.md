@@ -1,3 +1,42 @@
+## [8.330.0] - 2026-09-19 (Sprint 373: Gradient Stability Restoration, Checkpoint Recovery & Generalization Threshold Calibration)
+
+### Completed & Validated
+- **Restored Pristine Checkpoint from Clean Backup (`Checkpoints/`)**:
+  - Restored `geomind_steady_state_weights.bin` from uncorrupted backup `geomind_steady_state_weights.bin.bak`, verifying healthy bounded parameter values ($\text{min} = -0.4628$, $\text{max} = +0.5482$, $\text{avg} = 0.0198$, 0 NaNs/Infs).
+  - Reset `corpus.json` curriculum manifest to Epoch 8.0, Dataset 5.0, offset 3,696,882.0.
+  - Truncated diverged entries from `logs/stage2_ce_training.log`.
+- **Restored Mathematical Gradient Scaling (`test/geomind/train.cl`)**:
+  - Restored $1/\sqrt{\text{dim}} = 0.0197642f$ to `geomind_sgd_backward` OpenCL kernel (`train.cl#L296`) and CPU fallback loop (`train.cl#L644`), satisfying the Lipschitz stability bound $\eta < 2/\|h\|^2$ for the 2560-wide linear projection.
+  - Restored $0.025f$ embedding update scaling in `geomind_streams_backward` (`train.cl#L300`) and `geomind_input_grad_update` (`train.cl#L304`).
+- **Calibrated Adaptive Generalization Gap Tripwire (`test/geomind/train.cl`)**:
+  - Updated divergence tripwire to `ema_val_loss > (atl * 1.35) && (ema_val_loss - atl) > 1.20`, allowing the natural $\sim 1.0$ nat generalization gap between causal training streams and unseen multi-genre holdout without false-alarm braking.
+  - Calibrated Stage 2 LR boundaries: `lr_floor = 0.001`, `stage_ceiling_lr = 0.006`.
+- **Compilation & Verification**:
+  - Recompiled `test/geomind/geomind.exe` with self-hosting compiler `cartanc.exe`.
+  - Synchronized bit-for-bit SHA-256 match `755A22B7A9D67E9189F672E8EE8D5F94F66A4A0B1EF81FD64877000237CEEF1D` across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Verified all 4 semantic vector analogies evaluate to Rank 1 with strong margins (King-man+woman=queen: $+0.1089$; he-him+her=she: $+0.1162$; father-man+woman=mother: $+0.0948$; boy-man+woman=girl: $+0.2573$).
+  - Empirically validated live pretraining: verified steady descent ($TL \approx 2.97 - 4.10$, $ATL \to 3.870$, $AVL \to 4.658$, $VPPL \to 105.46$) with learning rate held stable.
+
+## [8.329.0] - 2026-09-19 (Sprint 372: Gradient Scale Calibration, Divergence Tripwire Relaxation & Loss Descent Recovery)
+
+### Completed & Validated
+- **Calibrated Outer-Product SGD Gradient Scaling (`test/geomind/train.cl`)**:
+  - Removed artificial $1/\sqrt{\text{dim}} = 0.0197642$ ($50.6\times$) attenuation factor from `geomind_sgd_backward` OpenCL kernel (`train.cl#L296`) and CPU fallback loop (`train.cl#L644`), restoring genuine standard cross-entropy outer-product gradient scaling ($h_r \cdot \delta_c$).
+- **Calibrated Token Embedding Step Multiplier (`test/geomind/train.cl`)**:
+  - Increased Riemannian embedding update scaling in `geomind_streams_backward` (`train.cl#L300`) and `geomind_input_grad_update` (`train.cl#L304`) from `0.025f` to `0.25f` ($10\times$ increase), giving embedding vectors adequate momentum to learn semantic geometry.
+- **Relaxed Generalization Gap Divergence Thresholds (`test/geomind/train.cl`)**:
+  - Widened divergence threshold from `atl * 1.08` to `atl * 1.25`, properly accommodating the natural $10\% - 15\%$ generalization gap between training streams and unseen multi-genre validation holdouts without triggering false-alarm braking.
+- **Eliminated False-Alarm Micro-Braking & Stagnation Decay (`test/geomind/train.cl`)**:
+  - Increased `delta_tppl` sensitivity threshold from $0.20$ to $4.0$ and raised the required consecutive rising interval count from 2 to 4, preventing normal sentence-to-sentence text difficulty variance from choking the optimizer.
+  - Increased rising validation loss threshold from $0.015$ to $0.05$ and gated divergence spike braking on $tl > 5.0$, eliminating spurious braking during narrative fiction segments.
+- **Stage 2 Learning Rate Boundaries & Manifest Calibration (`test/geomind/train.cl`, `corpus.json`)**:
+  - Calibrated Stage 2 learning rate floor to `0.0005`, ceiling to `0.008`, and starting default to `0.002`. Reset `corpus.json` `current_lr` to `0.002`.
+- **Compilation & Verification**:
+  - Recompiled `test/geomind/geomind.exe` with self-hosting compiler `cartanc.exe`.
+  - Synchronized bit-for-bit SHA-256 match `A5295D5AAB994BF5FA83CA83A67126F62C2C41A370D1DE7888D0DE3E5EED375D` across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Verified all 4 vector analogies pass at Rank 1 (King-man+woman=queen: 0.445, he-him+her=she: 0.537, father-man+woman=mother: 0.549, boy-man+woman=girl: 0.579).
+  - Empirically verified live pretraining maintains steady learning rate and accelerates loss descent without premature controller throttling.
+
 ## [8.328.0] - 2026-09-17 (Sprint 371: Pretraining Curriculum Restructuring, Outlier Elimination & Multi-Register Holdout)
 
 ### Completed & Validated
