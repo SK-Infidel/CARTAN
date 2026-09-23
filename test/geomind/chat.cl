@@ -151,13 +151,17 @@ fn cartan_tensor_compute_hidden_state_from_tokens(toks: ptr) -> ptr {
             let phase = (tok * 37.0 + d * 13.0);
             let decay = exp(0.0 - 0.05 * (n_toks - 1.0 - t));
             var tok_emb = 0.0;
-            if (g_cortical_weights != 0.0 && tok >= 0.0) {
+            var emb_weights = g_cortical_weights;
+            if (g_embedding_weights != 0.0) {
+                emb_weights = g_embedding_weights;
+            }
+            if (emb_weights != 0.0 && tok >= 0.0) {
                 var eff_tok = tok;
                 if (eff_tok >= 2560.0) {
                     eff_tok = 3.0;
                 }
                 let w_idx = 2.0 + (d * 2560.0) + eff_tok;
-                tok_emb = g_cortical_weights[w_idx] * 12.0;
+                tok_emb = emb_weights[w_idx] * 12.0;
             }
             val = val + (tok_emb + 0.10 * sin(phase * 0.001)) * decay;
             t = t + 1.0;
@@ -176,13 +180,17 @@ fn cartan_tensor_update_autoregressive_state(h: ptr, tok: float) -> float {
         let old_v = h[2.0 + i];
         let phase = tok * 37.0 + i * 13.0;
         var tok_emb = 0.0;
-        if (g_cortical_weights != 0.0 && tok >= 0.0) {
+        var emb_weights_step = g_cortical_weights;
+        if (g_embedding_weights != 0.0) {
+            emb_weights_step = g_embedding_weights;
+        }
+        if (emb_weights_step != 0.0 && tok >= 0.0) {
             var eff_tok = tok;
             if (eff_tok >= 2560.0) {
                 eff_tok = 3.0;
             }
             let w_idx = 2.0 + (i * 2560.0) + eff_tok;
-            tok_emb = g_cortical_weights[w_idx] * 12.0;
+            tok_emb = emb_weights_step[w_idx] * 12.0;
         }
         let sub_idx = floor(i / 320.0);
         let g_i = geom_killing_form_dynkin_weight(sub_idx);
@@ -275,6 +283,17 @@ fn geomind_chat_start() -> float {
             g_cortical_weights = loaded;
             printf("[GeoMind Chat] Loaded steady-state neural weights: %s (%s parameters)\n",
                 steady_path, cartan_float_to_string(total_params));
+        }
+    }
+
+    let steady_emb = "test/geomind/trainingdata/checkpoints/geomind_embedding_weights.bin";
+    if (cartan_file_exists(steady_emb) == 1.0) {
+        let total_params = 2560.0 * 2560.0;
+        let loaded_emb = cartan_safetensors_load_raw_tensor_f32(steady_emb, total_params);
+        if (loaded_emb != 0.0 && cartan_vec_len(loaded_emb) == total_params) {
+            g_embedding_weights = loaded_emb;
+            printf("[GeoMind Chat] Loaded steady-state embedding weights: %s (%s parameters)\n",
+                steady_emb, cartan_float_to_string(total_params));
         }
     }
 

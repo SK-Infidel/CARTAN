@@ -135,6 +135,7 @@ fn hebbian_matrix_norm(w_mat: ptr, total_len: float) -> float {
 }
 
 var g_cortical_weights: ptr = 0.0;
+var g_embedding_weights: ptr = 0.0;
 
 fn cartan_init_cortical_weights_if_needed() {
     if (g_cortical_weights == 0.0) {
@@ -145,6 +146,16 @@ fn cartan_init_cortical_weights_if_needed() {
             let ph = math_mod_val(i * 37.0 + 13.0, 100.0) / 100.0 - 0.5;
             cartan_vec_set_f32(g_cortical_weights, i, ph * 0.01);
             i = i + 1.0;
+        }
+    }
+    if (g_embedding_weights == 0.0) {
+        g_embedding_weights = cartan_tensor_alloc(2560.0 * 2560.0);
+        var j = 0.0;
+        let total_w = 2560.0 * 2560.0;
+        while (j < total_w) {
+            let cw = cartan_vec_get_f32(g_cortical_weights, j);
+            cartan_vec_set_f32(g_embedding_weights, j, cw);
+            j = j + 1.0;
         }
     }
 }

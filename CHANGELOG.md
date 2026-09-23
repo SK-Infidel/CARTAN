@@ -1,3 +1,611 @@
+## [8.363.0] - 2026-09-23 (Sprint 405: Multi-Domain Validation Phasing & Telemetry Layout Restoration)
+
+### Completed & Validated
+- **Multi-Domain Validation Phasing Resolution ([`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl), `[ISSUE-157]`)**:
+  - Resolved single-domain validation bias where evaluation was tied to 10-chunk interval multiples, causing only dataset 10 (`mined_expanded_corpus_cloze_part06.txt`) to ever be validated.
+  - Implemented continuous per-chunk prequential validation: every chunk executes an out-of-sample forward pass (`lr = 0.0`) on its domain tokens with warm recurrent state before weight updates, recording domain losses in `domain_val_losses`.
+  - Computed balanced multi-domain validation mixture average `AVL` and `AVPPL` across all 10 datasets (`sum_dvl / count_dvl`), eliminating single-domain bias.
+- **Telemetry Layout Restoration & Header Transparency ([`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl))**:
+  - Completely purged intrusive single-line heartbeat output (`[GeoMind Stream] Chunk ...`) to restore clean terminal history and clear train vs. validation metric comparisons.
+  - Re-anchored telemetry output strictly to the clean 4-line comparison block (`Progress ->`, `Train ->`, `Val ->`) on 10-chunk intervals.
+  - Clarified telemetry header to report `Interleaved Stream [10 Datasets] | 10-Domain Cycle Complete (D1-D10)` instead of `Last: D[10.0: ...]`, clearly communicating full round-robin coverage.
+- **Empirical Verification & Parity**:
+  - Recompiled natively via `cartanc.exe` with Zig `-O3 LTO Vectorized Pass Pipeline`.
+  - SHA-256 bit-for-bit binary parity (`886B7BD9A2EAA5DF1E8E4C95EEEE9D42960226FBEB1D04105DEB9B47C96E3652`) verified across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Semantic vector analogies verified 4/4 passing at Rank 1.
+  - Live GPU diagnostic run confirmed clean 10-chunk interval output with balanced multi-domain metrics.
+
+## [8.362.0] - 2026-09-23 (Sprint 404: Prequential Stream Validation Architecture & Low-Entropy Codebase Cleanup)
+
+### Completed & Validated
+- **Prequential Stream Validation Architecture ([`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl), `[ISSUE-156]`)**:
+  - Implemented authentic out-of-sample prequential validation (test-then-train) directly on upcoming stream chunks before gradient updates:
+    - On interval evaluations (every 10 chunks) and baseline startup (chunk 0), evaluates the unseen 2048-token chunk (`train_tokens`) in a pure forward pass ($T=1.0, lr=0.0$) using the warm domain recurrent state `g_buf_domain_h[d_idx]`.
+    - Automatically restores `g_buf_prev_chunk_h` to pre-validation domain state before invoking the backward pass (`lr > 0.0`), guaranteeing zero context corruption.
+    - Completely eliminates cold-start and domain-shift disconnects ($VPPL \approx 2000$–$3000 \to \approx 140$).
+- **Low-Entropy Codebase Purge ([`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl))**:
+  - Purged ~250 lines of redundant static holdout caching infrastructure: `geomind_init_val_cache`, `geomind_free_val_cache`, `geomind_compute_validation_loss`, `geomind_get_domain_family`, `g_cached_val_chunks`, `g_cached_val_count`, `g_cached_val_file`.
+  - Deleted redundant GPU buffers `g_buf_saved_train_h`, `g_buf_val_prev_h`, `g_val_has_prev`, and host vector `cur_h_val`.
+  - Deleted legacy holdout files `test/geomind/trainingdata/pretrain_validation_holdout.txt` and `cloze_validation_holdout.txt`.
+  - Removed obsolete holdout generator scripts `tools/build_clean_holdout.py` and `tools/build_balanced_holdout.py`.
+- **Empirical Verification & Parity**:
+  - Restored original 4-line telemetry comparison block format (`Train ->` vs `Val ->`) and purged the intrusive single-line heartbeat.
+  - Bit-for-bit SHA-256 binary parity (`56A8524EC5062DC988277F39E294392E3C9DC3B5C1F2295F3B3D56AEA54C4C2E`) verified across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Verified 4/4 semantic vector analogies passing cleanly at Rank 1.
+  - Corpus manifest `corpus.json` and baseline checkpoints verified in clean starting state.
+
+## [8.361.0] - 2026-09-22 (Sprint 403: Domain-Matched Prequential Holdout Validation & Retired Dataset Purge)
+
+### Completed & Validated
+- **Retired Dataset Holdout Purge (`test/geomind/trainingdata/pretrain_validation_holdout.txt`, `[ISSUE-155]`)**:
+  - Purged all obsolete legacy excerpts (ArXiv particle physics and TinyStories) from `pretrain_validation_holdout.txt`.
+  - Re-anchored holdout validation exclusively to the 5 active dataset families configured in `corpus.json` (FineWeb-Edu, OpenWebText, WikiText-103, Storytelling, and Mined Discourse), with ~2,200 words extracted directly from each domain's held-out tail.
+  - Introduced `---DOMAIN_BREAK---` delimiters to isolate and pre-tokenize each domain into dedicated 2048-token chunks with zero inter-domain context bleed.
+- **Domain-Family Resolver & Prequential Validation Routing (`test/geomind/train.cl`)**:
+  - Implemented `geomind_get_domain_family(dataset_name: string) -> float`, dynamically resolving dataset paths to active domain family indices (0: FineWeb-Edu, 1: OpenWebText, 2: WikiText-103, 3: Storytelling, 4: Mined Discourse).
+  - Refactored `geomind_compute_validation_loss(val_file: string, cur_h_val: ptr, target_domain: float) -> float`:
+    - When `target_domain >= 0.0`: evaluates **only** the 2048-token holdout chunk matching the upcoming training domain (`next_d_idx`).
+    - Reduced validation forward-pass latency from ~2.5s (5 chunks) down to **~0.4s** (1 single 2K chunk).
+    - Preserved `-1.0` flag for complete multi-domain evaluation during engine initialization.
+- **Empirical Verification & Parity**:
+  - Built natively with `cartanc.exe` and Zig `-O3 LTO Vectorized Pass Pipeline`.
+  - Bit-for-bit SHA-256 binary parity (`1DF1AD1363871C13A16A45C593E07987A3678447EBB1D0BE84A077EDCF66B51D`) verified across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Verified 4/4 semantic vector analogies passing cleanly at Rank 1.
+  - Verified live streaming progress with domain-matched holdout validation.
+  - Corpus manifest `corpus.json` and baseline checkpoints restored to clean starting state.
+
+## [8.360.0] - 2026-09-22 (Sprint 402: Responsive Per-Chunk Streaming Heartbeat & Clean Starting State Convergence)
+
+### Completed & Validated
+- **Responsive Per-Chunk Streaming Heartbeat (`test/geomind/train.cl`, `[ISSUE-154]`)**:
+  - Implemented an immediate 1-line real-time streaming progress heartbeat after every single trained chunk (`total_chunks_trained = total_chunks_trained + 1.0`):
+    `[GeoMind Stream] Chunk <N> | Ingested 2048 tokens (<domain>) | Chunk Loss: <loss> | LR: <lr> | TTemp: <ttemp>`.
+  - Added immediate `cartan_flush(0.0)` stdout flushing to bypass host OS/WDDM terminal buffering, eliminating all telemetry starvation and false freeze perception.
+- **Scaled Telemetry & Multi-Domain Holdout Validation (`test/geomind/train.cl`)**:
+  - Scaled the full telemetry reporting and out-of-sample holdout validation frequency from 50 chunks (102.4K tokens / ~125s) to 10 chunks (20.48K tokens / ~25s).
+  - Scaled binary model weights checkpoint persistence from 1000 chunks to 100 chunks (~204.8K tokens / ~4 mins).
+- **Corpus Manifest & Starting State Convergence**:
+  - Cleanly reset `test/geomind/trainingdata/corpus.json` to dataset index 0, offset 0.0 across all 10 datasets, epoch 1.0, and base learning rate 0.0022.
+  - Restored clean baseline weights from `geomind_slerp_fused_weights.bin` into `geomind_steady_state_weights.bin` and `geomind_embedding_weights.bin`.
+  - Updated `checkpoint_status.txt` to `SUCCESS`. Prior run weights archived to `.pre_reset_bak` and training logs archived to `logs/stage2_ce_training_pre_sprint402_reset.log`.
+- **Empirical Verification & Parity**:
+  - Built natively with `cartanc.exe` and Zig `-O3 LTO Vectorized Pass Pipeline`.
+  - Bit-for-bit SHA-256 binary parity (`988589F6BD7E0625F4712C7E0EC85E78C1E764600D3D825FD50E8981DD713E8C`) verified across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Verified 4/4 semantic vector analogies passing cleanly at Rank 1.
+  - Verified live streaming progress with responsive per-chunk heartbeats every ~2.5s.
+
+## [8.359.0] - 2026-09-22 (Sprint 401: Dedicated Validation Context Memory & 2048-Token Sequence Packing Architecture)
+
+### Completed & Validated
+- **Dedicated Validation Context Memory (`test/geomind/train.cl`, `[ISSUE-153]`)**:
+  - Allocated and wired dedicated validation recurrent state storage (`g_buf_val_prev_h`, 10.24 KB VRAM), decoupled from active training memory (`g_buf_prev_chunk_h` / `g_buf_domain_h`).
+  - Added global validation warmup tracking (`g_val_has_prev`), ensuring validation begins cold exactly once at step 0 and thereafter retains warm, persistent recurrent context across evaluation intervals with zero periodic cold-starts.
+  - Implemented bidirectional stashing: active training state is safeguarded in `g_buf_saved_train_h` during holdout passes, terminal validation state is preserved in `g_buf_val_prev_h`, and training hidden state is restored bit-for-bit upon resuming.
+- **2048-Token Validation Holdout Packing (`test/geomind/train.cl`)**:
+  - Replaced line-by-line caching in `geomind_init_val_cache` with dynamic 2048-token sequence packing.
+  - Holdout paragraphs are concatenated into dense 2048-token evaluation chunks, allowing causal multi-head self-attention (`geomind_causal_mha_step`) to operate across full 2K context horizons during validation.
+- **2048-Token Training Stream Packing (`test/geomind/train.cl`)**:
+  - Upgraded the interleaved domain streaming loop in `geomind_train_streaming_steady_state` to accumulate consecutive domain lines into full 2048-token chunks per domain slice before dispatching GPU forward and backward passes.
+  - Ensures training and validation pipelines operate with matching 2048-token context depths and zero attention truncation.
+- **Empirical Verification & Parity**:
+  - Built natively with `cartanc.exe` and Zig `-O3 LTO Vectorized Pass Pipeline`.
+  - Bit-for-bit SHA-256 binary parity (`30658E17C35244611E5096ADC78FA79365A51839B17F4174B42CC542DD67F349`) verified across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Verified 4/4 semantic vector analogies passing cleanly at Rank 1.
+
+## [8.358.0] - 2026-09-22 (Sprint 400: 2048-Token Context Scaling, Validation Recurrent Continuity & Holdout Tail Purge)
+
+### Completed & Validated
+- **2048-Token Context Window Scaling (`test/geomind/train.cl`, `[ISSUE-150]`)**:
+  - Expanded sequence length horizon from 256 to standard 2048 tokens ($2\text{K}$) across VRAM, compute pipelines, and host memory buffers.
+  - Upgraded forward causal attention shader `geomind_causal_mha_step` with strided local memory loops (`for (int s = lid; s <= t; s += lsize)`) and parallel tree reductions over `s_red[256]`, supporting $s \in [0 \dots 2047]$ with 256-thread workgroups.
+  - Upgraded backward causal attention shader `geomind_causal_mha_backward` with strided key projection, exact softmax Jacobian adjoint scaling, and query gradient reductions over $s \in [0 \dots 2047]$.
+  - Expanded sequence memory `g_buf_chunk_seq_h` to $2048 \times 2560 \times 4$ ($20.97\text{ MB}$), loss buffer `g_buf_chunk_loss` to $2048 \times 4 \times 4$ ($32.768\text{ KB}$), and host readback buffer `g_host_chunk_loss` to $8192$ floats.
+  - Scaled token clamp in `geomind_train_chunk_gpu_pipelined` to `2048.0`.
+- **Validation Recurrent Continuity & Cold-Start Elimination (`test/geomind/train.cl`, `[ISSUE-151]`)**:
+  - Relocated validation recurrent state initialization (`g_has_prev_chunk_h = 0.0`) outside the validation chunk loop in `geomind_compute_validation_loss`, allowing validation to start cold exactly once on chunk 0 while chaining narrative recurrent hidden state across subsequent holdout chunks.
+  - Updated `geomind_train_chunk_gpu_pipelined` to persist `g_buf_train_hidden` into `g_buf_prev_chunk_h` and set `g_has_prev_chunk_h = 1.0` unconditionally after every chunk completion (`lr >= 0.0`).
+  - Stashed active training state into `g_buf_saved_train_h` prior to validation and cleanly restored training state and `saved_has_prev` post-validation, ensuring zero state contamination between training and evaluation while eliminating the per-chunk cold-start perplexity gap.
+- **Validation Holdout Tail Purge & Realignment (`test/geomind/trainingdata/pretrain_validation_holdout.txt`, `[ISSUE-152]`)**:
+  - Purged all 50 dead Alpaca Q&A prompts and synthetic repetitive nursery rhyme templates from lines 51–100 of `pretrain_validation_holdout.txt`.
+  - Replaced with authentic, high-quality, multi-sentence paragraphs extracted directly from the out-of-sample held-out tails of the 5 active dataset families configured in `corpus.json` (FineWeb-Edu, OpenWebText, WikiText-103, Storytelling, and Mined Discourse).
+- **Empirical Verification & Parity**:
+  - Built with `cartanc.exe` and Zig/Clang `-O3` LTO: SHA-256 `3D520B45CCA3E5202C40D76316846382F92FF0C1ECCA498A366FB53DE40A2339` synchronized across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - 4/4 semantic vector analogies verified passing cleanly at Rank 1.
+  - Active user offsets in `corpus.json` preserved intact.
+
+## [8.357.0] - 2026-09-22 (Sprint 399: Total Validation Metric Decoupling & Isolation Architecture)
+
+### Completed & Validated
+- **Total Validation Metric Decoupling (`test/geomind/train.cl`, `[ISSUE-149]`)**:
+  - Enforced strictly invariant $T=1.0$ for all validation holdout evaluations (`lr <= 0.0`), isolating holdout cross-entropy and perplexity from dynamic training temperature (`TTemp`) and controller adjustments.
+  - Eliminated inter-chunk recurrent state chaining (`val_has_prev`) during validation passes. Each multi-domain holdout excerpt is evaluated starting from clean zeroed hidden state (`g_has_prev_chunk_h = 0.0`), making validation metrics mathematically deterministic and sequence-order invariant.
+  - Dedicated validation DMA telemetry channels (`g_last_val_chunk_steps`, `g_last_val_chunk_entropy_sum`, `g_last_val_chunk_certainty_sum`, `g_last_val_chunk_surprise_sum`), ensuring holdout passes never overwrite or contaminate active training DMA registers.
+  - Established strict one-way causality: validation metrics inform the dynamic training controller (`val_gap = ema_val_loss - atl`), but dynamic training quantities never alter or feedback into validation metrics.
+- **Empirical Verification & Parity**:
+  - Built with `cartanc.exe` and Zig/Clang `-O3` LTO: SHA-256 `5E5F84D8CCDF8E215E9114867D18CA89114ACC610911B8B377426579FD0B9DEC` synchronized across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - 4/4 semantic vector analogies verified passing cleanly at Rank 1.
+  - Corpus manifest `test/geomind/trainingdata/corpus.json` cleanly reset to dataset 0, byte offset 0.0 across all 10 datasets, epoch 1.0, and base learning rate 0.0022 upon user request.
+  - Clean starting checkpoints restored from `geomind_slerp_fused_weights.bin` (SHA-256 `AD9C75F9BACC9FCCC77606BED5F08D5A0FDB6FC3740C3F8EE2A481F4992A0B52`) into `geomind_steady_state_weights.bin` and `geomind_embedding_weights.bin`; `checkpoint_status.txt` marked `SUCCESS`. Prior run weights backed up to `.pre_reset_bak` and training log archived to `logs/stage2_ce_training_pre_sprint399_reset.log`.
+
+## [8.356.0] - 2026-09-22 (Sprint 398: Decoupled Temperature Architecture & Dynamic TTemp Gradient Softening)
+
+### Completed & Validated
+- **Decoupled Temperature Architecture (`test/geomind/train.cl`, `[ISSUE-148]`)**:
+  - Permanently decoupled evaluation temperature (`VTemp`) from training temperature (`TTemp`).
+  - Locked `g_val_temperature = base_val_temp` ($1.0$) across all out-of-sample holdout evaluations, ensuring mathematical cross-entropy invariance and eliminating artificial temperature-driven perplexity escalation.
+  - Re-enabled dynamic gradient softening for `g_train_temperature` ($1.0 \to 1.35$) with $0.85/0.15$ smoothing governed by the clean generalization gap ($val\_gap = ema\_val\_loss - atl$) and divergence velocity ($val\_vel > 0.005$).
+- **Empirical Verification & Parity**:
+  - Built with `cartanc.exe` and Zig/Clang `-O3` LTO: SHA-256 `0CDEA7D86EE08B82E0E808A87DC6806DB1DBF9F5C0577DC1E67C27A12E03EE71` synchronized across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - 4/4 semantic vector analogies verified passing cleanly at Rank 1.
+  - User training progress preserved in `test/geomind/trainingdata/corpus.json`.
+
+## [8.355.0] - 2026-09-22 (Sprint 397: Rigorous Backward Adjoints, Metric Integrity & I/O Purification)
+
+### Completed & Validated
+- **Locked Evaluation Temperature to Standard $T=1.0$ (`[ISSUE-144]`)**:
+  - Permanently locked `g_val_temperature = 1.0` and `g_train_temperature = 1.0` across all holdout evaluation and training passes.
+  - Quenched the runaway positive feedback loop where dynamic $VTemp$ inflation artificially broadened probability distributions and elevated validation cross-entropy.
+- **Purified Manifest I/O Bottleneck (`[ISSUE-145]`)**:
+  - Maintained memory-mapped `offsets_list` updates per chunk while moving `geomind_manifest_save_interleaved` from 1-chunk high-frequency disk writes to the 50-chunk reporting interval, epoch completion, and target loss convergence.
+  - Eliminated 98% of blocking disk writes, preventing NVMe/SSD wear and thread micro-stutters during steady-state streaming.
+- **Pristine Pre-RMSNorm State for Backward Adjoints (`[ISSUE-146]`)**:
+  - Allocated `g_buf_pre_rmsnorm_h` in GPU VRAM and built pipeline `g_pipe_copy_pre_rmsnorm` (`geomind_copy_vec`).
+  - Stashed the pristine unnormalized hidden state right before `g_pipe_rmsnorm` and bound `g_buf_pre_rmsnorm_h` to `rmsnorm_backward_post` and `hopfield_backward`, feeding exact unnormalized states to both backward Jacobians.
+- **Rebalanced Token Embedding Gradient Multiplier (`[ISSUE-147]`)**:
+  - Scaled the embedding gradient multiplier in `geomind_streams_backward` and `geomind_input_grad_update` from $0.025\times$ to $0.25\times$, ending the $40\times$ step-size disparity with the LM head and allowing Riemannian token vectors to adapt in tandem with output projections.
+- **Empirical Verification & Parity**:
+  - Built with `cartanc.exe` and Zig/Clang `-O3` LTO: SHA-256 `2CA64DCE69C9BCD68B1D9F15403CD71EDE8CA15DA79885CD2227B6BC283D6ED3` synchronized across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - 4/4 semantic vector analogies verified passing cleanly at Rank 1.
+  - Corpus manifest `test/geomind/trainingdata/corpus.json` verified cleanly reset to dataset 0, offset 0.0 across all datasets, epoch 1.0, and active LR 0.0022.
+
+## [8.354.0] - 2026-09-22 (Sprint 396: Corpus Manifest Zero-Reset & Continuous Multi-Domain ATL Moving Average)
+
+### Completed & Validated
+- **Corpus Manifest Clean Zero-Reset (`test/geomind/trainingdata/corpus.json`)**:
+  - Reset `corpus.json` cleanly to dataset 0, byte offset 0.0 across all 10 datasets, epoch 1.0, and base learning rate $0.0022$.
+- **Continuous Multi-Domain ATL Moving Average (`test/geomind/train.cl`)**:
+  - Fixed single-slot stagnation bug where `domain_losses` was only updated once every 50 chunks on the terminal domain ($D_9$).
+  - Shifted `domain_losses` updates to run on every single chunk ($0.85/0.15$ per-domain EMA).
+  - Wired `atl` as the balanced mean across all 10 domains smoothed with a continuous mixture EMA ($0.80/0.20$), decoupling `ATL` from single-chunk `TL`.
+- **Empirical Verification & Parity**:
+  - Built with `cartanc.exe` and Zig/Clang `-O3` LTO: SHA-256 `BBBF64CD4774E2DE1B5F3DA8BE9B6EECDD523A7279530C8C1766212234761E25` synchronized across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - 4/4 semantic vector analogies verified passing at Rank 1.
+  - Verified on NVIDIA RTX 2000 Ada GPU: `corpus.json` starts from byte 0.0, and `ATL` smoothly averages across all domains ($TL: 4.850 \leftrightarrow ATL: 5.029, ITPPL: 127.7 \leftrightarrow ATPPL: 152.8$).
+
+## [8.353.0] - 2026-09-22 (Sprint 395: Causal Attention Backward, Hopfield Adjoint & Recurrent BPTT Credit)
+
+### Completed & Validated
+- **Causal MHA Backward Kernel (`test/geomind/train.cl`)**:
+  - Implemented OpenCL kernel `geomind_causal_mha_backward` (`g_pipe_causal_mha_backward`).
+  - Differentiated causal multi-head self-attention over sequence history $[0..t]$ with exact softmax Jacobian projection and query gradient accumulation into $dh$.
+- **Continuous Hopfield Backward Kernel (`test/geomind/train.cl`)**:
+  - Implemented OpenCL kernel `geomind_hopfield_backward` (`g_pipe_hopfield_backward`).
+  - Evaluated attractor inner products and adjoint projections across 8 attractor basins, differentiating through Hopfield memory injection directly into $dh$.
+- **Real-Time BPTT Recurrent Credit Accumulation (`test/geomind/train.cl`)**:
+  - Implemented OpenCL kernel `geomind_accumulate_recurrent_dh` (`g_pipe_accumulate_recurrent_dh`).
+  - Accumulated `dh_prev` from `geomind_streams_backward` across consecutive token steps with $0.35$ decay factor, eliminating dead recurrent gradient buffers.
+- **Closed-Loop Gradient Path**:
+  - Sequenced the unified backpropagation chain: Head GEMV $\to$ BPTT Accumulation $\to$ Post-RMSNorm $\to$ Hopfield $\to$ Causal MHA $\to$ FFN $\to$ Pre-RMSNorm $\to$ Streams Backward.
+- **Empirical Verification & Parity**:
+  - Built with `cartanc.exe` and Zig/Clang `-O3` LTO: SHA-256 `0108D22831D8BCD6662B43D05B3CB1CCF428DAD3BBA2982CEA89408DAD67DAA5` synchronized across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - 4/4 semantic vector analogies verified passing at Rank 1.
+  - Verified on NVIDIA RTX 2000 Ada GPU: dry run training loss dropped from $4.731$ to $4.629$ with zero runtime stalls.
+
+## [8.352.0] - 2026-09-22 (Sprint 394: Multi-Stream Context Memory, 1-Chunk Interleaving, Quenched Temperature & Embedding Decoupling)
+
+### Completed & Validated
+- **Multi-Stream Persistent Context Memory (`test/geomind/train.cl`)**:
+  - Allocated `g_buf_domain_h` ($16 \times 2560 \times 4\text{ bytes} = 163.8\text{ KB}$) in VRAM and `domain_has_prev` tracker.
+  - Implemented OpenCL kernel `geomind_copy_domain_h` (`g_pipe_copy_domain_h`) to swap recurrent hidden states on domain transitions.
+  - Preserved within-corpus continuity across rotations while completely eliminating cross-domain context poisoning.
+- **True 1-Chunk Interleaved Mixture Streaming (`test/geomind/train.cl`)**:
+  - Replaced coarse 50-chunk clumping (`slice_limit = 50.0`) with fine-grained 1-chunk rotation (`slice_limit = 1.0`).
+  - Formed a true balanced mixture stream across all 10 datasets with zero disk I/O overhead.
+  - Telemetry logs now report balanced 10-domain composite performance every 50 chunks (5 chunks per dataset).
+- **Quenched Temperature Oscillator (`test/geomind/train.cl`)**:
+  - Locked training temperature `g_train_temperature = 1.0`, quenching the $1/T$ gradient noise feedback loop.
+  - Bound validation temperature `g_val_temperature` strictly to the multi-sample holdout validation pass on cycle boundaries.
+- **Input Embedding & LM Head Decoupling (`src/std/hebbian.cl`, `test/geomind/train.cl`, `test/geomind/chat.cl`, `test/geomind/main.car`)**:
+  - Decoupled `g_buf_embedding_weights` ($2560 \times 2560$) from `g_buf_cortical_weights`.
+  - Bound `g_buf_embedding_weights` to `g_pipe_autoregressive` and `g_pipe_streams_backward`.
+  - Bound `g_buf_cortical_weights` exclusively to `g_pipe_gemv` (forward LM head) and `g_pipe_sgd` (head backprop).
+  - Added dual-tensor safetensors / bin checkpointing (`geomind_embedding_weights.bin` and `geomind_steady_state_weights.bin`) with backwards-compatible fallback loading.
+- **Empirical Verification & Parity**:
+  - Built with `cartanc.exe` and Zig/Clang `-O3` LTO: SHA-256 `6CFA59BEA2D3EF5713382946905705268529B9E0AE0AEB9B00084BBA6B831EB6` synchronized across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - 4/4 semantic vector analogies verified passing at Rank 1.
+  - Reset `checkpoint_status.txt` to `SUCCESS`.
+
+## [8.351.0] - 2026-09-22 (Sprint 393: Dual Adaptive Temperature Modulation Controller for TTemp & VTemp)
+
+### Completed & Validated
+- **Adaptive Training Temperature Modulation (`test/geomind/train.cl`)**:
+  - Replaced locked temperature with dynamic gradient softening controller:
+    $$target\_ttemp = base\_train\_temp + \text{clamp}((val\_gap - 0.10) \times 0.50, 0.0, 0.35)$$
+  - Added $+0.05$ active divergence velocity boost ($\Delta AVL > 0.005$) and continuous EMA smoothing ($0.85$ retention, $0.15$ step).
+  - Bounded strictly within $[base\_train\_temp, 1.40]$, softening gradients during overfitting while smoothly annealing back to $1.0$ when generalization aligns.
+- **Adaptive Validation Softmax Calibration (`test/geomind/train.cl`)**:
+  - Enabled continuous temperature scaling for evaluation pass:
+    $$target\_vtemp = base\_val\_temp + \text{clamp}(val\_gap \times 0.50, 0.0, 0.40)$$
+  - Dynamically calibrates holdout prediction confidence to out-of-sample distribution shifts without distorting underlying cross-entropy.
+- **Empirical Verification & Parity**:
+  - Built with `cartanc.exe` and Zig/Clang `-O3` LTO: SHA-256 `6C8D15BB9CDA2EA6BDD74A8752EB3484B99C5B62EEA0F90EC9A414B30C8F0A93` synchronized across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - 4/4 semantic vector analogies verified cleanly at Rank 1.
+  - Reset `checkpoint_status.txt` to `SUCCESS`.
+
+## [8.350.0] - 2026-09-22 (Sprint 392: Multi-Domain Mixture Moving Average & 4-Line Telemetry Architecture)
+
+### Completed & Validated
+- **Multi-Domain Mixture Moving Average (`test/geomind/train.cl`)**:
+  - Replaced single-stream 0.70 EMA with 10-domain mixture tracker (`domain_losses`).
+  - Recorded latest per-domain loss on each 50-chunk slice and evaluated `atl` as the balanced mean over all active observed domains ($\bar{L}_{\text{mix}} = \frac{1}{M} \sum L_k$).
+  - Eliminated domain-switching oscillations in `ATPPL` ($83 \leftrightarrow 109$) while retaining instantaneous `ITPPL = exp(tl)` for per-slice diagnostics.
+- **Four-Line Live Telemetry Layout (`test/geomind/train.cl`)**:
+  - Re-architected streaming telemetry in both stdout and `logs/stage2_ce_training.log` into the requested four-line structure:
+    - Line 1: Stream header and dataset file title (`[GeoMind CAUSAL CE Stream] Ep 1.0/Inf | D[...: ...]`).
+    - Line 2: Progress %, LR, TTemp, and VTemp (`  Progress -> ... | LR: ... | TTemp: ... | VTemp: ...`).
+    - Line 3: Training metrics (`  Train -> TL: ... | ATL: ... | ITPPL: ... | ATPPL: ... | ENT: ... | CERT: ...`).
+    - Line 4: Validation metrics (`  Val   -> VL: ... | AVL: ... | IVPPL: ... | AVPPL: ... | VENT: ... | VCERT: ...`).
+- **Telemetry Hyperparameter Surfacing (`test/geomind/train.cl`)**:
+  - Surfaced `TTemp` (`g_train_temperature`) and `VTemp` (`g_val_temperature`) on Line 2 of stream telemetry, in engine startup banner, and in epoch completion summaries.
+- **Empirical Verification & Parity**:
+  - Built with `cartanc.exe` and Zig/Clang `-O3` LTO: SHA-256 `19870FBA4D596EC4BF2C89B4A1DC6E216C2923775CCAA43EBE30A0A26E0B4ED5` synchronized across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - 4/4 semantic vector analogies verified cleanly at Rank 1.
+  - Reset `checkpoint_status.txt` to `SUCCESS`.
+
+## [8.349.0] - 2026-09-22 (Sprint 391: Benchmark Holdout Stability, Temperature Invariance & Controller Decoupling)
+
+### Completed & Validated
+- **Multi-Sample Holdout Benchmark Re-anchored (`test/geomind/train.cl`)**:
+  - Eliminated high-variance single-sentence slice probe ($IVPPL: 38 \to 1806$).
+  - Re-anchored evaluation to the fixed 100-chunk multi-domain holdout suite (`geomind_compute_validation_loss`), evaluated at startup and every full 10-domain cycle (500 chunks).
+  - Established genuine, stable out-of-sample generalization metrics ($VL = 4.838, IVPPL = 126.297, VENT = 6.41b, VCERT = 9.56\%$) evaluated on identical benchmarks across all epochs.
+- **Temperature Invariance Locked (`test/geomind/train.cl`)**:
+  - Disabled dynamic temperature inflation feedback loop. Locked training temperature to $T = 1.0$, preventing logit blurring and entropy inflation.
+- **Stabilized Learning Rate Schedule (`test/geomind/train.cl`)**:
+  - Decoupled learning rate from noisy single-sentence validation velocity and natural generalization gap triggers.
+  - Preserved smooth Target-Loss Progress Annealing toward $lr\_floor$ ($0.0005$).
+- **Log Formatting Integrity (`test/geomind/train.cl`)**:
+  - Wrapped `ema_val_loss` and `vppl` with `cartan_float_to_string` in telemetry log serialization, resolving missing integer digits (`AVL: .49917`).
+- **Empirical Verification & Parity**:
+  - Built with `cartanc.exe` and Zig `-O3` LTO: SHA-256 `9A97892B4C98A0AD607557D4DE131AD2692321402C0D78155D41EC5B549B9731` synchronized across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - 4/4 semantic vector analogies verified cleanly at Rank 1.
+  - Reset `corpus.json` and `checkpoint_status.txt` to pristine start state for user-launched training.
+
+## [8.348.0] - 2026-09-22 (Sprint 390: Prequential Validation Normalization & Interleaved Stream Cadence Synchronization)
+
+### Completed & Validated
+- **Online Prequential Validation Normalization (`test/geomind/train.cl`)**:
+  - Divided probe chunk loss sum by valid token count (`vl = probe_loss / g_last_chunk_valid_steps`), eliminating unnormalized chunk loss accumulation and false $1.46 \times 10^{22}$ validation perplexity.
+  - Aligned validation loss calculation with training loss computation ($TL$), producing accurate, harmonized out-of-sample perplexities ($VL \approx 7.69 \rightarrow 6.76$, $IVPPL \approx 2203 \rightarrow 863$).
+- **Temperature Guarding & Zero-Division Clamping (`test/geomind/train.cl`)**:
+  - Added safety guard for `g_val_temperature` at function start in `geomind_train_streaming_steady_state`.
+  - Enforced lower-bound clamping on effective step temperature (`step_temp <= 0.05 -> 1.0`) across all GPU and CPU step pathways, eliminating undefined behavior in softmax partition functions.
+- **Interleaved Domain Slice Telemetry Synchronization (`test/geomind/train.cl`)**:
+  - Re-anchored telemetry output interval to 50 chunks (`total_chunks_trained % 50 == 0`), precisely matching the 50-chunk domain rotation slice limit.
+  - Eliminated long 15-20 second silent gaps between prints; telemetry now streams smoothly every ~7-10 seconds on each domain rotation with exact dataset labels.
+- **Transient Memory Deallocation (`test/geomind/train.cl`)**:
+  - Added per-line freeing of token vectors (`cartan_vec_free(tokens)`) and cleaned line strings (`free(sample_text)`), preventing memory accumulation over long-running streams.
+- **Empirical Verification & Parity**:
+  - Built with `cartanc.exe` and Zig `-O3` LTO: SHA-256 `F6353D00552520D566EF002317D4A37485FD0BF42B695A85A34798DCA85857AD` synchronized across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - 4/4 semantic vector analogies verified cleanly at Rank 1.
+  - Reset `corpus.json` and `checkpoint_status.txt` to pristine start state for user-launched training.
+
+## [8.347.0] - 2026-09-22 (Sprint 389: Interleaved Round-Robin Streaming, Zero-Latency In-Memory Ingestion & Online Prequential Validation)
+
+### Completed & Validated
+- **Interleaved Round-Robin Multi-Domain Streaming (`test/geomind/train.cl`)**:
+  - Eliminated sequential dataset domain washboarding by implementing interleaved round-robin streaming across all registered datasets in `corpus.json`.
+  - Configured high-frequency rotation every $K = 50$ chunks (~12.8 KB) across domains, ensuring balanced cross-domain gradient exposure and manifold homogenization.
+  - Implemented persistent per-dataset offset tracking via `offsets` list in `corpus.json`, supporting seamless resume without data repetition.
+- **Zero-Latency In-Memory Corpus Ingestion (`test/geomind/train.cl`)**:
+  - Pre-loaded all registered datasets into memory at initialization (~126 MB total) within `cached_contents` and `cached_lengths`.
+  - Completely eliminated disk I/O bottlenecks and file seek latency during high-frequency domain interleaving.
+- **Online Prequential Next-Chunk Validation Engine (`test/geomind/train.cl`)**:
+  - Replaced static holdout evaluation with online prequential validation: probed chunk 0 of each incoming domain slice with `lr = 0.0` before applying training updates.
+  - Provided genuine, live out-of-sample prediction metrics ($VL, IVPPL, AVPPL, VENT, VCERT$) across all 10 active domains with zero data leakage, zero pausing, and zero VRAM context swapping.
+- **Dual-EMA Parity & Telemetry Acronym Standardization (`test/geomind/train.cl`)**:
+  - Removed premature step-1 trigger (`d_chunks == 1.0`), eliminating single-sentence cold-start pollution ($ATPPL \approx 670$).
+  - Symmetrized training loss tracking (`ATL = ema_train_loss`) to mirror validation loss (`AVL = ema_val_loss`) using identical 0.70 EMA momentum.
+  - Standardized all telemetry metric labels across stdout, logs, and documentation (`ITPPL`, `ATPPL`, `IVPPL`, `AVPPL`).
+- **Empirical Verification & Parity**:
+  - Clean compilation via self-hosting compiler `cartanc.exe`.
+  - Fixed `offsets_list` and `cached_lengths` to utilize native scalar float vectors (`cartan_vec`), eliminating pointer-address accumulation and premature epoch termination.
+  - Eliminated duplicate epoch increment and reset offsets cleanly on epoch rollover.
+  - Bit-for-bit SHA-256 synchronization verified: `A326657BBC4A9DCED1CF4D7EEBE9B306EEBD2844D193AA31433358F96492BDF4` across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - 4/4 semantic vector analogies verified cleanly at Rank 1 (King: $+0.109$, she: $+0.111$, mother: $+0.098$, girl: $+0.271$).
+  - Baseline checkpoints and manifest reset to zero offsets ready for clean training launch.
+
+## [8.346.0] - 2026-09-22 (Sprint 388: Evaluation Symmetry: Pure Unweighted Cross-Entropy, Validation Context Continuity & Independent Evaluation Temperature)
+
+
+### Completed & Validated
+- **Pure Unweighted Cross-Entropy for Perplexity Parity (`test/geomind/train.cl`)**:
+  - Decoupled SGD gradient weighting (`eff_ic`) from loss metrics in both WebGPU compute shader (`geomind_softmax_loss_delta`) and CPU fallback (`cartan_tensor_train_step`).
+  - Restored authentic information-theoretic cross-entropy calculation $ce\_loss = -\log P(x)$ and genuine perplexity ($PPL = \exp(loss)$), eliminating artificial domain offsets caused by variable punctuation/concept token distributions.
+- **Validation Context Continuity (`test/geomind/train.cl`)**:
+  - Allocated dedicated VRAM buffers `g_buf_saved_train_h` and `g_buf_val_prev_h` to preserve sequential recurrent state across holdout chunks during validation.
+  - Saved training's active recurrent hidden state before validation and restored it post-validation, eliminating the artificial cold-start penalty ($h=0$) across all 100 holdout lines.
+- **Independent Evaluation Temperature & Temperature-Aware Loss (`test/geomind/train.cl`, `test/geomind/main.car`)**:
+  - Bound evaluation softmax temperature to `g_val_temperature` (default $1.0$, CLI `-val-temp <float>`), decoupling evaluation calibration from training temperature dynamics.
+  - Updated compute shader `tgt_p` calculation to apply temperature scaling (`inv_temp`, `inv_sum_t`) whenever effective temperature exceeds $1.005$.
+- **Symmetric Telemetry & Dual-EMA Parity Controller (`test/geomind/train.cl`)**:
+  - Removed premature `d_chunks == 1.0` evaluation trigger, eliminating single-sentence cold-start pollution from training metrics.
+  - Symmetrized `ATL` to track `ema_train_loss` with the exact 0.70 EMA momentum matching `ema_val_loss`, aligning training and validation tracking timescales.
+  - Cleaned telemetry acronyms to `ITPPL`, `ATPPL`, `IVPPL`, `AVPPL`.
+  - Integrated elastic gap spring braking and temperature softening when $val\_gap > 0.35\text{ nats}$.
+- **Empirical Verification & Parity**:
+  - Clean compilation via self-hosting compiler `cartanc.exe`.
+  - Bit-for-bit SHA-256 synchronization verified: `03300675E66852F7EC323CEDD3466CF3D49E523914506F685668E4702C62F6DE` across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - 4/4 semantic vector analogies verified cleanly at Rank 1 (King: $+0.109$, she: $+0.110$, mother: $+0.098$, girl: $+0.271$).
+  - Resolved `[ISSUE-137]` in `ISSUES.md`.
+
+## [8.345.0] - 2026-09-22 (Sprint 387: Clean Holdout Dataset, Validation Velocity Controller & LR-Coupled Weight Decay)
+
+### Completed & Validated
+- **Clean Multi-Domain Validation Holdout Pipeline (`tools/build_clean_holdout.py`, `test/geomind/trainingdata/pretrain_validation_holdout.txt`)**:
+  - Eliminated the 50% training dataset contamination in the holdout set by generating 100 clean, unique lines sampled equally (25 each) across 4 external domains outside `corpus.json` (`arxiv_scientific_abstracts.txt`, `tinystories_narratives.txt`, `hf_alpaca_stories.txt`, `hf_roneneldan_TinyStories.txt`).
+  - Verified 0% overlap (0 verbatim matches) across all 10 datasets in `corpus.json`.
+- **Validation Velocity Controller (`test/geomind/train.cl`)**:
+  - Replaced static cross-entropy gap triggers ($val\_gap > 0.03\text{ nats}$) with validation velocity tracking ($\Delta AVL > 0.005\text{ nats}$ trigger, $val\_gap > 0.85\text{ nats}$ extreme safety valve).
+  - Unlocked progress annealing during stable/descending validation trajectories, eliminating controller throttle-lock and allowing LR to adapt to scheduled target loss.
+  - Dynamically cooled training temperature smoothly back to base $1.0$ when validation is non-ascending.
+- **LR-Coupled Weight Decay (`test/geomind/train.cl`)**:
+  - Implemented `decay_factor = 1.0 - (lr * 0.00005)` in both WebGPU SGD pipeline dispatch and CPU fallback, curbing logit norm inflation without per-token weight erosion.
+- **Enhanced Telemetry & CLI Flexibility (`test/geomind/train.cl`, `test/geomind/main.car`)**:
+  - Added full entropy (bits), top-1 certainty (%), and surprise (bits) logging for both training and validation splits at each 100-chunk interval.
+  - Added `-temp <float>` CLI parameter override and `--train-pre` flag alias.
+- **Empirical Verification & Parity**:
+  - Clean compilation via self-hosting compiler `cartanc.exe`.
+  - Bit-for-bit SHA-256 synchronization verified: `BA40D9BEFAE46FDB019DDF8A7E3B7CC6BD4C46BD16A734DAEBBA904C6553FF66` across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - 4/4 semantic vector analogies verified cleanly at Rank 1 (King: $+0.109$, she: $+0.110$, mother: $+0.098$, girl: $+0.271$).
+  - Resolved `[ISSUE-136]` in `ISSUES.md`.
+
+## [8.344.0] - 2026-09-22 (Sprint 386 Rollback: Reverted Non-Euclidean Stream Experiments & Restored Clean Baseline)
+
+### Completed & Validated
+- **Full Rollback of Sprint 386 Mathematical Changes**:
+  - Reverted experimental stream and RMSNorm modifications across [`test/geomind/streams.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/streams.cl), [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl), [`test/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl), and [`src/std/gpu.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/gpu.cl) after live empirical test produced severe validation divergence ($VPPL \approx 93k$ vs $TPPL \approx 103$).
+  - Restored verified Sprint 385 baseline code to stop cascading bugs and adhere strictly to low-entropy zero-whack-a-mole directives.
+- **Weights & Manifest Baseline Restoration**:
+  - Restored pristine weights from [`geomind_slerp_fused_weights.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_slerp_fused_weights.bin) into [`geomind_steady_state_weights.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_steady_state_weights.bin).
+  - Reset [`test/geomind/trainingdata/corpus.json`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/corpus.json) to clean epoch 1.0, dataset 0, offset 0.0, and marked [`checkpoint_status.txt`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/checkpoint_status.txt) as `SUCCESS`.
+  - Archived diverged training run log to `logs/stage2_ce_training_sprint386_diverged.log` and cleared active `logs/stage2_ce_training.log`.
+- **Empirical Verification & Parity**:
+  - Clean compilation via self-hosting compiler `cartanc.exe`.
+  - Bit-for-bit SHA-256 synchronization verified: `02D72BE372AA55966E3118C1518A09C6C62C22689ACB66A3C7108D06CB6F896B` across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - 4/4 semantic vector analogies verified cleanly at Rank 1 (King: $+0.109$, she: $+0.110$, mother: $+0.098$, girl: $+0.271$).
+
+## [8.343.0] - 2026-09-22 (Sprint 386: Non-Euclidean Stream Stability, Bounded Homology/Eikonal, Scale-Invariant RMSNorm & Metric Decoupling)
+
+### Completed & Validated
+- **Stream 4 (F4 x G2 Simplicial Loop Homology) Contractive Saturation (`test/geomind/streams.cl`, `test/geomind/train.cl`)**:
+  - Replaced unbounded cubic polynomial $0.10 v^3$ with contractive hyperbolic saturation: $0.90 v + \tanh(0.02 v^3 kw) \cdot 0.25 + 0.10 \sin(2v)$, strictly bounding activations in $[-0.90|v| - 0.35, 0.90|v| + 0.35]$.
+  - Updated all single-stream, manifold, routed manifold, WGSL, OpenCL, and CPU fallback routines.
+- **Stream 5 (SO(10) x SU(4) Geodesic Eikonal) Contractive Wavefront Step (`test/geomind/streams.cl`, `test/geomind/train.cl`)**:
+  - Replaced expansive positive feedback loop ($1.265 |v| + 0.20 v$, $\lambda = 1.465 > 1$) with contractive orientation-preserving travel: $0.70 v + 0.25 \tanh(\sqrt{v^2 kw + 0.01}) \text{sgn}(v)$, guaranteeing contraction ($\lambda = 0.70 < 1$).
+- **Stream 2 (E6 x SU(3) Spectral Fourier) Non-Negative Envelope (`test/geomind/streams.cl`, `test/geomind/train.cl`)**:
+  - Replaced sign-flipping harmonic $[-0.207, 1.207]$ with strictly positive modulation: $\cos((i + 1) \cdot 0.1 kw) \cdot 0.25 + 0.75 \in [0.50, 1.00]$.
+- **Scale-Invariant Riemannian RMSNorm (`test/geomind/train.cl`)**:
+  - Normalized anisotropic sum of squares by mean metric trace factor $\bar{g} = 2.625$: $\text{total\_sq} / (\text{dim} \times 2.625)$, eliminating artificial $38\%$ state shrinkage and representation collapse in both forward and backward kernels.
+- **Vocabulary Metric Decoupling & Normalized Metric Backward Scaling (`test/geomind/train.cl`)**:
+  - Removed hidden dimension drift/metric distortions across vocabulary columns in `geomind_sgd_backward` and CPU fallback.
+  - Replaced unnormalized $1/g_r$ attenuation in `geomind_backward_head_gemv` with normalized metric scaling $inv\_g = 2.625 / g_r$, restoring full gradient flow to Stream 4.
+- **Recalibrated Divergence Control & Braking Thresholds (`test/geomind/train.cl`)**:
+  - Adjusted static gap divergence threshold from $0.03 \to 0.38\text{ nats}$ ($\Delta PPL > 45$), with dynamic braking governed by active validation loss velocity ($\Delta AVL > 0.002$).
+- **Secondary Code Review & Secondary Stream Parity (`test/geomind/chat.cl`, `src/std/gpu.cl`)**:
+  - Remediated secondary autoregressive Lie manifold loop in `chat.cl` (`cartan_tensor_update_autoregressive_state`) and OpenCL fallback pipeline in `src/std/gpu.cl` (`lie_streams_fwd`), ensuring universal convergence and contractive boundedness across inference and GPU drivers.
+- **Empirical Verification & Parity**:
+  - Clean compilation via self-hosting compiler `cartanc.exe`.
+  - Bit-for-bit binary synchronization SHA-256 `26ED65191AE8832971B7685BD612B83BC6D77AF193B8D1CB775846647443B576` across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - 4/4 semantic vector analogies verified cleanly at Rank 1 (King-man+woman=queen: $+0.10842$; he-him+her=she: $+0.11928$; father-man+woman=mother: $+0.09663$; boy-man+woman=girl: $+0.26524$).
+  - Resolved `[ISSUE-135]` in `ISSUES.md`.
+
+## [8.342.0] - 2026-09-22 (Sprint 385: Scrapped Interleaved Chunk Convergence Test & Restored Stream Architecture)
+
+### Completed & Validated
+- **Scrapped Interleaved Chunk Convergence Gate (`test/geomind/train.cl`)**:
+  - Removed chunk-level retraining loop and stream suspension logic per empirical findings (repeated single-chunk passes intensified local memorization and widened validation gap).
+  - Preserved continuous closed-loop regularized stream architecture: anti-dethrottling progress annealing gating ($val\_gap > 0.05\text{ nats}$), proportional overfitting braking ($0.970\times$ to $0.995\times$), and dynamic temperature control ($T \propto val\_gap$).
+- **Empirical Verification & Parity**:
+  - Clean compilation via self-hosting compiler `cartanc.exe`.
+  - Bit-for-bit binary synchronization SHA-256 `005E9870B0EF61439788EF4F76AB8995B4EFA20C84EC94F37633620BC775A5D5` across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - 4/4 semantic vector analogies verified cleanly at Rank 1.
+
+## [8.341.0] - 2026-09-22 (Sprint 384: Exact-Match Chunk Convergence Gate & Anti-Dethrottling Regularization)
+
+### Completed & Validated
+- **Exact-Match Chunk Convergence Gate (`test/geomind/train.cl`)**:
+  - Calibrated convergence gate activation and exit threshold to exact-match tolerance: $\Delta PPL = (VPPL - cur\_tppl) \le 2.5\text{ PPL}$ ($val\_gap \le 0.03\text{ nats}$).
+  - Extended maximum passes to 8 with dynamic adaptive temperature: $T = 1.0 + (\text{gap} / cur\_tppl) \times 1.50$ (clamped to $[1.08, 1.35]$).
+  - Integrated per-chunk plateau detection ($< 0.05\text{ PPL}$ progress after 3 passes) to prevent local minimum lock.
+  - Imposed post-convergence LR ceiling clamp ($\le 0.0010$) upon stream resumption.
+- **Harmonized Annealing Gating & Continuous Temperature Control (`test/geomind/train.cl`)**:
+  - Tightened progress annealing gating to $val\_gap > 0.05\text{ nats}$ ($\Delta PPL > 3.0$), preventing nominal LR from surging toward ceiling ($0.0024$) while an open generalization gap remains.
+  - Calibrated braking tiers down to $0.05\text{ nats}$ ($0.995\times$ mild damping).
+  - Configured temperature controller to activate continuously at $val\_gap > 0.03\text{ nats}$ with $1.50\times$ gain, keeping $T \approx 1.25$ until exact match is attained.
+- **Empirical Verification & Parity**:
+  - Clean compilation via self-hosting compiler `cartanc.exe`.
+  - Bit-for-bit binary synchronization SHA-256 `08785997FBD20F0AD0314B71C81D48020EBD2739D4F6525BC59F967C194BCB48` across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - 4/4 semantic vector analogies verified cleanly at Rank 1 (King-man+woman=queen: $+0.0990$; he-him+her=she: $+0.1134$; father-man+woman=mother: $+0.0857$; boy-man+woman=girl: $+0.2033$).
+
+## [8.340.0] - 2026-09-22 (Sprint 383: Closed-Loop Chunk Convergence Gate & In-Place Overfitting Remediation)
+
+### Completed & Validated
+- **Closed-Loop Chunk Convergence Gate (`test/geomind/train.cl`)**:
+  - Implemented real-time generalization gating at chunk ingestion: when $\Delta PPL = (VPPL - TPPL) > 18.0$, file offset advancement is suspended.
+  - Retrains current chunk under softened temperature ($T = 1.25$) and dampened LR ($\eta_{\text{conv}} = 0.75 \times \eta$).
+  - Re-evaluates in-memory validation holdout on GPU after each pass, logging real-time convergence telemetry.
+  - Automatically resumes stream advancement once $\Delta PPL \le 18.0$, verifying that subsequent chunks arrive with $VPPL$ already aligned.
+- **Continuous Scope Hoisting (`test/geomind/train.cl`)**:
+  - Hoisted `vppl`, `cur_tppl`, and `holdout_path` to epoch scope for continuous chunk-level evaluation without interval scoping boundaries.
+- **Empirical Verification & Parity**:
+  - Clean compilation via self-hosting compiler `cartanc.exe`.
+  - Bit-for-bit binary synchronization SHA-256 `4CFDFB5AB14BC969A3FA51E5B0D3793FF25DB054E8343CD14C8FF5A32BBB83FA` across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - 4/4 semantic vector analogies verified cleanly at Rank 1 (King-man+woman=queen: $+0.0990$; he-him+her=she: $+0.1134$; father-man+woman=mother: $+0.0857$; boy-man+woman=girl: $+0.2033$).
+
+## [8.339.0] - 2026-09-22 (Sprint 382: Decisive Overfitting Braking, Active Trend Detection & 1.25x Temperature Gain)
+
+### Completed & Validated
+- **Decisive Proportional Overfitting Braking (`test/geomind/train.cl`)**:
+  - Replaced timid $0.999\times$ damping with calibrated proportional braking tiers: $0.970\times$ for severe gap ($> 0.60$), $0.980\times$ for moderate gap ($> 0.35$), $0.988\times$ for emerging gap ($> 0.25$), and $0.995\times$ for mild overfitting ($> 0.15$).
+- **Unchained Independent Validation Trend Detection (`test/geomind/train.cl`)**:
+  - Decoupled upward validation loss trend evaluation from the `val_gap` branch into an independent check.
+  - Re-calibrated detection threshold from unreachable $> 0.04$ to realistic $> 0.001$, applying $0.985\times$ braking whenever holdout loss creeps upward between reporting intervals.
+- **High-Gain Temperature Regularization (`test/geomind/train.cl`)**:
+  - Increased temperature scaling multiplier from $0.50$ to $1.25$: $target\_temp = 1.0 + (val\_gap - 0.15) \times 1.25$ (ceiling $1.35$).
+  - At $val\_gap \approx 0.307$, $T \to 1.20$, attenuating backprop logit deltas by $17\%$ and smoothing probability distributions to curb overfit memorization and lower holdout perplexity.
+- **Empirical Verification & Parity**:
+  - Clean compilation via self-hosting compiler `cartanc.exe`.
+  - Bit-for-bit binary synchronization SHA-256 `A33BE126FBA41A4F1A14545E5D25B63DC0DCB3432015A9BE086ABEF97D283B84` across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - 4/4 semantic vector analogies verified cleanly at Rank 1 (King-man+woman=queen: $+0.0978$; he-him+her=she: $+0.1108$; father-man+woman=mother: $+0.0849$; boy-man+woman=girl: $+0.2039$).
+
+## [8.338.0] - 2026-09-22 (Sprint 381: Continuous Temperature Controller Calibration & Harmonized Overfitting LR Braking)
+
+### Completed & Validated
+- **Continuous Temperature Controller Calibration (`test/geomind/train.cl`)**:
+  - Lowered closed-loop divergence activation threshold from $val\_gap > 0.45\text{ nats}$ to $val\_gap > 0.15\text{ nats}$ ($\le 14\text{ PPL}$ baseline gap).
+  - Scaled temperature responsiveness proportionally: $target\_temp = 1.0 + (val\_gap - 0.15) \times 0.50$ (bounded at ceiling $1.35$), with activation at $excess\_scale > 0.01$.
+  - Softens backpropagation deltas ($\delta / T$) by $\approx 5\%$ at the active gap of $0.244\text{ nats}$ ($T \approx 1.05$), curbing training token memorization and giving validation holdout room to catch up.
+- **Target-Loss Progress Annealing Gating (`test/geomind/train.cl`)**:
+  - Lowered gating threshold from $(AVL - ATL) > 0.55\text{ nats}$ to $> 0.20\text{ nats}$ (or $T > 1.02$), preventing upward LR acceleration towards ceiling ($0.0024$) while a $20+\text{ PPL}$ gap exists.
+- **Mild Closed-Loop Overfitting Braking (`test/geomind/train.cl`)**:
+  - Added gentle proportional damping tier: `else if (val_gap_brake > 0.25) { lr = lr * 0.999; }` to prevent LR ceiling pinning during persistent mild overfitting.
+- **Empirical Verification & Parity**:
+  - Clean compilation via self-hosting compiler `cartanc.exe`.
+  - Bit-for-bit binary synchronization SHA-256 `A3DAA8230C15D17013E53C2DD14C225F58E5A10225662D7EBA30D606E8ABAB0D` across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - 4/4 semantic vector analogies verified cleanly at Rank 1 (King-man+woman=queen: $+0.0982$; he-him+her=she: $+0.1085$; father-man+woman=mother: $+0.0873$; boy-man+woman=girl: $+0.2048$).
+
+## [8.337.0] - 2026-09-22 (Sprint 380: Symmetrized Perplexity Metrics & Holistic Evaluation Ruler)
+
+### Completed & Validated
+- **Symmetrized Training Perplexity Ruler (`test/geomind/train.cl`)**:
+  - Computed `cur_tppl` from smoothed running average loss `atl` ($\exp(atl)$) rather than raw unsmoothed instantaneous single-chunk loss `tl`.
+  - Eliminates artificial 30+ point swings caused by natural local variance between easy and hard text paragraphs, placing `TPPL` ($\exp(atl) \approx 81.8$) and `VPPL` ($\exp(avl) \approx 95.8$) on the exact same smoothed, holistic ruler.
+- **Empirical Parity & Verification**:
+  - Clean compilation via self-hosting compiler `cartanc.exe`.
+  - Binary synchronization SHA-256 `CB26411F1C9A807CB60911749E94C592D97705488641313789439842A3716DB1` across all 3 deployment targets.
+  - 4/4 semantic vector analogies verified cleanly at Rank 1.
+
+## [8.336.0] - 2026-09-22 (Sprint 379: Weight Decay Elimination & Proportionate LR Braking Calibration)
+
+### Completed & Validated
+- **Weight Decay Elimination (`decay_factor = 1.0`) (`test/geomind/train.cl`)**:
+  - Restored `decay_factor = 1.0` in both OpenCL SGD kernel dispatch (`g_pipe_sgd`) and CPU fallback loop (`cartan_tensor_train_step`). Eliminates unscaled per-token multiplication by $0.99995$ that was decaying all 6,553,600 weights by 99% every 100,000 steps and flattening logits into maximum uniform entropy ($VENT = 11.3219\text{b}$, $VCERT = 0.044\%$, $VL = 6.70$).
+- **Pristine Weight Checkpoint Restoration**:
+  - Restored intact baseline weights from `geomind_steady_state_weights.bin.bak` over `geomind_steady_state_weights.bin`.
+  - Immediately restored 4/4 semantic vector analogies to Rank 1 with large margins: King-man+woman=queen (+0.099), he-him+her=she (+0.114), father-man+woman=mother (+0.087), boy-man+woman=girl (+0.206).
+- **Proportionate Adaptive LR Braking (`test/geomind/train.cl`)**:
+  - Calibrated interval braking multipliers to proportionate levels: $0.98\times$ ($> 1.30\text{ nats}$), $0.99\times$ ($> 1.00\text{ nats}$), and $0.995\times$ ($> 0.70\text{ nats}$), preventing rapid LR collapse.
+- **Corpus Manifest Reset (`test/geomind/trainingdata/corpus.json`)**:
+  - Reset `corpus.json` to dataset 0, offset 0.0, epoch 1.0, and base LR 0.0022.
+- **Empirical Verification & Parity**:
+  - Clean compilation with self-hosting compiler `cartanc.exe`.
+  - Binary synchronization SHA-256 `758B0F6FE91B8B61064369D68C8DC14014F4D94B2B7ECD120DB5AA4EF328BAFE` across all 3 deployment paths.
+  - 4/4 semantic vector analogies verified cleanly at Rank 1.
+
+## [8.335.0] - 2026-09-22 (Sprint 378: Synchronized Dynamic Divergence & Noise-Robust Temperature Controllers)
+
+### Completed & Validated
+- **Continuous Divergence Gap Temperature Scaling (`test/geomind/train.cl`)**:
+  - Replaced rigid $val\_gap > 1.20\text{ nats}$ threshold with continuous scaling starting from empirical generalization boundary $val\_gap > 0.45\text{ nats}$.
+  - Computes excess divergence $excess\_scale = val\_gap - 0.45$, smoothly driving target temperature $target\_temp = 1.0 + excess\_scale \times 0.35$ (bounded by ceiling $1.45$). Eliminates the deadlock where $T$ stayed frozen at floor $1.0$ while validation loss drifted upward.
+- **Noise-Robust Velocity Tracking (`test/geomind/train.cl`)**:
+  - Gated training loss growth velocity with $\min(t\_growth, 0.0)$, preventing single noisy positive training loss chunks from masking climbing validation loss and blinding the controller.
+- **Synchronized Learning Rate Divergence Braking (`test/geomind/train.cl`)**:
+  - Gated target-loss progress annealing behind $val\_gap \le 0.55$ and $T \le 1.02$, preventing progress schedule from pinning LR at ceiling ($0.0024$) during divergence.
+  - Implemented multi-tier adaptive braking on $val\_gap$: light braking ($0.98\times$) at $> 0.65\text{ nats}$, moderate braking ($0.95\times$) at $> 0.95\text{ nats}$, and decisive braking ($0.90\times$) at $> 1.25\text{ nats}$.
+- **Unbroken 3-Line Telemetry Stream (`test/geomind/train.cl`)**:
+  - Removed standalone `[Adaptive LR]` print statements to guarantee consistent 3-line telemetry formatting across console and log output.
+- **Empirical Verification & Regression Testing**:
+  - Verified 63/63 compiler regression tests pass in `test/compiler_suite/`.
+  - Verified clean native compilation with `cartanc.exe` and bit-for-bit SHA-256 match `837E18460662C479314781EBC99FEFA6861A5A254914C0DC568910623E2E9B5F` across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Verified 4/4 semantic vector analogies pass cleanly at Rank 1.
+
+## [8.334.0] - 2026-09-22 (Sprint 377: Validation Isolation, Weight Decay Regularization & Post-Attention Spherical Normalization)
+
+### Completed & Validated
+- **Validation Hidden State Isolation (`test/geomind/train.cl`)**:
+  - Gated inter-chunk hidden state persistence behind `if (lr > 0.0)` in `geomind_train_chunk_gpu_pipelined`. Holdout chunks evaluated with `lr == 0.0` now execute strictly against zero-initialized hidden states, preventing disjoint paragraphs from bleeding context into each other and preventing validation state from polluting active training streams.
+- **Genuine L2 Weight Decay (`test/geomind/train.cl`)**:
+  - Activated weight decay `decay_factor = 0.99995` in both GPU OpenCL SGD kernel dispatch and CPU fallback loops. Regularizes LM head weight matrices over prolonged training streams, preventing logit inflation and overconfident softmax sharpening.
+- **Post-Attention & Hopfield Spherical RMSNorm (`test/geomind/train.cl`)**:
+  - Inserted `cartan_gpu_launch_local(g_pipe_rmsnorm)` directly after Tier 1 Causal MHA and Tier 3 Hopfield memory injection prior to the GEMV forward projection. Enforces $\|\mathbf{h}\| = 1$ on the Riemannian manifold, eliminating residual magnitude dilation.
+- **Closed-Loop Dynamic Temperature Controller & Metric Ruler Decoupling (`test/geomind/train.cl`)**:
+  - Decoupled training loss and perplexity evaluation ($TL$, $TPPL$) from temperature scaling: loss metrics are strictly evaluated on canonical $T=1.0$ unscaled distributions in both OpenCL kernel (`geomind_softmax_loss_delta`) and CPU fallback (`cartan_tensor_train_step`), eliminating artificial metric distortion and breaking feedback oscillation loops.
+  - Temperature $T$ is applied exclusively to soften backpropagation gradient deltas $\delta$, governed by unified generalization gap ($VL - TL > 1.20\text{ nats}$) and relative growth velocity. Prevents temperature from remaining pinned to floor during steady divergence while ensuring that tandem rises during hard dataset passages keep temperature pinned at baseline $1.0$.
+  - Coupled learning rate $\eta$ to active temperature $T$ to bound effective step size $\eta_{\text{eff}} = \frac{\eta}{T} \in [\eta_{\text{floor}}, \eta_{\text{ceiling}}]$, scaling minimum floor with $T$ to prevent starvation and damping ceiling with $\sqrt{T}$ while freezing upward annealing during active divergence.
+  - Added `TEMP: %s` directly to Line 1 telemetry banner and log files right after `LR: %s`, removing standalone action logs to maintain an unbroken 3-line format.
+- **Build Tooling Sanitization (`tools/zig_wrapper.py`)**:
+  - Removed unused `-I` include directory flags for CUDA Toolkit and Intel oneAPI from Clang IR linker invocation, eliminating `-Wunused-command-line-argument` warnings.
+- **Baseline Checkpoint & Manifest Restoration**:
+  - Restored clean baseline weights from `geomind_steady_state_weights.bin.bak` (52.4 MB) over `geomind_steady_state_weights.bin`.
+  - Reset `test/geomind/trainingdata/corpus.json` to Dataset 0 (`fineweb_edu_curated.txt`), offset 0.0, Epoch 1.0, LR 0.0022.
+- **Empirical Validation & Parity**:
+  - Clean compilation via self-hosting compiler `cartanc.exe`.
+  - Binary synchronization SHA-256 `F27FBEB030316645B59CD8700ABEEF370377B01B9FE5A256D1E6E5E8E19F117A` across all 3 deployment targets.
+  - 4/4 semantic vector analogies pass at Rank 1.
+  - Live empirical training metrics confirm tight train/validation parity and active dynamic temperature: $TL = 4.444 \leftrightarrow VL = 4.568$, $TPPL = 85.1 \leftrightarrow VPPL = 93.9$, $VENT = 8.29\text{b}$, $VCERT = 4.80\%$, $TEMP = 1.0$.
+
+## [8.333.0] - 2026-09-21 (Sprint 376: 3-Tier Cognitive Hybrid Architecture: Causal Multi-Head Self-Attention, Selective Lie-Stream Gating & Continuous Hopfield Memory Injection)
+
+### Completed & Validated
+- **Tier 1 (Immediate Working Memory - Causal Multi-Head Self-Attention) (`test/geomind/train.cl`)**:
+  - Implemented OpenCL kernel `geomind_causal_mha_step` evaluating parallel causal self-attention across 8 Lie heads ($H = 8$, $d_h = 320$, 256 threads/workgroup) over historical sequence hidden states $s \le t$ with local workgroup parallel reduction and residual injection ($+0.35$).
+  - Implemented `geomind_save_seq_h` OpenCL kernel stashing hidden vectors into $256 \times 2560 \times 4$ byte VRAM buffer `g_buf_chunk_seq_h`.
+- **Tier 2 (Fluid Narrative Stream - Selective Lie-Stream Gating & Inter-Chunk Persistence) (`test/geomind/train.cl`, `test/geomind/chat.cl`)**:
+  - Implemented dynamic input-dependent selective gating:
+    $$\alpha_t = \text{clamp}(0.50 + 0.12 \times \text{IC}(\text{token}), 0.40, 0.90)$$
+    replacing static $0.60$ decay in both OpenCL kernel (`geomind_autoregressive_step`) and CPU fallback (`cartan_tensor_update_autoregressive_state`).
+  - Implemented persistent inter-chunk state carryover (`g_buf_prev_chunk_h` and `g_has_prev_chunk_h`) preserving final chunk state across consecutive document chunks while strictly isolating validation evaluation and dataset boundaries.
+- **Tier 3 (Episodic Working Memory - Continuous Hopfield Memory Injection) (`test/geomind/train.cl`)**:
+  - Implemented `geomind_hopfield_inject` OpenCL kernel evaluating continuous modern Hopfield attractor energy over 8 attractor basins in VRAM ($\beta = 1.0$) and blending associative resonance with $\gamma = 0.10$.
+- **Telemetry Layout & Logging (`test/geomind/train.cl`, `logs/stage2_ce_training.log`)**:
+  - Reformatted console telemetry and log writing into a structured 3-line layout followed by an empty line:
+    - Line 1: Model info, stage mode, epoch, dataset index, percentage, KB completed, and active learning rate (`LR`).
+    - Line 2: Detailed training metrics (`Train -> TL | ATL | TPPL | ENT | CERT | SURP`).
+    - Line 3: Detailed validation holdout metrics (`Val -> VL | AVL | VPPL | VENT | VCERT | VSURP`).
+- **Compilation & Verification**:
+  - Clean compilation via self-hosting compiler `cartanc.exe`.
+  - Bit-for-bit binary synchronization SHA-256 `A49403D00403AEA15AB27B5C38163499DE10B62416B8A6D8307A6C9A88A18E6E` across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - 4/4 semantic vector analogies pass at Rank 1 (King-man+woman=queen: $+0.0992$; he-him+her=she: $+0.1137$; father-man+woman=mother: $+0.0873$; boy-man+woman=girl: $+0.2062$).
+  - Live empirical verification: executed 5,710 GPU steps across 100 chunks in $< 9$ seconds with zero GPU faults, genuine metrics, and active Tier 1/2/3 pipelines.
+
+## [8.332.0] - 2026-09-21 (Sprint 375: Predictive Shannon Entropy, Surprise, Certainty & Temperature Telemetry)
+
+### Completed & Validated
+- **GPU Softmax Loss Kernel Parallel Reductions (`test/geomind/train.cl`)**:
+  - Enhanced `geomind_softmax_loss_delta` OpenCL kernel with 256-thread local workgroup parallel reduction calculating Shannon predictive distribution entropy ($H(q) = -\sum q \log_2 q$ in bits), prediction certainty ($C = \max q \in [0.0, 1.0]$), true token surprise ($S = -\log_2 q_{\text{target}}$ in bits), and temperature scaling ($z_c / T$).
+  - Expanded GPU loss buffer to 4 floats per step `[CE_loss, Entropy_bits, Certainty, Surprise_bits]` with zero reallocation overhead.
+- **CPU Fallback & Holdout Telemetry Engine (`test/geomind/train.cl`)**:
+  - Implemented identical Shannon entropy, certainty, and surprise calculations in `cartan_tensor_train_step` and `geomind_compute_validation_loss`.
+  - Added interval, epoch, and validation holdout tracking (`g_last_val_entropy`, `g_last_val_certainty`, `g_last_val_surprise`).
+- **Telemetry Stream Formatting & Logging (`test/geomind/train.cl`, `logs/stage2_ce_training.log`)**:
+  - Updated console banner and training log to output real-time `ENT: %sb | CERT: %s% | SURP: %sb` and `VENT: %sb | VCERT: %s%`.
+  - Updated epoch completion summary with `Mean ENT: %sb | Mean CERT: %s%`.
+- **CLI Flag Support (`test/geomind/main.car`)**:
+  - Added `-temp <float>` flag support across cloze, causal cross-entropy, and SFT modes to set `g_train_temperature`.
+  - Mapped `--train-pre` flag to causal cross-entropy pretraining mode.
+- **Compilation & Verification**:
+  - Recompiled `test/geomind/geomind.exe` with self-hosting `cartanc.exe`.
+  - Synchronized bit-for-bit SHA-256 match `F99A1F00D2C23697AAC443C7845BAE567432A0762D187208A270B448255F8442` across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Verified all 4 semantic vector analogies pass at Rank 1 (King-man+woman=queen: $+0.0952$; he-him+her=she: $+0.1213$; father-man+woman=mother: $+0.0880$; boy-man+woman=girl: $+0.2087$).
+  - Empirically verified GPU compute: $H(q) \approx 6.28 - 6.55$ bits, Certainty $\approx 15.27\% - 19.48\%$, Surprise $\approx 7.35 - 9.76$ bits, Validation Entropy $\approx 7.15$ bits, Validation Certainty $\approx 7.32\%$.
+
+## [8.331.0] - 2026-09-20 (Sprint 374: Target-Loss Progress Annealing & Domain Transition Stabilization)
+
+### Completed & Validated
+- **Target-Loss Progress Annealing Schedule (`test/geomind/train.cl`)**:
+  - Replaced reactive `delta_tppl` oscillation/surge micro-decays with continuous global progress annealing:
+    $$\eta(ATL) = \eta_{\text{floor}} + (\eta_{\text{max}} - \eta_{\text{floor}}) \times \min\left(1.0, \max\left(0.0, \frac{ATL - t\_loss}{4.40 - t\_loss}\right)\right)$$
+    with $\eta_{\text{max}} = 0.0024$, $\eta_{\text{floor}} = 0.0006$, starting $\eta = 0.0022$.
+  - Provides momentum across text difficulty shifts while cooling down near target loss to prevent late-stage valley overshoot.
+- **Eliminated False-Alarm Domain Transition Starvation (`test/geomind/train.cl`)**:
+  - Eliminated reactive decays on natural perplexity differences between structured cloze and narrative prose.
+- **Compilation & Verification**:
+  - Recompiled `test/geomind/geomind.exe` with self-hosting `cartanc.exe`.
+  - Synchronized bit-for-bit SHA-256 match `38C1E3799F7CFA38A56EFEE075753ABA5FA892ED300477C8288D6C714F28A1FF` across `test/geomind/geomind.exe` and `bin/geomind.exe`.
+  - Verified all 4 semantic vector analogies evaluate to Rank 1 (King-man+woman=queen: $+0.1066$; he-him+her=she: $+0.1102$; father-man+woman=mother: $+0.0954$; boy-man+woman=girl: $+0.2610$).
+
 ## [8.330.0] - 2026-09-19 (Sprint 373: Gradient Stability Restoration, Checkpoint Recovery & Generalization Threshold Calibration)
 
 ### Completed & Validated

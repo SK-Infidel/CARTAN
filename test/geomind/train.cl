@@ -54,6 +54,13 @@ var g_pipe_rmsnorm_backward_pre: ptr = 0.0;
 var g_pipe_ffn_backward: ptr = 0.0;
 var g_pipe_streams_backward: ptr = 0.0;
 var g_pipe_copy_h_norm: ptr = 0.0;
+var g_pipe_causal_mha_step: ptr = 0.0;
+var g_pipe_save_seq_h: ptr = 0.0;
+var g_pipe_hopfield_inject: ptr = 0.0;
+var g_pipe_hopfield_backward: ptr = 0.0;
+var g_pipe_causal_mha_backward: ptr = 0.0;
+var g_pipe_accumulate_recurrent_dh: ptr = 0.0;
+var g_pipe_copy_pre_rmsnorm: ptr = 0.0;
 
 var g_buf_x: ptr = 0.0;
 var g_buf_attn_out: ptr = 0.0;
@@ -62,6 +69,7 @@ var g_buf_targets: ptr = 0.0;
 var g_buf_ic: ptr = 0.0;
 var g_buf_loss: ptr = 0.0;
 var g_buf_cortical_weights: ptr = 0.0;
+var g_buf_embedding_weights: ptr = 0.0;
 var g_buf_train_hidden: ptr = 0.0;
 var g_buf_train_logits: ptr = 0.0;
 var g_buf_train_delta: ptr = 0.0;
@@ -71,6 +79,14 @@ var g_buf_metric_diag: ptr = 0.0;
 var g_buf_step_h_norm: ptr = 0.0;
 var g_buf_step_dh: ptr = 0.0;
 var g_buf_step_dh_prev: ptr = 0.0;
+var g_buf_chunk_seq_h: ptr = 0.0;
+var g_buf_prev_chunk_h: ptr = 0.0;
+var g_buf_domain_h: ptr = 0.0;
+var g_buf_pre_rmsnorm_h: ptr = 0.0;
+var g_pipe_copy_domain_h: ptr = 0.0;
+var g_has_prev_chunk_h: float = 0.0;
+var g_buf_hopfield_attractors: ptr = 0.0;
+var g_host_hopfield_attractors: ptr = 0.0;
 var g_host_drift_vector: ptr = 0.0;
 var g_host_metric_diag: ptr = 0.0;
 
@@ -84,9 +100,27 @@ var g_host_train_hidden: ptr = 0.0;
 var g_host_train_logits: ptr = 0.0;
 var g_host_train_delta: ptr = 0.0;
 var g_host_weights_f32: ptr = 0.0;
+var g_host_emb_weights_f32: ptr = 0.0;
 var g_host_chunk_loss: ptr = 0.0;
 var g_host_zero_hidden: ptr = 0.0;
 var g_gpu_weights_synced: float = 0.0;
+
+// Authentic Information-Theoretic Pretraining Telemetry Globals
+var g_last_step_entropy: float = 0.0;
+var g_last_step_certainty: float = 0.0;
+var g_last_step_surprise: float = 0.0;
+var g_last_chunk_entropy_sum: float = 0.0;
+var g_last_chunk_certainty_sum: float = 0.0;
+var g_last_chunk_surprise_sum: float = 0.0;
+var g_last_val_entropy: float = 0.0;
+var g_last_val_certainty: float = 0.0;
+var g_last_val_surprise: float = 0.0;
+var g_last_val_chunk_steps: float = 0.0;
+var g_last_val_chunk_entropy_sum: float = 0.0;
+var g_last_val_chunk_certainty_sum: float = 0.0;
+var g_last_val_chunk_surprise_sum: float = 0.0;
+var g_train_temperature: float = 1.0;
+var g_val_temperature: float = 1.0;
 
 var g_attn_buffers: ptr = 0.0;
 var g_streams_buffers: ptr = 0.0;
@@ -261,21 +295,29 @@ fn train_mount_gpu() -> float {
 
     let total_weights = 2560.0 * 2560.0;
     g_buf_cortical_weights = gpu_alloc(total_weights * 4.0);
+    g_buf_embedding_weights = gpu_alloc(total_weights * 4.0);
+    g_buf_domain_h = gpu_alloc(16.0 * 2560.0 * 4.0);
     g_buf_train_hidden = gpu_alloc(2560.0 * 4.0);
     g_buf_train_logits = gpu_alloc(2560.0 * 4.0);
     g_buf_train_delta = gpu_alloc(2560.0 * 4.0);
-    g_buf_chunk_loss = gpu_alloc(256.0 * 4.0);
+    g_buf_chunk_loss = gpu_alloc(2048.0 * 4.0 * 4.0); // 2048 steps * 4 metrics [CE loss, Entropy bits, Certainty, Surprise bits]
     g_buf_drift_vector = gpu_alloc(2560.0 * 4.0);
     g_buf_metric_diag = gpu_alloc(2560.0 * 4.0);
     g_buf_step_h_norm = gpu_alloc(2560.0 * 4.0);
     g_buf_step_dh = gpu_alloc(2560.0 * 4.0);
     g_buf_step_dh_prev = gpu_alloc(2560.0 * 4.0);
+    g_buf_chunk_seq_h = gpu_alloc(2048.0 * 2560.0 * 4.0);
+    g_buf_prev_chunk_h = gpu_alloc(2560.0 * 4.0);
+    g_buf_hopfield_attractors = gpu_alloc(8.0 * 2560.0 * 4.0);
+    g_buf_pre_rmsnorm_h = gpu_alloc(2560.0 * 4.0);
+    g_host_hopfield_attractors = cartan_f32_buffer_alloc(8.0 * 2560.0);
 
     g_host_train_hidden = cartan_f32_buffer_alloc(2560.0);
     g_host_train_logits = cartan_f32_buffer_alloc(2560.0);
     g_host_train_delta = cartan_f32_buffer_alloc(2560.0);
     g_host_weights_f32 = cartan_f32_buffer_alloc(total_weights);
-    g_host_chunk_loss = cartan_f32_buffer_alloc(256.0);
+    g_host_emb_weights_f32 = cartan_f32_buffer_alloc(total_weights);
+    g_host_chunk_loss = cartan_f32_buffer_alloc(2048.0 * 4.0);
     g_host_zero_hidden = cartan_f32_buffer_alloc(2560.0);
     g_host_drift_vector = cartan_f32_buffer_alloc(2560.0);
     g_host_metric_diag = cartan_f32_buffer_alloc(2560.0);
@@ -291,17 +333,37 @@ fn train_mount_gpu() -> float {
     }
     gpu_write(g_buf_drift_vector, g_host_drift_vector, 2560.0 * 4.0);
     gpu_write(g_buf_metric_diag, g_host_metric_diag, 2560.0 * 4.0);
+    var zd = 0.0;
+    while (zd < 16.0) {
+        cartan_gpu_write_buffer(g_buf_domain_h, zd * 2560.0 * 4.0, g_host_zero_hidden, 2560.0 * 4.0);
+        zd = zd + 1.0;
+    }
+
+    var b_init = 0.0;
+    while (b_init < 8.0) {
+        var d_init = 0.0;
+        while (d_init < 2560.0) {
+            let v_att = sin((d_init + 1.0) * (b_init + 1.0) * 0.01);
+            cartan_set_f32(g_host_hopfield_attractors, b_init * 2560.0 + d_init, v_att);
+            d_init = d_init + 1.0;
+        }
+        b_init = b_init + 1.0;
+    }
+    gpu_write(g_buf_hopfield_attractors, g_host_hopfield_attractors, 8.0 * 2560.0 * 4.0);
 
     let gemv_src = "__kernel void geomind_gemv_forward(__global const float* hidden, __global const float* weights, __global float* logits, int dim, int vocab) {\n    int col = get_global_id(0);\n    if (col < vocab) {\n        float sum = 0.0f;\n        for (int r = 0; r < dim; r++) {\n            sum += hidden[r] * weights[r * vocab + col];\n        }\n        logits[col] = sum;\n    }\n}\n";
     let sgd_src = "__kernel void geomind_sgd_backward(__global const float* hidden, __global const float* delta, __global float* weights, __global const float* drift, __global const float* metric, int dim, int vocab, float lr, float decay) {\n    int col = get_global_id(0);\n    if (col < vocab) {\n        float d = delta[col];\n        float b = drift[col];\n        float g_col = metric[col];\n        float b_sq = b * b;\n        float dot_gb = d * b;\n        float factor = dot_gb / (1.0f + b_sq);\n        float curved_d = (d - factor * b) - (0.10f * d * b * g_col);\n        for (int r = 0; r < dim; r++) {\n            int idx = r * vocab + col;\n            float grad = hidden[r] * curved_d * 0.0197642f;\n            if (grad > 1.0f) grad = 1.0f;\n            else if (grad < -1.0f) grad = -1.0f;\n            weights[idx] = weights[idx] * decay - lr * grad;\n        }\n    }\n}\n";
     let head_bwd_gemv_src = "__kernel void geomind_backward_head_gemv(__global const float* weights, __global const float* delta, __global const float* drift, __global const float* metric, __global float* dh_out, int dim, int vocab) {\n    int r = get_global_id(0);\n    if (r < dim) {\n        float sum = 0.0f;\n        int row_base = r * vocab;\n        for (int c = 0; c < vocab; c++) {\n            float d = delta[c];\n            float b = drift[c];\n            float b_sq = b * b;\n            float factor = (d * b) / (1.0f + b_sq);\n            float curved_d = (d - factor * b) - (0.10f * d * b * metric[c]);\n            sum += weights[row_base + c] * curved_d;\n        }\n        float g_r = metric[r];\n        float inv_g = (g_r > 0.01f) ? (1.0f / g_r) : 1.0f;\n        float val = sum * 0.0197642f * inv_g;\n        if (val > 2.0f) val = 2.0f;\n        else if (val < -2.0f) val = -2.0f;\n        dh_out[r] = val;\n    }\n}\n";
     let rmsnorm_bwd_src = "__kernel void geomind_rmsnorm_backward(__global float* dh, __global const float* hidden, __global const float* metric, int dim, float eps) {\n    __local float s_sq[256];\n    __local float s_dot[256];\n    int lid = get_local_id(0);\n    int lsize = get_local_size(0);\n    float my_sq = 0.0f;\n    float my_dot = 0.0f;\n    for (int i = lid; i < dim; i += lsize) {\n        float x = hidden[i];\n        float g_i = metric[i];\n        my_sq += x * x * g_i;\n        my_dot += dh[i] * x;\n    }\n    s_sq[lid] = my_sq;\n    s_dot[lid] = my_dot;\n    barrier(CLK_LOCAL_MEM_FENCE);\n    for (int stride = lsize / 2; stride > 0; stride /= 2) {\n        if (lid < stride) {\n            s_sq[lid] += s_sq[lid + stride];\n            s_dot[lid] += s_dot[lid + stride];\n        }\n        barrier(CLK_LOCAL_MEM_FENCE);\n    }\n    float total_sq = s_sq[0];\n    float total_dot = s_dot[0];\n    float rms_sq = (total_sq / (float)dim) + eps;\n    float inv_rms = 1.0f / sqrt(rms_sq);\n    float inv_dim_rms_sq = 1.0f / ((float)dim * rms_sq);\n    for (int i = lid; i < dim; i += lsize) {\n        float x = hidden[i];\n        float g_i = metric[i];\n        float grad = inv_rms * (dh[i] - g_i * x * inv_dim_rms_sq * total_dot);\n        if (grad > 2.0f) grad = 2.0f;\n        else if (grad < -2.0f) grad = -2.0f;\n        dh[i] = grad;\n    }\n}\n";
     let ffn_bwd_src = "__kernel void geomind_ffn_backward(__global float* dh, __global const float* hidden_pre_ffn, __global const float* metric, int dim) {\n    int i = get_global_id(0);\n    if (i >= dim) return;\n    float z = hidden_pre_ffn[i];\n    float g_i = metric[i];\n    int quadrant = (i * 4) / dim;\n    float total_jac = 1.0f;\n    for (int col_alg = 0; col_alg < 4; col_alg++) {\n        int expert_id = quadrant * 4 + col_alg;\n        float kappa = ((float)expert_id + 1.0f) / 16.0f;\n        float u = 0.79788456f * (z + 0.044715f * z * z * z);\n        float tanh_u = tanh(u);\n        float gelu_z = 0.5f * z * (1.0f + tanh_u);\n        float sech_sq_u = 1.0f - tanh_u * tanh_u;\n        float du_dz = 0.79788456f * (1.0f + 3.0f * 0.044715f * z * z);\n        float dgelu_dz = 0.5f * (1.0f + tanh_u) + 0.5f * z * sech_sq_u * du_dz;\n        float kzg = kappa * z * g_i;\n        float tanh_kzg = tanh(kzg);\n        float sech_sq_kzg = 1.0f - tanh_kzg * tanh_kzg;\n        float dffn_dz = dgelu_dz * (1.0f + tanh_kzg) + gelu_z * sech_sq_kzg * (kappa * g_i);\n        float step_jac = 1.0f + 0.25f * dffn_dz;\n        if (step_jac < 0.20f) step_jac = 0.20f;\n        else if (step_jac > 2.0f) step_jac = 2.0f;\n        total_jac *= step_jac;\n        float ffn = gelu_z * (1.0f + tanh_kzg);\n        z = z + 0.25f * ffn;\n    }\n    if (total_jac > 2.5f) total_jac = 2.5f;\n    else if (total_jac < 0.20f) total_jac = 0.20f;\n    float out_dh = dh[i] * total_jac;\n    if (out_dh > 2.0f) out_dh = 2.0f;\n    else if (out_dh < -2.0f) out_dh = -2.0f;\n    dh[i] = out_dh;\n}\n";
-    let streams_bwd_src = "__kernel void geomind_streams_backward(__global float* dh, __global float* dh_prev, __global float* weights, __global const float* metric, __global const float* drift, int tok, int dim, int vocab, float lr) {\n    int i = get_global_id(0);\n    if (i >= dim) return;\n    float g_i = metric[i];\n    float b_i = drift[i];\n    float cur_dh = dh[i];\n    float mod_m = 1.0f;\n    if (i < 320) {\n        mod_m = cos((float)i * 0.05f * g_i) * 0.25f + 0.75f;\n    } else if (i < 640) {\n        mod_m = sin((float)i * 0.0314f * g_i) * 0.20f + 0.80f;\n    } else if (i < 960) {\n        mod_m = 0.50f + sin((float)(i + 1) * 0.1f * g_i) * 0.7071f;\n    } else if (i < 1280) {\n        mod_m = 0.85f;\n    } else if (i < 1600) {\n        mod_m = 0.90f;\n    } else if (i < 1920) {\n        mod_m = 0.80f;\n    } else if (i < 2240) {\n        mod_m = 1.0f - (0.5f * g_i * 0.1f);\n    } else {\n        mod_m = (1.0f + 0.8660254f - 0.5f * 0.8660254f) * (0.75f + 0.05f * cos((float)i * 1.047f));\n    }\n    float dv = cur_dh * mod_m;\n    dh_prev[i] = dv * 0.60f;\n    if (tok >= 0 && lr > 0.0f) {\n        int eff_tok = (tok < vocab) ? tok : 3;\n        float d_emb = dv * 4.8f;\n        float curved_grad = (d_emb / g_i) - (0.10f * d_emb * b_i);\n        if (curved_grad > 1.0f) curved_grad = 1.0f;\n        else if (curved_grad < -1.0f) curved_grad = -1.0f;\n        int idx = i * vocab + eff_tok;\n        weights[idx] = weights[idx] - lr * 0.025f * curved_grad;\n    }\n}\n";
+    let streams_bwd_src = "__kernel void geomind_streams_backward(__global float* dh, __global float* dh_prev, __global float* weights, __global const float* metric, __global const float* drift, int tok, int dim, int vocab, float lr) {\n    int i = get_global_id(0);\n    if (i >= dim) return;\n    float g_i = metric[i];\n    float b_i = drift[i];\n    float cur_dh = dh[i];\n    float mod_m = 1.0f;\n    if (i < 320) {\n        mod_m = cos((float)i * 0.05f * g_i) * 0.25f + 0.75f;\n    } else if (i < 640) {\n        mod_m = sin((float)i * 0.0314f * g_i) * 0.20f + 0.80f;\n    } else if (i < 960) {\n        mod_m = 0.50f + sin((float)(i + 1) * 0.1f * g_i) * 0.7071f;\n    } else if (i < 1280) {\n        mod_m = 0.85f;\n    } else if (i < 1600) {\n        mod_m = 0.90f;\n    } else if (i < 1920) {\n        mod_m = 0.80f;\n    } else if (i < 2240) {\n        mod_m = 1.0f - (0.5f * g_i * 0.1f);\n    } else {\n        mod_m = (1.0f + 0.8660254f - 0.5f * 0.8660254f) * (0.75f + 0.05f * cos((float)i * 1.047f));\n    }\n    float dv = cur_dh * mod_m;\n    dh_prev[i] = dv * 0.60f;\n    if (tok >= 0 && lr > 0.0f) {\n        int eff_tok = (tok < vocab) ? tok : 3;\n        float d_emb = dv * 4.8f;\n        float curved_grad = (d_emb / g_i) - (0.10f * d_emb * b_i);\n        if (curved_grad > 1.0f) curved_grad = 1.0f;\n        else if (curved_grad < -1.0f) curved_grad = -1.0f;\n        int idx = i * vocab + eff_tok;\n        weights[idx] = weights[idx] - lr * 0.25f * curved_grad;\n    }\n}\n";
     let copy_src = "__kernel void geomind_copy_vec(__global const float* src, __global float* dst, int dim) {\n    int i = get_global_id(0);\n    if (i < dim) dst[i] = src[i];\n}\n";
-    let softmax_src = "__kernel void geomind_softmax_loss_delta(__global const float* logits, int target_tok, int vocab, __global float* delta, __global float* loss_out, int step_idx, float ic_weight) {\n    __local float s_max[256];\n    __local float s_sum[256];\n    int lid = get_local_id(0);\n    int lsize = get_local_size(0);\n    if (target_tok < 0 || target_tok >= vocab) {\n        if (lid == 0) {\n            loss_out[step_idx] = -1.0f;\n        }\n        for (int i = lid; i < vocab; i += lsize) {\n            delta[i] = 0.0f;\n        }\n        return;\n    }\n    float my_max = -10000.0f;\n    for (int i = lid; i < vocab; i += lsize) {\n        float val = logits[i];\n        if (val > my_max) my_max = val;\n    }\n    s_max[lid] = my_max;\n    barrier(CLK_LOCAL_MEM_FENCE);\n    for (int stride = lsize / 2; stride > 0; stride /= 2) {\n        if (lid < stride) {\n            if (s_max[lid + stride] > s_max[lid]) s_max[lid] = s_max[lid + stride];\n        }\n        barrier(CLK_LOCAL_MEM_FENCE);\n    }\n    float g_max = s_max[0];\n    float my_sum = 0.0f;\n    for (int i = lid; i < vocab; i += lsize) {\n        my_sum += exp(logits[i] - g_max);\n    }\n    s_sum[lid] = my_sum;\n    barrier(CLK_LOCAL_MEM_FENCE);\n    for (int stride = lsize / 2; stride > 0; stride /= 2) {\n        if (lid < stride) s_sum[lid] += s_sum[lid + stride];\n        barrier(CLK_LOCAL_MEM_FENCE);\n    }\n    float g_sum = s_sum[0];\n    if (g_sum < 0.00001f) g_sum = 0.00001f;\n    float inv_sum = 1.0f / g_sum;\n    float eff_ic = (ic_weight > 0.05f) ? ic_weight : 1.0f;\n    if (lid == 0) {\n        float tgt_l = logits[target_tok];\n        float tgt_p = exp(tgt_l - g_max) * inv_sum;\n        if (tgt_p < 0.000000000001f) tgt_p = 0.000000000001f;\n        loss_out[step_idx] = -log(tgt_p) * eff_ic;\n    }\n    for (int i = lid; i < vocab; i += lsize) {\n        float p = exp(logits[i] - g_max) * inv_sum;\n        float d = p;\n        if (i == target_tok) d -= 1.0f;\n        delta[i] = d * eff_ic;\n    }\n}\n";
-    let autoreg_src = "__kernel void geomind_autoregressive_step(__global float* hidden, __global const float* weights, __global const float* metric, int tok, int dim, int vocab) {\n    int i = get_global_id(0);\n    if (i >= dim) return;\n    float old_v = hidden[i];\n    float phase = (float)tok * 37.0f + (float)i * 13.0f;\n    float base_sig = sin(phase * 0.001f);\n    float tok_emb = 0.0f;\n    if (tok >= 0) {\n        int eff_tok = (tok < vocab) ? tok : 3;\n        tok_emb = weights[i * vocab + eff_tok] * 12.0f;\n    }\n    float g_i = metric[i];\n    float v = 0.60f * old_v + 0.40f * (tok_emb + 0.10f * base_sig);\n    if (i < 320) {\n        float cos_mod = cos((float)i * 0.05f * g_i) * 0.25f + 0.75f;\n        v = v * cos_mod;\n    } else if (i < 640) {\n        float ssm_mod = sin((float)i * 0.0314f * g_i) * 0.20f + 0.80f;\n        v = v * ssm_mod;\n    } else if (i < 960) {\n        float harmonic = sin((float)(i + 1) * 0.1f * g_i) * 0.7071f;\n        v = v * harmonic + v * 0.5f;\n    } else if (i < 1280) {\n        float u_sq = (v * v * 0.01f);\n        float hyp_factor = 2.0f / (1.0f - (u_sq < 0.90f ? u_sq : 0.90f));\n        v = tanh(v * 0.5f) * (0.8f + 0.2f * hyp_factor);\n    } else if (i < 1600) {\n        float loop = v * v * v * 0.02f * g_i;\n        v = v * 0.9f + loop + sin(v * 2.0f) * 0.1f;\n    } else if (i < 1920) {\n        float a = v * v * g_i + 0.1f;\n        float travel = sqrt(a > 0.001f ? a : 0.001f);\n        v = travel * 0.8f + v * 0.2f;\n    } else if (i < 2240) {\n        float laplacian = v * 0.5f * g_i;\n        v = v - (laplacian * 0.1f) + (laplacian * laplacian * 0.005f);\n    } else {\n        float t1 = v;\n        float t2 = t1 * 0.8660254f;\n        float t3 = t2 * -0.5f;\n        v = (t1 + t2 + t3) * (0.75f + 0.05f * cos((float)i * 1.047f));\n    }\n    hidden[i] = v;\n}\n";
-    let input_sgd_src = "__kernel void geomind_input_grad_update(__global const float* delta, __global float* weights, int tok_in, int dim, int vocab, float lr) {\n    int r = get_global_id(0);\n    if (r < dim && tok_in >= 0) {\n        int eff_tok = (tok_in < vocab) ? tok_in : 3;\n        float sum = 0.0f;\n        int row_base = r * vocab;\n        for (int c = 0; c < vocab; c++) {\n            sum += weights[row_base + c] * delta[c];\n        }\n        float g = sum;\n        if (g > 1.0f) g = 1.0f;\n        else if (g < -1.0f) g = -1.0f;\n        int idx = row_base + eff_tok;\n        weights[idx] = weights[idx] - lr * 0.025f * g;\n    }\n}\n";
+    let causal_mha_src = "__kernel void geomind_causal_mha_step(__global const float* seq_h, __global float* hidden, int t, int dim, int num_heads) {\n    int h = get_group_id(0);\n    int lid = get_local_id(0);\n    int lsize = get_local_size(0);\n    if (h >= num_heads) return;\n    int head_dim = dim / num_heads;\n    int head_base = h * head_dim;\n    float inv_sqrt_d = 0.055901699f;\n    __local float s_scores[2048];\n    __local float s_red[256];\n    float my_max = -1e9f;\n    int t_off = t * dim + head_base;\n    for (int s = lid; s <= t; s += lsize) {\n        float dot = 0.0f;\n        int s_off = s * dim + head_base;\n        for (int k = 0; k < head_dim; k++) {\n            dot += seq_h[t_off + k] * seq_h[s_off + k];\n        }\n        float sc = dot * inv_sqrt_d;\n        s_scores[s] = sc;\n        if (sc > my_max) my_max = sc;\n    }\n    s_red[lid] = my_max;\n    barrier(CLK_LOCAL_MEM_FENCE);\n    for (int stride = 128; stride > 0; stride /= 2) {\n        if (lid < stride) {\n            if (s_red[lid + stride] > s_red[lid]) s_red[lid] = s_red[lid + stride];\n        }\n        barrier(CLK_LOCAL_MEM_FENCE);\n    }\n    float g_max = s_red[0];\n    float my_sum = 0.0f;\n    for (int s = lid; s <= t; s += lsize) {\n        float e = exp(s_scores[s] - g_max);\n        s_scores[s] = e;\n        my_sum += e;\n    }\n    s_red[lid] = my_sum;\n    barrier(CLK_LOCAL_MEM_FENCE);\n    for (int stride = 128; stride > 0; stride /= 2) {\n        if (lid < stride) s_red[lid] += s_red[lid + stride];\n        barrier(CLK_LOCAL_MEM_FENCE);\n    }\n    float g_sum = s_red[0];\n    float inv_sum = (g_sum > 1e-8f) ? (1.0f / g_sum) : 1.0f;\n    barrier(CLK_LOCAL_MEM_FENCE);\n    for (int k = lid; k < head_dim; k += lsize) {\n        float acc = 0.0f;\n        for (int s = 0; s <= t; s++) {\n            acc += (s_scores[s] * inv_sum) * seq_h[s * dim + head_base + k];\n        }\n        hidden[head_base + k] += 0.35f * acc;\n    }\n}\n";
+    let save_seq_h_src = "__kernel void geomind_save_seq_h(__global const float* hidden, __global float* seq_h, int step_idx, int dim) {\n    int i = get_global_id(0);\n    if (i < dim) {\n        seq_h[step_idx * dim + i] = hidden[i];\n    }\n}\n";
+    let hopfield_inject_src = "__kernel void geomind_hopfield_inject(__global float* hidden, __global const float* attractors, int num_attractors, int dim, float beta, float gamma) {\n    __local float s_sim[8];\n    int lid = get_local_id(0);\n    int lsize = get_local_size(0);\n    if (lid < num_attractors) {\n        float dot = 0.0f;\n        int base = lid * dim;\n        for (int k = 0; k < dim; k++) {\n            dot += hidden[k] * attractors[base + k];\n        }\n        s_sim[lid] = dot * 0.0197642f * beta;\n    }\n    barrier(CLK_LOCAL_MEM_FENCE);\n    float max_s = -1e9f;\n    for (int a = 0; a < num_attractors; a++) {\n        if (s_sim[a] > max_s) max_s = s_sim[a];\n    }\n    float sum_exp = 0.0f;\n    for (int a = 0; a < num_attractors; a++) {\n        float e = exp(s_sim[a] - max_s);\n        s_sim[a] = e;\n        sum_exp += e;\n    }\n    float inv_sum = (sum_exp > 1e-8f) ? (1.0f / sum_exp) : 1.0f;\n    for (int i = lid; i < dim; i += lsize) {\n        float retrieved = 0.0f;\n        for (int a = 0; a < num_attractors; a++) {\n            retrieved += (s_sim[a] * inv_sum) * attractors[a * dim + i];\n        }\n        hidden[i] = hidden[i] + gamma * (retrieved - hidden[i]);\n    }\n}\n";
+    let softmax_src = "__kernel void geomind_softmax_loss_delta(__global const float* logits, int target_tok, int vocab, __global float* delta, __global float* loss_out, int step_idx, float ic_weight, float temp) {\n    __local float s_max[256];\n    __local float s_sum[256];\n    __local float s_sum_t[256];\n    __local float s_ent[256];\n    __local float s_max_p[256];\n    int lid = get_local_id(0);\n    int lsize = get_local_size(0);\n    if (target_tok < 0 || target_tok >= vocab) {\n        if (lid == 0) {\n            int base = step_idx * 4;\n            loss_out[base + 0] = -1.0f;\n            loss_out[base + 1] = 0.0f;\n            loss_out[base + 2] = 0.0f;\n            loss_out[base + 3] = 0.0f;\n        }\n        for (int i = lid; i < vocab; i += lsize) {\n            delta[i] = 0.0f;\n        }\n        return;\n    }\n    float eff_temp = (temp > 0.05f) ? temp : 1.0f;\n    float inv_temp = 1.0f / eff_temp;\n    float my_max = -10000.0f;\n    for (int i = lid; i < vocab; i += lsize) {\n        float val = logits[i];\n        if (val > my_max) my_max = val;\n    }\n    s_max[lid] = my_max;\n    barrier(CLK_LOCAL_MEM_FENCE);\n    for (int stride = lsize / 2; stride > 0; stride /= 2) {\n        if (lid < stride) {\n            if (s_max[lid + stride] > s_max[lid]) s_max[lid] = s_max[lid + stride];\n        }\n        barrier(CLK_LOCAL_MEM_FENCE);\n    }\n    float g_max = s_max[0];\n    float my_sum = 0.0f;\n    float my_sum_t = 0.0f;\n    for (int i = lid; i < vocab; i += lsize) {\n        float diff = logits[i] - g_max;\n        my_sum += exp(diff);\n        if (eff_temp > 1.005f) {\n            my_sum_t += exp(diff * inv_temp);\n        }\n    }\n    s_sum[lid] = my_sum;\n    s_sum_t[lid] = my_sum_t;\n    barrier(CLK_LOCAL_MEM_FENCE);\n    for (int stride = lsize / 2; stride > 0; stride /= 2) {\n        if (lid < stride) {\n            s_sum[lid] += s_sum[lid + stride];\n            s_sum_t[lid] += s_sum_t[lid + stride];\n        }\n        barrier(CLK_LOCAL_MEM_FENCE);\n    }\n    float g_sum = (s_sum[0] > 0.00001f) ? s_sum[0] : 0.00001f;\n    float inv_sum = 1.0f / g_sum;\n    float inv_sum_t = (eff_temp > 1.005f && s_sum_t[0] > 0.00001f) ? (1.0f / s_sum_t[0]) : inv_sum;\n    float eff_ic = (ic_weight > 0.05f) ? ic_weight : 1.0f;\n    float my_ent = 0.0f;\n    float my_max_p = 0.0f;\n    for (int i = lid; i < vocab; i += lsize) {\n        float diff = logits[i] - g_max;\n        float p1 = exp(diff) * inv_sum;\n        float p_t = (eff_temp > 1.005f) ? (exp(diff * inv_temp) * inv_sum_t) : p1;\n        float d = p_t;\n        if (i == target_tok) d -= 1.0f;\n        delta[i] = d * eff_ic * inv_temp;\n        if (p1 > my_max_p) my_max_p = p1;\n        if (p1 > 0.000000000001f) {\n            my_ent -= p1 * log(p1);\n        }\n    }\n    s_ent[lid] = my_ent;\n    s_max_p[lid] = my_max_p;\n    barrier(CLK_LOCAL_MEM_FENCE);\n    for (int stride = lsize / 2; stride > 0; stride /= 2) {\n        if (lid < stride) {\n            s_ent[lid] += s_ent[lid + stride];\n            if (s_max_p[lid + stride] > s_max_p[lid]) s_max_p[lid] = s_max_p[lid + stride];\n        }\n        barrier(CLK_LOCAL_MEM_FENCE);\n    }\n    if (lid == 0) {\n        float tgt_l = logits[target_tok];\n        float tgt_p = (eff_temp > 1.005f) ? (exp((tgt_l - g_max) * inv_temp) * inv_sum_t) : (exp(tgt_l - g_max) * inv_sum);\n        if (tgt_p < 0.000000000001f) tgt_p = 0.000000000001f;\n        float ce_loss = -log(tgt_p);\n        float ent_bits = s_ent[0] * 1.4426950408889634f;\n        float cert_p = s_max_p[0];\n        float surp_bits = -log(tgt_p) * 1.4426950408889634f;\n        int base = step_idx * 4;\n        loss_out[base + 0] = ce_loss;\n        loss_out[base + 1] = ent_bits;\n        loss_out[base + 2] = cert_p;\n        loss_out[base + 3] = surp_bits;\n    }\n}\n";
+    let autoreg_src = "__kernel void geomind_autoregressive_step(__global float* hidden, __global const float* weights, __global const float* metric, int tok, int dim, int vocab, float ic_weight) {\n    int i = get_global_id(0);\n    if (i >= dim) return;\n    float old_v = hidden[i];\n    float phase = (float)tok * 37.0f + (float)i * 13.0f;\n    float base_sig = sin(phase * 0.001f);\n    float tok_emb = 0.0f;\n    if (tok >= 0) {\n        int eff_tok = (tok < vocab) ? tok : 3;\n        tok_emb = weights[i * vocab + eff_tok] * 12.0f;\n    }\n    float g_i = metric[i];\n    float eff_ic = (ic_weight > 0.05f) ? ic_weight : 1.0f;\n    float alpha = 0.50f + 0.12f * eff_ic;\n    if (alpha > 0.90f) alpha = 0.90f;\n    else if (alpha < 0.40f) alpha = 0.40f;\n    float v = alpha * old_v + (1.0f - alpha) * (tok_emb + 0.10f * base_sig);\n    if (i < 320) {\n        float cos_mod = cos((float)i * 0.05f * g_i) * 0.25f + 0.75f;\n        v = v * cos_mod;\n    } else if (i < 640) {\n        float ssm_mod = sin((float)i * 0.0314f * g_i) * 0.20f + 0.80f;\n        v = v * ssm_mod;\n    } else if (i < 960) {\n        float harmonic = sin((float)(i + 1) * 0.1f * g_i) * 0.7071f;\n        v = v * harmonic + v * 0.5f;\n    } else if (i < 1280) {\n        float u_sq = (v * v * 0.01f);\n        float hyp_factor = 2.0f / (1.0f - (u_sq < 0.90f ? u_sq : 0.90f));\n        v = tanh(v * 0.5f) * (0.8f + 0.2f * hyp_factor);\n    } else if (i < 1600) {\n        float loop = v * v * v * 0.02f * g_i;\n        v = v * 0.9f + loop + sin(v * 2.0f) * 0.1f;\n    } else if (i < 1920) {\n        float a = v * v * g_i + 0.1f;\n        float travel = sqrt(a > 0.001f ? a : 0.001f);\n        v = travel * 0.8f + v * 0.2f;\n    } else if (i < 2240) {\n        float laplacian = v * 0.5f * g_i;\n        v = v - (laplacian * 0.1f) + (laplacian * laplacian * 0.005f);\n    } else {\n        float t1 = v;\n        float t2 = t1 * 0.8660254f;\n        float t3 = t2 * -0.5f;\n        v = (t1 + t2 + t3) * (0.75f + 0.05f * cos((float)i * 1.047f));\n    }\n    hidden[i] = v;\n}\n";
+    let input_sgd_src = "__kernel void geomind_input_grad_update(__global const float* delta, __global float* weights, int tok_in, int dim, int vocab, float lr) {\n    int r = get_global_id(0);\n    if (r < dim && tok_in >= 0) {\n        int eff_tok = (tok_in < vocab) ? tok_in : 3;\n        float sum = 0.0f;\n        int row_base = r * vocab;\n        for (int c = 0; c < vocab; c++) {\n            sum += weights[row_base + c] * delta[c];\n        }\n        float g = sum;\n        if (g > 1.0f) g = 1.0f;\n        else if (g < -1.0f) g = -1.0f;\n        int idx = row_base + eff_tok;\n        weights[idx] = weights[idx] - lr * 0.25f * g;\n    }\n}\n";
     let rmsnorm_src = "__kernel void geomind_rmsnorm(__global float* hidden, __global const float* metric, int dim, float eps) {\n    __local float s_sq[256];\n    int lid = get_local_id(0);\n    int lsize = get_local_size(0);\n    float my_sq = 0.0f;\n    for (int i = lid; i < dim; i += lsize) {\n        float v = hidden[i];\n        float g_i = metric[i];\n        my_sq += v * v * g_i;\n    }\n    s_sq[lid] = my_sq;\n    barrier(CLK_LOCAL_MEM_FENCE);\n    for (int stride = lsize / 2; stride > 0; stride /= 2) {\n        if (lid < stride) s_sq[lid] += s_sq[lid + stride];\n        barrier(CLK_LOCAL_MEM_FENCE);\n    }\n    float total_sq = s_sq[0];\n    float rms = sqrt((total_sq / (float)dim) + eps);\n    float inv_rms = 1.0f / (rms > 0.000001f ? rms : 0.000001f);\n    for (int i = lid; i < dim; i += lsize) {\n        hidden[i] = hidden[i] * inv_rms;\n    }\n}\n";
     let ffn_src = "__kernel void geomind_ffn_cascade(__global float* hidden, __global const float* metric, int dim) {\n    int i = get_global_id(0);\n    if (i >= dim) return;\n    float z = hidden[i];\n    float g_i = metric[i];\n    int quadrant = (i * 4) / dim;\n    for (int col_alg = 0; col_alg < 4; col_alg++) {\n        int expert_id = quadrant * 4 + col_alg;\n        float kappa = ((float)expert_id + 1.0f) / 16.0f;\n        float gelu_z = 0.5f * z * (1.0f + tanh(0.79788456f * (z + 0.044715f * z * z * z)));\n        float ffn = gelu_z * (1.0f + tanh(kappa * z * g_i));\n        z = z + 0.25f * ffn;\n    }\n    hidden[i] = z;\n}\n";
 
@@ -318,6 +380,21 @@ fn train_mount_gpu() -> float {
     g_pipe_rmsnorm = gpu_create_pipeline(rmsnorm_src, "geomind_rmsnorm");
     g_pipe_ffn = gpu_create_pipeline(ffn_src, "geomind_ffn_cascade");
     g_pipe_input_sgd = gpu_create_pipeline(input_sgd_src, "geomind_input_grad_update");
+    g_pipe_causal_mha_step = gpu_create_pipeline(causal_mha_src, "geomind_causal_mha_step");
+    g_pipe_save_seq_h = gpu_create_pipeline(save_seq_h_src, "geomind_save_seq_h");
+    g_pipe_hopfield_inject = gpu_create_pipeline(hopfield_inject_src, "geomind_hopfield_inject");
+
+    let hopfield_bwd_src = "__kernel void geomind_hopfield_backward(__global float* dh, __global const float* hidden, __global const float* attractors, int num_attractors, int dim, float beta, float gamma) {\n    __local float s_sim[8];\n    __local float s_g[8];\n    __local float s_p[8];\n    __local float s_lambda[8];\n    __local float red_sim[256];\n    __local float red_g[256];\n    int lid = get_local_id(0);\n    int lsize = get_local_size(0);\n    float c = 0.0197642f * beta;\n    for (int a = 0; a < num_attractors; a++) {\n        float my_sim = 0.0f;\n        float my_g = 0.0f;\n        int base = a * dim;\n        for (int k = lid; k < dim; k += lsize) {\n            float att = attractors[base + k];\n            my_sim += hidden[k] * att;\n            my_g += dh[k] * att;\n        }\n        red_sim[lid] = my_sim;\n        red_g[lid] = my_g;\n        barrier(CLK_LOCAL_MEM_FENCE);\n        for (int stride = lsize / 2; stride > 0; stride /= 2) {\n            if (lid < stride) {\n                red_sim[lid] += red_sim[lid + stride];\n                red_g[lid] += red_g[lid + stride];\n            }\n            barrier(CLK_LOCAL_MEM_FENCE);\n        }\n        if (lid == 0) {\n            s_sim[a] = red_sim[0] * c;\n            s_g[a] = red_g[0] * gamma;\n        }\n        barrier(CLK_LOCAL_MEM_FENCE);\n    }\n    if (lid == 0) {\n        float max_s = -1e9f;\n        for (int a = 0; a < num_attractors; a++) {\n            if (s_sim[a] > max_s) max_s = s_sim[a];\n        }\n        float sum_exp = 0.0f;\n        for (int a = 0; a < num_attractors; a++) {\n            float e = exp(s_sim[a] - max_s);\n            s_p[a] = e;\n            sum_exp += e;\n        }\n        float inv_sum = (sum_exp > 1e-8f) ? (1.0f / sum_exp) : 1.0f;\n        float g_bar = 0.0f;\n        for (int a = 0; a < num_attractors; a++) {\n            s_p[a] *= inv_sum;\n            g_bar += s_p[a] * s_g[a];\n        }\n        for (int a = 0; a < num_attractors; a++) {\n            s_lambda[a] = c * s_p[a] * (s_g[a] - g_bar);\n        }\n    }\n    barrier(CLK_LOCAL_MEM_FENCE);\n    for (int i = lid; i < dim; i += lsize) {\n        float d_hop = 0.0f;\n        for (int a = 0; a < num_attractors; a++) {\n            d_hop += s_lambda[a] * attractors[a * dim + i];\n        }\n        float out_dh = (1.0f - gamma) * dh[i] + d_hop;\n        if (out_dh > 2.0f) out_dh = 2.0f;\n        else if (out_dh < -2.0f) out_dh = -2.0f;\n        dh[i] = out_dh;\n    }\n}\n";
+    let causal_mha_bwd_src = "__kernel void geomind_causal_mha_backward(__global const float* seq_h, __global float* dh, int t, int dim, int num_heads) {\n    int h = get_group_id(0);\n    int lid = get_local_id(0);\n    int lsize = get_local_size(0);\n    if (h >= num_heads) return;\n    int head_dim = dim / num_heads;\n    int head_base = h * head_dim;\n    float inv_sqrt_d = 0.055901699f;\n    __local float s_scores[2048];\n    __local float s_u[2048];\n    __local float s_red[256];\n    float my_max = -1e9f;\n    int t_off = t * dim + head_base;\n    for (int s = lid; s <= t; s += lsize) {\n        float dot = 0.0f;\n        int s_off = s * dim + head_base;\n        for (int k = 0; k < head_dim; k++) {\n            dot += seq_h[t_off + k] * seq_h[s_off + k];\n        }\n        float sc = dot * inv_sqrt_d;\n        s_scores[s] = sc;\n        if (sc > my_max) my_max = sc;\n    }\n    s_red[lid] = my_max;\n    barrier(CLK_LOCAL_MEM_FENCE);\n    for (int stride = 128; stride > 0; stride /= 2) {\n        if (lid < stride) {\n            if (s_red[lid + stride] > s_red[lid]) s_red[lid] = s_red[lid + stride];\n        }\n        barrier(CLK_LOCAL_MEM_FENCE);\n    }\n    float g_max = s_red[0];\n    float my_sum = 0.0f;\n    for (int s = lid; s <= t; s += lsize) {\n        float e = exp(s_scores[s] - g_max);\n        s_scores[s] = e;\n        my_sum += e;\n    }\n    s_red[lid] = my_sum;\n    barrier(CLK_LOCAL_MEM_FENCE);\n    for (int stride = 128; stride > 0; stride /= 2) {\n        if (lid < stride) s_red[lid] += s_red[lid + stride];\n        barrier(CLK_LOCAL_MEM_FENCE);\n    }\n    float g_sum = s_red[0];\n    float inv_sum = (g_sum > 1e-8f) ? (1.0f / g_sum) : 1.0f;\n    float my_u_sum = 0.0f;\n    for (int s = lid; s <= t; s += lsize) {\n        float p = s_scores[s] * inv_sum;\n        s_scores[s] = p;\n        float u_dot = 0.0f;\n        int s_off = s * dim + head_base;\n        for (int k = 0; k < head_dim; k++) {\n            u_dot += dh[head_base + k] * seq_h[s_off + k];\n        }\n        float u_val = 0.35f * u_dot;\n        s_u[s] = u_val;\n        my_u_sum += p * u_val;\n    }\n    s_red[lid] = my_u_sum;\n    barrier(CLK_LOCAL_MEM_FENCE);\n    for (int stride = 128; stride > 0; stride /= 2) {\n        if (lid < stride) s_red[lid] += s_red[lid + stride];\n        barrier(CLK_LOCAL_MEM_FENCE);\n    }\n    float u_bar = s_red[0];\n    barrier(CLK_LOCAL_MEM_FENCE);\n    for (int s = lid; s <= t; s += lsize) {\n        s_scores[s] = s_scores[s] * (s_u[s] - u_bar);\n    }\n    barrier(CLK_LOCAL_MEM_FENCE);\n    for (int k = lid; k < head_dim; k += lsize) {\n        float dq = 0.0f;\n        for (int s = 0; s <= t; s++) {\n            dq += s_scores[s] * seq_h[s * dim + head_base + k];\n        }\n        float grad_q = dq * inv_sqrt_d;\n        if (grad_q > 1.0f) grad_q = 1.0f;\n        else if (grad_q < -1.0f) grad_q = -1.0f;\n        float cur = dh[head_base + k] + grad_q;\n        if (cur > 2.0f) cur = 2.0f;\n        else if (cur < -2.0f) cur = -2.0f;\n        dh[head_base + k] = cur;\n    }\n}\n";
+    let accum_bptt_src = "__kernel void geomind_accumulate_recurrent_dh(__global float* dh, __global const float* dh_prev, int dim, float decay) {\n    int i = get_global_id(0);\n    if (i < dim) {\n        float cur = dh[i] + decay * dh_prev[i];\n        if (cur > 2.0f) cur = 2.0f;\n        else if (cur < -2.0f) cur = -2.0f;\n        dh[i] = cur;\n    }\n}\n";
+
+    g_pipe_hopfield_backward = gpu_create_pipeline(hopfield_bwd_src, "geomind_hopfield_backward");
+    g_pipe_causal_mha_backward = gpu_create_pipeline(causal_mha_bwd_src, "geomind_causal_mha_backward");
+    g_pipe_accumulate_recurrent_dh = gpu_create_pipeline(accum_bptt_src, "geomind_accumulate_recurrent_dh");
+    g_pipe_copy_pre_rmsnorm = gpu_create_pipeline(copy_src, "geomind_copy_vec");
+
+    let copy_domain_src = "__kernel void geomind_copy_domain_h(__global float* domain_buf, __global float* chunk_buf, int d_idx, int dim, int to_domain) {\n    int i = get_global_id(0);\n    if (i < dim) {\n        if (to_domain == 1) {\n            domain_buf[d_idx * dim + i] = chunk_buf[i];\n        } else {\n            chunk_buf[i] = domain_buf[d_idx * dim + i];\n        }\n    }\n}\n";
+    g_pipe_copy_domain_h = gpu_create_pipeline(copy_domain_src, "geomind_copy_domain_h");
 
     cartan_gpu_set_arg_buf(g_pipe_gemv, 0.0, g_buf_train_hidden);
     cartan_gpu_set_arg_buf(g_pipe_gemv, 1.0, g_buf_cortical_weights);
@@ -330,6 +407,8 @@ fn train_mount_gpu() -> float {
     cartan_gpu_set_arg_buf(g_pipe_softmax_loss_delta, 3.0, g_buf_train_delta);
     cartan_gpu_set_arg_buf(g_pipe_softmax_loss_delta, 4.0, g_buf_chunk_loss);
     cartan_gpu_set_arg_f32(g_pipe_softmax_loss_delta, 6.0, 1.0);
+    cartan_gpu_set_arg_f32(g_pipe_softmax_loss_delta, 7.0, g_train_temperature);
+
 
     cartan_gpu_set_arg_buf(g_pipe_sgd, 0.0, g_buf_train_hidden);
     cartan_gpu_set_arg_buf(g_pipe_sgd, 1.0, g_buf_train_delta);
@@ -347,8 +426,12 @@ fn train_mount_gpu() -> float {
     cartan_gpu_set_arg_i32(g_pipe_head_backward_gemv, 5.0, 2560.0);
     cartan_gpu_set_arg_i32(g_pipe_head_backward_gemv, 6.0, 2560.0);
 
+    cartan_gpu_set_arg_buf(g_pipe_copy_pre_rmsnorm, 0.0, g_buf_train_hidden);
+    cartan_gpu_set_arg_buf(g_pipe_copy_pre_rmsnorm, 1.0, g_buf_pre_rmsnorm_h);
+    cartan_gpu_set_arg_i32(g_pipe_copy_pre_rmsnorm, 2.0, 2560.0);
+
     cartan_gpu_set_arg_buf(g_pipe_rmsnorm_backward_post, 0.0, g_buf_step_dh);
-    cartan_gpu_set_arg_buf(g_pipe_rmsnorm_backward_post, 1.0, g_buf_train_hidden);
+    cartan_gpu_set_arg_buf(g_pipe_rmsnorm_backward_post, 1.0, g_buf_pre_rmsnorm_h);
     cartan_gpu_set_arg_buf(g_pipe_rmsnorm_backward_post, 2.0, g_buf_metric_diag);
     cartan_gpu_set_arg_i32(g_pipe_rmsnorm_backward_post, 3.0, 2560.0);
     cartan_gpu_set_arg_f32(g_pipe_rmsnorm_backward_post, 4.0, 0.00001);
@@ -366,7 +449,7 @@ fn train_mount_gpu() -> float {
 
     cartan_gpu_set_arg_buf(g_pipe_streams_backward, 0.0, g_buf_step_dh);
     cartan_gpu_set_arg_buf(g_pipe_streams_backward, 1.0, g_buf_step_dh_prev);
-    cartan_gpu_set_arg_buf(g_pipe_streams_backward, 2.0, g_buf_cortical_weights);
+    cartan_gpu_set_arg_buf(g_pipe_streams_backward, 2.0, g_buf_embedding_weights);
     cartan_gpu_set_arg_buf(g_pipe_streams_backward, 3.0, g_buf_metric_diag);
     cartan_gpu_set_arg_buf(g_pipe_streams_backward, 4.0, g_buf_drift_vector);
     cartan_gpu_set_arg_i32(g_pipe_streams_backward, 6.0, 2560.0);
@@ -377,15 +460,21 @@ fn train_mount_gpu() -> float {
     cartan_gpu_set_arg_i32(g_pipe_copy_h_norm, 2.0, 2560.0);
 
     cartan_gpu_set_arg_buf(g_pipe_autoregressive, 0.0, g_buf_train_hidden);
-    cartan_gpu_set_arg_buf(g_pipe_autoregressive, 1.0, g_buf_cortical_weights);
+    cartan_gpu_set_arg_buf(g_pipe_autoregressive, 1.0, g_buf_embedding_weights);
     cartan_gpu_set_arg_buf(g_pipe_autoregressive, 2.0, g_buf_metric_diag);
     cartan_gpu_set_arg_i32(g_pipe_autoregressive, 4.0, 2560.0);
     cartan_gpu_set_arg_i32(g_pipe_autoregressive, 5.0, 2560.0);
 
     cartan_gpu_set_arg_buf(g_pipe_input_sgd, 0.0, g_buf_train_delta);
-    cartan_gpu_set_arg_buf(g_pipe_input_sgd, 1.0, g_buf_cortical_weights);
+    cartan_gpu_set_arg_buf(g_pipe_input_sgd, 1.0, g_buf_embedding_weights);
     cartan_gpu_set_arg_i32(g_pipe_input_sgd, 3.0, 2560.0);
     cartan_gpu_set_arg_i32(g_pipe_input_sgd, 4.0, 2560.0);
+
+    cartan_gpu_set_arg_buf(g_pipe_copy_domain_h, 0.0, g_buf_domain_h);
+    cartan_gpu_set_arg_buf(g_pipe_copy_domain_h, 1.0, g_buf_prev_chunk_h);
+    cartan_gpu_set_arg_i32(g_pipe_copy_domain_h, 2.0, 0.0);
+    cartan_gpu_set_arg_i32(g_pipe_copy_domain_h, 3.0, 2560.0);
+    cartan_gpu_set_arg_i32(g_pipe_copy_domain_h, 4.0, 0.0);
 
     cartan_gpu_set_arg_buf(g_pipe_rmsnorm, 0.0, g_buf_train_hidden);
     cartan_gpu_set_arg_buf(g_pipe_rmsnorm, 1.0, g_buf_metric_diag);
@@ -395,6 +484,40 @@ fn train_mount_gpu() -> float {
     cartan_gpu_set_arg_buf(g_pipe_ffn, 0.0, g_buf_train_hidden);
     cartan_gpu_set_arg_buf(g_pipe_ffn, 1.0, g_buf_metric_diag);
     cartan_gpu_set_arg_i32(g_pipe_ffn, 2.0, 2560.0);
+
+    cartan_gpu_set_arg_buf(g_pipe_causal_mha_step, 0.0, g_buf_chunk_seq_h);
+    cartan_gpu_set_arg_buf(g_pipe_causal_mha_step, 1.0, g_buf_train_hidden);
+    cartan_gpu_set_arg_i32(g_pipe_causal_mha_step, 3.0, 2560.0);
+    cartan_gpu_set_arg_i32(g_pipe_causal_mha_step, 4.0, 8.0);
+
+    cartan_gpu_set_arg_buf(g_pipe_save_seq_h, 0.0, g_buf_train_hidden);
+    cartan_gpu_set_arg_buf(g_pipe_save_seq_h, 1.0, g_buf_chunk_seq_h);
+    cartan_gpu_set_arg_i32(g_pipe_save_seq_h, 3.0, 2560.0);
+
+    cartan_gpu_set_arg_buf(g_pipe_hopfield_inject, 0.0, g_buf_train_hidden);
+    cartan_gpu_set_arg_buf(g_pipe_hopfield_inject, 1.0, g_buf_hopfield_attractors);
+    cartan_gpu_set_arg_i32(g_pipe_hopfield_inject, 2.0, 8.0);
+    cartan_gpu_set_arg_i32(g_pipe_hopfield_inject, 3.0, 2560.0);
+    cartan_gpu_set_arg_f32(g_pipe_hopfield_inject, 4.0, 1.0);
+    cartan_gpu_set_arg_f32(g_pipe_hopfield_inject, 5.0, 0.10);
+
+    cartan_gpu_set_arg_buf(g_pipe_hopfield_backward, 0.0, g_buf_step_dh);
+    cartan_gpu_set_arg_buf(g_pipe_hopfield_backward, 1.0, g_buf_pre_rmsnorm_h);
+    cartan_gpu_set_arg_buf(g_pipe_hopfield_backward, 2.0, g_buf_hopfield_attractors);
+    cartan_gpu_set_arg_i32(g_pipe_hopfield_backward, 3.0, 8.0);
+    cartan_gpu_set_arg_i32(g_pipe_hopfield_backward, 4.0, 2560.0);
+    cartan_gpu_set_arg_f32(g_pipe_hopfield_backward, 5.0, 1.0);
+    cartan_gpu_set_arg_f32(g_pipe_hopfield_backward, 6.0, 0.10);
+
+    cartan_gpu_set_arg_buf(g_pipe_causal_mha_backward, 0.0, g_buf_chunk_seq_h);
+    cartan_gpu_set_arg_buf(g_pipe_causal_mha_backward, 1.0, g_buf_step_dh);
+    cartan_gpu_set_arg_i32(g_pipe_causal_mha_backward, 3.0, 2560.0);
+    cartan_gpu_set_arg_i32(g_pipe_causal_mha_backward, 4.0, 8.0);
+
+    cartan_gpu_set_arg_buf(g_pipe_accumulate_recurrent_dh, 0.0, g_buf_step_dh);
+    cartan_gpu_set_arg_buf(g_pipe_accumulate_recurrent_dh, 1.0, g_buf_step_dh_prev);
+    cartan_gpu_set_arg_i32(g_pipe_accumulate_recurrent_dh, 2.0, 2560.0);
+    cartan_gpu_set_arg_f32(g_pipe_accumulate_recurrent_dh, 3.0, 0.35);
 
     if (g_train_hopfield_bank == 0.0) {
         g_train_hopfield_bank = resonator_create_attractor_bank();
@@ -425,9 +548,16 @@ fn train_sync_weights_host_to_gpu() {
     while (i < total) {
         let w = g_cortical_weights[2.0 + i];
         cartan_set_f32(g_host_weights_f32, i, w);
+        if (g_embedding_weights != 0.0) {
+            let ew = g_embedding_weights[2.0 + i];
+            cartan_set_f32(g_host_emb_weights_f32, i, ew);
+        }
         i = i + 1.0;
     }
     gpu_write(g_buf_cortical_weights, g_host_weights_f32, total * 4.0);
+    if (g_buf_embedding_weights != 0.0 && g_embedding_weights != 0.0) {
+        gpu_write(g_buf_embedding_weights, g_host_emb_weights_f32, total * 4.0);
+    }
     gpu_sync();
     g_gpu_weights_synced = 1.0;
 }
@@ -436,11 +566,18 @@ fn train_sync_weights_gpu_to_host() {
     if (g_train_gpu_mounted != 1.0 || g_buf_cortical_weights == 0.0 || g_cortical_weights == 0.0) { return; }
     let total = 2560.0 * 2560.0;
     gpu_read(g_buf_cortical_weights, g_host_weights_f32, total * 4.0);
+    if (g_buf_embedding_weights != 0.0 && g_embedding_weights != 0.0) {
+        gpu_read(g_buf_embedding_weights, g_host_emb_weights_f32, total * 4.0);
+    }
     gpu_sync();
     var i = 0.0;
     while (i < total) {
         let w = cartan_f32_at(g_host_weights_f32, i);
         g_cortical_weights[2.0 + i] = w;
+        if (g_embedding_weights != 0.0) {
+            let ew = cartan_f32_at(g_host_emb_weights_f32, i);
+            g_embedding_weights[2.0 + i] = ew;
+        }
         i = i + 1.0;
     }
 }
@@ -513,6 +650,14 @@ fn cartan_tensor_train_step(hidden_ptr: ptr, target_tok_id: float, learning_rate
         cartan_gpu_set_arg_i32(g_pipe_softmax_loss_delta, 1.0, target_idx);
         cartan_gpu_set_arg_i32(g_pipe_softmax_loss_delta, 5.0, 0.0);
         cartan_gpu_set_arg_f32(g_pipe_softmax_loss_delta, 6.0, ic_w);
+        var step_temp = g_train_temperature;
+        if (lr <= 0.0) {
+            step_temp = g_val_temperature;
+        }
+        if (step_temp <= 0.05) {
+            step_temp = 1.0;
+        }
+        cartan_gpu_set_arg_f32(g_pipe_softmax_loss_delta, 7.0, step_temp);
         cartan_gpu_launch_local(g_pipe_softmax_loss_delta, 256.0, 1.0, 1.0, 256.0, 1.0, 1.0);
 
         if (lr > 0.0) {
@@ -522,9 +667,12 @@ fn cartan_tensor_train_step(hidden_ptr: ptr, target_tok_id: float, learning_rate
             cartan_gpu_launch(g_pipe_sgd, vocab_cols, 1.0, 1.0);
         }
 
-        // Read back single scalar loss
-        gpu_read(g_buf_chunk_loss, g_host_chunk_loss, 4.0);
+        // Read back metrics [loss, entropy_bits, certainty, surprise_bits]
+        gpu_read(g_buf_chunk_loss, g_host_chunk_loss, 16.0);
         gpu_sync();
+        g_last_step_entropy = cartan_f32_at(g_host_chunk_loss, 1.0);
+        g_last_step_certainty = cartan_f32_at(g_host_chunk_loss, 2.0);
+        g_last_step_surprise = cartan_f32_at(g_host_chunk_loss, 3.0);
         return cartan_f32_at(g_host_chunk_loss, 0.0);
     }
 
@@ -576,52 +724,79 @@ fn cartan_tensor_train_step(hidden_ptr: ptr, target_tok_id: float, learning_rate
         c = c + 1.0;
     }
 
+    var eff_temp = g_train_temperature;
+    if (lr <= 0.0) {
+        eff_temp = g_val_temperature;
+    }
+    if (eff_temp <= 0.05) {
+        eff_temp = 1.0;
+    }
+    let inv_temp = 1.0 / eff_temp;
     var sum_exp = 0.0;
+    var sum_exp_t = 0.0;
     c = 0.0;
     while (c < vocab_cols) {
-        let p = exp(g_train_logits[2.0 + c] - max_logit);
+        let diff = g_train_logits[2.0 + c] - max_logit;
+        let p = exp(diff);
         g_train_probs[2.0 + c] = p;
         sum_exp = sum_exp + p;
+        if (eff_temp > 1.005) {
+            sum_exp_t = sum_exp_t + exp(diff * inv_temp);
+        }
         c = c + 1.0;
     }
     if (sum_exp <= 0.0) { sum_exp = 1.0; }
     let inv_sum = 1.0 / sum_exp;
+    var inv_sum_t = inv_sum;
+    if (eff_temp > 1.005 && sum_exp_t > 0.0) {
+        inv_sum_t = 1.0 / sum_exp_t;
+    }
 
+    var max_p = 0.0;
+    var ent_sum = 0.0;
     c = 0.0;
     while (c < vocab_cols) {
         let col = 2.0 + c;
-        g_train_probs[col] = g_train_probs[col] * inv_sum;
-        g_train_probs[col + 1.0] = g_train_probs[col + 1.0] * inv_sum;
-        g_train_probs[col + 2.0] = g_train_probs[col + 2.0] * inv_sum;
-        g_train_probs[col + 3.0] = g_train_probs[col + 3.0] * inv_sum;
-        g_train_probs[col + 4.0] = g_train_probs[col + 4.0] * inv_sum;
-        g_train_probs[col + 5.0] = g_train_probs[col + 5.0] * inv_sum;
-        g_train_probs[col + 6.0] = g_train_probs[col + 6.0] * inv_sum;
-        g_train_probs[col + 7.0] = g_train_probs[col + 7.0] * inv_sum;
-        c = c + 8.0;
+        let p = g_train_probs[col] * inv_sum;
+        g_train_probs[col] = p;
+        if (p > max_p) { max_p = p; }
+        if (p > 0.000000000001) {
+            ent_sum = ent_sum - p * log(p);
+        }
+        c = c + 1.0;
     }
+    g_last_step_entropy = ent_sum * 1.4426950408889634; // bits
+    g_last_step_certainty = max_p;
 
     let ic_w = tokenizer_get_ic_weight(target_idx);
     var target_p = g_train_probs[2.0 + target_idx];
+    if (eff_temp > 1.005) {
+        let diff = g_train_logits[2.0 + target_idx] - max_logit;
+        target_p = exp(diff * inv_temp) * inv_sum_t;
+    }
     if (target_p < 0.000000000001) { target_p = 0.000000000001; }
-    let loss = (0.0 - log(target_p)) * ic_w;
+    let loss = 0.0 - log(target_p);
+    g_last_step_surprise = (0.0 - log(target_p)) * 1.4426950408889634; // bits
     if (lr <= 0.0) { return loss; }
 
-    // Precompute gradient delta: delta[c] = (probs[c] - (c == target_idx ? 1.0 : 0.0)) * ic_w
+    // Precompute gradient delta: delta[c] = ((probs_t[c] - (c == target_idx ? 1.0 : 0.0)) / eff_temp) * ic_w
+    var target_p_t = g_train_probs[2.0 + target_idx];
+    if (eff_temp > 1.005) {
+        let diff = g_train_logits[2.0 + target_idx] - max_logit;
+        target_p_t = exp(diff * inv_temp) * inv_sum_t;
+    }
     c = 0.0;
     while (c < vocab_cols) {
         let col = 2.0 + c;
-        g_train_logits[col] = g_train_probs[col] * ic_w;
-        g_train_logits[col + 1.0] = g_train_probs[col + 1.0] * ic_w;
-        g_train_logits[col + 2.0] = g_train_probs[col + 2.0] * ic_w;
-        g_train_logits[col + 3.0] = g_train_probs[col + 3.0] * ic_w;
-        g_train_logits[col + 4.0] = g_train_probs[col + 4.0] * ic_w;
-        g_train_logits[col + 5.0] = g_train_probs[col + 5.0] * ic_w;
-        g_train_logits[col + 6.0] = g_train_probs[col + 6.0] * ic_w;
-        g_train_logits[col + 7.0] = g_train_probs[col + 7.0] * ic_w;
-        c = c + 8.0;
+        var p_t = g_train_probs[col];
+        if (eff_temp > 1.005) {
+            let diff = g_train_logits[col] - max_logit;
+            p_t = exp(diff * inv_temp) * inv_sum_t;
+        }
+        g_train_logits[col] = p_t * inv_temp * ic_w;
+        c = c + 1.0;
     }
-    g_train_logits[2.0 + target_idx] = (g_train_probs[2.0 + target_idx] - 1.0) * ic_w;
+    g_train_logits[2.0 + target_idx] = ((target_p_t - 1.0) * inv_temp) * ic_w;
 
     // Finsler-Randers geodesic projection on tangent bundle with Killing-Cartan metric
     c = 0.0;
@@ -636,9 +811,12 @@ fn cartan_tensor_train_step(hidden_ptr: ptr, target_tok_id: float, learning_rate
         c = c + 1.0;
     }
 
-    // Row-wise contiguous SGD updates with L2 regularization
+    // Row-wise contiguous SGD updates with LR-coupled weight decay
     // 8-way unrolled AVX2 FMA inner loop
-    let decay_factor = 1.0;
+    var decay_factor = 1.0;
+    if (lr > 0.0) {
+        decay_factor = 1.0 - (lr * 0.00005);
+    }
     var r_idx = 0.0;
     while (r_idx < dim) {
         let lr_h = lr * hidden_ptr[2.0 + r_idx] * 0.0197642;
@@ -672,28 +850,43 @@ fn geomind_train_chunk_gpu_pipelined(tokens: ptr, lr: float) -> float {
     if (tokens == 0.0 || g_train_gpu_mounted != 1.0) { return 0.0; }
     var n_tokens = tokens[0];
     if (n_tokens <= 1.0) { return 0.0; }
-    if (n_tokens > 256.0) { n_tokens = 256.0; }
+    if (n_tokens > 2048.0) { n_tokens = 2048.0; }
 
     if (g_gpu_weights_synced == 0.0) {
         train_sync_weights_host_to_gpu();
     }
 
-    // Initialize hidden state with zeros in GPU VRAM
-    gpu_write(g_buf_train_hidden, g_host_zero_hidden, 2560.0 * 4.0);
+    // Tier 2 Inter-Chunk Persistent Hidden State:
+    if (g_has_prev_chunk_h == 1.0) {
+        cartan_gpu_set_arg_buf(g_pipe_copy_h_norm, 0.0, g_buf_prev_chunk_h);
+        cartan_gpu_set_arg_buf(g_pipe_copy_h_norm, 1.0, g_buf_train_hidden);
+        cartan_gpu_launch(g_pipe_copy_h_norm, 2560.0, 1.0, 1.0);
+        cartan_gpu_set_arg_buf(g_pipe_copy_h_norm, 0.0, g_buf_train_hidden);
+        cartan_gpu_set_arg_buf(g_pipe_copy_h_norm, 1.0, g_buf_step_h_norm);
+    } else {
+        // Initialize hidden state with zeros in GPU VRAM
+        gpu_write(g_buf_train_hidden, g_host_zero_hidden, 2560.0 * 4.0);
+    }
 
     // Seed causal state on GPU with initial token of chunk
     let first_tok = tokens[2.0];
+    let first_ic = tokenizer_get_ic_weight(first_tok);
     cartan_gpu_set_arg_i32(g_pipe_autoregressive, 3.0, first_tok);
+    cartan_gpu_set_arg_f32(g_pipe_autoregressive, 6.0, first_ic);
     cartan_gpu_launch(g_pipe_autoregressive, 2560.0, 1.0, 1.0);
     cartan_gpu_launch_local(g_pipe_rmsnorm, 256.0, 1.0, 1.0, 256.0, 1.0, 1.0);
     cartan_gpu_launch(g_pipe_copy_h_norm, 2560.0, 1.0, 1.0);
     cartan_gpu_launch(g_pipe_ffn, 2560.0, 1.0, 1.0);
     cartan_gpu_launch_local(g_pipe_rmsnorm, 256.0, 1.0, 1.0, 256.0, 1.0, 1.0);
 
-    let decay_factor = 1.0;
+    var decay_factor = 1.0;
+    if (lr > 0.0) {
+        decay_factor = 1.0 - (lr * 0.00005);
+    }
     cartan_gpu_set_arg_f32(g_pipe_sgd, 7.0, lr);
     cartan_gpu_set_arg_f32(g_pipe_sgd, 8.0, decay_factor);
     cartan_gpu_set_arg_f32(g_pipe_streams_backward, 8.0, lr);
+    cartan_gpu_write_buffer(g_buf_step_dh_prev, 0.0, g_host_zero_hidden, 2560.0 * 4.0);
 
     let n_steps = n_tokens - 1.0;
     var t = 0.0;
@@ -703,6 +896,25 @@ fn geomind_train_chunk_gpu_pipelined(tokens: ptr, lr: float) -> float {
     while (t < n_steps) {
         let next_tok = tokens[2.0 + t + 1.0];
 
+        // Tier 1 Step A: Stash pre-step hidden state into chunk sequence memory
+        cartan_gpu_set_arg_i32(g_pipe_save_seq_h, 2.0, t);
+        cartan_gpu_launch(g_pipe_save_seq_h, 2560.0, 1.0, 1.0);
+
+        // Tier 1 Step B: Causal Multi-Head Self-Attention over sequence history [0..t]
+        if (t > 0.0) {
+            cartan_gpu_set_arg_i32(g_pipe_causal_mha_step, 2.0, t);
+            cartan_gpu_launch_local(g_pipe_causal_mha_step, 2048.0, 1.0, 1.0, 256.0, 1.0, 1.0);
+        }
+
+        // Tier 3: Continuous Hopfield Associative Memory Attractor Resonance Injection
+        cartan_gpu_launch_local(g_pipe_hopfield_inject, 256.0, 1.0, 1.0, 256.0, 1.0, 1.0);
+
+        // Stash pristine pre-RMSNorm hidden state for backward Jacobians
+        cartan_gpu_launch(g_pipe_copy_pre_rmsnorm, 2560.0, 1.0, 1.0);
+
+        // Post-Tier 1/3 RMSNorm: Re-normalize hidden state onto Riemannian sphere before projection
+        cartan_gpu_launch_local(g_pipe_rmsnorm, 256.0, 1.0, 1.0, 256.0, 1.0, 1.0);
+
         // 1. Forward GEMV: hidden x weights -> logits (2560 threads)
         cartan_gpu_launch(g_pipe_gemv, 2560.0, 1.0, 1.0);
 
@@ -711,6 +923,14 @@ fn geomind_train_chunk_gpu_pipelined(tokens: ptr, lr: float) -> float {
         cartan_gpu_set_arg_i32(g_pipe_softmax_loss_delta, 1.0, next_tok);
         cartan_gpu_set_arg_i32(g_pipe_softmax_loss_delta, 5.0, t);
         cartan_gpu_set_arg_f32(g_pipe_softmax_loss_delta, 6.0, ic_w);
+        var step_temp = g_train_temperature;
+        if (lr <= 0.0) {
+            step_temp = 1.0; // Validation holdout metrics are strictly invariant at standard T=1.0
+        }
+        if (step_temp <= 0.05) {
+            step_temp = 1.0;
+        }
+        cartan_gpu_set_arg_f32(g_pipe_softmax_loss_delta, 7.0, step_temp);
         cartan_gpu_launch_local(g_pipe_softmax_loss_delta, 256.0, 1.0, 1.0, 256.0, 1.0, 1.0);
 
         // 3. Full Non-Euclidean Reverse Randers Backpropagation Chain:
@@ -721,24 +941,39 @@ fn geomind_train_chunk_gpu_pipelined(tokens: ptr, lr: float) -> float {
             // B. Backward Head GEMV: Backpropagates covector delta into hidden gradient dh
             cartan_gpu_launch(g_pipe_head_backward_gemv, 2560.0, 1.0, 1.0);
 
-            // C. Post-FFN Anisotropic RMSNorm Backward
+            // C. Recurrent BPTT Credit Accumulation: Ingest dh_prev from previous step
+            if (t > 0.0) {
+                cartan_gpu_launch(g_pipe_accumulate_recurrent_dh, 2560.0, 1.0, 1.0);
+            }
+
+            // D. Post-Tier 1/3 RMSNorm Backward: Differentiates RMSNorm projection into head
             cartan_gpu_launch_local(g_pipe_rmsnorm_backward_post, 256.0, 1.0, 1.0, 256.0, 1.0, 1.0);
 
-            // D. 16-Expert Freudenthal FFN Cascade Analytical Jacobian Backward
+            // E. Continuous Hopfield Attractor Memory Backward: Differentiates Hopfield injection
+            cartan_gpu_launch_local(g_pipe_hopfield_backward, 256.0, 1.0, 1.0, 256.0, 1.0, 1.0);
+
+            // F. Causal Multi-Head Self-Attention Backward over sequence history [0..t]
+            if (t > 0.0) {
+                cartan_gpu_set_arg_i32(g_pipe_causal_mha_backward, 2.0, t);
+                cartan_gpu_launch_local(g_pipe_causal_mha_backward, 2048.0, 1.0, 1.0, 256.0, 1.0, 1.0);
+            }
+
+            // G. 16-Expert Freudenthal FFN Cascade Analytical Jacobian Backward
             cartan_gpu_launch(g_pipe_ffn_backward, 2560.0, 1.0, 1.0);
 
-            // E. Pre-FFN Anisotropic RMSNorm Backward
+            // H. Pre-FFN Anisotropic RMSNorm Backward
             cartan_gpu_launch_local(g_pipe_rmsnorm_backward_pre, 256.0, 1.0, 1.0, 256.0, 1.0, 1.0);
 
-            // F. 8 Lie Subgroup Streams Backward & Non-Euclidean Embedding Update on prev_tok
+            // I. 8 Lie Subgroup Streams Backward & Non-Euclidean Embedding Update on prev_tok
             if (prev_tok >= 0.0 && prev_tok < 2560.0) {
                 cartan_gpu_set_arg_i32(g_pipe_streams_backward, 5.0, prev_tok);
                 cartan_gpu_launch(g_pipe_streams_backward, 2560.0, 1.0, 1.0);
             }
         }
 
-        // 4. Autoregressive state update + 8-stream Lie manifold dispatch (2560 threads)
+        // 4. Tier 2: Selective Gating Autoregressive state update + 8-stream Lie manifold dispatch (2560 threads)
         cartan_gpu_set_arg_i32(g_pipe_autoregressive, 3.0, next_tok);
+        cartan_gpu_set_arg_f32(g_pipe_autoregressive, 6.0, ic_w);
         cartan_gpu_launch(g_pipe_autoregressive, 2560.0, 1.0, 1.0);
 
         // 5. Pre-FFN Anisotropic RMSNorm (256 threads)
@@ -757,22 +992,51 @@ fn geomind_train_chunk_gpu_pipelined(tokens: ptr, lr: float) -> float {
         t = t + 1.0;
     }
 
-    // Read back all scalar losses in a single contiguous DMA transfer
-    gpu_read(g_buf_chunk_loss, g_host_chunk_loss, n_steps * 4.0);
+    // Read back all metrics (loss, entropy, certainty, surprise) in a single contiguous DMA transfer
+    gpu_read(g_buf_chunk_loss, g_host_chunk_loss, n_steps * 16.0);
     gpu_sync();
 
     var chunk_loss_sum = 0.0;
+    var chunk_ent_sum = 0.0;
+    var chunk_cert_sum = 0.0;
+    var chunk_surp_sum = 0.0;
     var valid_steps = 0.0;
     var p = 0.0;
     while (p < n_steps) {
-        let step_l = cartan_f32_at(g_host_chunk_loss, p);
+        let base_idx = p * 4.0;
+        let step_l = cartan_f32_at(g_host_chunk_loss, base_idx);
+        let step_ent = cartan_f32_at(g_host_chunk_loss, base_idx + 1.0);
+        let step_cert = cartan_f32_at(g_host_chunk_loss, base_idx + 2.0);
+        let step_surp = cartan_f32_at(g_host_chunk_loss, base_idx + 3.0);
         if (step_l >= 0.0) {
             chunk_loss_sum = chunk_loss_sum + step_l;
+            chunk_ent_sum = chunk_ent_sum + step_ent;
+            chunk_cert_sum = chunk_cert_sum + step_cert;
+            chunk_surp_sum = chunk_surp_sum + step_surp;
             valid_steps = valid_steps + 1.0;
         }
         p = p + 1.0;
     }
-    g_last_chunk_valid_steps = valid_steps;
+    if (lr > 0.0) {
+        g_last_chunk_valid_steps = valid_steps;
+        g_last_chunk_entropy_sum = chunk_ent_sum;
+        g_last_chunk_certainty_sum = chunk_cert_sum;
+        g_last_chunk_surprise_sum = chunk_surp_sum;
+    } else {
+        g_last_val_chunk_steps = valid_steps;
+        g_last_val_chunk_entropy_sum = chunk_ent_sum;
+        g_last_val_chunk_certainty_sum = chunk_cert_sum;
+        g_last_val_chunk_surprise_sum = chunk_surp_sum;
+    }
+
+    // Tier 2: Persist chunk final hidden state for next chunk continuity (training and validation)
+    cartan_gpu_set_arg_buf(g_pipe_copy_h_norm, 0.0, g_buf_train_hidden);
+    cartan_gpu_set_arg_buf(g_pipe_copy_h_norm, 1.0, g_buf_prev_chunk_h);
+    cartan_gpu_launch(g_pipe_copy_h_norm, 2560.0, 1.0, 1.0);
+    cartan_gpu_set_arg_buf(g_pipe_copy_h_norm, 0.0, g_buf_train_hidden);
+    cartan_gpu_set_arg_buf(g_pipe_copy_h_norm, 1.0, g_buf_step_h_norm);
+    g_has_prev_chunk_h = 1.0;
+
     return chunk_loss_sum;
 }
 
@@ -1063,12 +1327,105 @@ fn geomind_manifest_parse_datasets(json_str: string) -> ptr {
     return list;
 }
 
-fn geomind_manifest_save(path: string, list: ptr, cur_idx: float, cur_offset: float, cur_ep: float, cur_lr: float) {
+fn geomind_manifest_parse_offsets(json_str: string, num_datasets: float, cur_idx: float, cur_offset: float) -> ptr {
+    let list = cartan_vec_create();
+    let len = cartan_string_length(json_str);
+    if (len == 0.0) {
+        var k = 0.0;
+        while (k < num_datasets) {
+            if (k == cur_idx) {
+                cartan_vec_push_f32(list, cur_offset);
+            } else {
+                cartan_vec_push_f32(list, 0.0);
+            }
+            k = k + 1.0;
+        }
+        return list;
+    }
+
+    let key = "\"offsets\"";
+    let key_len = cartan_string_length(key);
+    var i = 0.0;
+    var found_bracket = -1.0;
+
+    while (i <= len - key_len) {
+        let sub = cartan_string_substring(json_str, i, i + key_len);
+        if (cartan_string_eq(sub, key) == 1.0) {
+            var j = i + key_len;
+            while (j < len) {
+                if (cartan_string_get_char(json_str, j) == 91.0) { // '['
+                    found_bracket = j + 1.0;
+                    j = len + 1.0;
+                }
+                j = j + 1.0;
+            }
+            i = len + 1.0;
+        }
+        i = i + 1.0;
+    }
+
+    if (found_bracket < 0.0) {
+        var k = 0.0;
+        while (k < num_datasets) {
+            if (k == cur_idx) {
+                cartan_vec_push_f32(list, cur_offset);
+            } else {
+                cartan_vec_push_f32(list, 0.0);
+            }
+            k = k + 1.0;
+        }
+        return list;
+    }
+
+    var p = found_bracket;
+    var num_start = -1.0;
+
+    while (p < len) {
+        let c = cartan_string_get_char(json_str, p);
+        if (c == 93.0) { // ']'
+            if (num_start >= 0.0) {
+                let num_str = cartan_string_substring(json_str, num_start, p);
+                let val = atof(num_str);
+                free(num_str);
+                cartan_vec_push_f32(list, val);
+                num_start = -1.0;
+            }
+            break;
+        }
+        if ((c >= 48.0 && c <= 57.0) || c == 46.0 || c == 45.0) {
+            if (num_start < 0.0) {
+                num_start = p;
+            }
+        } else {
+            if (num_start >= 0.0) {
+                let num_str = cartan_string_substring(json_str, num_start, p);
+                let val = atof(num_str);
+                free(num_str);
+                cartan_vec_push_f32(list, val);
+                num_start = -1.0;
+            }
+        }
+        p = p + 1.0;
+    }
+
+    var cur_len = cartan_vec_len(list);
+    while (cur_len < num_datasets) {
+        cartan_vec_push_f32(list, 0.0);
+        cur_len = cur_len + 1.0;
+    }
+    return list;
+}
+
+fn geomind_manifest_save_interleaved(path: string, list: ptr, offsets: ptr, cur_idx: float, cur_ep: float, cur_lr: float) {
     var out = "{\n";
     out = cartan_string_concat(out, "  \"current_dataset_index\": ");
     out = cartan_string_concat(out, cartan_float_to_string(cur_idx));
     out = cartan_string_concat(out, ",\n  \"current_offset\": ");
-    out = cartan_string_concat(out, cartan_float_to_string(cur_offset));
+    var primary_offset = 0.0;
+    if (offsets != 0.0 && cur_idx < cartan_vec_len(offsets)) {
+        primary_offset = cartan_vec_get_f32(offsets, cur_idx);
+    }
+    out = cartan_string_concat(out, cartan_float_to_string(primary_offset));
     out = cartan_string_concat(out, ",\n  \"current_epoch\": ");
     out = cartan_string_concat(out, cartan_float_to_string(cur_ep));
     out = cartan_string_concat(out, ",\n  \"current_lr\": ");
@@ -1088,8 +1445,40 @@ fn geomind_manifest_save(path: string, list: ptr, cur_idx: float, cur_offset: fl
         }
         i = i + 1.0;
     }
+    out = cartan_string_concat(out, "  ],\n  \"offsets\": [\n");
+    i = 0.0;
+    let num_offsets = cartan_vec_len(offsets);
+    while (i < count) {
+        var off_val = 0.0;
+        if (offsets != 0.0 && i < num_offsets) {
+            off_val = cartan_vec_get_f32(offsets, i);
+        }
+        out = cartan_string_concat(out, "    ");
+        out = cartan_string_concat(out, cartan_float_to_string(off_val));
+        if (i + 1.0 < count) {
+            out = cartan_string_concat(out, ",\n");
+        } else {
+            out = cartan_string_concat(out, "\n");
+        }
+        i = i + 1.0;
+    }
     out = cartan_string_concat(out, "  ]\n}\n");
     cartan_write_file(path, out);
+}
+
+fn geomind_manifest_save(path: string, list: ptr, cur_idx: float, cur_offset: float, cur_ep: float, cur_lr: float) {
+    let num = cartan_tree_len_f(list);
+    let offsets = cartan_vec_create();
+    var i = 0.0;
+    while (i < num) {
+        if (i == cur_idx) {
+            cartan_vec_push_f32(offsets, cur_offset);
+        } else {
+            cartan_vec_push_f32(offsets, 0.0);
+        }
+        i = i + 1.0;
+    }
+    geomind_manifest_save_interleaved(path, list, offsets, cur_idx, cur_ep, cur_lr);
 }
 
 // Detects repository root vs test/geomind subdirectory context
@@ -1119,136 +1508,9 @@ fn geomind_resolve_path(path: string) -> string {
     return path;
 }
 
-// Persistent pre-tokenized validation holdout cache (zero repeated file reads & BPE passes)
-var g_cached_val_file: string = "";
-var g_cached_val_chunks: ptr = 0.0;
-var g_cached_val_count: float = 0.0;
+// Prequential Stream Validation: Validation is performed directly out-of-sample on upcoming stream chunks
 
-// Initialize or refresh the pre-tokenized validation cache
-fn geomind_init_val_cache(val_file: string) -> float {
-    if (g_cached_val_chunks != 0.0) {
-        var i = 0.0;
-        while (i < g_cached_val_count) {
-            let chunk_vec = cartan_tree_get_f32(g_cached_val_chunks, i);
-            cartan_vec_free(chunk_vec);
-            i = i + 1.0;
-        }
-        g_cached_val_chunks = 0.0;
-        g_cached_val_count = 0.0;
-    }
 
-    let resolved_val = geomind_resolve_path(val_file);
-    if (cartan_file_exists(resolved_val) == 0.0) { return 0.0; }
-    let val_content = cartan_read_file(resolved_val);
-    let val_len = cartan_string_length(val_content);
-    if (val_len <= 0.0) { free(val_content); return 0.0; }
-
-    g_cached_val_chunks = cartan_tree_create();
-    g_cached_val_count = 0.0;
-    g_cached_val_file = val_file;
-
-    var v_line_start = 0.0;
-    while (v_line_start < val_len && g_cached_val_count < 100.0) {
-        var v_line_end = v_line_start;
-        while (v_line_end < val_len && cartan_byte_at(val_content, v_line_end) != 10.0) {
-            v_line_end = v_line_end + 1.0;
-        }
-        let v_raw = cartan_string_substring(val_content, v_line_start, v_line_end);
-        let v_sample = geomind_clean_training_line(v_raw);
-        free(v_raw);
-
-        let v_s_len = cartan_string_length(v_sample);
-        if (v_s_len > 0.0) {
-            let v_tokens = cartan_hub_encode_text_to_tokens(v_sample);
-            let n_toks = v_tokens[0];
-            if (n_toks > 1.0) {
-                cartan_tree_push(g_cached_val_chunks, v_tokens);
-                g_cached_val_count = g_cached_val_count + 1.0;
-            } else {
-                cartan_vec_free(v_tokens);
-            }
-            free(v_sample);
-        }
-        v_line_start = v_line_end + 1.0;
-    }
-    free(val_content);
-    printf("[GeoMind Cache] Pre-tokenized %s validation holdout chunks from %s\n",
-        cartan_float_to_string(g_cached_val_count), val_file);
-    cartan_flush(0.0);
-    return g_cached_val_count;
-}
-
-// Free pre-tokenized validation cache resources
-fn geomind_free_val_cache() -> float {
-    if (g_cached_val_chunks != 0.0) {
-        var i = 0.0;
-        while (i < g_cached_val_count) {
-            let chunk_vec = cartan_tree_get_f32(g_cached_val_chunks, i);
-            cartan_vec_free(chunk_vec);
-            i = i + 1.0;
-        }
-        g_cached_val_chunks = 0.0;
-        g_cached_val_count = 0.0;
-        g_cached_val_file = "";
-    }
-    return 1.0;
-}
-
-// Compute genuine validation cross-entropy loss over pre-tokenized holdout set (zero weight updates)
-fn geomind_compute_validation_loss(val_file: string, cur_h_val: ptr) -> float {
-    if (g_cached_val_chunks == 0.0 || cartan_string_eq(g_cached_val_file, val_file) == 0.0) {
-        geomind_init_val_cache(val_file);
-    }
-    if (g_cached_val_count <= 0.0) { return 0.0; }
-
-    var v_loss_sum = 0.0;
-    var v_step_count = 0.0;
-    var ci = 0.0;
-
-    while (ci < g_cached_val_count) {
-        let v_tokens = cartan_tree_get_f32(g_cached_val_chunks, ci);
-        let n_toks = v_tokens[0];
-        if (n_toks > 1.0) {
-            if (g_train_gpu_mounted == 1.0) {
-                let chunk_loss = geomind_train_chunk_gpu_pipelined(v_tokens, 0.0);
-                if (g_last_chunk_valid_steps > 0.0) {
-                    v_loss_sum = v_loss_sum + chunk_loss;
-                    v_step_count = v_step_count + g_last_chunk_valid_steps;
-                }
-            } else {
-                var d = 0.0;
-                while (d < 2560.0) {
-                    cur_h_val[2.0 + d] = 0.0;
-                    d = d + 1.0;
-                }
-                let first_tok = v_tokens[2.0];
-                cartan_tensor_update_autoregressive_state(cur_h_val, first_tok);
-                e8_attention_forward_step(cur_h_val, 0.70);
-
-                var vt = 0.0;
-                while (vt < n_toks - 1.0) {
-                    let next_tok = v_tokens[2.0 + vt + 1.0];
-                    if (next_tok >= 0.0 && next_tok < 2560.0) {
-                        let step_loss = cartan_tensor_train_step(cur_h_val, next_tok, 0.0);
-                        if (step_loss > 0.0) {
-                            v_loss_sum = v_loss_sum + step_loss;
-                            v_step_count = v_step_count + 1.0;
-                        }
-                    }
-                    cartan_tensor_update_autoregressive_state(cur_h_val, next_tok);
-                    e8_attention_forward_step(cur_h_val, 0.70);
-                    vt = vt + 1.0;
-                }
-            }
-        }
-        ci = ci + 1.0;
-    }
-
-    if (v_step_count > 0.0) {
-        return v_loss_sum / v_step_count;
-    }
-    return 0.0;
-}
 
 var g_train_stride: float = 0.0;
 
@@ -1267,6 +1529,12 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
     var log_file = log_path;
     if (cartan_string_length(log_file) == 0.0) { log_file = default_log; }
 
+    if (g_train_temperature <= 0.05) {
+        g_train_temperature = 1.0;
+    }
+    if (g_val_temperature <= 0.05) {
+        g_val_temperature = 1.0;
+    }
     var lr = base_lr;
     var t_loss = target_loss;
     if (t_loss <= 0.0) { t_loss = 2.50; }
@@ -1281,12 +1549,6 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
     // Mount GPU acceleration if available
     train_mount_gpu();
 
-    var holdout_init_path = "test/geomind/trainingdata/cloze_validation_holdout.txt";
-    if (stage_mode == 2.0) {
-        holdout_init_path = "test/geomind/trainingdata/pretrain_validation_holdout.txt";
-    }
-    geomind_init_val_cache(holdout_init_path);
-
     var manifest_path = geomind_resolve_path("test/geomind/trainingdata/corpus.json");
     if (stage_mode == 1.0) {
         manifest_path = geomind_resolve_path("test/geomind/trainingdata/cloze_manifest.json");
@@ -1294,6 +1556,7 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
         manifest_path = geomind_resolve_path("test/geomind/trainingdata/sft_manifest.json");
     }
     var datasets_list = cartan_tree_create();
+    var offsets_list = cartan_vec_create();
     var cur_d_idx = 0.0;
     var cur_offset = 0.0;
     var cur_ep = 1.0;
@@ -1315,6 +1578,7 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
             manifest_mode = 1.0;
             cur_d_idx = atof(geomind_manifest_get_field(manifest_content, "current_dataset_index"));
             cur_offset = atof(geomind_manifest_get_field(manifest_content, "current_offset"));
+            offsets_list = geomind_manifest_parse_offsets(manifest_content, cartan_tree_len_f(datasets_list), cur_d_idx, cur_offset);
             let saved_ep = atof(geomind_manifest_get_field(manifest_content, "current_epoch"));
             if (saved_ep >= 1.0 && saved_ep <= epochs) {
                 cur_ep = saved_ep;
@@ -1410,6 +1674,10 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
         }
     }
 
+    if (cartan_vec_len(offsets_list) < cartan_tree_len_f(datasets_list)) {
+        offsets_list = geomind_manifest_parse_offsets("", cartan_tree_len_f(datasets_list), cur_d_idx, cur_offset);
+    }
+
     var lr_floor = 0.001;
     var stage_ceiling_lr = 0.05;
     if (stage_mode == 2.0) {
@@ -1429,8 +1697,10 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
     printf("================================================================================\n");
     printf("  GEOMIND STREAMING STEADY-STATE COMPUTE ENGINE (Stage: %s)\n", stage_name);
     printf("  Autoregressive Sequence Learning | Natural Gradient Manifold Updates\n");
-    printf("  Target Loss: %s | Active LR: %s | Epochs: %s | Log: %s\n",
+    printf("  Target Loss: %s | Active LR: %s | TTemp: %s | VTemp: %s | Epochs: %s | Log: %s\n",
         cartan_float_to_string(t_loss), cartan_float_to_string(lr),
+        cartan_float_to_string(g_train_temperature),
+        cartan_float_to_string(g_val_temperature),
         ep_disp, log_file);
     printf("================================================================================\n\n");
     cartan_flush(0.0);
@@ -1439,6 +1709,8 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
     let base_pfx = geomind_get_base_prefix();
     let ckpt_path = cartan_string_concat(base_pfx, "trainingdata/checkpoints/geomind_steady_state_weights.bin");
     let bak_path = cartan_string_concat(base_pfx, "trainingdata/checkpoints/geomind_steady_state_weights.bin.bak");
+    let emb_ckpt_path = cartan_string_concat(base_pfx, "trainingdata/checkpoints/geomind_embedding_weights.bin");
+    let emb_bak_path = cartan_string_concat(base_pfx, "trainingdata/checkpoints/geomind_embedding_weights.bin.bak");
     let status_path = cartan_string_concat(base_pfx, "trainingdata/checkpoints/checkpoint_status.txt");
 
     var prior_clean = 0.0;
@@ -1459,20 +1731,47 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
             stage_name, bak_path);
         cartan_flush(0.0);
     }
+    if (prior_clean == 1.0 && cartan_file_exists(emb_ckpt_path) == 1.0) {
+        cartan_copy_file(emb_ckpt_path, emb_bak_path);
+    }
 
+    let total_params = 2560.0 * 2560.0;
     if (cartan_file_exists(ckpt_path) == 1.0) {
-        let total_params = 2560.0 * 2560.0;
         let loaded = cartan_safetensors_load_raw_tensor_f32(ckpt_path, total_params);
         if (loaded != 0.0 && cartan_vec_len(loaded) == total_params) {
             g_cortical_weights = loaded;
-            printf("[Steady-State Stage: %s] Restored checkpoint from %s (%s parameters)\n",
+            printf("[Steady-State Stage: %s] Restored LM head checkpoint from %s (%s parameters)\n",
                 stage_name, ckpt_path, cartan_float_to_string(total_params));
             cartan_flush(0.0);
         }
     } else {
         cartan_safetensors_save_tensor_f32(ckpt_path, "model.weights", g_cortical_weights);
-        printf("[Steady-State Stage: %s] Initialized clean baseline checkpoint: %s\n",
+        printf("[Steady-State Stage: %s] Initialized clean baseline LM head checkpoint: %s\n",
             stage_name, ckpt_path);
+        cartan_flush(0.0);
+    }
+
+    if (cartan_file_exists(emb_ckpt_path) == 1.0) {
+        let loaded_emb = cartan_safetensors_load_raw_tensor_f32(emb_ckpt_path, total_params);
+        if (loaded_emb != 0.0 && cartan_vec_len(loaded_emb) == total_params) {
+            g_embedding_weights = loaded_emb;
+            printf("[Steady-State Stage: %s] Restored decoupled embedding checkpoint from %s (%s parameters)\n",
+                stage_name, emb_ckpt_path, cartan_float_to_string(total_params));
+            cartan_flush(0.0);
+        }
+    } else {
+        if (g_embedding_weights == 0.0) {
+            g_embedding_weights = cartan_tensor_alloc(total_params);
+        }
+        var cp_i = 0.0;
+        while (cp_i < total_params) {
+            let cw = g_cortical_weights[2.0 + cp_i];
+            cartan_vec_set_f32(g_embedding_weights, cp_i, cw);
+            cp_i = cp_i + 1.0;
+        }
+        cartan_safetensors_save_tensor_f32(emb_ckpt_path, "model.embeddings", g_embedding_weights);
+        printf("[Steady-State Stage: %s] Initialized decoupled embedding checkpoint: %s\n",
+            stage_name, emb_ckpt_path);
         cartan_flush(0.0);
     }
 
@@ -1515,15 +1814,16 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
 
     // Persistent scratch vector for hidden state to eliminate per-token and per-chunk malloc
     var cur_h = cartan_vec_create();
-    var cur_h_val = cartan_vec_create();
     var d_init = 0.0;
     while (d_init < 2560.0) {
         cartan_vec_push_f32(cur_h, 0.0);
-        cartan_vec_push_f32(cur_h_val, 0.0);
         d_init = d_init + 1.0;
     }
+    var ema_train_loss = 0.0;
+    var prev_ema_train_loss = 0.0;
     var ema_val_loss = 0.0;
     var prev_ema_val_loss = 0.0;
+    var prev_vppl = 0.0;
     var ema_tppl = 0.0;
     var prev_ema_tppl = 0.0;
     var stable_descent_streak = 0.0;
@@ -1531,27 +1831,90 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
     var tppl_flat_count = 0.0;
     var prev_delta_tppl = 0.0;
     var oscillation_count = 0.0;
+    let base_train_temp = g_train_temperature;
+    let base_val_temp = g_val_temperature;
+    var vppl = 0.0;
+    var ivppl = 0.0;
+    var vl = 0.0;
+    var v_ent = 0.0;
+    var v_cert = 0.0;
+    var cur_tppl = 0.0;
+    var atl = 0.0;
+    // Multi-domain mixture loss tracker for balanced, unjittered curriculum moving average
+    var domain_losses = cartan_vec_create();
+    var domain_val_losses = cartan_vec_create();
+    var dloss_init = 0.0;
+    while (dloss_init < num_datasets) {
+        cartan_vec_push_f32(domain_losses, 0.0);
+        cartan_vec_push_f32(domain_val_losses, 0.0);
+        dloss_init = dloss_init + 1.0;
+    }
+    // Pre-load all datasets into zero-latency in-memory cache for seamless interleaved rotation
+    var cached_contents = cartan_tree_create();
+    var cached_lengths = cartan_vec_create();
+    var total_corpus_bytes = 0.0;
+    var preload_idx = 0.0;
+    while (preload_idx < num_datasets) {
+        let r_dataset = cartan_tree_get_f32(datasets_list, preload_idx);
+        let d_file = geomind_resolve_path(r_dataset);
+        if (cartan_file_exists(d_file) == 1.0) {
+            let fc = cartan_read_file(d_file);
+            let flen = cartan_string_length(fc);
+            cartan_tree_push(cached_contents, fc);
+            cartan_vec_push_f32(cached_lengths, flen);
+            total_corpus_bytes = total_corpus_bytes + flen;
+        } else {
+            cartan_tree_push(cached_contents, "");
+            cartan_vec_push_f32(cached_lengths, 0.0);
+        }
+        preload_idx = preload_idx + 1.0;
+    }
+    printf("[GeoMind Interleaved Pipeline] Pre-loaded %s datasets (Total: %s MB) into zero-latency stream cache.\n\n",
+        cartan_float_to_string(num_datasets), cartan_float_to_string(total_corpus_bytes / (1024.0 * 1024.0)));
+    cartan_flush(0.0);
+
+    var initial_bytes = 0.0;
+    var b_i = 0.0;
+    while (b_i < num_datasets) {
+        if (b_i < cartan_vec_len(offsets_list)) {
+            initial_bytes = initial_bytes + cartan_vec_get_f32(offsets_list, b_i);
+        }
+        b_i = b_i + 1.0;
+    }
+
+    var target_loss_reached = 0.0;
+    var total_chunks_trained = 0.0;
+    var domain_has_prev = cartan_vec_create();
+    var dhp_init = 0.0;
+    while (dhp_init < num_datasets) {
+        cartan_vec_push_f32(domain_has_prev, 0.0);
+        dhp_init = dhp_init + 1.0;
+    }
+
 
     while (ep <= epochs) {
         var ep_loss_sum = 0.0;
+        var ep_ent_sum = 0.0;
+        var ep_cert_sum = 0.0;
+        var ep_surp_sum = 0.0;
         var ep_step_count = 0.0;
         var interval_loss_sum = 0.0;
+        var interval_ent_sum = 0.0;
+        var interval_cert_sum = 0.0;
+        var interval_surp_sum = 0.0;
         var interval_step_count = 0.0;
         var total_chunks_ep = 0.0;
+        var bytes_ingested_epoch = initial_bytes;
+        initial_bytes = 0.0;
         var d_idx = cur_d_idx;
 
-        while (d_idx < num_datasets) {
+        while (bytes_ingested_epoch < total_corpus_bytes) {
+            let file_content = cartan_tree_get_f32(cached_contents, d_idx);
+            let content_len = cartan_vec_get_f32(cached_lengths, d_idx);
             let raw_dataset = cartan_tree_get_f32(datasets_list, d_idx);
-            let dataset_file = geomind_resolve_path(raw_dataset);
-            if (cartan_file_exists(dataset_file) == 1.0) {
-                let file_content = cartan_read_file(dataset_file);
-                let content_len = cartan_string_length(file_content);
-                printf("[Steady-State Stage: %s] Ingesting Dataset [%s / %s]: %s (%s KB)\n",
-                    stage_name, cartan_float_to_string(d_idx + 1.0), cartan_float_to_string(num_datasets),
-                    dataset_file, cartan_float_to_string(content_len / 1024.0));
-                cartan_flush(0.0);
 
-                var line_start = cur_offset;
+            if (content_len > 0.0) {
+                var line_start = cartan_vec_get_f32(offsets_list, d_idx);
                 if (line_start >= content_len) {
                     line_start = 0.0;
                 } else if (line_start > 0.0) {
@@ -1562,265 +1925,386 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
                         line_start = line_start + 1.0;
                     }
                 }
-                var d_chunks = 0.0;
 
-                while (line_start < content_len) {
-                    var line_end = line_start;
-                    while (line_end < content_len && cartan_byte_at(file_content, line_end) != 10.0) {
-                        line_end = line_end + 1.0;
+                var slice_chunks = 0.0;
+                let slice_limit = 1.0; // 1 chunk per domain rotation (true interleaved mixture streaming)
+
+                while (line_start < content_len && slice_chunks < slice_limit) {
+                    let train_tokens = cartan_vec_create();
+                    var scan_start = line_start;
+                    while (scan_start < content_len && train_tokens[0] < 2048.0) {
+                        var line_end = scan_start;
+                        while (line_end < content_len && cartan_byte_at(file_content, line_end) != 10.0) {
+                            line_end = line_end + 1.0;
+                        }
+                        let next_line_pos = line_end + 1.0;
+                        let raw_line = cartan_string_substring(file_content, scan_start, line_end);
+                        let sample_text = geomind_clean_training_line(raw_line);
+                        free(raw_line);
+
+                        let sample_len = cartan_string_length(sample_text);
+                        if (sample_len > 0.0) {
+                            let line_tokens = cartan_hub_encode_text_to_tokens(sample_text);
+                            let n_lt = line_tokens[0];
+                            if (n_lt > 0.0) {
+                                var ti = 0.0;
+                                while (ti < n_lt && train_tokens[0] < 2048.0) {
+                                    cartan_vec_push_f32(train_tokens, line_tokens[2.0 + ti]);
+                                    ti = ti + 1.0;
+                                }
+                            }
+                            cartan_vec_free(line_tokens);
+                            free(sample_text);
+                        }
+                        scan_start = next_line_pos;
                     }
-                    let next_line_start = line_end + 1.0;
-                    let raw_line = cartan_string_substring(file_content, line_start, line_end);
-                    let sample_text = geomind_clean_training_line(raw_line);
-                    free(raw_line);
-
-                    let sample_len = cartan_string_length(sample_text);
-                    if (sample_len > 0.0) {
-                        let tokens = cartan_hub_encode_text_to_tokens(sample_text);
-                        let n_tokens = tokens[0];
-                        if (n_tokens > 1.0) {
-                            if (g_train_gpu_mounted == 1.0) {
-                                let chunk_loss = geomind_train_chunk_gpu_pipelined(tokens, lr);
-                                if (g_last_chunk_valid_steps > 0.0) {
-                                    ep_loss_sum = ep_loss_sum + chunk_loss;
-                                    ep_step_count = ep_step_count + g_last_chunk_valid_steps;
-                                    interval_loss_sum = interval_loss_sum + chunk_loss;
-                                    interval_step_count = interval_step_count + g_last_chunk_valid_steps;
-                                }
+                    let next_line_start = scan_start;
+                    let n_tokens = train_tokens[0];
+                    if (n_tokens > 1.0) {
+                        // Restore isolated recurrent context for domain d_idx
+                        if (g_train_gpu_mounted == 1.0 && g_buf_domain_h != 0.0) {
+                            if (cartan_vec_get_f32(domain_has_prev, d_idx) == 1.0) {
+                                cartan_gpu_set_arg_buf(g_pipe_copy_domain_h, 0.0, g_buf_domain_h);
+                                cartan_gpu_set_arg_buf(g_pipe_copy_domain_h, 1.0, g_buf_prev_chunk_h);
+                                cartan_gpu_set_arg_i32(g_pipe_copy_domain_h, 2.0, d_idx);
+                                cartan_gpu_set_arg_i32(g_pipe_copy_domain_h, 3.0, 2560.0);
+                                cartan_gpu_set_arg_i32(g_pipe_copy_domain_h, 4.0, 0.0);
+                                cartan_gpu_launch(g_pipe_copy_domain_h, 2560.0, 1.0, 1.0);
+                                g_has_prev_chunk_h = 1.0;
                             } else {
-                                var d = 0.0;
-                                while (d < 2560.0) {
-                                    cur_h[2.0 + d] = 0.0;
-                                    d = d + 1.0;
-                                }
-                                // Seed causal state strictly with the initial token of the sequence (zero lookahead)
-                                let first_tok = tokens[2.0];
-                                cartan_tensor_update_autoregressive_state(cur_h, first_tok);
-                                e8_attention_forward_step(cur_h, 0.70);
-
-                                var t = 0.0;
-                                while (t < n_tokens - 1.0) {
-                                    let next_tok = tokens[2.0 + t + 1.0];
-                                    let step_loss = cartan_tensor_train_step(cur_h, next_tok, lr);
-                                    if (step_loss > 0.0) {
-                                        ep_loss_sum = ep_loss_sum + step_loss;
-                                        ep_step_count = ep_step_count + 1.0;
-                                        interval_loss_sum = interval_loss_sum + step_loss;
-                                        interval_step_count = interval_step_count + 1.0;
-                                    }
-                                    cartan_tensor_update_autoregressive_state(cur_h, next_tok);
-                                    e8_attention_forward_step(cur_h, 0.70);
-                                    t = t + 1.0;
-                                }
-                            }
-                        }
-                        cartan_vec_free(tokens);
-                        free(sample_text);
-
-                        d_chunks = d_chunks + 1.0;
-                        total_chunks_ep = total_chunks_ep + 1.0;
-
-                        var cur_loss = 0.0;
-                        if (ep_step_count > 0.0) {
-                            cur_loss = ep_loss_sum / ep_step_count;
-                        }
-                        if (total_chunks_ep == 1.0) {
-                            smoothed_loss = cur_loss;
-                        } else {
-                            smoothed_loss = smoothed_loss * 0.98 + cur_loss * 0.02;
-                        }
-
-                        // Save state to manifest every 250 lines
-                        if (math_mod_val(d_chunks, 250.0) == 0.0) {
-                            if (manifest_mode == 1.0) {
-                                geomind_manifest_save(manifest_path, datasets_list, d_idx, next_line_start, ep, lr);
+                                g_has_prev_chunk_h = 0.0;
                             }
                         }
 
-                        // Save 52.4 MB binary checkpoint weights every 1000 lines or at dataset completion
-                        if (math_mod_val(d_chunks, 1000.0) == 0.0 || next_line_start >= content_len) {
-                            train_sync_weights_gpu_to_host();
-                            cartan_safetensors_save_tensor_f32(ckpt_path, "model.weights", g_cortical_weights);
-                        }
-
-                        if (math_mod_val(d_chunks, 100.0) == 0.0 || d_chunks == 1.0 || next_line_start >= content_len) {
-                            let pct = (next_line_start / content_len) * 100.0;
-                            let kb_done = next_line_start / 1024.0;
-                            let kb_total = content_len / 1024.0;
-                            var atl = 0.0;
-                            if (ep_step_count > 0.0) {
-                                atl = ep_loss_sum / ep_step_count;
-                            }
-                            var tl = atl;
-                            if (interval_step_count > 0.0) {
-                                tl = interval_loss_sum / interval_step_count;
-                            }
-                            interval_loss_sum = 0.0;
-                            interval_step_count = 0.0;
-                            var vppl = 0.0;
-                            var holdout_path = "test/geomind/trainingdata/cloze_validation_holdout.txt";
-                            if (stage_mode == 2.0) {
-                                holdout_path = "test/geomind/trainingdata/pretrain_validation_holdout.txt";
-                            }
-                            let vl = geomind_compute_validation_loss(holdout_path, cur_h_val);
-                            if (vl > 0.0) {
-                                if (ema_val_loss <= 0.0) {
-                                    ema_val_loss = vl;
-                                    prev_ema_val_loss = vl;
+                        // Prequential Stream Validation: Evaluate unseen upcoming chunk out-of-sample before training updates
+                        let v_loss_raw = geomind_train_chunk_gpu_pipelined(train_tokens, 0.0);
+                        if (g_last_val_chunk_steps > 0.0) {
+                            let c_vloss = v_loss_raw / g_last_val_chunk_steps;
+                            if (c_vloss > 0.0) {
+                                vl = c_vloss;
+                                let prev_dvl = cartan_vec_get_f32(domain_val_losses, d_idx);
+                                if (prev_dvl <= 0.0) {
+                                    cartan_vec_set_f32(domain_val_losses, d_idx, c_vloss);
                                 } else {
-                                    prev_ema_val_loss = ema_val_loss;
-                                    ema_val_loss = ema_val_loss * 0.95 + vl * 0.05;
-                                }
-
-                                if (ema_val_loss > 0.0 && ema_val_loss < 80.0) {
-                                    vppl = exp(ema_val_loss);
-                                } else if (ema_val_loss >= 80.0) {
-                                    vppl = 999999.0;
-                                }
-
-                            }
-
-                            // Closed-Loop Training Perplexity (TPPL) Centering Controller
-                            // Direct feedback from training perplexity: decays when TPPL rises/oscillates,
-                            // holds LR steady without decay when in stable descent, and nudges upward if progress stalls.
-                            var cur_tppl = 0.0;
-                            if (tl > 0.0 && tl < 80.0) {
-                                cur_tppl = exp(tl);
-                            } else if (tl >= 80.0) {
-                                cur_tppl = 999999.0;
-                            }
-
-                            if (ema_tppl <= 0.0) {
-                                ema_tppl = cur_tppl;
-                                prev_ema_tppl = cur_tppl;
-                            } else {
-                                prev_ema_tppl = ema_tppl;
-                                ema_tppl = ema_tppl * 0.75 + cur_tppl * 0.25;
-                            }
-
-                            if (ep_step_count > 200.0 && prev_ema_tppl > 0.0) {
-                                let delta_tppl = ema_tppl - prev_ema_tppl;
-
-                                var val_divergent = 0.0;
-                                if (ema_val_loss > 0.0 && atl > 0.0 && ema_val_loss > (atl * 1.35) && (ema_val_loss - atl) > 1.20) {
-                                    val_divergent = 1.0;
-                                }
-
-                                // Target-Loss Progress Annealing Schedule
-                                // Dynamically steers the learning rate based on global descent progress toward target loss (t_loss).
-                                // As ATL approaches t_loss, LR smoothly cools down from 0.0024 down to 0.0006,
-                                // preventing late-stage valley overshoot while maintaining momentum across plateaus.
-                                if (ep_step_count > 100.0 && atl > 0.0 && t_loss > 0.0) {
-                                    var loss_span = 4.40 - t_loss;
-                                    if (loss_span <= 0.10) { loss_span = 0.10; }
-                                    var progress_ratio = (atl - t_loss) / loss_span;
-                                    if (progress_ratio > 1.0) { progress_ratio = 1.0; }
-                                    if (progress_ratio < 0.0) { progress_ratio = 0.0; }
-                                    let target_annealed_lr = lr_floor + (stage_ceiling_lr - lr_floor) * progress_ratio;
-
-                                    // Smoothly track annealed target rate (10% momentum update per interval) when validation is healthy
-                                    if (val_divergent == 0.0) {
-                                        lr = lr * 0.90 + target_annealed_lr * 0.10;
-                                    }
+                                    cartan_vec_set_f32(domain_val_losses, d_idx, prev_dvl * 0.85 + c_vloss * 0.15);
                                 }
                             }
-
-                            // Closed-Loop Validation Divergence & Overfitting Braking
-                            if (ep_step_count > 200.0 && ema_val_loss > 0.0 && atl > 0.0) {
-                                // 1. Generalization gap divergence: validation loss drifting significantly higher than training loss
-                                if (ema_val_loss > (atl * 1.35) && (ema_val_loss - atl) > 1.20) {
-                                    let old_lr = lr;
-                                    lr = lr * 0.92;
-                                    if (lr < lr_floor) { lr = lr_floor; }
-                                    if (lr < old_lr) {
-                                        printf("[Adaptive LR] Validation divergence detected (AVL: %s > ATL: %s * 1.35). Braked LR: %s -> %s\n",
-                                            cartan_float_to_string(ema_val_loss), cartan_float_to_string(atl),
-                                            cartan_float_to_string(old_lr), cartan_float_to_string(lr));
-                                        cartan_flush(0.0);
-                                    }
-                                } else if (prev_ema_val_loss > 0.0 && (ema_val_loss - prev_ema_val_loss) > 0.05) {
-                                    // 2. Rising validation loss trend: validation loss steadily climbing
-                                    let old_lr = lr;
-                                    lr = lr * 0.95;
-                                    if (lr < lr_floor) { lr = lr_floor; }
-                                    if (lr < old_lr) {
-                                        printf("[Adaptive LR] Validation loss climbing (AVL: %s -> %s). Braked LR: %s -> %s\n",
-                                            cartan_float_to_string(prev_ema_val_loss), cartan_float_to_string(ema_val_loss),
-                                            cartan_float_to_string(old_lr), cartan_float_to_string(lr));
-                                        cartan_flush(0.0);
-                                    }
-                                }
-                            }
-
-                            // Emergency Divergence Spike Braking (Unconditional on absolute loss magnitude)
-                            if (ep_step_count > 300.0 && tl > 5.0 && tl > (atl * 1.25)) {
-                                let old_lr = lr;
-                                lr = lr * 0.90;
-                                if (lr < lr_floor) { lr = lr_floor; }
-                                if (lr < old_lr) {
-                                    printf("[Adaptive LR] Divergence spike detected (TL: %s > ATL: %s * 1.25). Braked LR: %s -> %s\n",
-                                        cartan_float_to_string(tl), cartan_float_to_string(atl),
-                                        cartan_float_to_string(old_lr), cartan_float_to_string(lr));
-                                    cartan_flush(0.0);
-                                }
-                            }
-                            var ep_max_str = cartan_float_to_string(epochs);
-                            if (epochs >= 100000.0) {
-                                ep_max_str = "Inf";
-                            }
-                            printf("[GeoMind %s Stream] Ep %s/%s | D[%s/%s] | %s%% (%s / %s KB) | TL: %s | ATL: %s | TPPL: %s\n",
-                                stage_name, cartan_float_to_string(ep), ep_max_str,
-                                cartan_float_to_string(d_idx + 1.0), cartan_float_to_string(num_datasets),
-                                cartan_float_to_string(pct), cartan_float_to_string(kb_done),
-                                cartan_float_to_string(kb_total), cartan_float_to_string(tl),
-                                cartan_float_to_string(atl), cartan_float_to_string(cur_tppl));
-                            printf("  -> VL: %s | AVL: %s | VPPL: %s | LR: %s\n",
-                                cartan_float_to_string(vl), cartan_float_to_string(ema_val_loss),
-                                cartan_float_to_string(vppl), cartan_float_to_string(lr));
-                            cartan_flush(0.0);
-
-                            let p1 = cartan_string_concat("[GeoMind ", cartan_string_concat(stage_name, " Stream] Ep "));
-                            let p2 = cartan_string_concat(cartan_float_to_string(ep), cartan_string_concat(" | TL: ", cartan_float_to_string(tl)));
-                            let p3 = cartan_string_concat(" | ATL: ", cartan_string_concat(cartan_float_to_string(atl), cartan_string_concat(" | TPPL: ", cartan_float_to_string(cur_tppl))));
-                            let p4 = cartan_string_concat(" | VL: ", cartan_string_concat(cartan_float_to_string(vl), cartan_string_concat(" | AVL: ", cartan_float_to_string(ema_val_loss))));
-                            let p5 = cartan_string_concat(" | VPPL: ", cartan_string_concat(cartan_float_to_string(vppl), cartan_string_concat(" | LR: ", cartan_string_concat(cartan_float_to_string(lr), "\n"))));
-                            let log_entry = cartan_string_concat(cartan_string_concat(p1, p2), cartan_string_concat(p3, cartan_string_concat(p4, p5)));
-                            cartan_append_file(log_file, log_entry);
+                            if (vl > 0.0 && vl < 80.0) { ivppl = exp(vl); }
+                            v_ent = g_last_val_chunk_entropy_sum / g_last_val_chunk_steps;
+                            v_cert = (g_last_val_chunk_certainty_sum / g_last_val_chunk_steps) * 100.0;
                         }
+                        if (total_chunks_trained == 0.0) {
+                            printf("[GeoMind Evaluation] Baseline Validation Loss: %s | Baseline VPPL: %s | VENT: %sb | VCERT: %s%%\n\n",
+                                cartan_float_to_string(vl), cartan_float_to_string(ivppl),
+                                cartan_float_to_string(v_ent), cartan_float_to_string(v_cert));
+                            cartan_flush(0.0);
+                        }
+                        // Restore pre-validation recurrent context for domain d_idx so training pass starts unperturbed
+                        if (g_train_gpu_mounted == 1.0 && g_buf_domain_h != 0.0) {
+                            if (cartan_vec_get_f32(domain_has_prev, d_idx) == 1.0) {
+                                cartan_gpu_set_arg_buf(g_pipe_copy_domain_h, 0.0, g_buf_domain_h);
+                                cartan_gpu_set_arg_buf(g_pipe_copy_domain_h, 1.0, g_buf_prev_chunk_h);
+                                cartan_gpu_set_arg_i32(g_pipe_copy_domain_h, 2.0, d_idx);
+                                cartan_gpu_set_arg_i32(g_pipe_copy_domain_h, 3.0, 2560.0);
+                                cartan_gpu_set_arg_i32(g_pipe_copy_domain_h, 4.0, 0.0);
+                                cartan_gpu_launch(g_pipe_copy_domain_h, 2560.0, 1.0, 1.0);
+                                g_has_prev_chunk_h = 1.0;
+                            } else {
+                                g_has_prev_chunk_h = 0.0;
+                            }
+                        }
+
+                        // Autoregressive forward, fused softmax & reverse Randers backward step
+                        let chunk_loss = geomind_train_chunk_gpu_pipelined(train_tokens, lr);
+
+                            // Stash terminal recurrent context into domain d_idx slot
+                            if (g_train_gpu_mounted == 1.0 && g_buf_domain_h != 0.0 && lr > 0.0) {
+                                cartan_gpu_set_arg_buf(g_pipe_copy_domain_h, 0.0, g_buf_domain_h);
+                                cartan_gpu_set_arg_buf(g_pipe_copy_domain_h, 1.0, g_buf_prev_chunk_h);
+                                cartan_gpu_set_arg_i32(g_pipe_copy_domain_h, 2.0, d_idx);
+                                cartan_gpu_set_arg_i32(g_pipe_copy_domain_h, 3.0, 2560.0);
+                                cartan_gpu_set_arg_i32(g_pipe_copy_domain_h, 4.0, 1.0);
+                                cartan_gpu_launch(g_pipe_copy_domain_h, 2560.0, 1.0, 1.0);
+                                cartan_vec_set_f32(domain_has_prev, d_idx, 1.0);
+                            }
+                            if (g_last_chunk_valid_steps > 0.0) {
+                                let c_loss = chunk_loss / g_last_chunk_valid_steps;
+                                if (c_loss > 0.0) {
+                                    let prev_dl = cartan_vec_get_f32(domain_losses, d_idx);
+                                    if (prev_dl <= 0.0) {
+                                        cartan_vec_set_f32(domain_losses, d_idx, c_loss);
+                                    } else {
+                                        cartan_vec_set_f32(domain_losses, d_idx, prev_dl * 0.85 + c_loss * 0.15);
+                                    }
+                                }
+
+                                ep_loss_sum = ep_loss_sum + chunk_loss;
+                                ep_ent_sum = ep_ent_sum + g_last_chunk_entropy_sum;
+                                ep_cert_sum = ep_cert_sum + g_last_chunk_certainty_sum;
+                                ep_surp_sum = ep_surp_sum + g_last_chunk_surprise_sum;
+                                ep_step_count = ep_step_count + g_last_chunk_valid_steps;
+
+                                interval_loss_sum = interval_loss_sum + chunk_loss;
+                                interval_ent_sum = interval_ent_sum + g_last_chunk_entropy_sum;
+                                interval_cert_sum = interval_cert_sum + g_last_chunk_certainty_sum;
+                                interval_surp_sum = interval_surp_sum + g_last_chunk_surprise_sum;
+                                interval_step_count = interval_step_count + g_last_chunk_valid_steps;
+
+                                total_chunks_ep = total_chunks_ep + 1.0;
+                                total_chunks_trained = total_chunks_trained + 1.0;
+                                slice_chunks = slice_chunks + 1.0;
+                                bytes_ingested_epoch = bytes_ingested_epoch + (next_line_start - line_start);
+                                cartan_vec_set_f32(offsets_list, d_idx, next_line_start);
+
+
+                                // 3. Telemetry & Controller Interval Check every 10 trained chunks (per domain slice)
+                                if (math_mod_val(total_chunks_trained, 10.0) == 0.0) {
+                                    let pct = (bytes_ingested_epoch / total_corpus_bytes) * 100.0;
+                                    let kb_done = bytes_ingested_epoch / 1024.0;
+                                    let kb_total = total_corpus_bytes / 1024.0;
+                                    var tl = 0.0;
+                                    var cur_ent = 0.0;
+                                    var cur_cert = 0.0;
+                                    if (interval_step_count > 0.0) {
+                                        tl = interval_loss_sum / interval_step_count;
+                                        cur_ent = interval_ent_sum / interval_step_count;
+                                        cur_cert = (interval_cert_sum / interval_step_count) * 100.0;
+                                    }
+                                    if (tl > 0.0) {
+                                        var sum_dl = 0.0;
+                                        var count_dl = 0.0;
+                                        var dl_i = 0.0;
+                                        while (dl_i < num_datasets) {
+                                            let d_val = cartan_vec_get_f32(domain_losses, dl_i);
+                                            if (d_val > 0.0) {
+                                                sum_dl = sum_dl + d_val;
+                                                count_dl = count_dl + 1.0;
+                                            }
+                                            dl_i = dl_i + 1.0;
+                                        }
+                                        var mix_loss = tl;
+                                        if (count_dl > 0.0) {
+                                            mix_loss = sum_dl / count_dl;
+                                        }
+                                        if (ema_train_loss <= 0.0) {
+                                            ema_train_loss = mix_loss;
+                                        } else {
+                                            ema_train_loss = ema_train_loss * 0.80 + mix_loss * 0.20;
+                                        }
+                                        atl = ema_train_loss;
+
+                                        // Balanced Multi-Domain Validation Mixture Average across all active datasets
+                                        var sum_dvl = 0.0;
+                                        var count_dvl = 0.0;
+                                        var dvl_i = 0.0;
+                                        while (dvl_i < num_datasets) {
+                                            let dv_val = cartan_vec_get_f32(domain_val_losses, dvl_i);
+                                            if (dv_val > 0.0) {
+                                                sum_dvl = sum_dvl + dv_val;
+                                                count_dvl = count_dvl + 1.0;
+                                            }
+                                            dvl_i = dvl_i + 1.0;
+                                        }
+                                        var mix_vloss = vl;
+                                        if (count_dvl > 0.0) {
+                                            mix_vloss = sum_dvl / count_dvl;
+                                        }
+                                        prev_ema_val_loss = ema_val_loss;
+                                        if (ema_val_loss <= 0.0) {
+                                            ema_val_loss = mix_vloss;
+                                        } else {
+                                            ema_val_loss = ema_val_loss * 0.80 + mix_vloss * 0.20;
+                                        }
+                                        if (ema_val_loss > 0.0 && ema_val_loss < 80.0) {
+                                            vppl = exp(ema_val_loss);
+                                        }
+                                    }
+                                    interval_loss_sum = 0.0;
+                                    interval_ent_sum = 0.0;
+                                    interval_cert_sum = 0.0;
+                                    interval_surp_sum = 0.0;
+                                    interval_step_count = 0.0;
+
+                                    var itppl = 0.0;
+                                    if (tl > 0.0 && tl < 80.0) {
+                                        itppl = exp(tl);
+                                    }
+                                    cur_tppl = 0.0;
+                                    if (atl > 0.0 && atl < 80.0) {
+                                        cur_tppl = exp(atl);
+                                    } else if (atl >= 80.0) {
+                                        cur_tppl = 999999.0;
+                                    }
+
+                                    if (atl > 0.0 && atl <= t_loss) {
+                                        target_loss_reached = 1.0;
+                                    }
+
+
+                                    // Target-Loss Annealing: Smooth monotonic descent toward lr_floor as training converges
+                                    if (stage_mode == 2.0 && t_loss > 0.0) {
+                                        let initial_loss_ref = 6.00;
+                                        let loss_span = initial_loss_ref - t_loss;
+                                        if (loss_span > 0.0) {
+                                            var progress_ratio = (atl - t_loss) / loss_span;
+                                            if (progress_ratio > 1.0) { progress_ratio = 1.0; }
+                                            if (progress_ratio < 0.0) { progress_ratio = 0.0; }
+                                            let target_annealed_lr = lr_floor + (stage_ceiling_lr - lr_floor) * progress_ratio;
+                                            lr = lr * 0.90 + target_annealed_lr * 0.10;
+                                        }
+                                    }
+
+                                    // Emergency Divergence Spike Braking (safety valve for true loss blowup only)
+                                    if (ep_step_count > 300.0 && tl > 9.0) {
+                                        lr = lr * 0.90;
+                                    }
+                                    if (lr < lr_floor) { lr = lr_floor; }
+                                    if (lr > stage_ceiling_lr) { lr = stage_ceiling_lr; }
+
+                                    // Decoupled Dual-Temperature Controller:
+                                    // 1. Lock VTemp strictly to invariant evaluation temperature (1.0) for pure cross-entropy
+                                    g_val_temperature = 1.0;
+
+                                    // 2. Dynamic TTemp: Adaptive training gradient softening driven by clean generalization gap
+                                    if (ema_val_loss > 0.0 && atl > 0.0) {
+                                        let val_gap = ema_val_loss - atl;
+                                        let val_vel = ema_val_loss - prev_ema_val_loss;
+
+                                        var target_ttemp = base_train_temp;
+                                        if (val_gap > 0.10) {
+                                            var gap_calib = (val_gap - 0.10) * 0.50;
+                                            if (gap_calib > 0.35) { gap_calib = 0.35; }
+                                            target_ttemp = base_train_temp + gap_calib;
+                                        }
+                                        if (val_vel > 0.005) {
+                                            target_ttemp = target_ttemp + 0.05;
+                                        }
+                                        if (target_ttemp > 1.35) { target_ttemp = 1.35; }
+                                        if (target_ttemp < base_train_temp) { target_ttemp = base_train_temp; }
+                                        g_train_temperature = g_train_temperature * 0.85 + target_ttemp * 0.15;
+                                    } else {
+                                        g_train_temperature = base_train_temp;
+                                    }
+
+                                    var ep_max_str = cartan_float_to_string(epochs);
+                                    if (epochs >= 100000.0) {
+                                        ep_max_str = "Inf";
+                                    }
+                                    printf("[GeoMind %s Stream] Ep %s/%s | Interleaved Stream [%s Datasets] | 10-Domain Cycle Complete (D1-D%s)\n",
+                                        stage_name, cartan_float_to_string(ep), ep_max_str,
+                                        cartan_float_to_string(num_datasets),
+                                        cartan_float_to_string(num_datasets));
+                                    printf("  Progress -> %s%% (%s / %s KB) | LR: %s | TTemp: %s | VTemp: %s\n",
+                                        cartan_float_to_string(pct), cartan_float_to_string(kb_done),
+                                        cartan_float_to_string(kb_total), cartan_float_to_string(lr),
+                                        cartan_float_to_string(g_train_temperature),
+                                        cartan_float_to_string(g_val_temperature));
+                                    printf("  Train -> TL: %s | ATL: %s | ITPPL: %s | ATPPL: %s | ENT: %sb | CERT: %s%%\n",
+                                        cartan_float_to_string(tl), cartan_float_to_string(atl), cartan_float_to_string(itppl),
+                                        cartan_float_to_string(cur_tppl), cartan_float_to_string(cur_ent),
+                                        cartan_float_to_string(cur_cert));
+                                    printf("  Val   -> VL: %s | AVL: %s | IVPPL: %s | AVPPL: %s | VENT: %sb | VCERT: %s%%\n\n",
+                                        cartan_float_to_string(vl), cartan_float_to_string(ema_val_loss),
+                                        cartan_float_to_string(ivppl), cartan_float_to_string(vppl),
+                                        cartan_float_to_string(v_ent), cartan_float_to_string(v_cert));
+                                    cartan_flush(0.0);
+
+                                    let l1_a = cartan_string_concat("[GeoMind ", cartan_string_concat(stage_name, " Stream] Ep "));
+                                    let l1_b = cartan_string_concat(cartan_float_to_string(ep), cartan_string_concat("/", ep_max_str));
+                                    let l1_c = cartan_string_concat(" | Interleaved Stream [", cartan_string_concat(cartan_float_to_string(num_datasets), " Datasets] | 10-Domain Cycle Complete\n"));
+                                    let line1 = cartan_string_concat(cartan_string_concat(l1_a, l1_b), l1_c);
+
+                                    let l2_a = cartan_string_concat("  Progress -> ", cartan_string_concat(cartan_float_to_string(pct), cartan_string_concat("% (", cartan_string_concat(cartan_float_to_string(kb_done), cartan_string_concat(" / ", cartan_string_concat(cartan_float_to_string(kb_total), " KB) | LR: "))))));
+                                    let l2_b = cartan_string_concat(cartan_float_to_string(lr), cartan_string_concat(" | TTemp: ", cartan_string_concat(cartan_float_to_string(g_train_temperature), cartan_string_concat(" | VTemp: ", cartan_string_concat(cartan_float_to_string(g_val_temperature), "\n")))));
+                                    let line2 = cartan_string_concat(l2_a, l2_b);
+
+                                    let l3_a = cartan_string_concat("  Train -> TL: ", cartan_string_concat(cartan_float_to_string(tl), cartan_string_concat(" | ATL: ", cartan_float_to_string(atl))));
+                                    let l3_b = cartan_string_concat(" | ITPPL: ", cartan_string_concat(cartan_float_to_string(itppl), cartan_string_concat(" | ATPPL: ", cartan_float_to_string(cur_tppl))));
+                                    let l3_c = cartan_string_concat(" | ENT: ", cartan_string_concat(cartan_float_to_string(cur_ent), cartan_string_concat("b | CERT: ", cartan_string_concat(cartan_float_to_string(cur_cert), "%\n"))));
+                                    let line3 = cartan_string_concat(l3_a, cartan_string_concat(l3_b, l3_c));
+
+                                    let l4_a = cartan_string_concat("  Val   -> VL: ", cartan_string_concat(cartan_float_to_string(vl), cartan_string_concat(" | AVL: ", cartan_float_to_string(ema_val_loss))));
+                                    let l4_b = cartan_string_concat(" | IVPPL: ", cartan_string_concat(cartan_float_to_string(ivppl), cartan_string_concat(" | AVPPL: ", cartan_float_to_string(vppl))));
+                                    let l4_c = cartan_string_concat(" | VENT: ", cartan_string_concat(cartan_float_to_string(v_ent), cartan_string_concat("b | VCERT: ", cartan_string_concat(cartan_float_to_string(v_cert), "%\n\n"))));
+                                    let line4 = cartan_string_concat(l4_a, cartan_string_concat(l4_b, l4_c));
+
+                                    let log_entry = cartan_string_concat(cartan_string_concat(line1, line2), cartan_string_concat(line3, line4));
+                                    cartan_append_file(log_file, log_entry);
+
+                                    // Save manifest checkpoint every 10 chunks
+                                    if (manifest_mode == 1.0) {
+                                        geomind_manifest_save_interleaved(manifest_path, datasets_list, offsets_list, d_idx, ep, lr);
+                                    }
+
+                                    // Save 52.4 MB binary checkpoint weights every 100 chunks
+                                    if (math_mod_val(total_chunks_trained, 100.0) == 0.0) {
+                                        train_sync_weights_gpu_to_host();
+                                        cartan_safetensors_save_tensor_f32(ckpt_path, "model.weights", g_cortical_weights);
+                                        cartan_safetensors_save_tensor_f32(emb_ckpt_path, "model.embeddings", g_embedding_weights);
+                                    }
+                                }
+                            } else {
+                                slice_chunks = slice_chunks + 1.0;
+                                cartan_vec_set_f32(offsets_list, d_idx, next_line_start);
+                            }
+                        } else {
+                            slice_chunks = slice_chunks + 1.0;
+                            cartan_vec_set_f32(offsets_list, d_idx, next_line_start);
+                        }
+                        cartan_vec_free(train_tokens);
+                        line_start = next_line_start;
                     }
 
-                    line_start = next_line_start;
+                // Update offset for dataset d_idx
+                if (line_start >= content_len) {
+                    cartan_vec_set_f32(offsets_list, d_idx, 0.0);
+                    cartan_vec_set_f32(domain_has_prev, d_idx, 0.0);
+                } else {
+                    cartan_vec_set_f32(offsets_list, d_idx, line_start);
                 }
-                free(file_content);
-            } else {
-                printf("[Steady-State Stage: %s] Warning: Dataset not found on disk: %s (Skipping)\n",
-                    stage_name, dataset_file);
-                cartan_flush(0.0);
             }
 
+            // Rotate round-robin to next dataset
             d_idx = d_idx + 1.0;
-            cur_offset = 0.0; // Subsequent datasets start at offset 0
-            if (manifest_mode == 1.0) {
-                geomind_manifest_save(manifest_path, datasets_list, d_idx, 0.0, ep, lr);
+            if (d_idx >= num_datasets) {
+                d_idx = 0.0;
             }
-            train_sync_weights_gpu_to_host();
-            cartan_safetensors_save_tensor_f32(ckpt_path, "model.weights", g_cortical_weights);
+
+            if (target_loss_reached == 1.0) {
+                break;
+            }
         }
 
         // Epoch Complete across all datasets
         cur_d_idx = 0.0;
-        cur_offset = 0.0;
+        var r_idx = 0.0;
+        while (r_idx < num_datasets) {
+            cartan_vec_set_f32(offsets_list, r_idx, 0.0);
+            cartan_vec_set_f32(domain_has_prev, r_idx, 0.0);
+            r_idx = r_idx + 1.0;
+        }
+        ep = ep + 1.0;
         if (manifest_mode == 1.0) {
-            geomind_manifest_save(manifest_path, datasets_list, 0.0, 0.0, ep + 1.0, lr);
+            geomind_manifest_save_interleaved(manifest_path, datasets_list, offsets_list, 0.0, ep, lr);
+        }
+        train_sync_weights_gpu_to_host();
+        cartan_safetensors_save_tensor_f32(ckpt_path, "model.weights", g_cortical_weights);
+        cartan_safetensors_save_tensor_f32(emb_ckpt_path, "model.embeddings", g_embedding_weights);
+
+        if (target_loss_reached == 1.0) {
+            printf("[Steady-State Stage: %s] Target loss reached (%s <= %s). Training complete!\n",
+                stage_name, cartan_float_to_string(atl), cartan_float_to_string(t_loss));
+            break;
         }
 
         if (ep_step_count <= 0.0) {
             printf("[Steady-State Stage: %s] Error: Zero training steps executed in Epoch %s (Datasets missing or unreadable). Aborting to preserve checkpoints.\n",
                 stage_name, cartan_float_to_string(ep));
             cartan_flush(0.0);
-            geomind_free_val_cache();
             cartan_vec_free(cur_h);
-            cartan_vec_free(cur_h_val);
+            cartan_vec_free(domain_losses);
+            cartan_vec_free(domain_val_losses);
+            cartan_vec_free(domain_has_prev);
             return 0.0;
         }
         final_loss = ep_loss_sum / ep_step_count;
@@ -1829,15 +2313,21 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
         if (epochs >= 100000.0) {
             ep_max_disp = "Inf";
         }
-        printf("[Steady-State Stage: %s] === Epoch %s / %s Complete === | Ingested: %s datasets (%s chunks, %s steps) | Mean Loss: %s (EMA: %s) | LR: %s\n",
+        let ep_mean_ent = ep_ent_sum / ep_step_count;
+        let ep_mean_cert = (ep_cert_sum / ep_step_count) * 100.0;
+        printf("[Steady-State Stage: %s] === Epoch %s / %s Complete === | Ingested: %s datasets (%s chunks, %s steps) | Mean Loss: %s (EMA: %s) | Mean ENT: %sb | Mean CERT: %s%% | LR: %s | TTemp: %s | VTemp: %s\n",
             stage_name, cartan_float_to_string(ep), ep_max_disp,
             cartan_float_to_string(num_datasets), cartan_float_to_string(total_chunks_ep),
             cartan_float_to_string(ep_step_count), cartan_float_to_string(final_loss),
-            cartan_float_to_string(smoothed_loss), cartan_float_to_string(lr));
+            cartan_float_to_string(smoothed_loss), cartan_float_to_string(ep_mean_ent),
+            cartan_float_to_string(ep_mean_cert), cartan_float_to_string(lr),
+            cartan_float_to_string(g_train_temperature),
+            cartan_float_to_string(g_val_temperature));
         cartan_flush(0.0);
 
         train_sync_weights_gpu_to_host();
         cartan_safetensors_save_tensor_f32(ckpt_path, "model.weights", g_cortical_weights);
+        cartan_safetensors_save_tensor_f32(emb_ckpt_path, "model.embeddings", g_embedding_weights);
 
         if (final_loss <= t_loss && ep >= 1.0) {
             printf("[Steady-State Stage: %s] Sustained convergence to target loss %s (Final Epoch Loss: %s) after full epoch %s!\n",
@@ -1846,7 +2336,6 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
         } else {
             lr = lr * 0.95;
             if (lr < lr_floor) { lr = lr_floor; }
-            ep = ep + 1.0;
         }
     }
 
@@ -1857,9 +2346,10 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
     cartan_flush(0.0);
     printf("[Steady-State Stage: %s] Training complete. Checkpoint saved: %s | Status: SUCCESS | Final Loss: %s\n\n",
         stage_name, ckpt_path, cartan_float_to_string(final_loss));
-    geomind_free_val_cache();
     cartan_vec_free(cur_h);
-    cartan_vec_free(cur_h_val);
+    cartan_vec_free(domain_losses);
+    cartan_vec_free(domain_val_losses);
+    cartan_vec_free(domain_has_prev);
     return final_loss;
 }
 

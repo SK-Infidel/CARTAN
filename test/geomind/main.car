@@ -202,7 +202,7 @@ fn check_and_apply_manifest_reset(target: string, arg_count: float, default_mani
             let list = geomind_manifest_parse_datasets(m_content);
             var reset_lr = 0.05;
             if (cartan_string_contains(m_path, "corpus.json") == 1.0) {
-                reset_lr = 0.001;
+                reset_lr = 0.0022;
             }
             geomind_manifest_save(m_path, list, 0.0, 0.0, 1.0, reset_lr);
             printf("[GeoMind Main] Manifest reset to dataset 0, offset 0.0, epoch 1.0 (LR: %s): %s\n", cartan_float_to_string(reset_lr), m_path);
@@ -279,14 +279,18 @@ fn get_cli_epochs(arg_count: float, default_val: float) -> float {
 fn geomind_eval_single_analogy(a_tok: float, b_tok: float, c_tok: float, expected_tok: float, a_name: string, b_name: string, c_name: string, exp_name: string) {
     let dim = 2560.0;
     let vocab = 2560.0;
+    var weights_table = g_cortical_weights;
+    if (g_embedding_weights != 0.0) {
+        weights_table = g_embedding_weights;
+    }
 
     let t_vec = cartan_tensor_alloc(dim);
     var norm_t = 0.0;
     var r = 0.0;
     while (r < dim) {
-        let va = cartan_vec_get_f32(g_cortical_weights, r * vocab + a_tok);
-        let vb = cartan_vec_get_f32(g_cortical_weights, r * vocab + b_tok);
-        let vc = cartan_vec_get_f32(g_cortical_weights, r * vocab + c_tok);
+        let va = cartan_vec_get_f32(weights_table, r * vocab + a_tok);
+        let vb = cartan_vec_get_f32(weights_table, r * vocab + b_tok);
+        let vc = cartan_vec_get_f32(weights_table, r * vocab + c_tok);
         let vt = va - vb + vc;
         cartan_vec_set_f32(t_vec, r, vt);
         let sub_idx = floor(r / 320.0);
@@ -310,7 +314,7 @@ fn geomind_eval_single_analogy(a_tok: float, b_tok: float, c_tok: float, expecte
             r = 0.0;
             while (r < dim) {
                 let vt = cartan_vec_get_f32(t_vec, r);
-                let vc = cartan_vec_get_f32(g_cortical_weights, r * vocab + col);
+                let vc = cartan_vec_get_f32(weights_table, r * vocab + col);
                 let sub_idx = floor(r / 320.0);
                 let g_r = geom_killing_form_dynkin_weight(sub_idx);
                 dot = dot + vt * vc * g_r;
@@ -584,12 +588,20 @@ fn main() -> float {
             }
             let lr = get_cli_param_float("-lr", arg_count, 0.0);
             let target_loss = get_cli_target_loss(arg_count, 2.50);
+            let user_temp = get_cli_param_float("-temp", arg_count, 1.0);
+            if (user_temp > 0.0) {
+                g_train_temperature = user_temp;
+            }
+            let user_val_temp = get_cli_param_float("-val-temp", arg_count, 1.0);
+            if (user_val_temp > 0.0) {
+                g_val_temperature = user_val_temp;
+            }
             let res = geomind_train_streaming_steady_state(1.0, target, target_loss, lr, epochs, "logs/stage1_cloze_training.log");
             cartan_flush(0.0);
             return 0.0;
         }
 
-        if (is_ce_mode(flag) == 1.0) {
+        if (is_ce_mode(flag) == 1.0 || is_pre_mode(flag) == 1.0) {
             let target = get_cli_train_target(arg_count);
             check_and_apply_manifest_reset(target, arg_count, "test/geomind/trainingdata/corpus.json");
             var epochs = 1000000.0;
@@ -598,6 +610,14 @@ fn main() -> float {
             }
             let lr = get_cli_param_float("-lr", arg_count, 0.0);
             let target_loss = get_cli_target_loss(arg_count, 3.00);
+            let user_temp = get_cli_param_float("-temp", arg_count, 1.0);
+            if (user_temp > 0.0) {
+                g_train_temperature = user_temp;
+            }
+            let user_val_temp = get_cli_param_float("-val-temp", arg_count, 1.0);
+            if (user_val_temp > 0.0) {
+                g_val_temperature = user_val_temp;
+            }
             let res = geomind_train_streaming_steady_state(2.0, target, target_loss, lr, epochs, "logs/stage2_ce_training.log");
             cartan_flush(0.0);
             return 0.0;
@@ -612,6 +632,14 @@ fn main() -> float {
             }
             let lr = get_cli_param_float("-lr", arg_count, 0.0);
             let target_loss = get_cli_target_loss(arg_count, 2.00);
+            let user_temp = get_cli_param_float("-temp", arg_count, 1.0);
+            if (user_temp > 0.0) {
+                g_train_temperature = user_temp;
+            }
+            let user_val_temp = get_cli_param_float("-val-temp", arg_count, 1.0);
+            if (user_val_temp > 0.0) {
+                g_val_temperature = user_val_temp;
+            }
             let res = geomind_train_streaming_steady_state(3.0, target, target_loss, lr, epochs, "logs/stage3_sft_training.log");
             cartan_flush(0.0);
             return 0.0;
@@ -687,10 +715,22 @@ fn main() -> float {
                 let loaded = cartan_safetensors_load_raw_tensor_f32(ckpt_path, total_params);
                 if (loaded != 0.0 && cartan_vec_len(loaded) == total_params) {
                     g_cortical_weights = loaded;
-                    printf("[Analogy Engine] Loaded cortical weights from: %s\n\n", ckpt_path);
+                    printf("[Analogy Engine] Loaded cortical LM head weights from: %s\n", ckpt_path);
                 }
             } else {
-                printf("[Analogy Engine] Warning: Checkpoint %s not found on disk!\n\n", ckpt_path);
+                printf("[Analogy Engine] Warning: Checkpoint %s not found on disk!\n", ckpt_path);
+            }
+            let emb_ckpt_path = cartan_string_concat(base_pfx, "trainingdata/checkpoints/geomind_embedding_weights.bin");
+            if (cartan_file_exists(emb_ckpt_path) == 1.0) {
+                let total_params = 2560.0 * 2560.0;
+                let loaded_emb = cartan_safetensors_load_raw_tensor_f32(emb_ckpt_path, total_params);
+                if (loaded_emb != 0.0 && cartan_vec_len(loaded_emb) == total_params) {
+                    g_embedding_weights = loaded_emb;
+                    printf("[Analogy Engine] Loaded decoupled embedding weights from: %s\n\n", emb_ckpt_path);
+                }
+            } else {
+                g_embedding_weights = g_cortical_weights;
+                printf("[Analogy Engine] Operating on cortical weights (tied embedding fallback).\n\n");
             }
             cartan_flush(0.0);
 
