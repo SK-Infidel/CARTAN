@@ -115,7 +115,7 @@ fn dynamic_arena_append_node(arena: DynamicDeltaArena, embedding_vec: ptr) -> fl
     return node_id;
 }
 
-// Appends an edge to node u's dynamic delta chain (CAS chunk append)
+// Appends an edge to node u's dynamic delta chain with multi-slot packing and chunk chaining
 fn dynamic_arena_append_edge(
     arena: DynamicDeltaArena,
     src_node: float,
@@ -127,24 +127,60 @@ fn dynamic_arena_append_edge(
         return 0.0;
     }
 
+    let buf = arena.arena_buffer;
+    let head_offset = collections_list_get(arena.delta_head_offsets, src_node);
+
+    // Case 1: Active chunk exists with available slot space (count < 4)
+    if (head_offset >= 0.0 && head_offset + 64.0 <= arena.used_bytes) {
+        let cur_cnt = cartan_byte_at(buf, head_offset + 63.0);
+        if (cur_cnt < 4.0) {
+            let slot = cur_cnt;
+            let dst_int = floor(dst_node);
+            let t_off = head_offset + (slot * 4.0);
+            cartan_set_byte(buf, t_off + 0.0, math_mod_val(dst_int, 256.0));
+            cartan_set_byte(buf, t_off + 1.0, math_mod_val(floor(dst_int / 256.0), 256.0));
+
+            let w_int = floor(weight * 100.0);
+            let w_off = head_offset + 28.0 + (slot * 4.0);
+            cartan_set_byte(buf, w_off, math_mod_val(w_int, 256.0));
+
+            cartan_set_byte(buf, head_offset + 56.0 + slot, rel_type);
+            cartan_set_byte(buf, head_offset + 63.0, cur_cnt + 1.0);
+            return 1.0;
+        }
+    }
+
+    // Case 2: No active chunk or current chunk is full (count >= 4) -> Allocate new 64-byte chunk
     if (arena.used_bytes + 64.0 > arena.capacity_bytes) {
         return 0.0; // Arena full
     }
 
-    // Allocate 64-byte chunk
     let chunk_offset = arena.used_bytes;
     arena.used_bytes = arena.used_bytes + 64.0;
 
-    let buf = arena.arena_buffer;
     // Set target node 0
     let dst_int = floor(dst_node);
     cartan_set_byte(buf, chunk_offset + 0.0, math_mod_val(dst_int, 256.0));
     cartan_set_byte(buf, chunk_offset + 1.0, math_mod_val(floor(dst_int / 256.0), 256.0));
-    // Set weight (store integer representation)
+
+    // Set weight 0
     let w_int = floor(weight * 100.0);
     cartan_set_byte(buf, chunk_offset + 28.0, math_mod_val(w_int, 256.0));
-    // Set relation type
+
+    // Set relation type 0
     cartan_set_byte(buf, chunk_offset + 56.0, rel_type);
+
+    // Link previous chunk offset into bytes 60..62
+    if (head_offset >= 0.0) {
+        cartan_set_byte(buf, chunk_offset + 60.0, math_mod_val(head_offset, 256.0));
+        cartan_set_byte(buf, chunk_offset + 61.0, math_mod_val(floor(head_offset / 256.0), 256.0));
+        cartan_set_byte(buf, chunk_offset + 62.0, math_mod_val(floor(head_offset / 65536.0), 256.0));
+    } else {
+        cartan_set_byte(buf, chunk_offset + 60.0, 255.0);
+        cartan_set_byte(buf, chunk_offset + 61.0, 255.0);
+        cartan_set_byte(buf, chunk_offset + 62.0, 255.0);
+    }
+
     // Set count = 1
     cartan_set_byte(buf, chunk_offset + 63.0, 1.0);
 

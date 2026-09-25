@@ -2485,24 +2485,77 @@ This file tracks technical debt and bugs identified during repository code revie
 
 ---
 
-## [ISSUE-168] [BACKLOG] Root Invariant Erosion in Chat RLHF
+## [ISSUE-168] [ACTIVE - SPRINT 426] Root Invariant Erosion in Chat RLHF
 - **Severity**: High (Safety & Axiomatic Protection)
 - **Component**: [`test/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl#L736-L741)
 - **Description**:
   1. In `geomind_chat_apply_human_feedback`, negative reward (`reward = -1.0`) executes Hebbian edge decay over edges `0..3` (`while (e_idx < num_edges && e_idx < 4.0)`).
   2. Edges `0..3` in the NSES graph represent Domain 0 Axiomatic Root Invariants (energy conservation, mathematical identity). Negative human feedback on a conversational turn directly decays core system axioms.
-- **Backlog Planned Action**: Protect Domain 0 edges with an invariant immutability whitelist; decay only active conversational edges traversed during the specific turn.
+- **Planned Action**: Protect Domain 0 edges with an invariant immutability whitelist (`e_idx >= 4.0`); decay only conversational edges.
 
 ---
 
-## [ISSUE-169] [BACKLOG] Per-Turn Vector Leak in Interactive Chat
+## [ISSUE-169] [ACTIVE - SPRINT 426] Per-Turn Vector Leak in Interactive Chat
 - **Severity**: Medium (Memory Leak & Long-Session Stability)
 - **Component**: [`test/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl#L466-L588), [`L696-L784`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl#L696-L784)
 - **Description**:
   1. In `geomind_chat_generate_reply_multimodal`, vectors `prompt_tokens`, `hidden_state`, `vis_stream`, `aud_stream`, `recalled_val`, and `history` are never freed at turn exit.
   2. In the generation loop, each token step reassigns `mom` and `cur_h` to newly allocated vectors without freeing previous steps, leaking $\sim 5\text{ MB}$ per turn.
   3. `reply_toks`, `corr_toks`, and prompt vectors in feedback and correction handlers are abandoned.
-- **Backlog Planned Action**: Implement complete turn-exit memory cleanup and vector reclamation in `chat.cl`.
+- **Planned Action**: Implement complete turn-exit memory cleanup and vector reclamation in `chat.cl`.
+
+---
+
+## [ISSUE-170] [ACTIVE - SPRINT 426] Salient Attractor Bank Leak in Hopfield Relaxation
+- **Severity**: High (Memory Leak & GPU Manifold Degradation)
+- **Component**: [`src/std/resonator.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/resonator.cl#L248-L297)
+- **Description**:
+  1. In `resonator_salient_hopfield_relax`, `let chosen_bank = cartan_tree_create();` is allocated to accumulate Top-K salient attractors.
+  2. `chosen_bank` is passed into `resonator_continuous_hopfield_relax` and never deallocated, leaking both tree header and data buffers on every relaxation.
+- **Planned Action**: Implement `resonator_free_bank_tree` and deallocate `chosen_bank` prior to function return.
+
+---
+
+## [ISSUE-171] [ACTIVE - SPRINT 426] Autoregressive Per-Step Vector Leak in resonator_compute_energy
+- **Severity**: High (Autoregressive Memory Growth)
+- **Component**: [`src/std/resonator.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/resonator.cl#L355-L384)
+- **Description**:
+  1. In `resonator_compute_energy`, `let dots = cartan_vec_create();` is allocated on every evaluation step.
+  2. The function returns `energy` without calling `cartan_vec_free(dots)`, leaking a 64 KB vector buffer per token generation step.
+- **Planned Action**: Free `dots` via `cartan_vec_free(dots)` before returning `energy`.
+
+---
+
+## [ISSUE-172] [ACTIVE - SPRINT 426] Multi-Edge Dynamic Delta Dropping & Orphaning (Overwritten Chunks, Single-Slot Reader)
+- **Severity**: Critical (Knowledge Base & Plasticity Integrity)
+- **Component**: [`src/std/dynamic_graph.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/dynamic_graph.cl#L119-L153), [`src/std/cargraph_consolidate.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/cargraph_consolidate.cl#L66-L84)
+- **Description**:
+  1. In `dynamic_arena_append_edge`, every append allocates a new 64-byte chunk and unconditionally overwrites `delta_head_offsets[src_node] = chunk_offset` without linking to the prior chunk offset, orphaning all older chunks for that node.
+  2. `cargraph_consolidate_pass` only reads slot 0 (`head_offset + 0.0`), ignoring subsequent slots and unable to traverse chained chunks.
+- **Planned Action**: Pack up to 4 edges per 64-byte chunk; link previous chunk offsets in bytes 60..62; update `cargraph_consolidate_pass` to traverse linked chunk chains and read all populated slots.
+
+---
+
+## [ISSUE-173] [ACTIVE - SPRINT 426] cargraph_sleep_consolidate_file Drops Base Topology & Leaks Builders
+- **Severity**: Critical (Graph Topology Destruction & Memory Leaks)
+- **Component**: [`src/std/cargraph_consolidate.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/cargraph_consolidate.cl#L188-L230)
+- **Description**:
+  1. `cargraph_sleep_consolidate_file` builds an empty `b_base` with no edges from `cg`, discarding all existing base topology.
+  2. Compacts `base_csr` + `arena` into `compacted_csr`, but never copies retained edges into `b_new`, serializing an edgeless graph to disk and destroying graph topology on atomic swap.
+  3. Leaks `b_base`, `base_csr`, `compacted_csr`, and `b_new` on heap.
+- **Planned Action**: Extract base CSR topology directly from `cg`; serialize consolidated CSR edges into binary file; free `base_csr`, `compacted_csr`, `b_new`, and `cg`.
+
+---
+
+## [ISSUE-174] [ACTIVE - SPRINT 426] Multimodal Grounding Buffer Leaks in Chat Generation
+- **Severity**: Medium (Memory Leak in Multimodal Ingestion)
+- **Component**: [`test/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl#L351-L435), [`L481-L484`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl#L481-L484)
+- **Description**:
+  1. Vision processing functions allocate raw `Image.data` and `patch` tensors without freeing them after projection.
+  2. Audio processing functions allocate `AudioBuffer.data` and `dft_spec` tensors without freeing them after spectral projection.
+  3. `vis_stream` and `aud_stream` are allocated in `geomind_chat_step` and never freed after multimodal grounding.
+- **Planned Action**: Immediately free intermediate image/audio tensors after projection, and free `vis_stream` and `aud_stream` after grounding.
+
 
 
 

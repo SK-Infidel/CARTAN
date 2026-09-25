@@ -293,6 +293,7 @@ fn resonator_salient_hopfield_relax(bank: ptr, state_vec: ptr, dim: float, beta:
     collections_free_list(chosen_indices);
 
     let res = resonator_continuous_hopfield_relax(chosen_bank, state_vec, dim, beta, steps);
+    cartan_tree_free(chosen_bank);
     return res;
 }
 
@@ -379,6 +380,7 @@ fn resonator_compute_energy(bank: ptr, state_vec: ptr, dim: float) -> float {
     var safe_sum = 0.000001;
     if (sum_exp > 0.000001) { safe_sum = sum_exp; }
     let log_sum = max_dot + log(safe_sum);
+    cartan_vec_free(dots);
     let energy = (0.0 - log_sum) + (norm_sq * 0.5 / dim);
     return energy;
 }

@@ -213,6 +213,19 @@ fn cargraph_builder_add_rule(b: CarGraphBuilder, domain_idx: float, elem_type: f
     return rule_id;
 }
 
+// Deallocate in-memory CarGraphBuilder lists and tree buffers
+fn cargraph_builder_free(b: CarGraphBuilder) {
+    if (b.domain_ids != 0.0) { collections_free_list(b.domain_ids); }
+    if (b.domain_rule_starts != 0.0) { collections_free_list(b.domain_rule_starts); }
+    if (b.domain_rule_counts != 0.0) { collections_free_list(b.domain_rule_counts); }
+    if (b.domain_strict_counts != 0.0) { collections_free_list(b.domain_strict_counts); }
+    if (b.rule_domain_indices != 0.0) { collections_free_list(b.rule_domain_indices); }
+    if (b.rule_element_types != 0.0) { collections_free_list(b.rule_element_types); }
+    if (b.rule_is_stricts != 0.0) { collections_free_list(b.rule_is_stricts); }
+    if (b.rule_strings != 0.0) { cartan_tree_free(b.rule_strings); }
+    if (b.rule_embeddings != 0.0) { cartan_tree_free(b.rule_embeddings); }
+}
+
 // Serialize in-memory builder data into flat .car_graph binary file
 fn cargraph_serialize_to_file(b: CarGraphBuilder, filepath: string) -> float {
     let num_domains = collections_list_len(b.domain_ids);

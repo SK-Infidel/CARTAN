@@ -95,7 +95,20 @@ fn collections_free_queue(q: ptr) { free_queue(q); }
 fn collections_queue_enqueue(q: ptr, val: float) -> float { return queue_enqueue(q, val); }
 fn collections_queue_dequeue(q: ptr) -> float { return queue_dequeue(q); }
 
+extern fn cartan_c_ptr_add(p: ptr, offset: float) -> ptr;
 
+// Deallocate cartan_tree heap buffer and header back to OS
+fn cartan_tree_free(t: ptr) {
+    if (t == 0.0) { return; }
+    let data_ptr_field = cartan_c_ptr_add(t, 24.0);
+    let data_buf = data_ptr_field[0];
+    if (data_buf != 0.0) {
+        free(data_buf);
+    }
+    free(t);
+}
 
-
+fn collections_free_tree(t: ptr) {
+    cartan_tree_free(t);
+}
 

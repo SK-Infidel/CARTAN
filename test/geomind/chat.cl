@@ -368,6 +368,8 @@ fn geomind_chat_process_image_input(w: float, h: float) -> ptr {
     }
     let patch = vision_extract_patch(img, 0.0, 0.0, patch_dim, patch_dim);
     let eikonal_stream = vision_project_to_eikonal_stream(patch, patch_dim * patch_dim * 3.0, 320.0);
+    free(img.data);
+    free(patch);
     return eikonal_stream;
 }
 
@@ -381,9 +383,12 @@ fn geomind_chat_process_image_file(image_path: string) -> ptr {
                 if (img.width > 16.0) { sx = floor((img.width - 16.0) * 0.5); }
                 if (img.height > 16.0) { sy = floor((img.height - 16.0) * 0.5); }
                 let patch = vision_extract_patch(img, sx, sy, 16.0, 16.0);
+                let stream = vision_project_to_eikonal_stream(patch, 16.0 * 16.0 * 3.0, 320.0);
+                free(img.data);
+                free(patch);
                 printf("[GeoMind Multimodal] Ingested real image file (%sx%s): %s\n",
                     cartan_float_to_string(img.width), cartan_float_to_string(img.height), image_path);
-                return vision_project_to_eikonal_stream(patch, 16.0 * 16.0 * 3.0, 320.0);
+                return stream;
             }
         }
         if (cartan_string_contains(image_path, ".bmp") == 1.0) {
@@ -394,9 +399,12 @@ fn geomind_chat_process_image_file(image_path: string) -> ptr {
                 if (img.width > 16.0) { sx = floor((img.width - 16.0) * 0.5); }
                 if (img.height > 16.0) { sy = floor((img.height - 16.0) * 0.5); }
                 let patch = vision_extract_patch(img, sx, sy, 16.0, 16.0);
+                let img_stream = vision_project_to_eikonal_stream(patch, 16.0 * 16.0 * 3.0, 320.0);
+                free(img.data);
+                free(patch);
                 printf("[GeoMind Multimodal] Ingested real image file (%sx%s): %s\n",
                     cartan_float_to_string(img.width), cartan_float_to_string(img.height), image_path);
-                return vision_project_to_eikonal_stream(patch, 16.0 * 16.0 * 3.0, 320.0);
+                return img_stream;
             }
         }
     }
@@ -415,6 +423,8 @@ fn geomind_chat_process_audio_input(num_samples: float, sample_rate: float) -> p
     }
     let dft_spec = audio_compute_dft_spectrum(buf, 64.0);
     let spectral_stream = audio_project_to_spectral_stream(dft_spec, 64.0, 320.0);
+    free(buf.data);
+    free(dft_spec);
     return spectral_stream;
 }
 
@@ -424,9 +434,12 @@ fn geomind_chat_process_audio_file(audio_path: string) -> ptr {
             let buf = audio_load_wav(audio_path);
             if (buf.length > 0.0) {
                 let dft_spec = audio_compute_dft_spectrum(buf, 64.0);
+                let aud_out_stream = audio_project_to_spectral_stream(dft_spec, 64.0, 320.0);
+                free(buf.data);
+                free(dft_spec);
                 printf("[GeoMind Multimodal] Ingested real WAV audio file (%s samples @ %s Hz): %s\n",
                     cartan_float_to_string(buf.length), cartan_float_to_string(buf.sample_rate), audio_path);
-                return audio_project_to_spectral_stream(dft_spec, 64.0, 320.0);
+                return aud_out_stream;
             }
         }
     }
@@ -466,6 +479,7 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
     var prompt_tokens = cartan_hub_encode_text_to_tokens(effective_prompt);
     var num_prompt_toks = cartan_vec_len(prompt_tokens);
     if (num_prompt_toks <= 0.0) {
+        cartan_vec_free(prompt_tokens);
         prompt_tokens = cartan_hub_encode_text_to_tokens(prompt);
         num_prompt_toks = cartan_vec_len(prompt_tokens);
     }
@@ -481,6 +495,8 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
     let vis_stream = geomind_chat_process_image_file(image_path);
     let aud_stream = geomind_chat_process_audio_file(audio_path);
     cartan_multimodal_ground_hidden(hidden_state, vis_stream, aud_stream);
+    free(vis_stream);
+    free(aud_stream);
     printf("[GeoMind Multimodal] Multimodal grounding complete.\n");
     cartan_flush(0.0);
 
@@ -500,6 +516,7 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
                 cartan_vec_set_f32(hidden_state, d, 0.65 * h_d + 0.35 * r_d);
                 d = d + 1.0;
             }
+            cartan_vec_free(recalled_val);
         }
         printf("[GeoMind Hopfield] Relaxing...\n");
         cartan_flush(0.0);
@@ -578,13 +595,22 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
         cartan_vec_push_f32(history, sampled_tok);
         cartan_tensor_update_autoregressive_state(cur_h, sampled_tok);
         // Tangent Bundle Momentum Tracking: cognitive velocity on TM = M x TxM
-        mom = cartan_tensor_compute_momentum(cur_h, prev_h);
+        let next_mom = cartan_tensor_compute_momentum(cur_h, prev_h);
+        cartan_vec_free(mom);
+        mom = next_mom;
+        if (prev_h != hidden_state && prev_h != cur_h) {
+            cartan_vec_free(prev_h);
+        }
         prev_h = cur_h;
         // Autoregressive Manifold Step with Sasaki Phase-Space Brainstem Routing
         cur_h = e8_attention_forward_step_with_momentum(cur_h, mom, current_temp);
         // Read-only inference: Hebbian synaptic mutation is disabled during generation to prevent attractor collapse
         // cartan_hebbian_step_token(cur_h, sampled_tok, 0.5, 0.0005);
         step = step + 1.0;
+    }
+
+    if (prev_h != hidden_state && prev_h != cur_h) {
+        cartan_vec_free(prev_h);
     }
 
     printf(" [Hopfield Energy Minimum: %s]\n", cartan_float_to_string(hopfield_energy));
@@ -605,6 +631,12 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
     cartan_hopfield_save_basins("test/geomind/trainingdata/hopfield_basins.bin");
     cartan_flush(0.0);
 
+    cartan_vec_free(mom);
+    cartan_vec_free(history);
+    cartan_vec_free(prompt_tokens);
+    cartan_vec_free(cur_h);
+    cartan_vec_free(hidden_state);
+
     return 1.0;
 }
 
@@ -618,6 +650,9 @@ fn geomind_chat_remember_fact(fact_text: string) -> float {
     let total_count = cartan_hopfield_attractor_count();
     printf("[Continuous Hopfield Memory] Remembered fact into attractor basin #%s: \"%s\"\n",
         cartan_float_to_string(total_count), fact_text);
+    cartan_vec_free(toks);
+    cartan_vec_free(h_fact);
+    cartan_vec_free(h_stepped);
     return total_count;
 }
 
@@ -694,9 +729,11 @@ fn geomind_chat_generate_reasoning_pass(prompt: string, temp: float) -> float {
 
 
 fn geomind_chat_apply_human_feedback(prompt: string, reply: string, reward: float) -> float {
+    let p_toks = cartan_hub_encode_text_to_tokens(prompt);
     let reply_toks = cartan_hub_encode_text_to_tokens(reply);
     let r_len = cartan_vec_len(reply_toks);
-    let h_state = cartan_tensor_compute_hidden_state_from_tokens(cartan_hub_encode_text_to_tokens(prompt));
+    let h_state = cartan_tensor_compute_hidden_state_from_tokens(p_toks);
+    cartan_vec_free(p_toks);
 
     var lr = -0.005;
     if (reward > 0.0) {
@@ -731,17 +768,22 @@ fn geomind_chat_apply_human_feedback(prompt: string, reply: string, reward: floa
         printf("[GeoMind RLHF] Human Reward (+1.0 Received): Reinforcing Hopfield attractor basin trajectory (CE Loss: %s)...\n", cartan_float_to_string(avg_loss));
         printf("[GeoMind NSES Plasticity] Reinforced active semantic graph pathways for Domain %s (+0.10 weight boost).\n", cartan_float_to_string(g_last_chat_domain));
         cartan_flush(0.0);
+        cartan_vec_free(reply_toks);
+        cartan_vec_free(h_state);
         return 1.0;
     } else {
-        var e_idx = 0.0;
+        // [ISSUE-168] Whitelist Domain 0 Axiomatic Root Invariants: Decay only conversational edges (e_idx >= 4.0)
+        var e_idx = 4.0;
         let num_edges = collections_list_len(pipe.csr.edge_weights);
-        while (e_idx < num_edges && e_idx < 4.0) {
-            hebbian_decay_edge(pipe.csr.edge_weights, pipe.csr.edge_timestamps, e_idx, cur_ts, 0.05, 1.0);
+        while (e_idx < num_edges && e_idx < 8.0) {
+            hebbian_decay_edge(pipe.csr.edge_weights, pipe.csr.edge_timestamps, e_idx, cur_ts, 0.05, 0.10);
             e_idx = e_idx + 1.0;
         }
         printf("[GeoMind RLHF] Human Penalty (-1.0 Received): Repulsion step executed along gradient trajectory (CE Loss: %s)...\n", cartan_float_to_string(avg_loss));
-        printf("[GeoMind NSES Plasticity] Decayed contradictory semantic graph pathways for Domain %s (-0.05 weight penalty).\n", cartan_float_to_string(g_last_chat_domain));
+        printf("[GeoMind NSES Plasticity] Decayed contradictory semantic graph pathways for Domain %s (-0.05 weight penalty, Domain 0 Axioms Protected).\n", cartan_float_to_string(g_last_chat_domain));
         cartan_flush(0.0);
+        cartan_vec_free(reply_toks);
+        cartan_vec_free(h_state);
         return -1.0;
     }
 }
@@ -751,7 +793,9 @@ fn geomind_chat_apply_correction(prompt: string, correct_reply: string) -> float
     printf("[GeoMind SFT Online] Executing online SFT natural gradient update over user correction...\n");
     let corr_toks = cartan_hub_encode_text_to_tokens(correct_reply);
     let c_len = cartan_vec_len(corr_toks);
-    let h_state = cartan_tensor_compute_hidden_state_from_tokens(cartan_hub_encode_text_to_tokens(prompt));
+    let p_toks = cartan_hub_encode_text_to_tokens(prompt);
+    let h_state = cartan_tensor_compute_hidden_state_from_tokens(p_toks);
+    cartan_vec_free(p_toks);
 
     var total_loss = 0.0;
     var t = 0.0;
@@ -780,6 +824,8 @@ fn geomind_chat_apply_correction(prompt: string, correct_reply: string) -> float
     printf("[GeoMind SFT Online] Real SFT gradient update executed over correction (Final Loss: %s).\n", cartan_float_to_string(loss));
     printf("[GeoMind NSES Plasticity] Consolidated correction target into resident semantic graph memory.\n");
     cartan_flush(0.0);
+    cartan_vec_free(corr_toks);
+    cartan_vec_free(h_state);
     return loss;
 }
 
