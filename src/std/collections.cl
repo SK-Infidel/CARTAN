@@ -31,6 +31,14 @@ fn list_get(list: ptr, idx: float) -> float {
     return cartan_vec_get_f32(list, idx);
 }
 
+fn list_set(list: ptr, idx: float, val: float) -> float {
+    return cartan_vec_set_f32(list, idx, val);
+}
+
+fn list_pop(list: ptr) -> float {
+    return cartan_vec_pop_f32(list);
+}
+
 fn list_len(list: ptr) -> float {
     return cartan_vec_len(list);
 }
@@ -70,9 +78,12 @@ fn queue_dequeue(q: ptr) -> float {
 // Module prefixed aliases
 fn collections_create_list() -> ptr { return create_list(); }
 fn collections_free_list(list: ptr) { free_list(list); }
+fn collections_list_free(list: ptr) { free_list(list); }
 fn collections_list_push(list: ptr, val: float) -> float { return list_push(list, val); }
 fn collections_list_get(list: ptr, idx: float) -> float { return list_get(list, idx); }
+fn collections_list_set(list: ptr, idx: float, val: float) -> float { return list_set(list, idx, val); }
 fn collections_list_len(list: ptr) -> float { return list_len(list); }
+fn collections_list_pop(list: ptr) -> float { return list_pop(list); }
 
 fn collections_create_stack() -> ptr { return create_stack(); }
 fn collections_free_stack(stack: ptr) { free_stack(stack); }

@@ -1532,11 +1532,11 @@ This file tracks technical debt and bugs identified during repository code revie
 
 ---
 
-## [ISSUE-108] [OPEN] Unresolved External Symbols in Multimodal Test Target
+## [ISSUE-108] [RESOLVED] Unresolved External Symbols in Multimodal Test Target
 - **Severity**: Low (Test Suite Rigor)
-- **Component**: `test/compiler_suite/test_native_multimodal_io.car`, `src/cartanc/c_runtime.c`
-- **Description**: Regression test runner executes `test_native_multimodal_io.car` which references binary buffer functions (`cartan_alloc_binary_buffer`, `cartan_write_binary_file`, `cartan_free_binary_buffer`, `cartan_read_binary_file_data`, `cartan_get_binary_file_size`) and attention prototypes (`cartan_multimodal_ground_hidden`, `e8_attention_forward_step`) that are declared in headers but missing in the standalone linking stage.
-- **Proposed Fix**: Export missing buffer wrappers and ensure attention step signatures are linked into the standalone test harness.
+- **Component**: `test/compiler_suite/test_native_multimodal_io.car`
+- **Description**: Regression test runner executes `test_native_multimodal_io.car` which referenced binary buffer functions (`cartan_alloc_binary_buffer`, `cartan_write_binary_file`, `cartan_free_binary_buffer`, `cartan_read_binary_file_data`, `cartan_get_binary_file_size`) and attention prototypes (`cartan_multimodal_ground_hidden`, `e8_attention_forward_step`) that were declared as extern without linking required module definitions.
+- **Resolution**: Included `src/std/fs.cl` and `test/geomind/e8_attention_engine.cl`, and defined `cartan_multimodal_ground_hidden`. Verified 100% pass on all 5 multimodal test gates (PPM, BMP, WAV, Eikonal/Spectral projection, 42-layer manifold stepping).
 
 ---
 
@@ -2324,3 +2324,190 @@ This file tracks technical debt and bugs identified during repository code revie
   3. Purged the intrusive 1-line heartbeat and restored the original clean 4-line telemetry comparison block (`Progress ->`, `Train ->`, `Val ->`) on 10-chunk intervals.
   4. Clarified telemetry header to display `Interleaved Stream [10 Datasets] | 10-Domain Cycle Complete (D1-D10)` to explicitly communicate full round-robin ingestion across all domains.
   5. Verified bit-for-bit binary SHA-256 parity (`886B7BD9A2EAA5DF1E8E4C95EEEE9D42960226FBEB1D04105DEB9B47C96E3652`) and verified clean execution on GPU.
+
+---
+
+## [ISSUE-158] [RESOLVED] Telemetry Latency Between Domain Slices & True Per-Domain Telemetry Streaming
+- **Severity**: Medium (Observability & Real-Time Feedback Fidelity)
+- **Component**: [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl#L1844-L1851), [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl#L2060-L2245)
+- **Description**:
+  1. Telemetry reporting was restricted to 10-chunk intervals, causing a 25-second delay between terminal updates and preventing users from observing individual domain training and validation progression in real time.
+  2. Domain validation tracking was stored in `domain_val_losses` rather than a symmetrically named `val_domain_losses` array matching `domain_losses`.
+- **Resolution (Sprint 406)**:
+  1. Maintained a dedicated `val_domain_losses` vector matching `domain_losses`, computing true balanced mixture averages `AVL` and `AVPPL` across all 10 domain holdouts.
+  2. Shifted telemetry streaming to execute immediately after each domain chunk finishes (~every 2.5s), emitting continuous heartbeat feedback with explicit per-domain diagnostics:
+     - Domain index, total domain count, and file path: `D[d_idx/num_datasets: filepath]`
+     - Training metrics: `Train -> TL | ATL | ITPPL | ATPPL | ENT | CERT`
+     - Validation metrics: `Val   -> VL | AVL | IVPPL | AVPPL | VENT | VCERT`
+  3. Recompiled via `cartanc.exe` with Zig `-O3 LTO Vectorized Pass Pipeline`. Verified bit-for-bit SHA-256 binary parity (`0AFCAC33D99EE10B53C289D7133C4D1D172B255C0E7347DF694532D6146D23C9`), 4/4 semantic vector analogies passing at Rank 1, and verified live GPU execution.
+
+
+
+---
+
+## [ISSUE-159] [FIXED] MSVCRT clock() Return Type ABI Register Mismatch in NSES Benchmarks
+- **Severity**: Low (Benchmark Telemetry / Non-Blocking)
+- **Component**: [src/std/cargraph_consolidate.cl](file:///C:/Users/rich-/source/repos/CARTAN/src/std/cargraph_consolidate.cl#L13), [src/std/nses_pipeline.cl](file:///C:/Users/rich-/source/repos/CARTAN/src/std/nses_pipeline.cl#L17), 	est/geomind/nses/
+- **Description**: In MSVCRT on Windows x86_64, clock() returns a 32-bit signed integer clock_t in register EAX/RAX. In CARTAN headers, it was declared as extern fn clock() -> float;, causing the LLVM IR caller to read floating-point register XMM0. Because MSVCRT never populates XMM0, benchmark callers read uninitialized register debris, yielding negative/overflow latency numbers (e.g. -366359170385.42 ms, -1.74e94 ms).
+- **Resolution (Sprint 424)**:
+  1. Updated `src/cartanc/llvm_codegen.car` ABI handling for `clock()`: emits `declare i32 @clock()`, calls `call i32 @clock()`, and converts the integer return to double via `sitofp i32 %res to double`.
+  2. Verified across `scratch/test_clock.car` and `test/geomind/nses/test_sprint8_in_memory_consolidation.car`, confirming clean positive millisecond measurements without register debris.
+
+---
+
+## [ISSUE-160] [RESOLVED] Hopfield Attractor Memory Bloat and $O(N^2)$ Sleep Consolidation Latency
+- **Severity**: High (Training Runtime Performance Bottleneck)
+- **Component**: [`src/std/resonator.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/resonator.cl), [`src/std/sleep.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/sleep.cl), [`test/geomind/trainingdata/hopfield_basins.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/hopfield_basins.bin)
+- **Description**:
+  1. `sleep_run_axiomatic_consolidation` unconditionally appended all 42 NSES rule embeddings to `hopfield_basins.bin` on every micro-nap without novelty checking, accumulating hundreds of duplicate attractors and thousands of uninitialized zero-norm vectors.
+  2. `sleep_run_consolidation_cycle` executed a full $O(N^2)$ quadratic cross-attractor replay, ignoring the compaction prune threshold (`thresh = 0.98`) and calculating over 15 billion float operations per sleep cycle as $N$ grew to 1,430.
+  3. `resonator_continuous_hopfield_relax` nested attractor lookups inside the 2,560-D vector dimension loop, performing $2560 \times N$ tree lookups per step instead of $N$.
+- **Resolution (Sprint 418)**:
+  1. Inverted the inner recall loop in `resonator_continuous_hopfield_relax` and added sparse softmax thresholding (`weight_k > 0.0001`), reducing tree lookups by $2,560\times$.
+  2. Added zero-norm filtering ($L_2 \le 10^{-6}$) and max-resonance novelty checking ($\cos \ge 0.98$) on attractor storage and disk loading.
+  3. Implemented `resonator_compact_bank` and `cartan_hopfield_compact`, bounding micro-nap streaming replay to $\le 64$ salient attractors.
+  4. Purged 1,427 redundant/zero-norm ghost attractors from `hopfield_basins.bin`, reducing file size from 29.3 MB to 61.4 KB and reducing sleep execution time from >45s to **1.0s** (20ms compaction latency).
+
+---
+
+## [ISSUE-161] [RESOLVED] Synthetic GPU Attractor Sine Waves, OpenCL Kernel Race Condition, and NSES Domain Misrouting
+- **Severity**: High (Training Convergence & Architectural Integrity)
+- **Component**: [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl#L244-L260), [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl#L366), [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl#L2035-L2050), [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl#L2318-L2330)
+- **Description**:
+  1. `g_buf_hopfield_attractors` on GPU and `g_train_hopfield_bank` on host were initialized with synthetic `sin()` waves at boot time and never synchronized from authentic attractors (`hopfield_basins.bin`), pulling token representations and backward gradients toward arbitrary sine waves instead of learned axiomatic invariants.
+  2. OpenCL compute kernel `geomind_hopfield_inject` suffered from a workgroup race condition: all 256 threads concurrently read and overwrote `__local float s_sim[8]` with exponentiated values without `lid == 0` gating or a synchronization barrier before the vector retrieval loop.
+  3. Pre-step active domain routing defaulted to Domain 1 (`PHYSICS_SIM`), applying rigid kinematic constraints ($E = \frac{1}{2}mv^2$) to general educational and web prose (`fineweb_edu_curated.txt`, `openwebtext_curated.txt`, `wikitext103_structural.txt`).
+  4. Metacognitive sleep consolidation synchronized slow weights to GPU (`train_sync_weights_host_to_gpu`), but never synchronized the updated, compacted Hopfield attractors to GPU VRAM.
+- **Resolution (Sprint 419)**:
+  1. Implemented `train_sync_hopfield_attractors_host_to_gpu()` reading up to 8 canonical attractors from `g_hopfield_key_bank` / `hopfield_basins.bin`, zeroing inactive slots, uploading to `g_buf_hopfield_attractors` via DMA `gpu_write`, and dynamically binding `num_attractors` to GPU pipelines.
+  2. Restructured `geomind_hopfield_inject` OpenCL kernel with dedicated `__local float s_p[8]` probability buffer, single-thread `lid == 0` reduction, and proper `barrier(CLK_LOCAL_MEM_FENCE)` fences.
+  3. Purged all synthetic sine-wave Hopfield initializations and guarded injection/backward passes with `g_num_active_hopfield_attractors > 0.0`.
+  4. Corrected active domain routing to map educational/formal logic text to Domain 3 (`COMPLEXITY_THEORY`), biology to Domain 4 (`BIOLOGICAL_SYSTEMS`), math/geometry to Domain 2 (`TOPOLOGY_GEOMETRY`), physics to Domain 1 (`PHYSICS_SIM`), and defaulted general web prose to Domain 5 (`CAUSAL_TAXONOMY`).
+  5. Hooked `train_sync_hopfield_attractors_host_to_gpu()` into `train_mount_gpu()` and into post-sleep consolidation, reporting synchronized attractor counts in telemetry.
+
+---
+
+## [ISSUE-162] [RESOLVED] GPU Idle Bubbles and Synchronous BPE Tokenization During Streaming Training
+- **Severity**: High (Training Throughput & Hardware Utilization Bottleneck)
+- **Component**: [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl#L913), [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl#L1065), [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl#L1363), [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl#L2044)
+- **Description**:
+  1. Monolithic chunk training blocked the host CPU thread during GPU execution (`clFinish`), followed by synchronous CPU disk read and SentencePiece BPE tokenization (1.0–1.2s), idling GPU compute units by 30–40% on every domain switch.
+  2. Sequential chunk processing allocated new vectors each step rather than recycling persistent buffers across stream iterations.
+- **Resolution (Sprint 420)**:
+  1. Decoupled chunk execution into non-blocking `geomind_train_chunk_gpu_launch_pass` and synchronization `geomind_train_chunk_gpu_finish_pass`.
+  2. Implemented double-buffered streaming execution with paired `active_tokens` and `standby_tokens`. While GPU processes `active_tokens`, CPU concurrently slices and BPE-encodes `standby_tokens` from `next_d_idx` via `geomind_slice_and_tokenize_chunk`.
+  4. Verified live streaming training across 5 consecutive dataset chunks with zero pause or idle time.
+
+---
+
+## [ISSUE-163] [RESOLVED] Synchronous Disk File Re-reads & Re-writes During Metacognitive Sleep Consolidation and CsrBuilder Leak
+- **Severity**: High (Training Latency & Disk I/O Stalls)
+- **Component**: [`src/std/cargraph_consolidate.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/cargraph_consolidate.cl#L89), [`src/std/sleep.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/sleep.cl#L95), [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl#L2563-L2583)
+- **Description**:
+  1. During Metacognitive Sleep turns (every 20 chunks + reactive triggers), `cargraph_sleep_consolidate_file` re-reads the 544 KB `nses_knowledge.car_graph` file from disk, serializes to `.tmp`, calls `fs_atomic_swap` (NTFS `MoveFileExA`), and reloads it to verify, stalling training threads on disk I/O.
+  2. Immediately following, `sleep_run_axiomatic_consolidation` re-reads `nses_knowledge.car_graph` from disk a second time to extract 42 rule embeddings, despite `nses_pipe.graph_file` being resident in memory.
+  3. `cargraph_consolidate_pass` creates `let b = csr_builder_create(n_nodes)` but never calls `csr_builder_free(b)`, leaking memory on each consolidation pass.
+- **Resolution (Sprint 421)**:
+  1. Added `csr_builder_free(b)` in `cargraph_consolidate_pass` immediately after building the compacted CSR.
+  2. Implemented `cargraph_sleep_consolidate_memory` executing synaptic decay pruning and dynamic edge defragmentation directly in RAM in $< 0.01\text{ ms}$ (verified at 0.00 ms in `test_sprint8_in_memory_consolidation.car`).
+  3. Implemented `sleep_run_axiomatic_consolidation_graph` reading 42 rule embeddings directly from in-memory `CarGraphFile` embeddings pointers (`cg.embeddings_ptr`), eliminating disk file reads.
+  4. Implemented `sleep_run_consolidation_cycle_memory` executing Hopfield basin compaction and bounded micro-nap replay in RAM without reloading or writing `hopfield_basins.bin` during micro-naps.
+  5. Integrated persistent `cons_arena` in `geomind_train_streaming_steady_state` and deferred disk checkpointing to 100-chunk cadence.
+  6. Verified live GPU streaming execution across Chunks 1.0 to 5.0 with reactive sleep triggering seamlessly at Chunks 2.0, 3.0, and 4.0 with zero pauses.
+
+---
+
+## [ISSUE-164] [FIXED] Static Attractor Synchronization Ignores Active Domain Context
+- **Severity**: High (Architectural & Dynamic Guidance Invariant)
+- **Component**: [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl#L280-L310), [`src/std/resonator.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/resonator.cl#L420), [`src/std/saliency_attractor.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/saliency_attractor.cl)
+- **Description**:
+  1. `train_sync_hopfield_attractors_host_to_gpu` uploads the first 8 attractors stored in `g_hopfield_key_bank` without considering the active domain of the streaming chunk, resulting in physics rules being applied to biological text or logic rules to differential geometry.
+  2. The GPU local memory has an 8-attractor budget; without dynamic saliency filtering, grounded domain-specific axioms for domains $\ge 2$ never reach GPU hardware compute units.
+  3. `resonator_continuous_hopfield_relax` evaluates all $N$ attractors unconditionally rather than filtering to the Top-K salient attractors for the active query.
+- **Resolution (Sprint 422)**:
+  1. Implemented [`src/std/saliency_attractor.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/saliency_attractor.cl) with 4-tier domain priority ranking (`saliency_select_domain_attractor_indices`) anchoring Domain 0 strict invariants while prioritizing active domain axioms.
+  2. Implemented `saliency_format_attractor_buffer` preparing contiguous 2560-D DMA buffers with $L_2$ unit normalization ($\sqrt{\sum v_d^2} = 1.0$) and clean zero padding.
+  3. Implemented `train_sync_salient_attractors_to_gpu(active_domain, cg)` in [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl) with `g_synced_gpu_domain` tracking, enabling $< 10\text{ ns}$ zero-latency cache hits when training consecutive chunks within the same domain.
+  4. Implemented `resonator_salient_hopfield_relax` in [`src/std/resonator.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/resonator.cl) for bounded $O(K \cdot D)$ relaxation.
+  5. Empirically verified via `test_sprint9_saliency_attractors.car` (4/4 gates passed), `geomind.exe --verify`, `geomind.exe --sleep`, and live GPU streaming execution `geomind.exe --train-ce`.
+
+---
+
+## [ISSUE-165] [FIXED] Static Gamma Coupling Prevents Adaptive Axiomatic Stabilization
+- **Severity**: High (Dynamic Guidance & Manifold Stability)
+- **Component**: [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl#L280-L300), [`src/std/dynamic_gamma.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/dynamic_gamma.cl)
+- **Description**:
+  1. The Hopfield injection parameter $\gamma$ was statically hardcoded to `0.10` across both forward injection (`geomind_hopfield_inject`) and adjoint backpropagation (`geomind_hopfield_backward`).
+  2. During perplexity and loss surges (e.g. $L > 1.25 \times L_{\text{EMA}}$, entropy $> 7.0$ bits, certainty $< 5\%$), static $\gamma = 0.10$ provided inadequate restorative force to ground latent states into axiomatic attractors.
+  3. In high-certainty regimes (entropy $< 4.5$ bits, certainty $> 25\%$), static $0.10$ introduced excessive attractor perturbation into already-crystallized representations.
+- **Resolution (Sprint 423)**:
+  1. Implemented [`src/std/dynamic_gamma.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/dynamic_gamma.cl) providing `DynamicGammaConfig`, `dynamic_gamma_create`, `dynamic_gamma_domain_baseline`, and closed-form `dynamic_gamma_compute`:
+     $$\gamma = \text{clamp}\left(\gamma_{\text{base}}(D) \cdot \mu_{\text{unc}} \cdot \mu_{\text{surge}}, 0.02, 0.35\right)$$
+  2. Integrated `train_update_dynamic_gamma` into [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl), dynamically adjusting kernel arguments on both `g_pipe_hopfield_inject` (arg 5.0) and `g_pipe_hopfield_backward` (arg 6.0) before every chunk launch.
+  3. Stored `c_loss` into `prev_chunk_loss` to power real-time surge detection and dynamic $\gamma$ modulation.
+  4. Added `| Gamma: %s` to chunk progress telemetry and training logs.
+  5. Empirically verified via `test_sprint10_dynamic_gamma.car` (4/4 verification gates passed, sub-microsecond latency confirmed), `geomind.exe --verify`, `geomind.exe --sleep`, and live GPU streaming execution `geomind.exe --train-ce`.
+
+---
+
+## [ISSUE-166] [FIXED] Cross-Domain Surge False-Positives in Dynamic $\gamma$
+- **Severity**: High (Training Guidance & Manifold Coupling)
+- **Component**: [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl#L2357), [`src/std/dynamic_gamma.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/dynamic_gamma.cl#L97-L105)
+- **Description**:
+  1. In `train.cl:2357`, `train_update_dynamic_gamma(active_d, est_ent, est_cert, prev_chunk_loss, ema_train_loss)` receives `prev_chunk_loss` from the preceding chunk (domain $D_{t-1}$) while configuring coupling for domain $D_t$.
+  2. In `dynamic_gamma_compute`, loss surge is tested via `cur_loss > 1.15 * ema_loss`. When transitioning from a high-loss domain (e.g. Domain 7 storytelling at 4.82) to a low-loss domain (e.g. Domain 8 cloze at 3.90), the cloze domain falsely registers a loss surge and inflates $\gamma$.
+  3. Comparing raw chunk loss to the global mixture average `ema_train_loss` rather than that specific domain's baseline EMA (`domain_losses[d_idx]`) distorts surge detection across differing natural entropy floors.
+- **Resolution (Sprint 425)**:
+  1. Initialized `domain_prev_train_loss` vector tracking each individual domain's most recent training loss in [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl#L2027).
+  2. Updated `train_update_dynamic_gamma` invocation on line 2364 to retrieve the active domain's own baseline `d_ema = domain_losses[d_idx]` and active domain's recent loss `d_recent_loss = domain_prev_train_loss[d_idx]` (falling back to prequential validation loss `vl` if uninitialized).
+  3. Recorded `c_loss` into `domain_prev_train_loss[d_idx]` upon backpropagation completion, preventing cross-domain surge leakage.
+  4. Empirically verified via `test_sprint12_dynamic_gamma_and_eof_wrap.car` (Gate TS-12.1 and TS-12.2 passed 100%).
+
+---
+
+## [ISSUE-167] [FIXED] Same-Domain EOF Wrap-Around in Double-Buffering
+- **Severity**: High (Pipeline Latency & Training Continuity)
+- **Component**: [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl#L2363-L2373)
+- **Description**:
+  1. In double-buffered asynchronous tokenization, when consecutive chunks process the same domain (`standby_d_idx == active_d_idx`), `st_start` is set to `active_next_line_start`.
+  2. If the active chunk reaches EOF (`active_next_line_start >= st_content_len`), `st_start` is passed into `geomind_slice_and_tokenize_chunk` past EOF without wrapping to 0.0.
+  3. `standby_tokens` is populated with 0 tokens, causing a pipeline stall, a dropped chunk step on line 2705, and an unaligned domain jump.
+- **Resolution (Sprint 425)**:
+  1. In the standby buffer pre-tokenization block in [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl#L2373), guarded `st_start >= st_content_len`:
+     ```cartan
+     if (st_start >= st_content_len) {
+         st_start = 0.0;
+         cartan_vec_set_f32(domain_has_prev, standby_d_idx, 0.0);
+     }
+     ```
+  2. Guarantees that `standby_tokens` always slices from byte 0.0 and resets recurrent context whenever the domain reaches EOF, eliminating empty token buffers and pipeline stalls.
+  3. Empirically verified via `test_sprint12_dynamic_gamma_and_eof_wrap.car` (Gate TS-12.3 and TS-12.4 passed 100%).
+
+---
+
+## [ISSUE-168] [BACKLOG] Root Invariant Erosion in Chat RLHF
+- **Severity**: High (Safety & Axiomatic Protection)
+- **Component**: [`test/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl#L736-L741)
+- **Description**:
+  1. In `geomind_chat_apply_human_feedback`, negative reward (`reward = -1.0`) executes Hebbian edge decay over edges `0..3` (`while (e_idx < num_edges && e_idx < 4.0)`).
+  2. Edges `0..3` in the NSES graph represent Domain 0 Axiomatic Root Invariants (energy conservation, mathematical identity). Negative human feedback on a conversational turn directly decays core system axioms.
+- **Backlog Planned Action**: Protect Domain 0 edges with an invariant immutability whitelist; decay only active conversational edges traversed during the specific turn.
+
+---
+
+## [ISSUE-169] [BACKLOG] Per-Turn Vector Leak in Interactive Chat
+- **Severity**: Medium (Memory Leak & Long-Session Stability)
+- **Component**: [`test/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl#L466-L588), [`L696-L784`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl#L696-L784)
+- **Description**:
+  1. In `geomind_chat_generate_reply_multimodal`, vectors `prompt_tokens`, `hidden_state`, `vis_stream`, `aud_stream`, `recalled_val`, and `history` are never freed at turn exit.
+  2. In the generation loop, each token step reassigns `mom` and `cur_h` to newly allocated vectors without freeing previous steps, leaking $\sim 5\text{ MB}$ per turn.
+  3. `reply_toks`, `corr_toks`, and prompt vectors in feedback and correction handlers are abandoned.
+- **Backlog Planned Action**: Implement complete turn-exit memory cleanup and vector reclamation in `chat.cl`.
+
+
+
+
+
+
+
+

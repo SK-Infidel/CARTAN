@@ -130,10 +130,10 @@ fn resonator_add_attractor(bank: ptr, vec: ptr, dim: float) -> float {
         sum_sq = sum_sq + (v * v);
         d = d + 1.0;
     }
-    var inv_norm = 1.0;
-    if (sum_sq > 0.000001) {
-        inv_norm = 1.0 / sqrt(sum_sq);
+    if (sum_sq <= 0.000001) {
+        return cartan_tree_len_f(bank);
     }
+    let inv_norm = 1.0 / sqrt(sum_sq);
     let norm_vec = cartan_vec_create();
     d = 0.0;
     while (d < dim) {
@@ -155,7 +155,6 @@ fn resonator_continuous_hopfield_relax(bank: ptr, state_vec: ptr, dim: float, be
     if (beta > 0.0) { b = beta; }
     var max_steps = 2.0;
     if (steps > 0.0) { max_steps = steps; }
-
 
     while (step < max_steps) {
         let scores = cartan_vec_create();
@@ -190,24 +189,150 @@ fn resonator_continuous_hopfield_relax(bank: ptr, state_vec: ptr, dim: float, be
         var inv_sum = 1.0;
         if (sum_exp > 0.000001) { inv_sum = 1.0 / sum_exp; }
 
+        let recall = cartan_vec_create();
+        var d_init = 0.0;
+        while (d_init < dim) {
+            cartan_vec_push_f32(recall, 0.0);
+            d_init = d_init + 1.0;
+        }
+
+        k = 0.0;
+        while (k < num_basins) {
+            let weight_k = cartan_vec_get_f32(scores, k) * inv_sum;
+            if (weight_k > 0.0001) {
+                let basin_k = cartan_tree_get(bank, k);
+                var d_idx = 0.0;
+                while (d_idx < dim) {
+                    let acc = cartan_vec_get_f32(recall, d_idx);
+                    let b_val = cartan_vec_get_f32(basin_k, d_idx);
+                    cartan_vec_set_f32(recall, d_idx, acc + (weight_k * b_val));
+                    d_idx = d_idx + 1.0;
+                }
+            }
+            k = k + 1.0;
+        }
+
         var d_idx = 0.0;
         while (d_idx < dim) {
-            var recall_d = 0.0;
-            k = 0.0;
-            while (k < num_basins) {
-                let p_k = cartan_vec_get_f32(scores, k) * inv_sum;
-                let basin_k = cartan_tree_get(bank, k);
-                let b_val = cartan_vec_get_f32(basin_k, d_idx);
-                recall_d = recall_d + (p_k * b_val);
-                k = k + 1.0;
-            }
             let cur_val = cartan_vec_get_f32(state_vec, d_idx);
-            cartan_vec_set_f32(state_vec, d_idx, cur_val * 0.70 + recall_d * 0.30);
+            let rec_val = cartan_vec_get_f32(recall, d_idx);
+            cartan_vec_set_f32(state_vec, d_idx, cur_val * 0.70 + rec_val * 0.30);
             d_idx = d_idx + 1.0;
         }
+        cartan_vec_free(recall);
+        cartan_vec_free(scores);
         step = step + 1.0;
     }
     return 1.0;
+}
+
+// Continuous Hopfield relaxation bounded to the Top-K most salient attractors
+fn resonator_salient_hopfield_relax(bank: ptr, state_vec: ptr, dim: float, beta: float, steps: float, top_k: float) -> float {
+    if (bank == 0.0 || state_vec == 0.0 || dim <= 0.0) { return 0.0; }
+    let num_basins = cartan_tree_len_f(bank);
+    if (num_basins <= top_k || top_k <= 0.0) {
+        return resonator_continuous_hopfield_relax(bank, state_vec, dim, beta, steps);
+    }
+
+    var q_sq = 0.0;
+    var d = 0.0;
+    while (d < dim) {
+        let q = cartan_vec_get_f32(state_vec, d);
+        q_sq = q_sq + (q * q);
+        d = d + 1.0;
+    }
+    var inv_q = 1.0;
+    if (q_sq > 0.000001) { inv_q = 1.0 / sqrt(q_sq); }
+
+    // Select Top-K highest resonance attractors
+    let chosen_bank = cartan_tree_create();
+    let chosen_indices = collections_create_list();
+    var sel = 0.0;
+    while (sel < top_k) {
+        var best_idx = -1.0;
+        var best_cos = -999999.0;
+        var k = 0.0;
+        while (k < num_basins) {
+            var already = 0.0;
+            var c = 0.0;
+            let n_ch = collections_list_len(chosen_indices);
+            while (c < n_ch) {
+                if (collections_list_get(chosen_indices, c) == k) {
+                    already = 1.0;
+                    break;
+                }
+                c = c + 1.0;
+            }
+
+            if (already == 0.0) {
+                let basin_k = cartan_tree_get(bank, k);
+                var dot = 0.0;
+                d = 0.0;
+                while (d < dim) {
+                    let v = cartan_vec_get_f32(basin_k, d);
+                    let q_val = cartan_vec_get_f32(state_vec, d) * inv_q;
+                    dot = dot + (v * q_val);
+                    d = d + 1.0;
+                }
+                if (dot > best_cos) {
+                    best_cos = dot;
+                    best_idx = k;
+                }
+            }
+            k = k + 1.0;
+        }
+        if (best_idx >= 0.0) {
+            collections_list_push(chosen_indices, best_idx);
+            let b_vec = cartan_tree_get(bank, best_idx);
+            cartan_tree_push(chosen_bank, b_vec);
+        } else {
+            break;
+        }
+        sel = sel + 1.0;
+    }
+    collections_free_list(chosen_indices);
+
+    let res = resonator_continuous_hopfield_relax(chosen_bank, state_vec, dim, beta, steps);
+    return res;
+}
+
+// Compacts an attractor bank by merging redundant basins where pairwise cosine similarity >= prune_thresh
+fn resonator_compact_bank(bank: ptr, dim: float, prune_thresh: float) -> ptr {
+    if (bank == 0.0 || dim <= 0.0) { return bank; }
+    let num_basins = cartan_tree_len_f(bank);
+    if (num_basins <= 1.0) { return bank; }
+    var thresh = prune_thresh;
+    if (thresh <= 0.0) { thresh = 0.98; }
+
+    let compacted = cartan_tree_create();
+    var k = 0.0;
+    while (k < num_basins) {
+        let b = cartan_tree_get(bank, k);
+        let num_comp = cartan_tree_len_f(compacted);
+        var is_duplicate = 0.0;
+        var j = 0.0;
+        while (j < num_comp) {
+            let comp_j = cartan_tree_get(compacted, j);
+            var dot = 0.0;
+            var d = 0.0;
+            while (d < dim) {
+                let v1 = cartan_vec_get_f32(b, d);
+                let v2 = cartan_vec_get_f32(comp_j, d);
+                dot = dot + (v1 * v2);
+                d = d + 1.0;
+            }
+            if (dot >= thresh) {
+                is_duplicate = 1.0;
+                break;
+            }
+            j = j + 1.0;
+        }
+        if (is_duplicate == 0.0) {
+            cartan_tree_push(compacted, b);
+        }
+        k = k + 1.0;
+    }
+    return compacted;
 }
 
 fn resonator_compute_energy(bank: ptr, state_vec: ptr, dim: float) -> float {
@@ -316,12 +441,18 @@ fn resonator_load_basins(path: string, dim: float) -> ptr {
         if (n_read < dim) { break; }
         let basin = cartan_vec_create();
         var d = 0.0;
+        var sum_sq = 0.0;
         while (d < dim) {
             let v = v_buf[d];
+            sum_sq = sum_sq + (v * v);
             cartan_vec_push_f32(basin, v);
             d = d + 1.0;
         }
-        cartan_tree_push(bank, basin);
+        if (sum_sq > 0.0001) {
+            cartan_tree_push(bank, basin);
+        } else {
+            cartan_vec_free(basin);
+        }
         k = k + 1.0;
     }
     free(v_buf);
@@ -428,27 +559,6 @@ fn cartan_hopfield_attractor_count() -> float {
     return cartan_tree_len_f(g_hopfield_key_bank);
 }
 
-fn cartan_hopfield_store_vector(vec: ptr, dim: float) -> float {
-    cartan_hopfield_init_if_needed();
-    resonator_add_attractor(g_hopfield_key_bank, vec, dim);
-    resonator_add_attractor(g_hopfield_val_bank, vec, dim);
-    return cartan_tree_len_f(g_hopfield_key_bank);
-}
-
-fn cartan_hopfield_store_hidden(hidden_ptr: ptr) -> float {
-    return cartan_hopfield_store_vector(hidden_ptr, g_hopfield_dim);
-}
-
-fn cartan_hopfield_store_pair_vec(key_ptr: ptr, val_ptr: ptr) -> float {
-    cartan_hopfield_init_if_needed();
-    return resonator_store_pair(g_hopfield_key_bank, g_hopfield_val_bank, key_ptr, val_ptr, g_hopfield_dim);
-}
-
-fn cartan_hopfield_query_vec(query_ptr: ptr, beta: float) -> ptr {
-    cartan_hopfield_init_if_needed();
-    return resonator_query(g_hopfield_key_bank, g_hopfield_val_bank, query_ptr, g_hopfield_dim, beta);
-}
-
 fn cartan_hopfield_get_max_resonance(query_ptr: ptr) -> float {
     cartan_hopfield_init_if_needed();
     let num_basins = cartan_tree_len_f(g_hopfield_key_bank);
@@ -481,10 +591,54 @@ fn cartan_hopfield_get_max_resonance(query_ptr: ptr) -> float {
     return max_cos;
 }
 
+fn cartan_hopfield_store_vector(vec: ptr, dim: float) -> float {
+    cartan_hopfield_init_if_needed();
+    let max_res = cartan_hopfield_get_max_resonance(vec);
+    if (max_res >= 0.98) {
+        return cartan_tree_len_f(g_hopfield_key_bank);
+    }
+    resonator_add_attractor(g_hopfield_key_bank, vec, dim);
+    resonator_add_attractor(g_hopfield_val_bank, vec, dim);
+    return cartan_tree_len_f(g_hopfield_key_bank);
+}
+
+fn cartan_hopfield_store_hidden(hidden_ptr: ptr) -> float {
+    return cartan_hopfield_store_vector(hidden_ptr, g_hopfield_dim);
+}
+
+fn cartan_hopfield_store_pair_vec(key_ptr: ptr, val_ptr: ptr) -> float {
+    cartan_hopfield_init_if_needed();
+    return resonator_store_pair(g_hopfield_key_bank, g_hopfield_val_bank, key_ptr, val_ptr, g_hopfield_dim);
+}
+
+fn cartan_hopfield_query_vec(query_ptr: ptr, beta: float) -> ptr {
+    cartan_hopfield_init_if_needed();
+    return resonator_query(g_hopfield_key_bank, g_hopfield_val_bank, query_ptr, g_hopfield_dim, beta);
+}
+
+// Compacts the active Hopfield memory bank, pruning redundant attractors
+fn cartan_hopfield_compact(thresh: float) -> float {
+    cartan_hopfield_init_if_needed();
+    let old_len = cartan_tree_len_f(g_hopfield_key_bank);
+    if (old_len <= 1.0) { return old_len; }
+    var t = thresh;
+    if (t <= 0.0) { t = 0.98; }
+    let compacted_keys = resonator_compact_bank(g_hopfield_key_bank, g_hopfield_dim, t);
+    g_hopfield_key_bank = compacted_keys;
+    g_hopfield_val_bank = cartan_dict_clone(compacted_keys);
+    return cartan_tree_len_f(compacted_keys);
+}
+
 fn cartan_hopfield_relax(hidden_ptr: ptr, beta: float, steps: float) -> float {
     cartan_hopfield_init_if_needed();
     return resonator_continuous_hopfield_relax(g_hopfield_key_bank, hidden_ptr, g_hopfield_dim, beta, steps);
 }
+
+fn cartan_hopfield_salient_relax(hidden_ptr: ptr, beta: float, steps: float, top_k: float) -> float {
+    cartan_hopfield_init_if_needed();
+    return resonator_salient_hopfield_relax(g_hopfield_key_bank, hidden_ptr, g_hopfield_dim, beta, steps, top_k);
+}
+
 
 fn cartan_hopfield_energy(hidden_ptr: ptr) -> float {
     cartan_hopfield_init_if_needed();
@@ -505,6 +659,14 @@ fn cartan_hopfield_load_basins(path: string) -> float {
         return cartan_tree_len_f(loaded);
     }
     return 0.0;
+}
+
+// Retrieve direct pointer to the k-th loaded attractor basin vector
+fn cartan_hopfield_get_basin(idx: float) -> ptr {
+    cartan_hopfield_init_if_needed();
+    let num_basins = cartan_tree_len_f(g_hopfield_key_bank);
+    if (idx < 0.0 || idx >= num_basins) { return 0.0; }
+    return cartan_tree_get(g_hopfield_key_bank, idx);
 }
 
 fn cartan_hopfield_ingest(path: string) -> float {

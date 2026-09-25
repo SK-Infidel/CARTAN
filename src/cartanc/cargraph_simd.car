@@ -1,0 +1,120 @@
+// src/cartanc/cargraph_simd.car
+// CARTAN High-Performance SIMD Vector Math Core for NSES Embedding Projections
+// Optimized 4-Way Register Unrolling for AVX2 / AVX-512 FMA Auto-Vectorization
+
+include "src/std/math.cl";
+
+extern fn malloc(size: float) -> ptr;
+extern fn free(p: ptr);
+
+// High-speed 4-accumulator unrolled dot product for 1536-dimensional vectors
+// Maps directly to 256-bit vfmadd231pd on AVX2 and 512-bit on AVX-512 with -O3 -ffast-math
+fn cargraph_simd_dot_1536(a: ptr, b: ptr) -> float {
+    if (a == 0.0 || b == 0.0) { return 0.0; }
+    var sum0 = 0.0;
+    var sum1 = 0.0;
+    var sum2 = 0.0;
+    var sum3 = 0.0;
+    var i = 0.0;
+    while (i < 1536.0) {
+        sum0 = sum0 + (a[i] * b[i]);
+        sum1 = sum1 + (a[i + 1.0] * b[i + 1.0]);
+        sum2 = sum2 + (a[i + 2.0] * b[i + 2.0]);
+        sum3 = sum3 + (a[i + 3.0] * b[i + 3.0]);
+        i = i + 4.0;
+    }
+    return sum0 + sum1 + sum2 + sum3;
+}
+
+// Compute Euclidean L2 Norm for 1536-D vector
+fn cargraph_simd_l2_norm_1536(v: ptr) -> float {
+    let dot = cargraph_simd_dot_1536(v, v);
+    if (dot <= 0.0) { return 0.0; }
+    return math_sqrt(dot);
+}
+
+// In-place unit-sphere normalization (||v||_2 = 1.0)
+fn cargraph_simd_normalize_1536(v: ptr) {
+    let norm = cargraph_simd_l2_norm_1536(v);
+    if (norm > 0.00000001) {
+        let inv_norm = 1.0 / norm;
+        var i = 0.0;
+        while (i < 1536.0) {
+            v[i] = v[i] * inv_norm;
+            i = i + 1.0;
+        }
+    }
+}
+
+// Cosine similarity between two unit-normalized vectors is pure dot product
+fn cargraph_simd_cosine_sim_1536(a: ptr, b: ptr) -> float {
+    return cargraph_simd_dot_1536(a, b);
+}
+
+// Compute unit-normalized centroid vector across an array of 1536-D vectors
+fn cargraph_simd_compute_centroid_1536(matrix_base: ptr, num_vectors: float, out_centroid: ptr) {
+    if (matrix_base == 0.0 || out_centroid == 0.0 || num_vectors <= 0.0) { return; }
+    
+    // 1. Initialize centroid accumulator to zero
+    var k = 0.0;
+    while (k < 1536.0) {
+        out_centroid[k] = 0.0;
+        k = k + 1.0;
+    }
+
+    // 2. Sum all candidate vectors
+    var v_idx = 0.0;
+    while (v_idx < num_vectors) {
+        let vec_k = cartan_c_ptr_add(matrix_base, v_idx * (1536.0 * 8.0));
+        var d = 0.0;
+        while (d < 1536.0) {
+            out_centroid[d] = out_centroid[d] + vec_k[d];
+            d = d + 1.0;
+        }
+        v_idx = v_idx + 1.0;
+    }
+
+    // 3. Normalize centroid to unit sphere
+    cargraph_simd_normalize_1536(out_centroid);
+}
+
+// Batch Top-K selection over candidate embedding matrix
+// Finds indices of top-K highest cosine similarities to query_vec
+fn cargraph_simd_batch_topk(query_vec: ptr, matrix_base: ptr, num_candidates: float, k: float, out_indices: ptr, out_scores: ptr) {
+    if (query_vec == 0.0 || matrix_base == 0.0 || num_candidates <= 0.0 || k <= 0.0) { return; }
+    
+    // Initialize output arrays
+    var init_i = 0.0;
+    while (init_i < k) {
+        out_indices[init_i] = -1.0;
+        out_scores[init_i] = -2.0; // Minimal cosine similarity lower bound (-1.0)
+        init_i = init_i + 1.0;
+    }
+
+    // Stream through candidate vectors
+    var cand_idx = 0.0;
+    while (cand_idx < num_candidates) {
+        let cand_ptr = cartan_c_ptr_add(matrix_base, cand_idx * (1536.0 * 8.0));
+        let score = cargraph_simd_dot_1536(query_vec, cand_ptr);
+
+        // Check if score qualifies for top-k insertion
+        if (score > out_scores[k - 1.0]) {
+            // Find insertion position
+            var ins_pos = k - 1.0;
+            while (ins_pos > 0.0 && score > out_scores[ins_pos - 1.0]) {
+                ins_pos = ins_pos - 1.0;
+            }
+            // Shift lower scores right
+            var shift_j = k - 1.0;
+            while (shift_j > ins_pos) {
+                out_scores[shift_j] = out_scores[shift_j - 1.0];
+                out_indices[shift_j] = out_indices[shift_j - 1.0];
+                shift_j = shift_j - 1.0;
+            }
+            // Insert
+            out_scores[ins_pos] = score;
+            out_indices[ins_pos] = cand_idx;
+        }
+        cand_idx = cand_idx + 1.0;
+    }
+}

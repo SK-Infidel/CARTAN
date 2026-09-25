@@ -1,0 +1,25 @@
+# Sprint 419 Task List
+
+- [x] **Task 1: Add `geomind_resolve_path` and `train_sync_hopfield_attractors_host_to_gpu()` to `test/geomind/train.cl`** <!-- id: 1 -->
+  - Move/ensure `geomind_resolve_path` is accessible prior to GPU mounting.
+  - Implement `train_sync_hopfield_attractors_host_to_gpu() -> float`.
+  - Add `var g_num_active_hopfield_attractors: float = 0.0;`.
+- [x] **Task 2: Fix `geomind_hopfield_inject` Kernel Race Condition** <!-- id: 2 -->
+  - Restructure `geomind_hopfield_inject` OpenCL kernel with `s_p[8]`, `if (lid == 0)` reduction, and proper barriers.
+- [x] **Task 3: Purge Synthetic Sine Waves from `train_mount_gpu()` & Call Sync** <!-- id: 3 -->
+  - Replace lines 345-355 with zero initialization.
+  - Replace lines 525-539 with `train_sync_hopfield_attractors_host_to_gpu()`.
+  - Guard injection and backward in `geomind_train_chunk_gpu_pipelined` with `g_num_active_hopfield_attractors > 0.0`.
+- [x] **Task 4: Sync Attractors Post-Sleep Consolidation** <!-- id: 4 -->
+  - Invoke `train_sync_hopfield_attractors_host_to_gpu()` after `train_sync_weights_host_to_gpu()` in the sleep trigger block.
+  - Add telemetry reporting the synchronized attractor count.
+- [x] **Task 5: Correct Active Domain Stream Routing** <!-- id: 5 -->
+  - Update pre-step routing in `test/geomind/train.cl` lines 2035-2046 for educational (`3.0`), biological (`4.0`), geometric (`2.0`), physics (`1.0`), and default general web text (`5.0`).
+- [x] **Task 6: Recompile & Empirically Verify** <!-- id: 6 -->
+  - Build `geomind.exe` with `cartanc.exe`.
+  - Verify sync to `test/geomind/geomind.exe` and `bin/geomind.exe`.
+  - Run short test execution and regression tests.
+- [x] **Task 7: Retrospective, Documentation & Archival** <!-- id: 7 -->
+  - Update `CHANGELOG.md` (`[8.377.0]`).
+  - Update `ISSUES.md` with `[ISSUE-161]`.
+  - Archive plan, task list, and walkthrough to `docs/archive/`.

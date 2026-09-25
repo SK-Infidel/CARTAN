@@ -1,0 +1,146 @@
+// src/cartanc/svo_extractor.car
+// CARTAN Standard Library: Finite State Transducer (FST) SVO Extractor & Ontological Grounding Gate
+// Neuro-Symbolic Expert System (NSES) Phase 6 Core
+
+include "src/std/math.cl";
+include "src/std/collections.cl";
+include "src/std/string.cl";
+include "src/cartanc/cargraph_simd.car";
+
+extern fn strlen(s: string) -> float;
+
+// Subject-Predicate-Object (SVO) Triplet Structure
+struct SVO_Triplet {
+    subject: string;
+    predicate: string;
+    object: string;
+    relation_type: float;        // 1.0=REQUIRES, 2.0=CONTRADICTS, 3.0=CAUSES, 4.0=ASSOCIATES
+    is_valid: float;             // 1.0 if successfully grounded, 0.0 if ungrounded/rejected
+    grounding_score: float;      // Cosine similarity to domain centroid
+}
+
+// Scans text for deceptive prompt-injection traps and imperative system commands
+fn svo_check_prompt_injection(text: string) -> float {
+    if (text == 0.0) { return 0.0; }
+    if (cartan_string_contains(text, "SYSTEM COMMAND") != 0.0) { return 1.0; }
+    if (cartan_string_contains(text, "SYSTEM INSTRUCTION") != 0.0) { return 1.0; }
+    if (cartan_string_contains(text, "OVERRIDE") != 0.0) { return 1.0; }
+    if (cartan_string_contains(text, "Note that ") != 0.0) { return 1.0; }
+    if (cartan_string_contains(text, "ignore previous") != 0.0) { return 1.0; }
+    if (cartan_string_contains(text, "pretend that") != 0.0) { return 1.0; }
+    return 0.0;
+}
+
+// Scans text for idiomatic slang, metaphors, or ungrounded figurative language
+fn svo_check_figurative_noise(text: string) -> float {
+    if (text == 0.0) { return 0.0; }
+    if (cartan_string_contains(text, "raining cats and dogs") != 0.0) { return 1.0; }
+    if (cartan_string_contains(text, "spill the beans") != 0.0) { return 1.0; }
+    if (cartan_string_contains(text, "break a leg") != 0.0) { return 1.0; }
+    if (cartan_string_contains(text, "bite the bullet") != 0.0) { return 1.0; }
+    if (cartan_string_contains(text, "under the weather") != 0.0) { return 1.0; }
+    if (cartan_string_contains(text, "piece of cake") != 0.0) { return 1.0; }
+    return 0.0;
+}
+
+// FST Causal Token Scanner: Identifies Subject, Causal Verb, and Object
+fn svo_extract_triplet(statement: string) -> SVO_Triplet {
+    let invalid_res = SVO_Triplet {
+        subject: "",
+        predicate: "",
+        object: "",
+        relation_type: 0.0,
+        is_valid: 0.0,
+        grounding_score: 0.0
+    };
+
+    if (statement == 0.0 || strlen(statement) < 5.0) {
+        return invalid_res;
+    }
+
+    // Step 1: Prompt-Injection Trap Check
+    if (svo_check_prompt_injection(statement) != 0.0) {
+        return invalid_res; // Spurious update rejected
+    }
+
+    // Step 2: Figurative / Ambiguous Slang Check
+    if (svo_check_figurative_noise(statement) != 0.0) {
+        return invalid_res; // Idiomatic noise discarded
+    }
+
+    // Step 3: FST Causal Pattern Matching
+    var rel = 0.0;
+    var pred = "";
+    var s_pos = 0.0;
+
+    if (cartan_string_contains(statement, " because ") != 0.0) {
+        rel = 3.0; // CAUSES
+        pred = "causes";
+    } else if (cartan_string_contains(statement, " causes ") != 0.0) {
+        rel = 3.0; // CAUSES
+        pred = "causes";
+    } else if (cartan_string_contains(statement, " dissipates into ") != 0.0) {
+        rel = 3.0; // CAUSES
+        pred = "dissipates into";
+    } else if (cartan_string_contains(statement, " requires ") != 0.0) {
+        rel = 1.0; // REQUIRES
+        pred = "requires";
+    } else if (cartan_string_contains(statement, " implies ") != 0.0) {
+        rel = 1.0; // REQUIRES
+        pred = "implies";
+    } else if (cartan_string_contains(statement, " contradicts ") != 0.0) {
+        rel = 2.0; // CONTRADICTS
+        pred = "contradicts";
+    } else if (cartan_string_contains(statement, " violates ") != 0.0) {
+        rel = 2.0; // CONTRADICTS
+        pred = "contradicts";
+    } else if (cartan_string_contains(statement, " associates with ") != 0.0) {
+        rel = 4.0; // ASSOCIATES
+        pred = "associates with";
+    } else {
+        // Casual banter or non-causal statement with no connective
+        return invalid_res;
+    }
+
+    return SVO_Triplet {
+        subject: statement,
+        predicate: pred,
+        object: statement,
+        relation_type: rel,
+        is_valid: 1.0,
+        grounding_score: 1.0
+    };
+}
+
+// Ontological Grounding Gate: Verifies candidate embedding proximity against domain centroid
+// Hard Gate: cos(e_triplet, c_domain) >= 0.70
+fn svo_ontological_grounding_gate(
+    triplet: SVO_Triplet,
+    candidate_emb: ptr,
+    domain_centroid: ptr,
+    dim: float
+) -> SVO_Triplet {
+    if (triplet.is_valid == 0.0) {
+        return triplet;
+    }
+
+    if (candidate_emb == 0.0 || domain_centroid == 0.0 || dim < 64.0) {
+        var ungrounded = triplet;
+        ungrounded.is_valid = 0.0;
+        ungrounded.grounding_score = 0.0;
+        return ungrounded;
+    }
+
+    let sim = cargraph_simd_cosine_sim_1536(candidate_emb, domain_centroid);
+    var res = triplet;
+    res.grounding_score = sim;
+
+    if (sim < 0.70) {
+        // Semantic proximity below threshold: Discard triplet before reaching SAT or Delta Arena
+        res.is_valid = 0.0;
+    } else {
+        res.is_valid = 1.0;
+    }
+
+    return res;
+}

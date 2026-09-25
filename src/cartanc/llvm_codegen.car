@@ -664,6 +664,8 @@ fn llvm_codegen_init() -> LLVMGenerator {
                     if (fn_name == "system") { params = "ptr"; abi_ret = "i32"; } else {}
                     if (fn_name == "remove") { params = "ptr"; abi_ret = "i32"; } else {}
                     if (fn_name == "rename") { params = "ptr, ptr"; abi_ret = "i32"; } else {}
+                    if (fn_name == "clock") { params = ""; abi_ret = "i32"; } else {}
+                    if (fn_name == "MoveFileExA") { params = "ptr, ptr, i32"; abi_ret = "i32"; } else {}
                     if (fn_name == "exit") { params = "i32"; abi_ret = "void"; } else {}
                     if (fn_name == "__acrt_iob_func") { params = "i32"; abi_ret = "ptr"; } else {}
                     if (fn_name == "clGetPlatformIDs") { params = "i32, ptr, ptr"; abi_ret = "i32"; } else {}
@@ -2780,7 +2782,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 if (is_arg_ptr != 0.0) {
                     let clean = clean_reg(arg_reg);
                     formatted_arg = cartan_string_concat("ptr ", clean);
-                } else if (is_cl_i32 != 0.0 || (cartan_string_eq(name, "fseek") != 0.0 && idx_a == 2.0) || cartan_string_eq(name, "__acrt_iob_func") != 0.0 || cartan_string_eq(name, "exit") != 0.0 || (cartan_string_eq(name, "fgets") != 0.0 && idx_a == 1.0)) {
+                } else if (is_cl_i32 != 0.0 || (cartan_string_eq(name, "fseek") != 0.0 && idx_a == 2.0) || (cartan_string_eq(name, "MoveFileExA") != 0.0 && idx_a == 2.0) || cartan_string_eq(name, "__acrt_iob_func") != 0.0 || cartan_string_eq(name, "exit") != 0.0 || (cartan_string_eq(name, "fgets") != 0.0 && idx_a == 1.0)) {
                     let int_cast = next_reg(self_ptr);
                     cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", int_cast), " = fptosi double "), as_float(self_ptr, arg_reg)), " to i32\n"));
                     formatted_arg = cartan_string_concat("i32 ", int_cast);
@@ -2875,7 +2877,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 let flt_reg = next_reg(self_ptr);
                 cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", flt_reg), " = uitofp i64 "), res_reg), " to double\n"));
                 return flt_reg;
-            } else if (cartan_string_eq(name, "strcmp") != 0.0 || cartan_string_eq(name, "strncmp") != 0.0 || cartan_string_eq(name, "fseek") != 0.0 || cartan_string_eq(name, "fflush") != 0.0 || cartan_string_eq(name, "fclose") != 0.0 || cartan_string_eq(name, "system") != 0.0 || cartan_string_eq(name, "remove") != 0.0 || cartan_string_eq(name, "rename") != 0.0 || cartan_string_eq(name, "fputs") != 0.0 || (cartan_string_starts_with(name, "cl") != 0.0 && is_ptr_ret == 0.0)) {
+            } else if (cartan_string_eq(name, "strcmp") != 0.0 || cartan_string_eq(name, "strncmp") != 0.0 || cartan_string_eq(name, "fseek") != 0.0 || cartan_string_eq(name, "fflush") != 0.0 || cartan_string_eq(name, "fclose") != 0.0 || cartan_string_eq(name, "system") != 0.0 || cartan_string_eq(name, "remove") != 0.0 || cartan_string_eq(name, "rename") != 0.0 || cartan_string_eq(name, "clock") != 0.0 || cartan_string_eq(name, "MoveFileExA") != 0.0 || cartan_string_eq(name, "fputs") != 0.0 || (cartan_string_starts_with(name, "cl") != 0.0 && is_ptr_ret == 0.0)) {
                 let call_prefix = cartan_string_concat("  ", cartan_string_concat(res_reg, cartan_string_concat(" = call i32 @", cartan_string_concat(name, "("))));
                 let call_full = cartan_string_concat(call_prefix, cartan_string_concat(arg_str, ")\n"));
                 cartan_tree_push(self_ptr.output, call_full);

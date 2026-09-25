@@ -4822,3 +4822,28 @@
 [GeoMind CLOZE Stream] Ep 2.0 | TL: 3.64927 | ATL: 3.76456 | VL: 3.6091 | AVL: 3.5944 | VPPL: 36.394 | LR: 0.00107162
 [GeoMind CLOZE Stream] Ep 2.0 | TL: 3.60374 | ATL: 3.76451 | VL: 3.60816 | AVL: 3.59509 | VPPL: 36.419 | LR: 0.00107162
 [GeoMind CLOZE Stream] Ep 2.0 | TL: 3.95778 | ATL: 3.76459 | VL: 3.60359 | AVL: 3.59552 | VPPL: 36.4345 | LR: 0.00107162
+[GeoMind CLOZE Stream] Ep 1.0/1.0 | D[1.0/6.0: test/geomind/trainingdata/mined_expanded_corpus_cloze_part01.jsonl] | Chunk 1.0
+  Progress -> 0.0293852% (13.0693 / 44476 KB) | LR: 0.00107162 | TTemp: 1.01296 | VTemp: 1.0
+  Train -> TL: 4.17444 | ATL: 4.17444 | ITPPL: 65.0035 | ATPPL: 65.0035 | ENT: 6.37075b | CERT: 20.2136%
+  Val   -> VL: 4.4336 | AVL: 4.4336 | IVPPL: 84.234 | AVPPL: 84.234 | VENT: 5.34213b | VCERT: 35.9052%
+
+[GeoMind CLOZE Stream] Ep 1.0/1.0 | D[2.0/6.0: test/geomind/trainingdata/mined_expanded_corpus_cloze_part02.jsonl] | Chunk 2.0
+  Progress -> 0.0574419% (25.5479 / 44476 KB) | LR: 0.00107162 | TTemp: 1.01919 | VTemp: 1.0
+  Train -> TL: 4.09008 | ATL: 4.17022 | ITPPL: 59.7449 | ATPPL: 64.7299 | ENT: 6.74675b | CERT: 12.8182%
+  Val   -> VL: 4.17912 | AVL: 4.42087 | IVPPL: 65.3083 | AVPPL: 83.169 | VENT: 6.69665b | VCERT: 14.0358%
+
+[GeoMind CLOZE Stream] Ep 1.0/1.0 | D[3.0/6.0: test/geomind/trainingdata/mined_expanded_corpus_cloze_part03.jsonl] | Chunk 3.0
+  Progress -> 0.088206% (39.2305 / 44476 KB) | LR: 0.00107162 | TTemp: 1.02437 | VTemp: 1.0
+  Train -> TL: 4.05027 | ATL: 4.16369 | ITPPL: 57.4129 | ATPPL: 64.3086 | ENT: 6.37313b | CERT: 14.9736%
+  Val   -> VL: 4.19011 | AVL: 4.40555 | IVPPL: 66.0298 | AVPPL: 81.904 | VENT: 6.00227b | VCERT: 19.6049%
+
+[GeoMind CLOZE Stream] Ep 1.0/1.0 | D[4.0/6.0: test/geomind/trainingdata/mined_expanded_corpus_cloze_part04.jsonl] | Chunk 4.0
+  Progress -> 0.114956% (51.1279 / 44476 KB) | LR: 0.00107162 | TTemp: 1.02876 | VTemp: 1.0
+  Train -> TL: 4.60645 | ATL: 4.17036 | ITPPL: 100.128 | ATPPL: 64.7385 | ENT: 6.33452b | CERT: 14.2368%
+  Val   -> VL: 4.87802 | AVL: 4.40701 | IVPPL: 131.37 | AVPPL: 82.0242 | VENT: 6.43901b | VCERT: 14.6035%
+
+[GeoMind CLOZE Stream] Ep 1.0/1.0 | D[5.0/6.0: test/geomind/trainingdata/mined_expanded_corpus_cloze_part05.jsonl] | Chunk 5.0
+  Progress -> 0.145426% (64.6797 / 44476 KB) | LR: 0.00107162 | TTemp: 1.03246 | VTemp: 1.0
+  Train -> TL: 4.19701 | ATL: 4.17568 | ITPPL: 66.4872 | ATPPL: 65.0844 | ENT: 6.19093b | CERT: 16.7117%
+  Val   -> VL: 4.35739 | AVL: 4.40708 | IVPPL: 78.0531 | AVPPL: 82.0294 | VENT: 5.8506b | VCERT: 19.496%
+

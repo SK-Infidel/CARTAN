@@ -15,6 +15,9 @@ extern fn cartan_file_exists(path: string) -> float;
 extern fn cartan_read_file(path: string) -> string;
 extern fn cartan_write_file(path: string, content: string) -> float;
 extern fn cartan_copy_file(src: string, dst: string) -> float;
+extern fn remove(path: string) -> float;
+extern fn rename(old_path: string, new_path: string) -> float;
+extern fn MoveFileExA(existing: string, new_name: string, flags: float) -> float;
 
 fn fs_exists(path: string) -> float {
     return cartan_file_exists(path);
@@ -22,6 +25,27 @@ fn fs_exists(path: string) -> float {
 
 fn fs_copy(src: string, dst: string) -> float {
     return cartan_copy_file(src, dst);
+}
+
+fn fs_remove(path: string) -> float {
+    return remove(path);
+}
+
+fn fs_rename(old_path: string, new_path: string) -> float {
+    return rename(old_path, new_path);
+}
+
+// True atomic filesystem metadata swap on disk (MoveFileExA with MOVEFILE_REPLACE_EXISTING 0x01 | MOVEFILE_WRITE_THROUGH 0x08)
+fn fs_atomic_swap(src: string, dst: string) -> float {
+    if (src == 0.0 || dst == 0.0) { return 0.0; }
+    // Try Win32 atomic metadata swap (flags = 9.0)
+    let ok = MoveFileExA(src, dst, 9.0);
+    if (ok != 0.0) { return 1.0; }
+    // Fallback: remove existing destination then atomic rename
+    remove(dst);
+    let r_ok = rename(src, dst);
+    if (r_ok == 0.0) { return 1.0; }
+    return 0.0;
 }
 
 fn fs_read_all(path: string) -> string {

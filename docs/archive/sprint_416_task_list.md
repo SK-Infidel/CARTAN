@@ -1,0 +1,21 @@
+# Sprint 416 Task List: Axiomatic Sleep Consolidation & Neocortical Gradient Imprinting
+
+- [x] **Task 1: Hopfield Real Basin Accessor**
+  - [x] Implement `cartan_hopfield_get_basin(idx: float) -> ptr` in `src/std/resonator.cl`.
+  - [x] Connect `sleep_run_consolidation_cycle` in `src/std/sleep.cl` to real loaded attractors.
+- [x] **Task 2: Axiomatic Rule Replay Kernel**
+  - [x] Implement `sleep_run_axiomatic_consolidation` in `src/std/sleep.cl`.
+  - [x] Load 42 genuine rule embeddings from `nses_knowledge.car_graph`.
+  - [x] Apply Hopfield relaxation and Hebbian cortical consolidation with strict invariant boost.
+- [x] **Task 3: Sleep Daemon Serialization & Training Integration**
+  - [x] Upgrade `test/geomind/sleep.car` to load and save `geomind_steady_state_weights.bin`.
+  - [x] Upgrade `test/geomind/main.car` `--sleep` handler with 3-phase consolidation and weight serialization.
+  - [x] Wire periodic axiomatic replay into `test/geomind/train.cl` with `train_sync_weights_host_to_gpu()`.
+- [x] **Task 4: Compilation & Empirical Verification**
+  - [x] Rebuild `geomind.exe` and `sleep.exe` with `cartanc.exe`.
+  - [x] Test `geomind.exe --sleep` and `test/geomind/sleep.exe` executing all 3 phases cleanly.
+  - [x] Verify zero regressions across all 7 NSES test suites and compiler test suite.
+  - [x] Clean up backups on pass.
+- [x] **Task 5: Retrospective & Documentation**
+  - [x] Author `docs/archive/sprint_416_walkthrough.md`.
+  - [x] Update `CHANGELOG.md` for `[8.374.0]`.

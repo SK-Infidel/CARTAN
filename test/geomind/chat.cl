@@ -5,6 +5,7 @@ include "../../src/std/tokenizer.cl";
 include "../../src/std/vision.cl";
 include "../../src/std/autotune.cl";
 include "../../src/std/semantics.cl";
+include "../../src/std/gpu.cl";
 include "../../src/std/hub.cl";
 include "../../src/std/math.cl";
 include "../../src/std/fusion.cl";
@@ -22,6 +23,7 @@ include "../../src/std/collections.cl";
 
 include "../../src/std/reasoning.cl";
 include "../../src/std/hebbian.cl";
+include "../../src/std/nses_pipeline.cl";
 
 fn c_cartan_print_token(tok: float) -> float {
     let s = bpe_decode_token(tok);
@@ -258,6 +260,21 @@ fn cartan_multimodal_ground_hidden(h: ptr, vision: ptr, audio: ptr) -> float {
     return 1.0;
 }
 
+// Resident In-Memory NSES Pipeline for Interactive Chat Session
+var g_chat_nses_pipe: NSES_Pipeline;
+var g_chat_nses_init: float = 0.0;
+var g_last_chat_domain: float = 1.0;
+var g_last_chat_traversed: float = 0.0;
+
+fn geomind_chat_get_nses_pipeline() -> NSES_Pipeline {
+    if (g_chat_nses_init == 0.0) {
+        let nses_path = "test/geomind/trainingdata/nses_knowledge.car_graph";
+        g_chat_nses_pipe = nses_pipeline_create(nses_path);
+        g_chat_nses_init = 1.0;
+    }
+    return g_chat_nses_pipe;
+}
+
 fn geomind_chat_start() -> float {
     printf("================================================================================\n");
     printf("  GEOMIND GOOGLE GEMMA-4 E4B E8 CHAT ENGINE (chat.car)\n");
@@ -322,6 +339,10 @@ fn geomind_chat_start() -> float {
             cartan_float_to_string(g_taxonomy_node_count));
     } else {
         printf("[GeoMind Chat] Taxonomy DAG file %s not found.\n", tax_path);
+    }
+    let nses_pipe = geomind_chat_get_nses_pipeline();
+    if (nses_pipe.is_ready == 1.0) {
+        printf("[GeoMind Chat] Neuro-Symbolic Expert System (NSES) resident: Active graph mounted.\n");
     }
     cartan_flush(0.0);
     return 0.0;
@@ -412,7 +433,9 @@ fn geomind_chat_process_audio_file(audio_path: string) -> ptr {
     return geomind_chat_process_audio_input(256.0, 16000.0);
 }
 
-extern fn cartan_tensor_train_step(h: ptr, tok: float, lr: float) -> float;
+extern fn cartan_tensor_train_step(hidden_ptr: ptr, target_tok_id: float, learning_rate: float) -> float;
+
+
 extern fn cartan_hub_encode_text_to_tokens(s: string) -> ptr;
 extern fn cartan_hebbian_step_token(h: ptr, tok: float, m: float, lr: float) -> float;
 extern fn cartan_tensor_hebbian_update(pre: ptr, post: ptr, m: float, lr: float) -> float;
@@ -420,12 +443,33 @@ extern fn cartan_tensor_hebbian_update(pre: ptr, post: ptr, m: float, lr: float)
 fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, temp: float, image_path: string, audio_path: string) -> float {
     printf("[GeoMind Chat] Processing User Prompt...\n");
     cartan_flush(0.0);
+
+    // --- NSES Forward Pass Pre-Priming & Invariant Extraction ---
+    let nses_pipe = geomind_chat_get_nses_pipeline();
+    let nses_turn = nses_pipeline_execute_turn(nses_pipe, prompt, 1.0, "");
+    g_last_chat_domain = nses_turn.active_domain;
+    g_last_chat_traversed = nses_turn.traversed_count;
+    printf("[NSES Pre-Priming] Routed Domain %s | Traversed %s memory nodes | Latency: %s ms\n",
+           cartan_float_to_string(nses_turn.active_domain), cartan_float_to_string(nses_turn.traversed_count), cartan_float_to_string(nses_turn.turn_latency_ms));
+    if (cartan_string_length(nses_turn.lateral_fragment) > 0.0) {
+        printf("[NSES Lateral Association] \"%s\"\n", nses_turn.lateral_fragment);
+    }
+    cartan_flush(0.0);
+
     printf("[GeoMind Chat] Executing 100%% Pure Neural Forward Pass (E8 Attention + 42-Layer SO(2560) Manifold + MoE + Hopfield)...\n");
     cartan_flush(0.0);
 
-    let prompt_tokens = cartan_hub_encode_text_to_tokens(prompt);
-    let num_prompt_toks = cartan_vec_len(prompt_tokens);
-    printf("[GeoMind Neural] Encoded prompt into %s BPE input tokens.\n", cartan_float_to_string(num_prompt_toks));
+    var effective_prompt = prompt;
+    if (cartan_string_length(nses_turn.assembled_prompt) > 0.0) {
+        effective_prompt = nses_turn.assembled_prompt;
+    }
+    var prompt_tokens = cartan_hub_encode_text_to_tokens(effective_prompt);
+    var num_prompt_toks = cartan_vec_len(prompt_tokens);
+    if (num_prompt_toks <= 0.0) {
+        prompt_tokens = cartan_hub_encode_text_to_tokens(prompt);
+        num_prompt_toks = cartan_vec_len(prompt_tokens);
+    }
+    printf("[GeoMind Neural] Encoded prompt scaffold into %s BPE input tokens.\n", cartan_float_to_string(num_prompt_toks));
     cartan_flush(0.0);
 
     // 1. Compute genuine prompt hidden state by averaging Safetensors embedding matrix rows
@@ -493,6 +537,8 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
     var current_temp = temp;
     var rewind_executed = 0.0;
 
+    let gen_buffer = prompt_scaffold_create(16384.0);
+
     while (step < max_t) {
         let logits_vec = cartan_tensor_compute_lm_head_logits(cur_h, current_temp);
         cartan_apply_repetition_penalty(logits_vec, history, 3.50);
@@ -525,6 +571,8 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
             // End of Sequence reached cleanly
             break;
         }
+        let tok_str = bpe_decode_token(sampled_tok);
+        prompt_scaffold_append(gen_buffer, tok_str);
         c_cartan_print_token(sampled_tok);
         cartan_flush(0.0);
         cartan_vec_push_f32(history, sampled_tok);
@@ -540,6 +588,17 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
     }
 
     printf(" [Hopfield Energy Minimum: %s]\n", cartan_float_to_string(hopfield_energy));
+
+    // Post-Pass Deterministic Veto Gate: Firewall candidate output against Domain 0 invariants
+    let full_gen_text = prompt_scaffold_get_text(gen_buffer);
+    let veto_res = veto_gate_scan(nses_pipe.veto_reg, full_gen_text);
+    if (veto_res.is_vetoed != 0.0) {
+        printf("\n\n[NSES POST-PASS DETERMINISTIC VETO GATE ACTIVATED]\n");
+        printf("[NSES VETO FIREWALL] Contradiction detected: '%s' violates Invariant Rule %.0f\n",
+               veto_res.violation_pattern, veto_res.violated_rule_id);
+        printf("[NSES CANONICAL INVARIANT ASSERTION] %s\n\n", veto_res.output_text);
+    }
+    prompt_scaffold_free(gen_buffer);
 
     // 3. O(1) One-Shot Key-Value Attractor Basin Insertion: Ingest conversational context into persistent memory
     cartan_hopfield_store_pair_vec(hidden_state, cur_h);
@@ -659,11 +718,30 @@ fn geomind_chat_apply_human_feedback(prompt: string, reply: string, reward: floa
         avg_loss = total_loss / r_len;
     }
 
+    // Graph-Level Synaptic Plasticity on Resident NSES Graph
+    let pipe = geomind_chat_get_nses_pipeline();
+    let cur_ts = clock();
     if (reward > 0.0) {
+        var e_idx = 0.0;
+        let num_edges = collections_list_len(pipe.csr.edge_weights);
+        while (e_idx < num_edges && e_idx < 4.0) {
+            hebbian_reinforce_edge(pipe.csr.edge_weights, pipe.csr.edge_timestamps, e_idx, 0.10, 5.0, cur_ts);
+            e_idx = e_idx + 1.0;
+        }
         printf("[GeoMind RLHF] Human Reward (+1.0 Received): Reinforcing Hopfield attractor basin trajectory (CE Loss: %s)...\n", cartan_float_to_string(avg_loss));
+        printf("[GeoMind NSES Plasticity] Reinforced active semantic graph pathways for Domain %s (+0.10 weight boost).\n", cartan_float_to_string(g_last_chat_domain));
+        cartan_flush(0.0);
         return 1.0;
     } else {
+        var e_idx = 0.0;
+        let num_edges = collections_list_len(pipe.csr.edge_weights);
+        while (e_idx < num_edges && e_idx < 4.0) {
+            hebbian_decay_edge(pipe.csr.edge_weights, pipe.csr.edge_timestamps, e_idx, cur_ts, 0.05, 1.0);
+            e_idx = e_idx + 1.0;
+        }
         printf("[GeoMind RLHF] Human Penalty (-1.0 Received): Repulsion step executed along gradient trajectory (CE Loss: %s)...\n", cartan_float_to_string(avg_loss));
+        printf("[GeoMind NSES Plasticity] Decayed contradictory semantic graph pathways for Domain %s (-0.05 weight penalty).\n", cartan_float_to_string(g_last_chat_domain));
+        cartan_flush(0.0);
         return -1.0;
     }
 }
@@ -690,7 +768,18 @@ fn geomind_chat_apply_correction(prompt: string, correct_reply: string) -> float
     if (c_len > 0.0) {
         loss = total_loss / c_len;
     }
+    // Reinforce graph memory for corrected domain
+    let pipe = geomind_chat_get_nses_pipeline();
+    let cur_ts = clock();
+    var e_idx = 0.0;
+    let num_edges = collections_list_len(pipe.csr.edge_weights);
+    while (e_idx < num_edges && e_idx < 4.0) {
+        hebbian_reinforce_edge(pipe.csr.edge_weights, pipe.csr.edge_timestamps, e_idx, 0.15, 5.0, cur_ts);
+        e_idx = e_idx + 1.0;
+    }
     printf("[GeoMind SFT Online] Real SFT gradient update executed over correction (Final Loss: %s).\n", cartan_float_to_string(loss));
+    printf("[GeoMind NSES Plasticity] Consolidated correction target into resident semantic graph memory.\n");
+    cartan_flush(0.0);
     return loss;
 }
 

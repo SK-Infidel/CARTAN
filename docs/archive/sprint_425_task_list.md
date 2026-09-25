@@ -1,0 +1,23 @@
+# Sprint 425 Task List
+
+- [x] **Task 1: Log Issues in `ISSUES.md`**
+  - [x] Add `[ISSUE-166]` (Cross-Domain Surge False-Positives in Dynamic $\gamma$).
+  - [x] Add `[ISSUE-167]` (Same-Domain EOF Wrap-Around in Double-Buffering).
+  - [x] Add `[ISSUE-168]` (Backlog: Root Invariant Erosion in Chat RLHF).
+  - [x] Add `[ISSUE-169]` (Backlog: Per-Turn Vector Leak in Interactive Chat).
+- [x] **Task 2: Dynamic $\gamma$ Domain Isolation**
+  - [x] Initialize `domain_prev_train_loss` vector for tracking recent loss per domain in `test/geomind/train.cl`.
+  - [x] Update `domain_prev_train_loss[d_idx]` after each chunk completes backprop.
+  - [x] Update callsite of `train_update_dynamic_gamma` to look up the active domain's own baseline `domain_losses[active_d_idx]` and recent loss `domain_prev_train_loss[active_d_idx]`.
+- [x] **Task 3: Same-Domain Double-Buffer EOF Wrap-Around**
+  - [x] In `test/geomind/train.cl`, guard `st_start` against `st_content_len` when `standby_d_idx == active_d_idx`.
+  - [x] Reset `st_start = 0.0` and `domain_has_prev[standby_d_idx] = 0.0` when EOF is reached.
+  - [x] Also guard general `st_start >= st_content_len` for standby slicing.
+- [x] **Task 4: Regression Test Harness & Build Verification**
+  - [x] Create `test/geomind/nses/test_sprint12_dynamic_gamma_and_eof_wrap.car`.
+  - [x] Compile and verify regression test gates.
+  - [x] Build `geomind.exe` with `cartanc.exe`.
+  - [x] Verify `--verify` and `--sleep`.
+- [x] **Task 5: Documentation & Retrospective**
+  - [x] Save `docs/archive/sprint_425_walkthrough.md`.
+  - [x] Update `CHANGELOG.md` and mark issues resolved in `ISSUES.md`.

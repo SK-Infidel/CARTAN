@@ -31,6 +31,11 @@ scratch/
 *.ll
 *.bak
 test*.car
+!test/geomind/nses/**
+test/geomind/nses/*.exe
+test/geomind/nses/*.pdb
+test/geomind/nses/*.ll
+test/geomind/nses/*.car_graph
 *.rs
 src/archive/
 .zigcache/
