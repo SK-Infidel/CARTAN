@@ -383,12 +383,12 @@ fn geomind_chat_process_image_file(image_path: string) -> ptr {
                 if (img.width > 16.0) { sx = floor((img.width - 16.0) * 0.5); }
                 if (img.height > 16.0) { sy = floor((img.height - 16.0) * 0.5); }
                 let patch = vision_extract_patch(img, sx, sy, 16.0, 16.0);
-                let stream = vision_project_to_eikonal_stream(patch, 16.0 * 16.0 * 3.0, 320.0);
+                let img_stream = vision_project_to_eikonal_stream(patch, 16.0 * 16.0 * 3.0, 320.0);
                 free(img.data);
                 free(patch);
                 printf("[GeoMind Multimodal] Ingested real image file (%sx%s): %s\n",
                     cartan_float_to_string(img.width), cartan_float_to_string(img.height), image_path);
-                return stream;
+                return img_stream;
             }
         }
         if (cartan_string_contains(image_path, ".bmp") == 1.0) {

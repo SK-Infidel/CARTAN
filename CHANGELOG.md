@@ -1,3 +1,27 @@
+## [8.384.0] - 2026-09-24 (Sprint 426: Core Memory Reclamation & Graph Topological Integrity)
+
+### Completed & Validated
+- **Hopfield Attractor & Resonator Memory Reclamation ([`[ISSUE-170]`](file:///C:/Users/rich-/source/repos/CARTAN/ISSUES.md#L2509-L2516), [`[ISSUE-171]`](file:///C:/Users/rich-/source/repos/CARTAN/ISSUES.md#L2518-L2526))**:
+  - Implemented `cartan_tree_free(t: ptr)` and `collections_free_tree(t: ptr)` in [`src/std/collections.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/collections.cl) deallocating both underlying node array buffers (offset 24) and tree structures.
+  - Deallocated `chosen_bank` in `resonator_salient_hopfield_relax` in [`src/std/resonator.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/resonator.cl), eliminating permanent heap growth during Top-K salient attractor extraction.
+  - Added `cartan_vec_free(dots)` before returning `energy` in `resonator_compute_energy` in [`src/std/resonator.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/resonator.cl), halting 64 KB per-step vector leaks across 1,000+ autoregressive generation steps.
+- **Multi-Edge Dynamic Delta Packing & Chaining ([`[ISSUE-172]`](file:///C:/Users/rich-/source/repos/CARTAN/ISSUES.md#L2528-L2536))**:
+  - Overhauled `dynamic_arena_append_edge` in [`src/std/dynamic_graph.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/dynamic_graph.cl) to pack up to 4 edges per 64-byte chunk and link backward chunk offsets via bytes 60..62 (`0xFFFFFF` tail sentinel), eliminating chunk orphaning on multiple edge additions per node.
+  - Updated `cargraph_consolidate_pass` in [`src/std/cargraph_consolidate.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/cargraph_consolidate.cl) to iterate all populated slots (0..3) and traverse full backwards-linked chunk chains into CSR builders.
+- **Sleep Consolidation Base Topology & Zero Heap Leaks ([`[ISSUE-173]`](file:///C:/Users/rich-/source/repos/CARTAN/ISSUES.md#L2538-L2547))**:
+  - Implemented `cargraph_extract_csr(cg: CarGraphFile) -> CsrGraph` in [`src/std/cargraph_consolidate.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/cargraph_consolidate.cl) to extract existing base topology from resident `.car_graph` files instead of initializing empty graphs.
+  - Implemented `cargraph_serialize_to_file_with_csr` writing consolidated CSR edge arrays directly into the binary layout and updating header `num_edges`.
+  - Added `cargraph_builder_free(b: CarGraphBuilder)` in [`src/std/cargraph.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/cargraph.cl) and deallocated `base_csr`, `compacted_csr`, `b_new`, and `cg` inside `cargraph_sleep_consolidate_file`.
+- **Chat RLHF Domain 0 Invariant Whitelist & Turn Memory Cleanup ([`[ISSUE-168]`](file:///C:/Users/rich-/source/repos/CARTAN/ISSUES.md#L2488-L2495), [`[ISSUE-169]`](file:///C:/Users/rich-/source/repos/CARTAN/ISSUES.md#L2497-L2506), [`[ISSUE-174]`](file:///C:/Users/rich-/source/repos/CARTAN/ISSUES.md#L2549-L2558))**:
+  - Whitelisted Domain 0 Axiomatic Root Invariants in `geomind_chat_apply_human_feedback` in [`test/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl) (`e_idx >= 4.0`), decaying only conversational edges (edges 4..7) under human penalty (`-1.0`) with `min_w = 0.10`.
+  - Resolved `stream` variable name collision with CARTAN keyword in multimodal ingestion.
+  - Immediately freed temporary image (`Image.data`, `patch`) and audio (`AudioBuffer.data`, `dft_spec`) buffers after projection, and freed `vis_stream` and `aud_stream` post-grounding.
+  - Reclaimed autoregressive tangent bundle momentum vectors, token encodings, prior hidden states, and turn-exit vectors across inference, feedback, and online SFT handlers.
+- **Empirical Regression Testing**:
+  - Authored regression test suite `test/geomind/nses/test_sprint13_memory_leaks_and_graph_integrity.car` verifying Gates TS-13.1 through TS-13.4 with 100% empirical pass.
+  - Rebuilt native `bin/geomind.exe` with Zig `-O3 LTO Vectorized Pass Pipeline`.
+  - Verified `geomind.exe --verify` clean execution across all neural, symbolic, and Hopfield subsystems.
+
 ## [8.383.0] - 2026-09-24 (Sprint 425: Dynamic Gamma Domain Isolation & Double-Buffer EOF Wrap-Around)
 
 ### Completed & Validated
