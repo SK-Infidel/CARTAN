@@ -1144,9 +1144,11 @@ extern fn printf(fmt: string) -> i32;
 
         let value = 0.0;
         if (match_token(self_ptr, 128.0) != 0.0) {
-            if (match_token(self_ptr, 6.0) != 0.0) {
+            if (parser_check(self_ptr, 6.0) != 0.0 && peek_next(self_ptr).token_type[0] == 154.0) {
+                 advance(self_ptr);
                  value = tensor_declaration_with_name(self_ptr, name, 0.0, 0.0, 0.0, 0.0, 0.0);
-            } else if (match_token(self_ptr, 10.0) != 0.0) {
+            } else if (parser_check(self_ptr, 10.0) != 0.0 && peek_next(self_ptr).token_type[0] == 154.0) {
+                 advance(self_ptr);
                  value = tensor_declaration_with_name(self_ptr, name, 1.0, 0.0, 0.0, 0.0, 0.0);
             } else {
                  value = expression(self_ptr);
@@ -1971,8 +1973,15 @@ extern fn printf(fmt: string) -> i32;
                 return Expr::StringLiteral(cartan_tree_get_f32(token.token_type, 1.0));
         } else if (tok_disc == 111.0) {
                 return Expr::PromptLiteral(cartan_tree_get_f32(token.token_type, 1.0));
-        } else if (tok_disc == 107.0) {
-                let s = cartan_tree_get_f32(token.token_type, 1.0);
+        } else if (tok_disc == 107.0 || (tok_disc == 6.0 && parser_check(self_ptr, 158.0) != 0.0) || (tok_disc == 7.0 && parser_check(self_ptr, 158.0) != 0.0)) {
+                var s = "";
+                if (tok_disc == 6.0) {
+                    s = "tensor";
+                } else if (tok_disc == 7.0) {
+                    s = "vector";
+                } else {
+                    s = cartan_tree_get_f32(token.token_type, 1.0);
+                }
                 if (match_token(self_ptr, 158.0) != 0.0) {
                     let _tok = consume(self_ptr, 107.0, "Expected variant name");
                     if (_tok == 0.0) { return 0.0; }

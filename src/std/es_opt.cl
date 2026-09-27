@@ -6,10 +6,12 @@ include "src/std/math.cl";
 
 fn es_optimizer_create(dimension: float, population_size: float, sigma: float, alpha: float) -> ptr {
     let opt = cartan_tree_create();
-    cartan_tree_push(opt, dimension);          // [0] D
-    cartan_tree_push(opt, population_size);   // [1] N
-    cartan_tree_push(opt, sigma);             // [2] sigma
-    cartan_tree_push(opt, alpha);             // [3] alpha
+    let meta = cartan_vec_create();
+    cartan_vec_push_f32(meta, dimension);          // [0] D
+    cartan_vec_push_f32(meta, population_size);   // [1] N
+    cartan_vec_push_f32(meta, sigma);             // [2] sigma
+    cartan_vec_push_f32(meta, alpha);             // [3] alpha
+    cartan_tree_push(opt, meta);                  // opt[0] = meta
 
     let params = cartan_vec_create();
     var i = 0.0;
@@ -17,7 +19,7 @@ fn es_optimizer_create(dimension: float, population_size: float, sigma: float, a
         cartan_vec_push_f32(params, 0.0);
         i = i + 1.0;
     }
-    cartan_tree_push(opt, params);            // [4] theta vector
+    cartan_tree_push(opt, params);                // opt[1] = params
 
     let noise_matrix = cartan_tree_create();
     let n_half = population_size / 2.0;
@@ -36,31 +38,32 @@ fn es_optimizer_create(dimension: float, population_size: float, sigma: float, a
         cartan_tree_push(noise_matrix, noise_vec);
         c = c + 1.0;
     }
-    cartan_tree_push(opt, noise_matrix);      // [5] noise_matrix (N/2 x D)
+    cartan_tree_push(opt, noise_matrix);          // opt[2] = noise_matrix
 
     return opt;
 }
 
 fn es_optimizer_get_param(opt: ptr, idx: float) -> float {
     if (opt == 0.0) { return 0.0; }
-    let params = cartan_tree_get_f32(opt, 4.0);
+    let params = cartan_tree_get(opt, 1.0);
     return cartan_vec_get_f32(params, idx);
 }
 
 fn es_optimizer_set_param(opt: ptr, idx: float, val: float) -> float {
     if (opt == 0.0) { return 0.0; }
-    let params = cartan_tree_get_f32(opt, 4.0);
+    let params = cartan_tree_get(opt, 1.0);
     cartan_vec_set_f32(params, idx, val);
     return val;
 }
 
 fn es_optimizer_get_perturbed_param(opt: ptr, clone_idx: float, param_idx: float, sign: float) -> float {
     if (opt == 0.0) { return 0.0; }
-    let sigma = cartan_tree_get_f32(opt, 2.0);
+    let meta = cartan_tree_get(opt, 0.0);
+    let sigma = cartan_vec_get_f32(meta, 2.0);
     let base_val = es_optimizer_get_param(opt, param_idx);
-    let noise_matrix = cartan_tree_get_f32(opt, 5.0);
+    let noise_matrix = cartan_tree_get(opt, 2.0);
     let half_idx = clone_idx / 2.0;
-    let noise_vec = cartan_tree_get_f32(noise_matrix, half_idx);
+    let noise_vec = cartan_tree_get(noise_matrix, half_idx);
     let noise_val = cartan_vec_get_f32(noise_vec, param_idx);
     
     if (sign > 0.0) {
@@ -71,11 +74,12 @@ fn es_optimizer_get_perturbed_param(opt: ptr, clone_idx: float, param_idx: float
 
 fn es_optimizer_step(opt: ptr, fitness_pos: ptr, fitness_neg: ptr) -> float {
     if (opt == 0.0 || fitness_pos == 0.0 || fitness_neg == 0.0) { return 0.0; }
-    let dimension = cartan_tree_get_f32(opt, 0.0);
-    let pop_size = cartan_tree_get_f32(opt, 1.0);
-    let sigma = cartan_tree_get_f32(opt, 2.0);
-    let alpha = cartan_tree_get_f32(opt, 3.0);
-    let noise_matrix = cartan_tree_get_f32(opt, 5.0);
+    let meta = cartan_tree_get(opt, 0.0);
+    let dimension = cartan_vec_get_f32(meta, 0.0);
+    let pop_size = cartan_vec_get_f32(meta, 1.0);
+    let sigma = cartan_vec_get_f32(meta, 2.0);
+    let alpha = cartan_vec_get_f32(meta, 3.0);
+    let noise_matrix = cartan_tree_get(opt, 2.0);
 
     let n_half = pop_size / 2.0;
 
@@ -88,7 +92,7 @@ fn es_optimizer_step(opt: ptr, fitness_pos: ptr, fitness_neg: ptr) -> float {
             let f_n = cartan_vec_get_f32(fitness_neg, i);
             let diff = f_p - f_n;
 
-            let noise_vec = cartan_tree_get_f32(noise_matrix, i);
+            let noise_vec = cartan_tree_get(noise_matrix, i);
             let eps = cartan_vec_get_f32(noise_vec, p);
 
             update_sum = update_sum + diff * eps;

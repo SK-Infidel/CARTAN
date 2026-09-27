@@ -11,6 +11,7 @@ extern fn cartan_flush(v: float) -> float;
 extern fn cartan_assert(cond: float, msg: string) -> float;
 extern fn cartan_float_to_string(v: float) -> string;
 extern fn cartan_sleep_consolidate_cycle(filepath: string, lr: float, thresh: float) -> float;
+extern fn cartan_hopfield_store_hidden_raw(hidden_ptr: ptr) -> float;
 
 fn main() -> float {
     printf("=================================================================================\n");
@@ -61,7 +62,7 @@ fn main() -> float {
     cartan_hopfield_clear();
 
     // Store primary attractor
-    cartan_hopfield_store_hidden(basin1);
+    cartan_hopfield_store_hidden_raw(basin1);
 
     // Create and store near-identical duplicate attractor (cosine similarity > 0.99)
     let basin_dup = cartan_tensor_alloc(dim);
@@ -71,7 +72,7 @@ fn main() -> float {
         cartan_vec_set_f32(basin_dup, d, val + 0.0001);
         d = d + 1.0;
     }
-    cartan_hopfield_store_hidden(basin_dup);
+    cartan_hopfield_store_hidden_raw(basin_dup);
 
     // Create and store distinct orthogonal attractor
     let basin_ortho = cartan_tensor_alloc(dim);
@@ -84,7 +85,7 @@ fn main() -> float {
         }
         d = d + 1.0;
     }
-    cartan_hopfield_store_hidden(basin_ortho);
+    cartan_hopfield_store_hidden_raw(basin_ortho);
 
     let pre_sleep_count = cartan_hopfield_attractor_count();
     cartan_assert(pre_sleep_count == 3.0, "Pre-sleep memory bank must contain 3 attractors");

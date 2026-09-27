@@ -385,22 +385,41 @@ fn resonator_compute_energy(bank: ptr, state_vec: ptr, dim: float) -> float {
     return energy;
 }
 
-fn resonator_save_basins(bank: ptr, path: string, dim: float) -> float {
-    if (bank == 0.0 || dim <= 0.0) { return 0.0; }
-    let num_basins = cartan_tree_len_f(bank);
+fn resonator_save_basins(key_bank: ptr, val_bank: ptr, path: string, dim: float) -> float {
+    if (key_bank == 0.0 || dim <= 0.0) { return 0.0; }
+    let num_basins = cartan_tree_len_f(key_bank);
     let f = fopen(path, "wb");
     if (f == 0.0) { return 0.0; }
 
-    let header = malloc(16.0);
+    let header = malloc(24.0);
     header[0] = num_basins;
     header[1] = dim;
-    fwrite(header, 8.0, 2.0, f);
+    header[2] = 2.0; // Version 2 format: Key + Value matrices
+    fwrite(header, 8.0, 3.0, f);
     free(header);
 
     let v_buf = malloc(dim * 8.0);
     var k = 0.0;
     while (k < num_basins) {
-        let basin = cartan_tree_get(bank, k);
+        let basin = cartan_tree_get(key_bank, k);
+        var d = 0.0;
+        while (d < dim) {
+            let v = cartan_vec_get_f32(basin, d);
+            v_buf[d] = v;
+            d = d + 1.0;
+        }
+        fwrite(v_buf, 8.0, dim, f);
+        k = k + 1.0;
+    }
+    k = 0.0;
+    while (k < num_basins) {
+        var basin = 0.0;
+        if (val_bank != 0.0) {
+            basin = cartan_tree_get(val_bank, k);
+        }
+        if (basin == 0.0) {
+            basin = cartan_tree_get(key_bank, k);
+        }
         var d = 0.0;
         while (d < dim) {
             let v = cartan_vec_get_f32(basin, d);
@@ -419,8 +438,8 @@ fn resonator_load_basins(path: string, dim: float) -> ptr {
     let f = fopen(path, "rb");
     if (f == 0.0) { return 0.0; }
 
-    let header = malloc(16.0);
-    let read_hdr = fread(header, 8.0, 2.0, f);
+    let header = malloc(24.0);
+    let read_hdr = fread(header, 8.0, 3.0, f);
     if (read_hdr < 2.0) {
         free(header);
         fclose(f);
@@ -428,38 +447,81 @@ fn resonator_load_basins(path: string, dim: float) -> ptr {
     }
     let num_basins = header[0];
     let stored_dim = header[1];
+    var version = 1.0;
+    if (read_hdr >= 3.0 && header[2] == 2.0) {
+        version = 2.0;
+    }
     free(header);
 
-    if (num_basins <= 0.0 || stored_dim != dim) {
+    if (num_basins <= 0.0) {
         fclose(f);
         return 0.0;
     }
+    var eff_dim = dim;
+    if (stored_dim > 0.0) {
+        eff_dim = stored_dim;
+    }
 
-    let bank = cartan_tree_create();
-    let v_buf = malloc(dim * 8.0);
+    if (version == 1.0) {
+        fseek(f, 16.0, 0.0);
+    }
+
+    let key_bank = cartan_tree_create();
+    let v_buf = malloc(eff_dim * 8.0);
     var k = 0.0;
     while (k < num_basins) {
-        let n_read = fread(v_buf, 8.0, dim, f);
-        if (n_read < dim) { break; }
+        let n_read = fread(v_buf, 8.0, eff_dim, f);
+        if (n_read < eff_dim) { break; }
         let basin = cartan_vec_create();
         var d = 0.0;
-        var sum_sq = 0.0;
-        while (d < dim) {
+        while (d < eff_dim) {
             let v = v_buf[d];
-            sum_sq = sum_sq + (v * v);
             cartan_vec_push_f32(basin, v);
             d = d + 1.0;
         }
-        if (sum_sq > 0.0001) {
-            cartan_tree_push(bank, basin);
-        } else {
-            cartan_vec_free(basin);
-        }
+        cartan_tree_push(key_bank, basin);
         k = k + 1.0;
     }
+
+    let val_bank = cartan_tree_create();
+    if (version == 2.0) {
+        k = 0.0;
+        while (k < num_basins) {
+            let n_read = fread(v_buf, 8.0, eff_dim, f);
+            if (n_read < eff_dim) { break; }
+            let basin = cartan_vec_create();
+            var d = 0.0;
+            while (d < eff_dim) {
+                let v = v_buf[d];
+                cartan_vec_push_f32(basin, v);
+                d = d + 1.0;
+            }
+            cartan_tree_push(val_bank, basin);
+            k = k + 1.0;
+        }
+    } else {
+        k = 0.0;
+        let k_len = cartan_tree_len_f(key_bank);
+        while (k < k_len) {
+            let kb = cartan_tree_get(key_bank, k);
+            let vb = cartan_vec_create();
+            var d = 0.0;
+            while (d < eff_dim) {
+                cartan_vec_push_f32(vb, cartan_vec_get_f32(kb, d));
+                d = d + 1.0;
+            }
+            cartan_tree_push(val_bank, vb);
+            k = k + 1.0;
+        }
+    }
+
     free(v_buf);
     fclose(f);
-    return bank;
+
+    g_hopfield_key_bank = key_bank;
+    g_hopfield_val_bank = val_bank;
+    g_hopfield_dim = eff_dim;
+    return key_bank;
 }
 
 fn resonator_store_pair(key_bank: ptr, val_bank: ptr, key_vec: ptr, val_vec: ptr, dim: float) -> float {
@@ -538,11 +600,11 @@ fn resonator_query(key_bank: ptr, val_bank: ptr, query_vec: ptr, dim: float, bet
 
 var g_hopfield_key_bank: ptr = 0.0;
 var g_hopfield_val_bank: ptr = 0.0;
-var g_hopfield_dim = 2560.0;
+var g_hopfield_dim = 248.0;
 
 fn cartan_hopfield_init_if_needed() {
     if (g_hopfield_dim <= 0.0) {
-        g_hopfield_dim = 2560.0;
+        g_hopfield_dim = 248.0;
     }
     if (g_hopfield_key_bank == 0.0) {
         g_hopfield_key_bank = resonator_create_attractor_bank();
@@ -553,6 +615,7 @@ fn cartan_hopfield_init_if_needed() {
 fn cartan_hopfield_clear() -> float {
     g_hopfield_key_bank = resonator_create_attractor_bank();
     g_hopfield_val_bank = resonator_create_attractor_bank();
+    g_hopfield_dim = 2560.0;
     return 0.0;
 }
 
@@ -563,11 +626,17 @@ fn cartan_hopfield_attractor_count() -> float {
 
 fn cartan_hopfield_get_max_resonance(query_ptr: ptr) -> float {
     cartan_hopfield_init_if_needed();
+    var q_dim = g_hopfield_dim;
+    if (query_ptr != 0.0 && query_ptr[0] > 0.0) {
+        if (query_ptr[0] < q_dim) {
+            q_dim = query_ptr[0];
+        }
+    }
     let num_basins = cartan_tree_len_f(g_hopfield_key_bank);
     if (num_basins == 0.0 || query_ptr == 0.0) { return 0.0; }
     var q_sq = 0.0;
     var d = 0.0;
-    while (d < g_hopfield_dim) {
+    while (d < q_dim) {
         let q_val = cartan_vec_get_f32(query_ptr, d);
         q_sq = q_sq + (q_val * q_val);
         d = d + 1.0;
@@ -581,7 +650,7 @@ fn cartan_hopfield_get_max_resonance(query_ptr: ptr) -> float {
         let key_k = cartan_tree_get(g_hopfield_key_bank, k);
         var dot = 0.0;
         d = 0.0;
-        while (d < g_hopfield_dim) {
+        while (d < q_dim) {
             let s_val = cartan_vec_get_f32(query_ptr, d) * inv_q;
             let k_val = cartan_vec_get_f32(key_k, d);
             dot = dot + (s_val * k_val);
@@ -595,13 +664,30 @@ fn cartan_hopfield_get_max_resonance(query_ptr: ptr) -> float {
 
 fn cartan_hopfield_store_vector(vec: ptr, dim: float) -> float {
     cartan_hopfield_init_if_needed();
+    var d = dim;
+    if (d <= 0.0 && vec != 0.0) { d = vec[0]; }
+    if (cartan_tree_len_f(g_hopfield_key_bank) == 0.0 && d > 0.0) { g_hopfield_dim = d; }
     let max_res = cartan_hopfield_get_max_resonance(vec);
     if (max_res >= 0.98) {
         return cartan_tree_len_f(g_hopfield_key_bank);
     }
-    resonator_add_attractor(g_hopfield_key_bank, vec, dim);
-    resonator_add_attractor(g_hopfield_val_bank, vec, dim);
+    resonator_add_attractor(g_hopfield_key_bank, vec, g_hopfield_dim);
+    resonator_add_attractor(g_hopfield_val_bank, vec, g_hopfield_dim);
     return cartan_tree_len_f(g_hopfield_key_bank);
+}
+
+fn cartan_hopfield_store_vector_raw(vec: ptr, dim: float) -> float {
+    cartan_hopfield_init_if_needed();
+    var d = dim;
+    if (d <= 0.0 && vec != 0.0) { d = vec[0]; }
+    if (cartan_tree_len_f(g_hopfield_key_bank) == 0.0 && d > 0.0) { g_hopfield_dim = d; }
+    resonator_add_attractor(g_hopfield_key_bank, vec, g_hopfield_dim);
+    resonator_add_attractor(g_hopfield_val_bank, vec, g_hopfield_dim);
+    return cartan_tree_len_f(g_hopfield_key_bank);
+}
+
+fn cartan_hopfield_store_hidden_raw(hidden_ptr: ptr) -> float {
+    return cartan_hopfield_store_vector_raw(hidden_ptr, g_hopfield_dim);
 }
 
 fn cartan_hopfield_store_hidden(hidden_ptr: ptr) -> float {
@@ -610,6 +696,11 @@ fn cartan_hopfield_store_hidden(hidden_ptr: ptr) -> float {
 
 fn cartan_hopfield_store_pair_vec(key_ptr: ptr, val_ptr: ptr) -> float {
     cartan_hopfield_init_if_needed();
+    if (cartan_tree_len_f(g_hopfield_key_bank) == 0.0) {
+        if (key_ptr != 0.0 && key_ptr[0] > 0.0) {
+            g_hopfield_dim = key_ptr[0];
+        }
+    }
     return resonator_store_pair(g_hopfield_key_bank, g_hopfield_val_bank, key_ptr, val_ptr, g_hopfield_dim);
 }
 
@@ -633,31 +724,38 @@ fn cartan_hopfield_compact(thresh: float) -> float {
 
 fn cartan_hopfield_relax(hidden_ptr: ptr, beta: float, steps: float) -> float {
     cartan_hopfield_init_if_needed();
+    if (hidden_ptr != 0.0 && hidden_ptr[0] > 0.0) {
+        g_hopfield_dim = hidden_ptr[0];
+    }
     return resonator_continuous_hopfield_relax(g_hopfield_key_bank, hidden_ptr, g_hopfield_dim, beta, steps);
 }
 
 fn cartan_hopfield_salient_relax(hidden_ptr: ptr, beta: float, steps: float, top_k: float) -> float {
     cartan_hopfield_init_if_needed();
+    if (hidden_ptr != 0.0 && hidden_ptr[0] > 0.0) {
+        g_hopfield_dim = hidden_ptr[0];
+    }
     return resonator_salient_hopfield_relax(g_hopfield_key_bank, hidden_ptr, g_hopfield_dim, beta, steps, top_k);
 }
 
 
 fn cartan_hopfield_energy(hidden_ptr: ptr) -> float {
     cartan_hopfield_init_if_needed();
+    if (hidden_ptr != 0.0 && hidden_ptr[0] > 0.0) {
+        g_hopfield_dim = hidden_ptr[0];
+    }
     return resonator_compute_energy(g_hopfield_key_bank, hidden_ptr, g_hopfield_dim);
 }
 
 fn cartan_hopfield_save_basins(path: string) -> float {
     cartan_hopfield_init_if_needed();
-    return resonator_save_basins(g_hopfield_key_bank, path, g_hopfield_dim);
+    return resonator_save_basins(g_hopfield_key_bank, g_hopfield_val_bank, path, g_hopfield_dim);
 }
 
 fn cartan_hopfield_load_basins(path: string) -> float {
     cartan_hopfield_init_if_needed();
     let loaded = resonator_load_basins(path, g_hopfield_dim);
     if (loaded != 0.0) {
-        g_hopfield_key_bank = loaded;
-        g_hopfield_val_bank = cartan_dict_clone(loaded);
         return cartan_tree_len_f(loaded);
     }
     return 0.0;

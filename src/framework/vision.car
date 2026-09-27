@@ -2,25 +2,23 @@
 // CARTAN Layer 2 Framework: Computer Vision, Convolution 2D & ResNet Backbone Module
 
 include "nn.car";
-include "../std/tensor.car";
+include "../std/tensor.cl";
 
-mod vision {
-    fn conv2d_step(img: ptr, kernel: ptr, stride: float, padding: float) -> ptr {
-        let out = tensor::matmul(img, kernel);
-        return out;
-    }
+fn vision_conv2d_step(img: ptr, kernel: ptr, stride: float, padding: float) -> ptr {
+    let out = tensor_matmul(img, kernel);
+    return out;
+}
 
-    fn max_pool2d(x: ptr, kernel_size: float, stride: float) -> ptr {
-        return tensor::max(x);
-    }
+fn vision_max_pool2d(x: ptr, kernel_size: float, stride: float) -> ptr {
+    return tensor_max_vec(x);
+}
 
-    fn residual_block(x: ptr, w1: ptr, w2: ptr) -> ptr {
-        let h1 = nn::relu(nn::linear(x, w1, 0.0));
-        let h2 = nn::linear(h1, w2, 0.0);
-        return tensor::add(x, h2);
-    }
+fn vision_residual_block(x: ptr, w1: ptr, w2: ptr) -> ptr {
+    let h1 = nn_relu(nn_linear(x, w1, 0.0));
+    let h2 = nn_linear(h1, w2, 0.0);
+    return add(x, h2);
+}
 
-    fn patch_embed(img: ptr, patch_size: float, embed_dim: float) -> ptr {
-        return tensor::reshape(img, patch_size, embed_dim);
-    }
+fn vision_patch_embed(img: ptr, patch_size: float, embed_dim: float) -> ptr {
+    return tensor_reshape(img, patch_size, embed_dim);
 }

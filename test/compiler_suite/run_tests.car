@@ -6,6 +6,19 @@ include "../../src/cartanc/ast.ch";
 extern fn printf(fmt: string, val: string) -> float;
 extern fn cartan_flush(v: float) -> float;
 extern fn system(cmd: string) -> float;
+extern fn cartan_float_to_string(val: float) -> string;
+
+var g_failed_count = 0.0;
+
+fn run_step(cmd: string) -> float {
+    let res = system(cmd);
+    if (res != 0.0) {
+        printf("  -> [ERROR] Target command failed with exit code: %s\n", cartan_float_to_string(res));
+        cartan_flush(0.0);
+        g_failed_count = g_failed_count + 1.0;
+    }
+    return res;
+}
 
 fn main(argc: float, argv: ptr) -> float {
     printf("====================================================\n", "");
@@ -17,381 +30,368 @@ fn main(argc: float, argv: ptr) -> float {
     let t1_cmd = "cartanc.exe build test/compiler_suite/test_primitives.car -o build/test_primitives.exe";
     printf("[1/4] [// run-pass] Building Primitives Test: %s\n", t1_cmd);
     cartan_flush(0.0);
-    system(t1_cmd);
+    run_step(t1_cmd);
 
     // [2/4] Positive test: test_enums
     let t2_cmd = "cartanc.exe build test/compiler_suite/test_enums.car -o build/test_enums.exe";
     printf("[2/4] [// run-pass] Building Enums & Bit-Cast Test: %s\n", t2_cmd);
     cartan_flush(0.0);
-    system(t2_cmd);
+    run_step(t2_cmd);
 
     // [3/4] Positive test: test_modules
     let t3_cmd = "cartanc.exe build test/compiler_suite/test_modules.car -o build/test_modules.exe";
     printf("[3/4] [// run-pass] Building Module System Test: %s\n", t3_cmd);
     cartan_flush(0.0);
-    system(t3_cmd);
+    run_step(t3_cmd);
 
     // [4/5] Negative test: test_fail_syntax
     let t4_cmd = "cartanc.exe build test/compiler_suite/test_fail_syntax.car -o build/test_fail_syntax.exe";
     printf("[4/5] [// compile-fail] Verifying Syntax Diagnostic Assertions: %s\n", t4_cmd);
     cartan_flush(0.0);
-    system(t4_cmd);
+    let t4_res = system(t4_cmd);
+    if (t4_res == 0.0) {
+        printf("  -> [ERROR] Negative test test_fail_syntax unexpectedly succeeded!\n", "");
+        cartan_flush(0.0);
+        g_failed_count = g_failed_count + 1.0;
+    }
 
     // [5/6] Positive test: test_slices_tuples
     let t5_cmd = "cartanc.exe build test/compiler_suite/test_slices_tuples.car -o test_slices_tuples.exe";
     printf("[5/6] [// run-pass] Building Slices & Tuples Test: %s\n", t5_cmd);
     cartan_flush(0.0);
-    system(t5_cmd);
+    run_step(t5_cmd);
 
     // [6/7] Positive test: test_dlpack_slicing
     let t6_cmd = "cartanc.exe build test/compiler_suite/test_dlpack_slicing.car -o test_dlpack_slicing.exe";
     printf("[6/7] [// run-pass] Building DLPack & ND Slicing Test: %s\n", t6_cmd);
     cartan_flush(0.0);
-    system(t6_cmd);
+    run_step(t6_cmd);
 
     // [7/8] Positive test: test_security_sandboxing
     let t7_cmd = "cartanc.exe build test/compiler_suite/test_security_sandboxing.car -o test_security_sandboxing.exe";
     printf("[7/8] [// run-pass] Building Security & VRAM Sandboxing Test: %s\n", t7_cmd);
     cartan_flush(0.0);
-    system(t7_cmd);
+    run_step(t7_cmd);
 
     // [8/9] Positive test: test_static_assert
     let t8_cmd = "cartanc.exe build test/compiler_suite/test_static_assert.car -o test_static_assert.exe";
     printf("[8/9] [// run-pass] Building Toolchain & static_assert Test: %s\n", t8_cmd);
     cartan_flush(0.0);
-    system(t8_cmd);
+    run_step(t8_cmd);
 
     // [9/10] Positive test: test_comptime_autograd
     let t9_cmd = "cartanc.exe build test/compiler_suite/test_comptime_autograd.car -o test_comptime_autograd.exe";
     printf("[9/10] [// run-pass] Building Comptime & Static Autograd Test: %s\n", t9_cmd);
     cartan_flush(0.0);
-    system(t9_cmd);
+    run_step(t9_cmd);
 
     // [10/11] Positive test: test_stdlib
     let t10_cmd = "cartanc.exe build test/compiler_suite/test_stdlib.car -o test_stdlib.exe";
     printf("[10/11] [// run-pass] Building Standard Libraries & Assertions Test: %s\n", t10_cmd);
     cartan_flush(0.0);
-    system(t10_cmd);
+    run_step(t10_cmd);
 
     // [11/12] Positive test: test_variadic_ret
     let t11_cmd = "cartanc.exe build test/compiler_suite/test_variadic_ret.car -o test_variadic_ret.exe";
     printf("[11/12] [// run-pass] Building Function Return Resolution & Variadic Float Test: %s\n", t11_cmd);
     cartan_flush(0.0);
-    system(t11_cmd);
+    run_step(t11_cmd);
 
     // [12/13] Positive test: test_tensor_opt
     let t12_cmd = "cartanc.exe build test/compiler_suite/test_tensor_opt.car -o test_tensor_opt.exe";
     printf("[12/13] [// run-pass] Building Tensor Reductions & Activations Test: %s\n", t12_cmd);
     cartan_flush(0.0);
-    system(t12_cmd);
+    run_step(t12_cmd);
 
     // [13/13] Positive test: test_optimizer
     let t13_cmd = "cartanc.exe build test/compiler_suite/test_optimizer.car -o test_optimizer.exe";
     printf("[13/14] [// run-pass] Building AST Constant Folding & Optimizer Test: %s\n", t13_cmd);
     cartan_flush(0.0);
-    system(t13_cmd);
+    run_step(t13_cmd);
 
     // [14/15] Positive test: test_std_abstraction
     let t14_cmd = "cartanc.exe build test/compiler_suite/test_std_abstraction.car -o test_std_abstraction.exe";
     printf("[14/15] [// run-pass] Building Standard Library C-FFI Abstractions Test: %s\n", t14_cmd);
     cartan_flush(0.0);
-    system(t14_cmd);
+    run_step(t14_cmd);
 
     // [15/16] Positive test: test_net_abstraction
     let t15_cmd = "cartanc.exe build test/compiler_suite/test_net_abstraction.car -o test_net_abstraction.exe";
     printf("[15/16] [// run-pass] Building Standard Network Library Abstractions Test: %s\n", t15_cmd);
     cartan_flush(0.0);
-    system(t15_cmd);
+    run_step(t15_cmd);
 
     // [16/17] Positive test: test_jit_engine
     let t16_cmd = "cartanc.exe run test/compiler_suite/test_jit_engine.car";
     printf("[16/17] [// run-pass] Executing In-Memory JIT Engine Test: %s\n", t16_cmd);
     cartan_flush(0.0);
-    system(t16_cmd);
+    run_step(t16_cmd);
 
     // [17/18] Positive test: test_generics
     let t17_cmd = "cartanc.exe build test/compiler_suite/test_generics.car -o test_generics.exe";
     printf("[17/18] [// run-pass] Building Generic Collections & Monomorphization Test: %s\n", t17_cmd);
     cartan_flush(0.0);
-    system(t17_cmd);
+    run_step(t17_cmd);
 
     // [18/19] Positive test: test_async_coroutines
     let t18_cmd = "cartanc.exe build test/compiler_suite/test_async_coroutines.car -o test_async_coroutines.exe";
     printf("[18/19] [// run-pass] Building Async Coroutines & Event Loop Test: %s\n", t18_cmd);
     cartan_flush(0.0);
-    system(t18_cmd);
+    run_step(t18_cmd);
 
     // [19/20] Positive test: test_package_manager
     let t19_cmd = "cartanc.exe pkg";
     printf("[19/20] [// run-pass] Executing Native Package Manager Test: %s\n", t19_cmd);
     cartan_flush(0.0);
-    system(t19_cmd);
+    run_step(t19_cmd);
 
     // [20/21] Positive test: test_http_xml
     let t20_cmd = "cartanc.exe build test/compiler_suite/test_http_xml.car -o test_http_xml.exe";
     printf("[20/21] [// run-pass] Building HTTP & XML Standard Libraries Test: %s\n", t20_cmd);
     cartan_flush(0.0);
-    system(t20_cmd);
+    run_step(t20_cmd);
 
     // [21/22] Positive test: test_physics_math
     let t21_cmd = "cartanc.exe build test/compiler_suite/test_physics_math.car -o test_physics_math.exe";
     printf("[21/22] [// run-pass] Building Geometry, Calculus & Physics Test: %s\n", t21_cmd);
     cartan_flush(0.0);
-    system(t21_cmd);
+    run_step(t21_cmd);
 
     // [22/23] Positive test: test_math_string_full
     let t22_cmd = "cartanc.exe build test/compiler_suite/test_math_string_full.car -o test_math_string_full.exe";
     printf("[22/23] [// run-pass] Building Full Math Trigonometry & String Module Test: %s\n", t22_cmd);
     cartan_flush(0.0);
-    system(t22_cmd);
+    run_step(t22_cmd);
 
     // [23/24] Positive test: test_physics_geom_advanced
     let t23_cmd = "cartanc.exe build test/compiler_suite/test_physics_geom_advanced.car -o test_physics_geom_advanced.exe";
     printf("[23/24] [// run-pass] Building Advanced 3D Geometry, Adaptive Calculus & N-Body Physics Test: %s\n", t23_cmd);
     cartan_flush(0.0);
-    system(t23_cmd);
+    run_step(t23_cmd);
 
     // [24/25] Positive test: test_tokenizer
     let t24_cmd = "cartanc.exe build test/compiler_suite/test_tokenizer.car -o build/test_tokenizer.exe";
     printf("[24/25] [// run-pass] Building Tokenizer Standard Library Test: %s\n", t24_cmd);
     cartan_flush(0.0);
-    system(t24_cmd);
+    run_step(t24_cmd);
 
     // [25/26] Positive test: test_collections_ingest_env
     let t25_cmd = "cartanc.exe build test/compiler_suite/test_collections_ingest_env.car -o build/test_collections_ingest_env.exe";
     printf("[25/26] [// run-pass] Building Collections, Ingest & Env Test: %s\n", t25_cmd);
     cartan_flush(0.0);
-    system(t25_cmd);
+    run_step(t25_cmd);
 
     // [26/27] Positive test: test_framework_layer2
     let t26_cmd = "cartanc.exe build test/compiler_suite/test_framework_layer2.car -o build/test_framework_layer2.exe";
     printf("[26/27] [// run-pass] Building Layer 2 Framework (NN, Attention, Vision) Test: %s\n", t26_cmd);
     cartan_flush(0.0);
-    system(t26_cmd);
+    run_step(t26_cmd);
 
     // [27/28] Positive test: test_repl
     let t27_cmd = "echo exit | cartanc.exe repl";
     printf("[27/28] [// run-pass] Executing Interactive REPL Test: %s\n", t27_cmd);
     cartan_flush(0.0);
-    system(t27_cmd);
+    run_step(t27_cmd);
 
     // [28/29] Positive test: test_bindgen
     let t28_cmd = "cartanc.exe bindgen test/compiler_suite/test_math_string_full.car";
     printf("[28/29] [// run-pass] Executing C/C++ Header Generator (bindgen) Test: %s\n", t28_cmd);
     cartan_flush(0.0);
-    system(t28_cmd);
+    run_step(t28_cmd);
 
     // [29/30] Positive test: test_lsp
     let t29_cmd = "echo. | cartanc.exe lsp";
     printf("[29/30] [// run-pass] Executing Native Language Server Protocol (LSP) Test: %s\n", t29_cmd);
     cartan_flush(0.0);
-    system(t29_cmd);
+    run_step(t29_cmd);
 
     // [30/32] Positive test: test_doc
-    let t30_cmd = "cartanc.exe doc src/std/math.car";
+    let t30_cmd = "cartanc.exe doc src/std/math.cl";
     printf("[30/32] [// run-pass] Executing API Documentation Generator (doc) Test: %s\n", t30_cmd);
     cartan_flush(0.0);
-    system(t30_cmd);
+    run_step(t30_cmd);
 
     // [31/32] Positive test: test_llvm_opt_pipeline
     let t31_cmd = "cartanc.exe build test/compiler_suite/test_llvm_opt_pipeline.car -o build/test_llvm_opt_pipeline.exe";
     printf("[31/32] [// run-pass] Building Advanced LLVM Optimization Pass Pipeline Test: %s\n", t31_cmd);
     cartan_flush(0.0);
-    system(t31_cmd);
+    run_step(t31_cmd);
 
     // [32/33] Positive test: test_dist_parallelism
     let t32_cmd = "cartanc.exe build test/compiler_suite/test_dist_parallelism.car -o build/test_dist_parallelism.exe";
     printf("[32/33] [// run-pass] Building Distributed Multi-GPU Parallelism Test: %s\n", t32_cmd);
     cartan_flush(0.0);
-    system(t32_cmd);
+    run_step(t32_cmd);
 
     // [33/34] Positive test: test_hf_hub
     let t33_cmd = "cartanc.exe build test/compiler_suite/test_hf_hub.car -o build/test_hf_hub.exe";
     printf("[33/34] [// run-pass] Building HuggingFace Model Hub & Safetensors Pipeline Test: %s\n", t33_cmd);
     cartan_flush(0.0);
-    system(t33_cmd);
+    run_step(t33_cmd);
 
     // [34/35] Positive test: test_vision
     let t34_cmd = "cartanc.exe build test/compiler_suite/test_vision.car -o build/test_vision.exe";
     printf("[34/35] [// run-pass] Building Native Computer Vision Module Test: %s\n", t34_cmd);
     cartan_flush(0.0);
-    system(t34_cmd);
+    run_step(t34_cmd);
 
     // [35/36] Positive test: test_autotune
     let t35_cmd = "cartanc.exe build test/compiler_suite/test_autotune.car -o build/test_autotune.exe";
     printf("[35/36] [// run-pass] Building Hardware-Aware Micro-Kernel Autotuning Test: %s\n", t35_cmd);
     cartan_flush(0.0);
-    system(t35_cmd);
+    run_step(t35_cmd);
 
     // [36/37] Positive test: test_fusion_distill
     let t36_cmd = "cartanc.exe build test/compiler_suite/test_fusion_distill.car -o build/test_fusion_distill.exe";
     printf("[36/37] [// run-pass] Building Model Fusion & Distillation Engine Test: %s\n", t36_cmd);
     cartan_flush(0.0);
-    system(t36_cmd);
+    run_step(t36_cmd);
 
-    // [37/38] Positive test: merge_model_weights
-    let t37_cmd = "cartanc.exe build test/geomind/merge_model_weights.car -o build/merge_model_weights.exe";
-    printf("[37/38] [// run-pass] Building Real Model Weight Fusion Pipeline Test: %s\n", t37_cmd);
+    // [37/59] Positive test: test_merge_model_weights
+    let t37_cmd = "cartanc.exe build test/compiler_suite/test_merge_model_weights.car -o build/test_merge_model_weights.exe && build\\test_merge_model_weights.exe";
+    printf("[37/59] [// run-pass] Building and Executing Model Weight Merging Pipeline Verification: %s\n", t37_cmd);
     cartan_flush(0.0);
-    system(t37_cmd);
+    run_step(t37_cmd);
 
-    // [38/39] Positive test: train_teacher_student
-    let t38_cmd = "cartanc.exe build test/geomind/train_teacher_student.car -o build/train_teacher_student.exe";
-    printf("[38/39] [// run-pass] Building Teacher-Student Distillation Engine Test: %s\n", t38_cmd);
+    // [38/59] Positive test: test_semantics_ic
+    let t38_cmd = "cartanc.exe build test/compiler_suite/test_semantics_ic.car -o build/test_semantics_ic.exe && build\\test_semantics_ic.exe";
+    printf("[38/59] [// run-pass] Building and Executing WordNet Taxonomy & IC Loss Engine Test: %s\n", t38_cmd);
     cartan_flush(0.0);
-    system(t38_cmd);
+    run_step(t38_cmd);
 
-    // [39/40] Positive test: run_full_zero_day_training
-    let t39_cmd = "cartanc.exe build test/geomind/run_full_zero_day_training.car -o build/run_full_zero_day_training.exe";
-    printf("[39/40] [// run-pass] Building Production Zero-Day Training & Weight Fusion Engine Test: %s\n", t39_cmd);
+    // [39/59] Positive test: test_novel_ai_libs
+    let t39_cmd = "cartanc.exe build test/compiler_suite/test_novel_ai_libs.car -o build/test_novel_ai_libs.exe && build\\test_novel_ai_libs.exe";
+    printf("[39/59] [// run-pass] Building and Executing 4 Novel AI Breakthrough Libraries (WANN, ESN, DIP, ELM) Test: %s\n", t39_cmd);
     cartan_flush(0.0);
-    system(t39_cmd);
+    run_step(t39_cmd);
 
-    // [40/41] Positive test: test_real_hf_fetch
-    let t40_cmd = "cartanc.exe build test/geomind/test_real_hf_fetch.car -o build/test_real_hf_fetch.exe";
-    printf("[40/41] [// run-pass] Building Real Hugging Face HTTP Ingestion & Weight Merging Test: %s\n", t40_cmd);
+    // [40/59] Positive test: test_es_opt
+    let t40_cmd = "cartanc.exe build test/compiler_suite/test_es_opt.car -o build/test_es_opt.exe && build\\test_es_opt.exe";
+    printf("[40/59] [// run-pass] Building and Executing Evolution Strategies (ES) Optimizer Library Test: %s\n", t40_cmd);
     cartan_flush(0.0);
-    system(t40_cmd);
+    run_step(t40_cmd);
 
-    // [41/42] Positive test: run_chat_generation_benchmarks
-    let t41_cmd = "cartanc.exe build test/geomind/run_chat_generation_benchmarks.car -o build/run_chat_generation_benchmarks.exe";
-    printf("[41/42] [// run-pass] Building GeoMind Interactive Generation & Chat Benchmarks Test: %s\n", t41_cmd);
+    // [41/59] Positive test: test_evolution_master
+    let t41_cmd = "cartanc.exe build test/compiler_suite/test_evolution_master.car -o build/test_evolution_master.exe && build\\test_evolution_master.exe";
+    printf("[41/59] [// run-pass] Building and Executing Master Evolutionary Learning Suite (ES+WANN+AZR+M2N2) Test: %s\n", t41_cmd);
     cartan_flush(0.0);
-    system(t41_cmd);
+    run_step(t41_cmd);
 
-    // [42/43] Positive test: test_semantics_ic
-    let t42_cmd = "cartanc.exe build test/compiler_suite/test_semantics_ic.car -o build/test_semantics_ic.exe";
-    printf("[42/43] [// run-pass] Building WordNet Taxonomy & IC Loss Engine Test: %s\n", t42_cmd);
+    // [42/59] Positive test: test_xml_ingest_pipeline
+    let t42_cmd = "cartanc.exe build test/compiler_suite/test_xml_ingest_pipeline.car -o build/test_xml_ingest_pipeline.exe && build\\test_xml_ingest_pipeline.exe";
+    printf("[42/59] [// run-pass] Building and Executing Authentic XML & Ingest Pipeline Verification: %s\n", t42_cmd);
     cartan_flush(0.0);
-    system(t42_cmd);
+    run_step(t42_cmd);
 
-    // [43/44] Positive test: test_novel_ai_libs
-    let t43_cmd = "cartanc.exe build test/compiler_suite/test_novel_ai_libs.car -o build/test_novel_ai_libs.exe";
-    printf("[43/44] [// run-pass] Building 4 Novel AI Breakthrough Libraries (WANN, ESN, DIP, ELM) Test: %s\n", t43_cmd);
+    // [43/59] Positive test: test_inductive_biases
+    let t43_cmd = "cartanc.exe build test/compiler_suite/test_inductive_biases.car -o build/test_inductive_biases.exe && build\\test_inductive_biases.exe";
+    printf("[43/59] [// run-pass] Building and Executing Untrained Network Inductive Biases (WANN, DIP, ELM, ESN) Verification: %s\n", t43_cmd);
     cartan_flush(0.0);
-    system(t43_cmd);
+    run_step(t43_cmd);
 
-    // [44/45] Positive test: test_es_opt
-    let t44_cmd = "cartanc.exe build test/compiler_suite/test_es_opt.car -o build/test_es_opt.exe";
-    printf("[44/45] [// run-pass] Building Evolution Strategies (ES) Optimizer Library Test: %s\n", t44_cmd);
+    // [44/59] Positive test: test_net_and_logger
+    let t44_cmd = "cartanc.exe build test/compiler_suite/test_net_and_logger.car -o build/test_net_and_logger.exe && build\\test_net_and_logger.exe";
+    printf("[44/59] [// run-pass] Building and Executing Authentic Network Sockets & GeoMind Telemetry Logger Verification: %s\n", t44_cmd);
     cartan_flush(0.0);
-    system(t44_cmd);
+    run_step(t44_cmd);
 
-    // [45/46] Positive test: test_evolution_master
-    let t45_cmd = "cartanc.exe build test/compiler_suite/test_evolution_master.car -o build/test_evolution_master.exe";
-    printf("[45/46] [// run-pass] Building Master Evolutionary Learning Suite (ES+WANN+AZR+M2N2) Test: %s\n", t45_cmd);
+    // [45/59] Positive test: test_hopfield_buffer
+    let t45_cmd = "cartanc.exe build test/compiler_suite/test_hopfield_buffer.car -o build/test_hopfield_buffer.exe && build\\test_hopfield_buffer.exe";
+    printf("[45/59] [// run-pass] Building and Executing Continuous Hopfield Episodic Memory Buffer Verification: %s\n", t45_cmd);
     cartan_flush(0.0);
-    system(t45_cmd);
+    run_step(t45_cmd);
 
-    // [46/47] Positive test: run_geomind_hybrid_training
-    let t46_cmd = "cartanc.exe build test/geomind/run_geomind_hybrid_training.car -o build/run_geomind_hybrid_training.exe";
-    printf("[46/47] [// run-pass] Building GeoMind 4-Stage Production Hybrid Training & Instant Adaptation Engine Test: %s\n", t46_cmd);
+    // [46/59] Positive test: test_lie_streams
+    let t46_cmd = "cartanc.exe build test/compiler_suite/test_lie_streams.car -o build/test_lie_streams.exe && build\\test_lie_streams.exe";
+    printf("[46/59] [// run-pass] Building and Executing 8 Lie Subgroup Cortical Streams Manifold Verification: %s\n", t46_cmd);
     cartan_flush(0.0);
-    system(t46_cmd);
+    run_step(t46_cmd);
 
-    // [47/48] Positive test: run_heavy_production_training
-    let t47_cmd = "cartanc.exe build test/geomind/run_heavy_production_training.car -o build/run_heavy_production_training.exe";
-    printf("[47/48] [// run-pass] Building GeoMind Heavy Production Training & Evolutionary Self-Play Engine Test: %s\n", t47_cmd);
+    // [47/59] Positive test: test_hebbian_plasticity
+    let t47_cmd = "cartanc.exe build test/compiler_suite/test_hebbian_plasticity.car -o build/test_hebbian_plasticity.exe && build\\test_hebbian_plasticity.exe";
+    printf("[47/59] [// run-pass] Building and Executing Three-Factor Hebbian Synaptic Plasticity Verification: %s\n", t47_cmd);
     cartan_flush(0.0);
-    system(t47_cmd);
+    run_step(t47_cmd);
 
-    // [48/49] Positive test: test_xml_ingest_pipeline
-    let t48_cmd = "cartanc.exe build test/compiler_suite/test_xml_ingest_pipeline.car -o build/test_xml_ingest_pipeline.exe && build\\test_xml_ingest_pipeline.exe";
-    printf("[48/49] [// run-pass] Building and Executing Authentic XML & Ingest Pipeline Verification: %s\n", t48_cmd);
+    // [48/59] Positive test: test_multimodal_grounding
+    let t48_cmd = "cartanc.exe build test/compiler_suite/test_multimodal_grounding.car -o build/test_multimodal_grounding.exe && build\\test_multimodal_grounding.exe";
+    printf("[48/59] [// run-pass] Building and Executing Multimodal Cross-Modal Grounding Verification: %s\n", t48_cmd);
     cartan_flush(0.0);
-    system(t48_cmd);
+    run_step(t48_cmd);
 
-    // [49/50] Positive test: test_inductive_biases
-    let t49_cmd = "cartanc.exe build test/compiler_suite/test_inductive_biases.car -o build/test_inductive_biases.exe && build\\test_inductive_biases.exe";
-    printf("[49/50] [// run-pass] Building and Executing Untrained Network Inductive Biases (WANN, DIP, ELM, ESN) Verification: %s\n", t49_cmd);
+    // [49/59] Positive test: test_sleep_consolidation
+    let t49_cmd = "cartanc.exe build test/compiler_suite/test_sleep_consolidation.car -o build/test_sleep_consolidation.exe && build\\test_sleep_consolidation.exe";
+    printf("[49/59] [// run-pass] Building and Executing Autonomous Metacognitive Sleep Daemon Verification: %s\n", t49_cmd);
     cartan_flush(0.0);
-    system(t49_cmd);
+    run_step(t49_cmd);
 
-    // [50/51] Positive test: test_net_and_logger
-    let t50_cmd = "cartanc.exe build test/compiler_suite/test_net_and_logger.car -o build/test_net_and_logger.exe && build\\test_net_and_logger.exe";
-    printf("[50/51] [// run-pass] Building and Executing Authentic Network Sockets & GeoMind Telemetry Logger Verification: %s\n", t50_cmd);
+    // [50/59] Positive test: test_language_acquisition_cloze
+    let t50_cmd = "cartanc.exe build test/compiler_suite/test_language_acquisition_cloze.car -o build/test_language_acquisition_cloze.exe && build\\test_language_acquisition_cloze.exe";
+    printf("[50/59] [// run-pass] Building and Executing Staged Language Acquisition & Cloze Engine Verification: %s\n", t50_cmd);
     cartan_flush(0.0);
-    system(t50_cmd);
+    run_step(t50_cmd);
 
-    // [51/52] Positive test: test_hopfield_buffer
-    let t51_cmd = "cartanc.exe build test/compiler_suite/test_hopfield_buffer.car -o build/test_hopfield_buffer.exe && build\\test_hopfield_buffer.exe";
-    printf("[51/52] [// run-pass] Building and Executing Continuous Hopfield Episodic Memory Buffer Verification: %s\n", t51_cmd);
+    // [51/59] Positive test: test_model_grafting
+    let t51_cmd = "cartanc.exe build test/compiler_suite/test_model_grafting.car -o build/test_model_grafting.exe && build\\test_model_grafting.exe";
+    printf("[51/59] [// run-pass] Building and Executing Zero-Day Cross-Model Geodesic Grafting Verification: %s\n", t51_cmd);
     cartan_flush(0.0);
-    system(t51_cmd);
+    run_step(t51_cmd);
 
-    // [52/53] Positive test: test_lie_streams
-    let t52_cmd = "cartanc.exe build test/compiler_suite/test_lie_streams.car -o build/test_lie_streams.exe && build\\test_lie_streams.exe";
-    printf("[52/53] [// run-pass] Building and Executing 8 Lie Subgroup Cortical Streams Manifold Verification: %s\n", t52_cmd);
+    // [52/59] Positive test: test_native_multimodal_io
+    let t52_cmd = "cartanc.exe build test/compiler_suite/test_native_multimodal_io.car -o build/test_native_multimodal_io.exe && build\\test_native_multimodal_io.exe";
+    printf("[52/59] [// run-pass] Building and Executing Native Multimodal I/O (PPM/BMP/WAV) Verification: %s\n", t52_cmd);
     cartan_flush(0.0);
-    system(t52_cmd);
+    run_step(t52_cmd);
 
-    // [53/56] Positive test: test_hebbian_plasticity
-    let t53_cmd = "cartanc.exe build test/compiler_suite/test_hebbian_plasticity.car -o build/test_hebbian_plasticity.exe && build\\test_hebbian_plasticity.exe";
-    printf("[53/56] [// run-pass] Building and Executing Three-Factor Hebbian Synaptic Plasticity Verification: %s\n", t53_cmd);
+    // [53/59] Positive test: test_sasaki_brainstem_routing
+    let t53_cmd = "cartanc.exe build test/compiler_suite/test_sasaki_brainstem_routing.car -o build/test_sasaki_brainstem_routing.exe && build\\test_sasaki_brainstem_routing.exe";
+    printf("[53/59] [// run-pass] Building and Executing Sasaki Phase-Space Brainstem Router Verification: %s\n", t53_cmd);
     cartan_flush(0.0);
-    system(t53_cmd);
+    run_step(t53_cmd);
 
-    // [54/56] Positive test: test_multimodal_grounding
-    let t54_cmd = "cartanc.exe build test/compiler_suite/test_multimodal_grounding.car -o build/test_multimodal_grounding.exe && build\\test_multimodal_grounding.exe";
-    printf("[54/56] [// run-pass] Building and Executing Multimodal Cross-Modal Grounding Verification: %s\n", t54_cmd);
+    // [54/59] Positive test: test_continuous_hopfield_recall
+    let t54_cmd = "cartanc.exe build test/compiler_suite/test_continuous_hopfield_recall.car -o build/test_continuous_hopfield_recall.exe && build\\test_continuous_hopfield_recall.exe";
+    printf("[54/59] [// run-pass] Building and Executing Modern Continuous Hopfield Key-Value Associative Recall: %s\n", t54_cmd);
     cartan_flush(0.0);
-    system(t54_cmd);
+    run_step(t54_cmd);
 
-    // [55/56] Positive test: test_sleep_consolidation
-    let t55_cmd = "cartanc.exe build test/compiler_suite/test_sleep_consolidation.car -o build/test_sleep_consolidation.exe && build\\test_sleep_consolidation.exe";
-    printf("[55/56] [// run-pass] Building and Executing Autonomous Metacognitive Sleep Daemon Verification: %s\n", t55_cmd);
+    // [55/59] Positive test: test_wordnet_taxonomy_dag
+    let t55_cmd = "cartanc.exe build test/compiler_suite/test_wordnet_taxonomy_dag.car -o build/test_wordnet_taxonomy_dag.exe && build\\test_wordnet_taxonomy_dag.exe";
+    printf("[55/59] [// run-pass] Building and Executing WordNet/SlangNet Taxonomy DAG & Semantic Logit Biasing: %s\n", t55_cmd);
     cartan_flush(0.0);
-    system(t55_cmd);
+    run_step(t55_cmd);
 
-    // [56/57] Positive test: test_language_acquisition_cloze
-    let t56_cmd = "cartanc.exe build test/compiler_suite/test_language_acquisition_cloze.car -o build/test_language_acquisition_cloze.exe && build\\test_language_acquisition_cloze.exe";
-    printf("[56/57] [// run-pass] Building and Executing Staged Language Acquisition & Cloze Engine Verification: %s\n", t56_cmd);
+    // [56/59] Positive test: test_doubt_reflective_rewind
+    let t56_cmd = "cartanc.exe build test/compiler_suite/test_doubt_reflective_rewind.car -o build/test_doubt_reflective_rewind.exe && build\\test_doubt_reflective_rewind.exe";
+    printf("[56/59] [// run-pass] Building and Executing Reflective Doubt Verification & Context Rewind: %s\n", t56_cmd);
     cartan_flush(0.0);
-    system(t56_cmd);
+    run_step(t56_cmd);
 
-    // [57/58] Positive test: test_model_grafting
-    let t57_cmd = "cartanc.exe build test/compiler_suite/test_model_grafting.car -o build/test_model_grafting.exe && build\\test_model_grafting.exe";
-    printf("[57/58] [// run-pass] Building and Executing Zero-Day Cross-Model Geodesic Grafting Verification: %s\n", t57_cmd);
+    // [57/59] Positive test: test_markov_conscious_agent
+    let t57_cmd = "cartanc.exe build test/compiler_suite/test_markov_conscious_agent.car -o build/test_markov_conscious_agent.exe && build\\test_markov_conscious_agent.exe";
+    printf("[57/59] [// run-pass] Building and Executing Hoffman Conscious Agent Network & Markov Test: %s\n", t57_cmd);
     cartan_flush(0.0);
-    system(t57_cmd);
+    run_step(t57_cmd);
 
-    // [58/59] Positive test: test_native_multimodal_io
-    let t58_cmd = "cartanc.exe build test/compiler_suite/test_native_multimodal_io.car -o build/test_native_multimodal_io.exe && build\\test_native_multimodal_io.exe";
-    printf("[58/59] [// run-pass] Building and Executing Native Multimodal I/O (PPM/BMP/WAV) Verification: %s\n", t58_cmd);
+    // [58/59] Positive test: test_hybrid_resonant_transformer
+    let t58_cmd = "cartanc.exe build test/compiler_suite/test_hybrid_resonant_transformer.car -o build/test_hybrid_resonant_transformer.exe && build\\test_hybrid_resonant_transformer.exe";
+    printf("[58/59] [// run-pass] Building and Executing Hybrid Resonant Transformer Cognitive Architecture Test: %s\n", t58_cmd);
     cartan_flush(0.0);
-    system(t58_cmd);
+    run_step(t58_cmd);
 
-    // [59/60] Positive test: test_sasaki_brainstem_routing
-    let t59_cmd = "cartanc.exe build test/compiler_suite/test_sasaki_brainstem_routing.car -o build/test_sasaki_brainstem_routing.exe && build\\test_sasaki_brainstem_routing.exe";
-    printf("[59/60] [// run-pass] Building and Executing Sasaki Phase-Space Brainstem Router Verification: %s\n", t59_cmd);
+    // [59/59] Positive test: test_finsler_randers
+    let t59_cmd = "cartanc.exe build test/compiler_suite/test_finsler_randers.car -o build/test_finsler_randers.exe && build\\test_finsler_randers.exe";
+    printf("[59/59] [// run-pass] Building and Executing Finsler-Randers Sherman-Morrison Projection & Dynamic Strides Test: %s\n", t59_cmd);
     cartan_flush(0.0);
-    system(t59_cmd);
+    run_step(t59_cmd);
 
-    // [60/61] Positive test: test_continuous_hopfield_recall
-    let t60_cmd = "cartanc.exe build test/compiler_suite/test_continuous_hopfield_recall.car -o build/test_continuous_hopfield_recall.exe && build\\test_continuous_hopfield_recall.exe";
-    printf("[60/61] [// run-pass] Building and Executing Modern Continuous Hopfield Key-Value Associative Recall: %s\n", t60_cmd);
-    cartan_flush(0.0);
-    system(t60_cmd);
-
-    // [61/62] Positive test: test_wordnet_taxonomy_dag
-    let t61_cmd = "cartanc.exe build test/compiler_suite/test_wordnet_taxonomy_dag.car -o build/test_wordnet_taxonomy_dag.exe && build\\test_wordnet_taxonomy_dag.exe";
-    printf("[61/62] [// run-pass] Building and Executing WordNet/SlangNet Taxonomy DAG & Semantic Logit Biasing: %s\n", t61_cmd);
-    cartan_flush(0.0);
-    system(t61_cmd);
-
-    // [62/63] Positive test: test_doubt_reflective_rewind
-    let t62_cmd = "cartanc.exe build test/compiler_suite/test_doubt_reflective_rewind.car -o build/test_doubt_reflective_rewind.exe && build\\test_doubt_reflective_rewind.exe";
-    printf("[62/63] [// run-pass] Building and Executing Reflective Doubt Verification & Context Rewind: %s\n", t62_cmd);
-    cartan_flush(0.0);
-    system(t62_cmd);
-
-    // [63/63] Positive test: test_markov_conscious_agent
-    let t63_cmd = "cartanc.exe build test/compiler_suite/test_markov_conscious_agent.car -o build/test_markov_conscious_agent.exe && build\\test_markov_conscious_agent.exe";
-    printf("[63/63] [// run-pass] Building and Executing Hoffman Conscious Agent Network & Markov Test: %s\n", t63_cmd);
-    cartan_flush(0.0);
-    system(t63_cmd);
-
-    printf("\nAll 63 compiler snapshot test targets executed!\n", "");
+    if (g_failed_count > 0.0) {
+        printf("\n====================================================\n", "");
+        printf("  REGRESSION SUITE FAILED: %s targets failed!\n", cartan_float_to_string(g_failed_count));
+        printf("====================================================\n", "");
+        return 1.0;
+    }
+    printf("\nAll 59 compiler snapshot test targets executed successfully (0 failures)!\n", "");
     return 0.0;
 }
 

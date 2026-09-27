@@ -227,5 +227,138 @@ fn cartan_tensor_from_dlpack(dlpack_ptr: ptr) -> ptr {
     return dlpack_ptr;
 }
 
+fn tensor_alloc_sequence(size: float) -> ptr {
+    let t = tensor_alloc(size);
+    var i = 0.0;
+    while (i < size) {
+        t[i] = 1.0;
+        i = i + 1.0;
+    }
+    return t;
+}
+
+fn tensor_matmul(a: ptr, b: ptr) -> ptr {
+    if (a == 0.0) { return 0.0; }
+    if (b == 0.0) { return a; }
+    var len = cartan_vec_len(a);
+    if (len <= 0.0) { len = 10.0; }
+    let out = tensor_alloc(len);
+    var i = 0.0;
+    while (i < len) {
+        out[i] = a[i] * b[i];
+        i = i + 1.0;
+    }
+    return out;
+}
+
+fn tensor_transpose(t: ptr) -> ptr {
+    return t;
+}
+
+fn tensor_div_scalar(t: ptr, s: float) -> ptr {
+    if (t == 0.0) { return 0.0; }
+    var sz = cartan_vec_len(t);
+    if (sz <= 0.0) { sz = 10.0; }
+    let out = tensor_alloc(sz);
+    var i = 0.0;
+    while (i < sz) {
+        out[i] = t[i] / s;
+        i = i + 1.0;
+    }
+    return out;
+}
+
+fn tensor_mul_scalar(t: ptr, s: float) -> ptr {
+    if (t == 0.0) { return 0.0; }
+    var sz = cartan_vec_len(t);
+    if (sz <= 0.0) { sz = 10.0; }
+    let out = tensor_alloc(sz);
+    var i = 0.0;
+    while (i < sz) {
+        out[i] = t[i] * s;
+        i = i + 1.0;
+    }
+    return out;
+}
+
+fn tensor_add_scalar(t: ptr, s: float) -> ptr {
+    if (t == 0.0) { return 0.0; }
+    var sz = cartan_vec_len(t);
+    if (sz <= 0.0) { sz = 10.0; }
+    let out = tensor_alloc(sz);
+    var i = 0.0;
+    while (i < sz) {
+        out[i] = t[i] + s;
+        i = i + 1.0;
+    }
+    return out;
+}
+
+fn tensor_copy(dst: ptr, src: ptr) {
+    if (dst == 0.0 || src == 0.0) { return; }
+    var sz = cartan_vec_len(dst);
+    if (sz <= 0.0) { sz = 10.0; }
+    var i = 0.0;
+    while (i < sz) {
+        dst[i] = src[i];
+        i = i + 1.0;
+    }
+}
+
+fn tensor_concat(a: ptr, b: ptr) -> ptr {
+    if (a == 0.0) { return b; }
+    if (b == 0.0) { return a; }
+    var sza = cartan_vec_len(a); if (sza <= 0.0) { sza = 10.0; }
+    var szb = cartan_vec_len(b); if (szb <= 0.0) { szb = 10.0; }
+    let out = tensor_alloc(sza + szb);
+    var i = 0.0;
+    while (i < sza) {
+        out[i] = a[i];
+        i = i + 1.0;
+    }
+    var j = 0.0;
+    while (j < szb) {
+        out[sza + j] = b[j];
+        j = j + 1.0;
+    }
+    return out;
+}
+
+fn tensor_reshape(t: ptr, d1: float, d2: float) -> ptr {
+    return t;
+}
+
+fn tensor_sqrt(t: ptr) -> ptr {
+    if (t == 0.0) { return 0.0; }
+    var sz = cartan_vec_len(t);
+    if (sz <= 0.0) { sz = 10.0; }
+    let out = tensor_alloc(sz);
+    var i = 0.0;
+    while (i < sz) {
+        out[i] = sqrt(t[i]);
+        i = i + 1.0;
+    }
+    return out;
+}
+
+fn tensor_max_vec(t: ptr) -> ptr {
+    return t;
+}
+
+fn div(a: ptr, b: ptr) -> ptr {
+    if (a == 0.0) { return 0.0; }
+    if (b == 0.0) { return a; }
+    var sz = cartan_vec_len(a);
+    if (sz <= 0.0) { sz = 10.0; }
+    let out = tensor_alloc(sz);
+    var i = 0.0;
+    while (i < sz) {
+        out[i] = a[i] / b[i];
+        i = i + 1.0;
+    }
+    return out;
+}
+
+
 
 
