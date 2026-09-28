@@ -456,17 +456,23 @@ fn type_checker_init() -> TypeChecker {
             let d = cartan_tree_create();
             cartan_tree_push(d, Dimension::Fixed(0.0));
             return CartanType::Tensor(d, 0.0, 0.0);
-        } else if (disc == 34.0) { // LexAndEmbed
+        } else if (disc == 34.0 || disc == 98.0) { // LexAndEmbed
             tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
-            return CartanType::Unknown;
-        } else if (disc == 35.0) { // AlignGeodesics
-            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
-            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 2.0));
-            return CartanType::Unknown;
-        } else if (disc == 36.0) { // GeometricBridge
+            let d = cartan_tree_create();
+            cartan_tree_push(d, Dimension::Fixed(0.0));
+            return CartanType::Tensor(d, 0.0, 0.0);
+        } else if (disc == 35.0 || disc == 99.0) { // AlignGeodesics
             tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
             tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 2.0));
-            return CartanType::Unknown;
+            let d = cartan_tree_create();
+            cartan_tree_push(d, Dimension::Fixed(0.0));
+            return CartanType::Tensor(d, 0.0, 0.0);
+        } else if (disc == 36.0 || disc == 100.0) { // GeometricBridge
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 2.0));
+            let d = cartan_tree_create();
+            cartan_tree_push(d, Dimension::Fixed(0.0));
+            return CartanType::Tensor(d, 0.0, 0.0);
         } else if (disc == 38.0 || disc == 102.0) { // Transpose
             let inner_type = tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
             if (cartan_tree_get_f32(inner_type, 0.0) == 8.0) { // Tensor
@@ -493,6 +499,8 @@ fn type_checker_init() -> TypeChecker {
         } else if (disc == 39.0 || disc == 103.0) { // HotSwap
             tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
             tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 2.0));
+            return CartanType::Ptr;
+        } else if (disc == 50.0 || disc == 114.0) { // ReflectRepo
             return CartanType::Ptr;
         } else if (disc == 42.0 || disc == 106.0) { // AddressOf
             tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));

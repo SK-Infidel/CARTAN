@@ -3233,6 +3233,44 @@ This file tracks technical debt and bugs identified during repository code revie
 - **Description**: `tensor_matmul` in `src/std/tensor.cl` simulates matrix multiplication by multiplying elements index-by-index (`out[i] = a[i] * b[i]`). This violates the project zero-mock directive.
 - **Resolution**: Implemented authentic $O(M \times K \times N)$ general matrix multiplication (`cartan_tensor_matmul_gemm`), dynamic 2D row-vector / flat-vector matrix multiplication (`cartan_tensor_matmul`), exported wrappers in `core_runtime.car`, and updated `src/std/tensor.cl:tensor_matmul` to execute genuine matrix multiplication. Verified with Target 65.
 
+---
+
+## [ISSUE-233] [FIXED] Unhandled AST Expression Lowering for `Expr::LexAndEmbed`, `Expr::AlignGeodesics`, `Expr::GeometricBridge`
+- **Severity**: High (Geometric Completeness & Zero-Mock Directive)
+- **Component**: [`src/cartanc/type_checker.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/type_checker.car#L459), [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car#L3504), [`src/cartanc/core_runtime.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/core_runtime.car)
+- **Status**: Fixed in Sprint 456.
+- **Description**: `Cartan.lex_and_embed`, `Cartan.align_geodesics`, and `Cartan.GeometricBridge` are parsed into `Expr::LexAndEmbed` (34.0/98.0), `Expr::AlignGeodesics` (35.0/99.0), and `Expr::GeometricBridge` (36.0/100.0). `type_checker.car` only checks single discriminants and returns `CartanType::Unknown`, `llvm_codegen.car` drops them returning `"0.0"`, and `core_runtime.car` lacks all three runtime implementations.
+- **Resolution**: Added dual discriminant checking in `type_checker.car` returning `CartanType::Tensor`, implemented authentic mathematical operations in `core_runtime.car` (`cartan_lex_and_embed`, `cartan_align_geodesics`, `cartan_geometric_bridge`), and lowered calling them in `llvm_codegen.car`. Verified with Target 66.
+
+---
+
+## [ISSUE-234] [FIXED] Discriminant Collision for `PropertyAccess` & `IndexAccess` with `LexAndEmbed` and `GeometricBridge` in LLVM Codegen
+- **Severity**: High (Codegen Correctness & AST Integrity)
+- **Component**: [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car#L2344)
+- **Status**: Fixed in Sprint 456.
+- **Description**: `llvm_codegen.car` lines 2545 and 3128 check `disc == 20.0 || disc == 34.0` for `PropertyAccess`. But `34.0` is the enum index of `Expr::LexAndEmbed`! In `ast.ch`, `PropertyAccess` is at line 84. Similarly, lines 2598 and 3186 check `disc == 21.0 || disc == 36.0` for `IndexAccess`, but `36.0` is `Expr::GeometricBridge`, whereas `IndexAccess` is at line 85. Line 2344 also pushes synthetic property access node with `34.0` instead of `20.0`.
+- **Resolution**: Updated `PropertyAccess` to check `20.0 || 84.0` (and emit `20.0` at line 2344) and `IndexAccess` to check `21.0 || 85.0`, eliminating collisions with `LexAndEmbed` (34.0) and `GeometricBridge` (36.0). Verified with Target 66.
+
+---
+
+## [ISSUE-235] [FIXED] Missing `Expr::ReflectRepo` in AST Definition, Type System, and Codegen
+- **Severity**: Medium (Dynamic Graph Architecture)
+- **Component**: [`src/cartanc/parser.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/parser.car#L1730), [`src/cartanc/ast.ch`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/ast.ch), [`src/cartanc/type_checker.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/type_checker.car), [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car), [`src/cartanc/core_runtime.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/core_runtime.car)
+- **Status**: Fixed in Sprint 456.
+- **Description**: `parser.car:1732` emits `Expr::ReflectRepo;` for `Cartan.reflect_repo()`, but `ReflectRepo` does not exist in `ast.ch:Expr`. It is also missing from `type_checker.car`, `llvm_codegen.car`, and `core_runtime.car`.
+- **Resolution**: Added `ReflectRepo` to `ast.ch:Expr` (50.0/114.0), type checked it returning `CartanType::Ptr`, implemented `cartan_reflect_repo() -> ptr` in `core_runtime.car` returning active graph root reflection metadata, and lowered it in `llvm_codegen.car`. Verified with Target 66.
+
+---
+
+## [ISSUE-236] [FIXED] Parameter Arity Mismatches for `LexAndEmbed` and `Attention`
+- **Severity**: Medium (AST Layout Consistency)
+- **Component**: [`src/cartanc/ast.ch`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/ast.ch#L91), [`src/cartanc/parser.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/parser.car#L1580)
+- **Status**: Fixed in Sprint 456.
+- **Description**: `ast.ch:98` defines `LexAndEmbed(ptr, ptr)` (2 arguments), but `parser.car:1707` constructs it with 1 argument (`Expr::LexAndEmbed(args[0])`). `ast.ch:91` defines `Attention(ptr, ptr, ptr, ptr)` (4 arguments), but `parser.car:1580` constructs it with 2 arguments (`Expr::Attention(target, routing_val)`).
+- **Resolution**: Aligned `LexAndEmbed(ptr)` to 1 argument and `Attention(ptr, ptr)` to 2 arguments in `ast.ch`.
+
+
+
 
 
 

@@ -138,6 +138,10 @@ fn llvm_codegen_init() -> LLVMGenerator {
     cartan_dict_set(l.func_return_types, "cartan_vec_get_f32", "double");
     cartan_dict_set(l.func_return_types, "cartan_rt_atomic_swap_graph", "ptr");
     cartan_dict_set(l.func_return_types, "cartan_tensor_matmul_gemm", "ptr");
+    cartan_dict_set(l.func_return_types, "cartan_lex_and_embed", "ptr");
+    cartan_dict_set(l.func_return_types, "cartan_align_geodesics", "ptr");
+    cartan_dict_set(l.func_return_types, "cartan_geometric_bridge", "ptr");
+    cartan_dict_set(l.func_return_types, "cartan_reflect_repo", "ptr");
     return l;
 }
 
@@ -539,6 +543,10 @@ fn llvm_codegen_init() -> LLVMGenerator {
         add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_transpose", "declare ptr @cartan_tensor_transpose(ptr)\n");
         add_builtin_extern(self_ptr, user_defined_names, "cartan_rt_atomic_swap_graph", "declare ptr @cartan_rt_atomic_swap_graph(ptr, ptr)\n");
         add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_matmul_gemm", "declare ptr @cartan_tensor_matmul_gemm(ptr, ptr, double, double, double)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_lex_and_embed", "declare ptr @cartan_lex_and_embed(ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_align_geodesics", "declare ptr @cartan_align_geodesics(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_geometric_bridge", "declare ptr @cartan_geometric_bridge(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_reflect_repo", "declare ptr @cartan_reflect_repo()\n");
         add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_ones_like", "declare ptr @cartan_tensor_ones_like(ptr)\n");
         add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_zeros_like", "declare ptr @cartan_tensor_zeros_like(ptr)\n");
         add_builtin_extern(self_ptr, user_defined_names, "cartan_absorb_weights", "declare void @cartan_absorb_weights(ptr, ptr)\n");
@@ -2341,7 +2349,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                     if (fields != 0.0) {
                         if (cartan_tree_has(fields, name) != 0.0) {
                             let prop_node = cartan_tree_create();
-                            cartan_tree_push(prop_node, 34.0);
+                            cartan_tree_push(prop_node, 20.0);
                             let self_node = cartan_tree_create();
                             cartan_tree_push(self_node, 6.0);
                             cartan_tree_push(self_node, "self");
@@ -2542,7 +2550,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                     }
                 }
             }
-            if (target_disc == 20.0 || target_disc == 34.0) {
+            if (target_disc == 20.0 || target_disc == 84.0) {
                 let object = cartan_tree_get_f32(target, 1.0);
                 let property_name = cartan_tree_get_f32(target, 2.0);
                 let obj_reg = llvm_visit_expr(self_ptr, object);
@@ -2595,7 +2603,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                     cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  store double ", as_float(self_ptr, val_reg)), ", ptr "), elem_ptr), ", align 8\n"));
                 }
             }
-            if (target_disc == 21.0 || target_disc == 36.0) {
+            if (target_disc == 21.0 || target_disc == 85.0) {
                 let object = cartan_tree_get_f32(target, 1.0);
                 let index = cartan_tree_get_f32(target, 2.0);
                 let obj_reg_raw = llvm_visit_expr(self_ptr, object);
@@ -3125,7 +3133,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
             cartan_tree_push(self_ptr.output, p6);
             return res_reg;
         }
-        if (disc == 20.0 || disc == 34.0) {
+        if (disc == 20.0 || disc == 84.0) {
             let object = cartan_tree_get_f32(expr, 1.0);
             let property_name = cartan_tree_get_f32(expr, 2.0);
             let obj_reg = llvm_visit_expr(self_ptr, object);
@@ -3183,7 +3191,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 return val_reg;
             }
         }
-        if (disc == 21.0 || disc == 36.0) {
+        if (disc == 21.0 || disc == 85.0) {
             let object = cartan_tree_get_f32(expr, 1.0);
             let index = cartan_tree_get_f32(expr, 2.0);
             let obj_reg_raw = llvm_visit_expr(self_ptr, object);
@@ -3499,6 +3507,59 @@ while (idx_method < cartan_tree_len_f(methods)) {
             let p5 = cartan_string_concat(p4, clean_shadow);
             let p6 = cartan_string_concat(p5, ")\n");
             cartan_tree_push(self_ptr.output, p6);
+            return cartan_string_concat("ptr:", res_reg);
+        }
+        if (disc == 34.0 || disc == 98.0) { // LexAndEmbed
+            let text_expr = cartan_tree_get_f32(expr, 1.0);
+            let text_reg = llvm_visit_expr(self_ptr, text_expr);
+            let clean_text = clean_reg(text_reg);
+            let res_reg = next_reg(self_ptr);
+            let p1 = cartan_string_concat("  ", res_reg);
+            let p2 = cartan_string_concat(p1, " = call ptr @cartan_lex_and_embed(ptr ");
+            let p3 = cartan_string_concat(p2, clean_text);
+            let p4 = cartan_string_concat(p3, ")\n");
+            cartan_tree_push(self_ptr.output, p4);
+            return cartan_string_concat("ptr:", res_reg);
+        }
+        if (disc == 35.0 || disc == 99.0) { // AlignGeodesics
+            let w_expr = cartan_tree_get_f32(expr, 1.0);
+            let b_expr = cartan_tree_get_f32(expr, 2.0);
+            let w_reg = llvm_visit_expr(self_ptr, w_expr);
+            let b_reg = llvm_visit_expr(self_ptr, b_expr);
+            let clean_w = clean_reg(w_reg);
+            let clean_b = clean_reg(b_reg);
+            let res_reg = next_reg(self_ptr);
+            let p1 = cartan_string_concat("  ", res_reg);
+            let p2 = cartan_string_concat(p1, " = call ptr @cartan_align_geodesics(ptr ");
+            let p3 = cartan_string_concat(p2, clean_w);
+            let p4 = cartan_string_concat(p3, ", ptr ");
+            let p5 = cartan_string_concat(p4, clean_b);
+            let p6 = cartan_string_concat(p5, ")\n");
+            cartan_tree_push(self_ptr.output, p6);
+            return cartan_string_concat("ptr:", res_reg);
+        }
+        if (disc == 36.0 || disc == 100.0) { // GeometricBridge
+            let src_expr = cartan_tree_get_f32(expr, 1.0);
+            let tgt_expr = cartan_tree_get_f32(expr, 2.0);
+            let src_reg = llvm_visit_expr(self_ptr, src_expr);
+            let tgt_reg = llvm_visit_expr(self_ptr, tgt_expr);
+            let clean_src = clean_reg(src_reg);
+            let clean_tgt = clean_reg(tgt_reg);
+            let res_reg = next_reg(self_ptr);
+            let p1 = cartan_string_concat("  ", res_reg);
+            let p2 = cartan_string_concat(p1, " = call ptr @cartan_geometric_bridge(ptr ");
+            let p3 = cartan_string_concat(p2, clean_src);
+            let p4 = cartan_string_concat(p3, ", ptr ");
+            let p5 = cartan_string_concat(p4, clean_tgt);
+            let p6 = cartan_string_concat(p5, ")\n");
+            cartan_tree_push(self_ptr.output, p6);
+            return cartan_string_concat("ptr:", res_reg);
+        }
+        if (disc == 50.0 || disc == 114.0) { // ReflectRepo
+            let res_reg = next_reg(self_ptr);
+            let p1 = cartan_string_concat("  ", res_reg);
+            let p2 = cartan_string_concat(p1, " = call ptr @cartan_reflect_repo()\n");
+            cartan_tree_push(self_ptr.output, p2);
             return cartan_string_concat("ptr:", res_reg);
         }
         return "0.0";

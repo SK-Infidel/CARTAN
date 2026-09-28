@@ -415,11 +415,17 @@ fn main(argc: float, argv: ptr) -> float {
     cartan_flush(0.0);
     run_step(t64_cmd);
 
-    // [65/65] Positive test: test_tensor_and_pointer_ops
+    // [65/66] Positive test: test_tensor_and_pointer_ops
     let t65_cmd = "cartanc.exe build test/compiler_suite/test_tensor_and_pointer_ops.car -o build/test_tensor_and_pointer_ops.exe && build\\test_tensor_and_pointer_ops.exe";
-    printf("[65/65] [// run-pass] Building and Executing Tensor Transpose, GEMM, Hot-Swap, & Pointer Ops: %s\n", t65_cmd);
+    printf("[65/66] [// run-pass] Building and Executing Tensor Transpose, GEMM, Hot-Swap, & Pointer Ops: %s\n", t65_cmd);
     cartan_flush(0.0);
     run_step(t65_cmd);
+
+    // [66/66] Positive test: test_geometric_bridge_and_reflection
+    let t66_cmd = "cartanc.exe build test/compiler_suite/test_geometric_bridge_and_reflection.car -o build/test_geometric_bridge_and_reflection.exe && build\\test_geometric_bridge_and_reflection.exe";
+    printf("[66/66] [// run-pass] Building and Executing Geometric Alignment, Bridge, Embedding, & Reflection: %s\n", t66_cmd);
+    cartan_flush(0.0);
+    run_step(t66_cmd);
 
     if (g_failed_count > 0.0) {
         printf("\n====================================================\n", "");
@@ -427,7 +433,7 @@ fn main(argc: float, argv: ptr) -> float {
         printf("====================================================\n", "");
         return 1.0;
     }
-    printf("\nAll 65 compiler snapshot test targets executed successfully (0 failures)!\n", "");
+    printf("\nAll 66 compiler snapshot test targets executed successfully (0 failures)!\n", "");
     return 0.0;
 }
 

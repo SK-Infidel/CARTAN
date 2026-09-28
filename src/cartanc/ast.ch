@@ -88,14 +88,14 @@ enum Expr {
     ArrayDecl(tree<ptr>),
     DictionaryDecl(tree<ptr>),
     FusedKernel(ptr),
-    Attention(ptr, ptr, ptr, ptr),
+    Attention(ptr, ptr),
     Range(ptr, ptr),
     Graft(ptr, ptr),
     TranslationBarrier(ptr),
     TokenizeBPE(ptr, ptr),
     AlignSpans(ptr, ptr, ptr),
     TreeSearch(ptr, ptr, ptr),
-    LexAndEmbed(ptr, ptr),
+    LexAndEmbed(ptr),
     AlignGeodesics(ptr, ptr),
     GeometricBridge(ptr, ptr),
     TransposeWeights(ptr, ptr),
@@ -110,7 +110,8 @@ enum Expr {
     Lazy(ptr),
     PagedAttention(ptr, ptr, ptr, ptr),
     ProjectVocab(ptr, ptr),
-    WeightDecay(ptr, float)
+    WeightDecay(ptr, float),
+    ReflectRepo
 }
 
 enum Stmt {

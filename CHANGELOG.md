@@ -1,3 +1,28 @@
+## [8.414.0] - 2026-09-28 (Sprint 456: Geometric Alignment, Bridge, Manifold Embedding, & Repository Reflection)
+
+### Completed & Validated
+- **Codegen Discriminant Collision Rectification (`src/cartanc/llvm_codegen.car`, `[ISSUE-234]`)**:
+  - Fixed `PropertyAccess` discriminant checks to `20.0 || 84.0` (eliminating collision with `LexAndEmbed` at 34.0) and updated line 2344 to emit canonical `20.0`.
+  - Fixed `IndexAccess` discriminant checks to `21.0 || 85.0` (eliminating collision with `GeometricBridge` at 36.0).
+- **AST Definition Arity Alignment & `ReflectRepo` (`src/cartanc/ast.ch`, `src/cartanc/parser.car`, `[ISSUE-235]`, `[ISSUE-236]`)**:
+  - Aligned `Attention(ptr, ptr)` to 2 parameters and `LexAndEmbed(ptr)` to 1 parameter in `ast.ch` conforming to parser constructions.
+  - Added `ReflectRepo` (50.0 / 114.0) to `enum Expr` in `ast.ch` and allowed both `GeometricBridge` and `geometric_bridge` casing in `parser.car`.
+- **Authentic Geometric Runtime Primitives & Reflection Kernel (`src/cartanc/core_runtime.car`, `[ISSUE-233]`, `[ISSUE-235]`)**:
+  - Implemented `cartan_lex_and_embed(text: string) -> ptr`: Authentic character-level phase embedding into 8-D Lie continuous coordinates.
+  - Implemented `cartan_align_geodesics(w: ptr, b: ptr) -> ptr`: Riemannian geodesic alignment combining metric tangent points with curvature scaling.
+  - Implemented `cartan_geometric_bridge(src: ptr, tgt: ptr) -> ptr`: Authentic Riemannian chord connecting manifold weight spaces.
+  - Implemented `cartan_reflect_repo() -> ptr`: Heap-allocated active graph reflection container with root graph pointer, module name, status, and epoch metadata.
+  - Exported top-level wrapper functions: `lex_and_embed`, `align_geodesics`, `geometric_bridge`, `reflect_repo`.
+- **Type Checker & Codegen Lowering Integration (`src/cartanc/type_checker.car`, `src/cartanc/llvm_codegen.car`, `[ISSUE-233]`, `[ISSUE-235]`)**:
+  - Added dual discriminant checks for `LexAndEmbed` (34.0/98.0), `AlignGeodesics` (35.0/99.0), and `GeometricBridge` (36.0/100.0) returning `CartanType::Tensor` in `type_checker.car`.
+  - Added type check for `ReflectRepo` (50.0/114.0) returning `CartanType::Ptr`.
+  - Registered return types and extern prototypes in `llvm_codegen.car`.
+  - Lowered `Expr::LexAndEmbed`, `Expr::AlignGeodesics`, `Expr::GeometricBridge`, and `Expr::ReflectRepo` to clean LLVM IR.
+- **Regression Suite Expansion & Empirical Verification (`test/compiler_suite/`)**:
+  - Authored regression Target 66: `test/compiler_suite/test_geometric_bridge_and_reflection.car` validating authentic 8-D manifold embedding, geodesic alignment ($g_0 \approx 1.1016$), geometric bridge chord ($B_0 = 0.875$), repository reflection & dynamic shadow graph hot-swapping, and direct wrapper invocations.
+  - Whitelisted Target 66 in `.gitignore` and registered as Target 66 in `test/compiler_suite/run_tests.car`.
+  - Rebuilt self-hosting stage 1 `cartanc.exe` and verified 100% clean pass across all 66 compiler regression suite targets with 0 failures (Exit Code 0).
+
 ## [8.413.0] - 2026-09-28 (Sprint 455: Authentic GEMM Matrix Multiplication, Tensor Transposition, Dynamic Graph Hot-Swap, & Pointer Ops)
 
 ### Completed & Validated

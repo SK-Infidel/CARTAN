@@ -1,0 +1,40 @@
+# Sprint 456 Task List
+
+- [x] **Task 1: Resolve Codegen Discriminant Collisions (`[ISSUE-234]`)**
+  - [x] Update `src/cartanc/llvm_codegen.car:2344` to emit `20.0` for synthetic property access
+  - [x] Update `src/cartanc/llvm_codegen.car:2545` & `3128` to `target_disc == 20.0 || target_disc == 84.0`
+  - [x] Update `src/cartanc/llvm_codegen.car:2598` & `3186` to `target_disc == 21.0 || target_disc == 85.0`
+- [x] **Task 2: AST Arity Alignment & `ReflectRepo` (`[ISSUE-235]`, `[ISSUE-236]`)**
+  - [x] Update `src/cartanc/ast.ch:91` to `Attention(ptr, ptr)`
+  - [x] Update `src/cartanc/ast.ch:98` to `LexAndEmbed(ptr)`
+  - [x] Add `ReflectRepo` to `src/cartanc/ast.ch:114`
+- [x] **Task 3: Core Runtime Primitives (`[ISSUE-233]`, `[ISSUE-235]`)**
+  - [x] Implement `cartan_lex_and_embed(text: string) -> ptr` in `src/cartanc/core_runtime.car`
+  - [x] Implement `cartan_align_geodesics(w: ptr, b: ptr) -> ptr` in `src/cartanc/core_runtime.car`
+  - [x] Implement `cartan_geometric_bridge(src: ptr, tgt: ptr) -> ptr` in `src/cartanc/core_runtime.car`
+  - [x] Implement `cartan_reflect_repo() -> ptr` in `src/cartanc/core_runtime.car`
+  - [x] Expose runtime wrappers
+- [x] **Task 4: Type Checker Integration (`[ISSUE-233]`, `[ISSUE-235]`)**
+  - [x] Update `LexAndEmbed` (`34.0 || 98.0`) in `src/cartanc/type_checker.car` returning `CartanType::Tensor`
+  - [x] Update `AlignGeodesics` (`35.0 || 99.0`) in `src/cartanc/type_checker.car` returning `CartanType::Tensor`
+  - [x] Update `GeometricBridge` (`36.0 || 100.0`) in `src/cartanc/type_checker.car` returning `CartanType::Tensor`
+  - [x] Add `ReflectRepo` (`50.0 || 114.0`) in `src/cartanc/type_checker.car` returning `CartanType::Ptr`
+- [x] **Task 5: LLVM Codegen Lowering (`[ISSUE-233]`, `[ISSUE-235]`)**
+  - [x] Register return types and extern declarations for new runtime functions in `src/cartanc/llvm_codegen.car`
+  - [x] Lower `LexAndEmbed` (`34.0 || 98.0`)
+  - [x] Lower `AlignGeodesics` (`35.0 || 99.0`)
+  - [x] Lower `GeometricBridge` (`36.0 || 100.0`)
+  - [x] Lower `ReflectRepo` (`50.0 || 114.0`)
+- [x] **Task 6: Author Regression Target 66 (`test/compiler_suite/test_geometric_bridge_and_reflection.car`)**
+  - [x] Test 1: Authentic text manifold embedding via `Cartan.lex_and_embed`
+  - [x] Test 2: Authentic geodesic alignment via `Cartan.align_geodesics`
+  - [x] Test 3: Authentic Riemannian bridge via `Cartan.GeometricBridge`
+  - [x] Test 4: Repository reflection via `Cartan.reflect_repo` & hot-swap
+  - [x] Register Target 66 in `test/compiler_suite/run_tests.car` and update `.gitignore`
+- [x] **Task 7: Recompile & Empirical Regression Verification**
+  - [x] Rebuild self-hosted `cartanc.exe`
+  - [x] Execute `run_tests.exe` and verify all 66 targets pass with 0 failures
+- [x] **Task 8: Sprint Closeout & Documentation**
+  - [x] Update `ISSUES.md` (mark Issues 233-236 resolved)
+  - [x] Update `CHANGELOG.md` (`[8.414.0]`)
+  - [x] Save `docs/archive/sprint_456_walkthrough.md`

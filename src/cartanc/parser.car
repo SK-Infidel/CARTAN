@@ -1712,7 +1712,7 @@ extern fn printf(fmt: string) -> i32;
                                     expr = Expr::AlignGeodesics(cartan_tree_get_f32(args, 0.0), cartan_tree_get_f32(args, 1.0));
                                     handled = 1.0;
                                 }
-                            } else if (cartan_string_eq(name, "GeometricBridge") != 0.0) {
+                            } else if (cartan_string_eq(name, "GeometricBridge") != 0.0 || cartan_string_eq(name, "geometric_bridge") != 0.0) {
                                 if (args_len == 2.0) {
                                     expr = Expr::GeometricBridge(cartan_tree_get_f32(args, 0.0), cartan_tree_get_f32(args, 1.0));
                                     handled = 1.0;
