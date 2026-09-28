@@ -2656,6 +2656,8 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
                         active_d = 16.0; // SCIENTIFIC_METHOD
                     } else if (cartan_string_contains(cur_dataset_name, "security") != 0.0 || cartan_string_contains(cur_dataset_name, "sandbox") != 0.0 || cartan_string_contains(cur_dataset_name, "privilege") != 0.0 || cartan_string_contains(cur_dataset_name, "isolation") != 0.0) {
                         active_d = 17.0; // SECURITY_SANDBOXING
+                    } else if (cartan_string_contains(cur_dataset_name, "software") != 0.0 || cartan_string_contains(cur_dataset_name, "programming") != 0.0 || cartan_string_contains(cur_dataset_name, "algorithm") != 0.0 || cartan_string_contains(cur_dataset_name, "concurrency") != 0.0 || cartan_string_contains(cur_dataset_name, "deadlock") != 0.0 || cartan_string_contains(cur_dataset_name, "contract") != 0.0) {
+                        active_d = 18.0; // SOFTWARE_ENGINEERING_ALGORITHMS
                     } else {
                         active_d = 5.0; // CAUSAL_TAXONOMY
                     }

@@ -505,11 +505,17 @@ fn main(argc: float, argv: ptr) -> float {
     cartan_flush(0.0);
     run_step(t79_cmd);
 
-    // [80/80] Positive test: test_nses_universal_cognitive_domains
+    // [80/81] Positive test: test_nses_universal_cognitive_domains
     let t80_cmd = "cartanc.exe build test/compiler_suite/test_nses_universal_cognitive_domains.car -o build/test_nses_universal_cognitive_domains.exe && build\\test_nses_universal_cognitive_domains.exe";
-    printf("[80/80] [// run-pass] Building and Executing NSES Universal Cognitive Architecture (Domains 11..17): %s\n", t80_cmd);
+    printf("[80/81] [// run-pass] Building and Executing NSES Universal Cognitive Architecture (Domains 11..17): %s\n", t80_cmd);
     cartan_flush(0.0);
     run_step(t80_cmd);
+
+    // [81/81] Positive test: test_nses_software_engineering_domain
+    let t81_cmd = "cartanc.exe build test/compiler_suite/test_nses_software_engineering_domain.car -o build/test_nses_software_engineering_domain.exe && build\\test_nses_software_engineering_domain.exe";
+    printf("[81/81] [// run-pass] Building and Executing NSES Software Engineering, Programming & Algorithms Domain 18: %s\n", t81_cmd);
+    cartan_flush(0.0);
+    run_step(t81_cmd);
 
     if (g_failed_count > 0.0) {
         printf("\n====================================================\n", "");
@@ -517,7 +523,7 @@ fn main(argc: float, argv: ptr) -> float {
         printf("====================================================\n", "");
         return 1.0;
     }
-    printf("\nAll 80 compiler snapshot test targets executed successfully (0 failures)!\n", "");
+    printf("\nAll 81 compiler snapshot test targets executed successfully (0 failures)!\n", "");
     return 0.0;
 }
 

@@ -96,6 +96,9 @@ fn dynamic_gamma_domain_baseline(cfg: DynamicGammaConfig, domain_idx: float) -> 
     } else if (domain_idx == 17.0) {
         // SECURITY_SANDBOXING: Capability boundaries & least privilege
         b = b * 1.35;
+    } else if (domain_idx == 18.0) {
+        // SOFTWARE_ENGINEERING_ALGORITHMS: Hoare contracts, termination & deadlock freedom
+        b = b * 1.25;
     }
     return b;
 }

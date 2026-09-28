@@ -53,6 +53,7 @@ fn main(argc: float, argv: ptr) -> float {
     cargraph_builder_add_domain(builder, 15.0, 132.0, 10.0, 2.0); // GAME_THEORY_COORDINATION (2 strict, 8 factual)
     cargraph_builder_add_domain(builder, 16.0, 142.0, 10.0, 2.0); // SCIENTIFIC_METHOD (2 strict, 8 factual)
     cargraph_builder_add_domain(builder, 17.0, 152.0, 10.0, 2.0); // SECURITY_SANDBOXING (2 strict, 8 factual)
+    cargraph_builder_add_domain(builder, 18.0, 162.0, 10.0, 2.0); // SOFTWARE_ENGINEERING_ALGORITHMS (2 strict, 8 factual)
 
     // -------------------------------------------------------------------------
     // 2. Ingest Rules & Guardrails
@@ -255,13 +256,25 @@ fn main(argc: float, argv: ptr) -> float {
     cargraph_builder_add_rule(builder, 17.0, 1.0, 0.0, "Side-Channel Constant-Time Execution: Security-sensitive cryptographic operations must execute with uniform instruction cycles independent of secret operand data values.");
     cargraph_builder_add_rule(builder, 17.0, 1.0, 0.0, "Defense-in-Depth Redundancy: Security mechanisms are structured in multiple independent concentric layers such that breach of one layer does not compromise the complete system.");
 
-    printf("[Ingest Compiler] Ingested 18 cognitive domains and 162 structured rules (36 strict invariants).\n");
+    // --- Domain 18: SOFTWARE_ENGINEERING_ALGORITHMS (Software Engineering, Architecture & Algorithms) ---
+    cargraph_builder_add_rule(builder, 18.0, 0.0, 1.0, "Design by Contract Invariant: Preconditions and postconditions define inviolable Hoare contracts; caller precondition breach produces undefined state.");
+    cargraph_builder_add_rule(builder, 18.0, 0.0, 1.0, "Algorithmic Termination and Bounded Space Invariant: Iterative and recursive loops must strictly satisfy monotonic termination metrics with bounded stack and heap footprints.");
+    cargraph_builder_add_rule(builder, 18.0, 1.0, 0.0, "Idempotence & Pure Function Referential Transparency: An idempotent or pure function can be replaced with its evaluated return value without observable side effects.");
+    cargraph_builder_add_rule(builder, 18.0, 1.0, 0.0, "Interface Segregation & Decoupled Abstraction: Callers should not be forced to depend on methods they do not use, ensuring cohesive modular interfaces.");
+    cargraph_builder_add_rule(builder, 18.0, 1.0, 0.0, "Deadlock Freedom in Resource Allocation: Enforcing a total linear acquisition order across shared locks prevents circular wait conditions.");
+    cargraph_builder_add_rule(builder, 18.0, 1.0, 0.0, "Defensive Input Sanitization & Boundary Validation: Untrusted external inputs must undergo canonical boundary validation and normalization before entering internal pipelines.");
+    cargraph_builder_add_rule(builder, 18.0, 1.0, 0.0, "Amortized Complexity & Dynamic Resizing: Geometric table expansion guarantees O(1) amortized insertion cost across sequential append workloads.");
+    cargraph_builder_add_rule(builder, 18.0, 1.0, 0.0, "Idempotent Retry & Fault Tolerance: Network and storage mutations must incorporate unique idempotency tokens enabling safe automated replay under transient failures.");
+    cargraph_builder_add_rule(builder, 18.0, 1.0, 0.0, "Cache Locality & Data-Oriented Memory Layout: Structure-of-Arrays (SoA) and contiguous array layouts maximize CPU cacheline utilization over pointer indirection.");
+    cargraph_builder_add_rule(builder, 18.0, 1.0, 0.0, "Structural Subtyping & Liskov Substitution: Subtype implementations must preserve semantic invariants and contract strength of their parent abstractions.");
+
+    printf("[Ingest Compiler] Ingested 19 cognitive domains and 172 structured rules (38 strict invariants).\n");
 
     // -------------------------------------------------------------------------
     // 3. Automated SMT/SAT Consistency Verification Pass
     // -------------------------------------------------------------------------
     printf("[Ingest Compiler] Running SMT/SAT Propositional Consistency Verification Pass...\n");
-    let solver = sat_solver_create(192.0);
+    let solver = sat_solver_create(256.0);
 
     // Assert strict invariants as positive ground axioms across all 18 domains
     sat_assert_axiom(solver, 0.0);
@@ -300,6 +313,8 @@ fn main(argc: float, argv: ptr) -> float {
     sat_assert_axiom(solver, 143.0);
     sat_assert_axiom(solver, 152.0);
     sat_assert_axiom(solver, 153.0);
+    sat_assert_axiom(solver, 162.0);
+    sat_assert_axiom(solver, 163.0);
 
     // Model valid implication dependencies across domains
     sat_add_implication(solver, 6.0, 7.0);   // Kinetic Energy -> Inelastic Dissipation
@@ -361,6 +376,11 @@ fn main(argc: float, argv: ptr) -> float {
     sat_add_implication(solver, 153.0, 155.0); // Non-Interference -> Memory Boundary Sandboxing
     sat_add_implication(solver, 154.0, 156.0); // Sandboxing -> Cryptographic One-Way Trapdoors
 
+    // Domain 18 Intra-Domain Implications
+    sat_add_implication(solver, 162.0, 163.0); // Design by Contract -> Algorithmic Termination
+    sat_add_implication(solver, 163.0, 168.0); // Termination -> Amortized Complexity
+    sat_add_implication(solver, 166.0, 169.0); // Deadlock Freedom -> Idempotent Retry
+
     // Cross-Domain Functional Bridges
     sat_add_implication(solver, 21.0, 92.0);   // Complexity Reduction -> Shannon Channel Capacity (Domain 3 -> Domain 11)
     sat_add_implication(solver, 62.0, 102.0);  // Bellman Optimality -> Continuous Lyapunov Control (Domain 8 -> Domain 12)
@@ -369,8 +389,11 @@ fn main(argc: float, argv: ptr) -> float {
     sat_add_implication(solver, 64.0, 132.0);  // Nash Equilibrium -> Mechanism Incentive Compatibility (Domain 8 -> Domain 15)
     sat_add_implication(solver, 32.0, 142.0);  // Causal Precedence -> Popperian Falsifiability (Domain 5 -> Domain 16)
     sat_add_implication(solver, 83.0, 152.0);  // SWMR Exclusivity -> Least Privilege Sandboxing (Domain 10 -> Domain 17)
+    sat_add_implication(solver, 162.0, 82.0);  // Design by Contract -> Type Soundness (Domain 18 -> Domain 10)
+    sat_add_implication(solver, 163.0, 21.0);  // Algorithmic Termination -> Polynomial Reduction (Domain 18 -> Domain 3)
+    sat_add_implication(solver, 166.0, 132.0); // Deadlock Freedom -> Mechanism Incentive Compatibility (Domain 18 -> Domain 15)
 
-    // Hub-and-Spoke Linguistic Grounding to All New Domains (Domain 6 -> Domains 11..17)
+    // Hub-and-Spoke Linguistic Grounding to All New Domains (Domain 6 -> Domains 11..18)
     sat_add_implication(solver, 47.0, 92.0);   // Language Hub -> Shannon Channel Capacity (Domain 11)
     sat_add_implication(solver, 47.0, 102.0);  // Language Hub -> Lyapunov Asymptotic Stability (Domain 12)
     sat_add_implication(solver, 47.0, 112.0);  // Language Hub -> Confidence Calibration (Domain 13)
@@ -378,6 +401,7 @@ fn main(argc: float, argv: ptr) -> float {
     sat_add_implication(solver, 47.0, 132.0);  // Language Hub -> Incentive Compatibility (Domain 15)
     sat_add_implication(solver, 47.0, 142.0);  // Language Hub -> Popperian Falsifiability (Domain 16)
     sat_add_implication(solver, 47.0, 152.0);  // Language Hub -> Least Privilege Invariant (Domain 17)
+    sat_add_implication(solver, 47.0, 162.0);  // Language Hub -> Design by Contract Invariant (Domain 18)
 
     let is_consistent = sat_solve_consistency(solver);
     if (is_consistent == 0.0) {
@@ -387,7 +411,7 @@ fn main(argc: float, argv: ptr) -> float {
         sat_solver_free(solver);
         return 1.0;
     }
-    printf("[Ingest Compiler] [PASS] SMT/SAT consistency mathematically proved across 162 rules. Graph is SAT.\n");
+    printf("[Ingest Compiler] [PASS] SMT/SAT consistency mathematically proved across 172 rules. Graph is SAT.\n");
 
     // -------------------------------------------------------------------------
     // 4. Binary Emission

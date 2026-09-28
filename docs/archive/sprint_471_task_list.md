@@ -1,0 +1,30 @@
+# Sprint 471 Task List: Domain 18 (Software Engineering, Application Programming & Algorithms)
+
+- [x] **Task 1: Ingest Domain 18 in Knowledge Ingestion Compiler (`tools/cargraph_ingest.car`)**
+  - [x] Add Domain partition 18.0 (`SOFTWARE_ENGINEERING_ALGORITHMS`).
+  - [x] Ingest Rules 162..171 (10 new rules, 2 new strict invariants, total 172 rules / 38 strict).
+  - [x] Scale SMT/SAT solver capacity to 256 variables, wire implications, and verify SAT consistency.
+  - [x] Rebuild and execute `cargraph_ingest.car` to emit updated `test/geomind/trainingdata/nses_knowledge.car_graph`.
+- [x] **Task 2: Veto Gate, Lexicon, Burroughs Primes & Dynamic Gamma Integration**
+  - [x] In `src/std/veto_gate.cl`, add Veto Rule 23 (Domain 18 Anti-Patterns) and contradiction tokens `1801.0`–`1804.0`.
+  - [x] In `src/std/domain_lexicon.cl`, add Frame 18, specialized terms, and category error checks.
+  - [x] In `src/std/burroughs.cl`, add lateral primes across Tiers 1..3 for Domain 18.
+  - [x] In `src/std/dynamic_gamma.cl`, add baseline coupling factor (`b * 1.25`) for Domain 18.
+- [x] **Task 3: Pipeline Intent Routing, CSR Bridges & Training Routing**
+  - [x] In `src/std/nses_pipeline.cl`, add Stage 1 intent detection routing for Domain 18.
+  - [x] Add Stage 3 seed selection (162.0) for Domain 18.
+  - [x] Wire CSR bridges (162 -> 163, 163 -> 168, 166 -> 169) and cross-domain bridges (162 -> 82, 163 -> 21, 166 -> 132, 47 -> 162).
+  - [x] Add memory tree fallbacks for unbacked node IDs 162..171.
+  - [x] In `test/geomind/train.cl`, route training datasets for Domain 18.
+- [x] **Task 4: Author Target 81 & Empirical Regression Verification**
+  - [x] Author Target 81 (`test/compiler_suite/test_nses_software_engineering_domain.car`).
+  - [x] Whitelist Target 81 in `.gitignore`.
+  - [x] Register Target 81 in `test/compiler_suite/run_tests.car` and update test count to 81.
+  - [x] Compile and run `build/test_nses_software_engineering_domain.exe` individually to verify all assertion phases pass.
+  - [x] Rebuild `build/run_tests.exe` and execute all 81 targets (must pass 81/81 cleanly with exit code 0).
+- [x] **Task 5: Documentation & Session Closeout**
+  - [x] Update `ISSUES.md` (`[ISSUE-262]` -> `[FIXED]`).
+  - [x] Update `CHANGELOG.md` (`[8.429.0]`).
+  - [x] Update `docs/ROADMAP.md`.
+  - [x] Save walkthrough to `docs/archive/sprint_471_walkthrough.md`.
+  - [x] Commit and push to `origin/master`.

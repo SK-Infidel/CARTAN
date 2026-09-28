@@ -269,4 +269,9 @@ fn burroughs_pool_populate_defaults(pool: BurroughsPool) {
     burroughs_pool_add(pool, 46.0, 17.0, 1.0, "Capability-based security enforces unforgeable tokens of authority, eliminating ambient authority vulnerabilities.");
     burroughs_pool_add(pool, 47.0, 17.0, 2.0, "The principle of least privilege confines processes to the minimal subset of privileges required for functional execution.");
     burroughs_pool_add(pool, 48.0, 17.0, 3.0, "Hardware-enforced memory isolation and paging sandboxes prevent unauthorized cross-boundary address translation.");
+
+    // --- Domain 18: Software Engineering & Algorithms Lateral Primes ---
+    burroughs_pool_add(pool, 49.0, 18.0, 1.0, "Design by contract establishes formal Hoare triples {P} C {Q} where preconditions guarantee postcondition execution correctness.");
+    burroughs_pool_add(pool, 50.0, 18.0, 2.0, "Total linear lock ordering eliminates circular wait cycles, guaranteeing deadlock-free concurrent multi-threaded execution.");
+    burroughs_pool_add(pool, 51.0, 18.0, 3.0, "Contiguous cacheline strides turn chaotic heap pointer labyrinths into flat vectorized crystal arrays.");
 }

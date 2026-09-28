@@ -590,6 +590,24 @@ fn veto_registry_populate_defaults(reg: VetoRegistry) {
     veto_registry_add_forbidden_token(reg, 17.0, 1702.0);
     veto_registry_add_forbidden_token(reg, 17.0, 1703.0);
     veto_registry_add_forbidden_token(reg, 17.0, 1704.0);
+
+    // 23. Software Engineering Anti-Patterns & Contract Violations (Domain 18: SOFTWARE_ENGINEERING_ALGORITHMS)
+    let p23 = cartan_tree_create();
+    cartan_tree_push(p23, "circular wait deadlock");
+    cartan_tree_push(p23, "unbounded recursive stack overflow");
+    cartan_tree_push(p23, "violating method postcondition contract");
+    cartan_tree_push(p23, "unvalidated external buffer indexing");
+    veto_registry_add_rule(
+        reg,
+        23.0,
+        18.0,
+        "In accordance with software engineering principles and formal contracts, concurrent systems must prevent circular wait deadlocks, recursive functions must guarantee bounded termination, method postconditions must hold, and external inputs must be validated.",
+        p23
+    );
+    veto_registry_add_forbidden_token(reg, 18.0, 1801.0);
+    veto_registry_add_forbidden_token(reg, 18.0, 1802.0);
+    veto_registry_add_forbidden_token(reg, 18.0, 1803.0);
+    veto_registry_add_forbidden_token(reg, 18.0, 1804.0);
 }
 
 // Computes analytical symbolic penalty across output logits to shape training loss

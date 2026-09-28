@@ -147,6 +147,14 @@ fn nses_pipeline_create(graph_path: string) -> NSES_Pipeline {
     csr_builder_add_edge(b, 154.0, 155.0, 1.20, 1.0, 0.0); // Hardware Memory Sandbox Isolation -> Temporal Privilege Revocation
     csr_builder_add_edge(b, 153.0, 83.0, 1.30, 1.0, 0.0);  // Least Privilege Sandbox -> SWMR Memory Exclusivity (Domain 17 -> Domain 10)
 
+    // --- Domain 18: SOFTWARE_ENGINEERING_ALGORITHMS ---
+    csr_builder_add_edge(b, 162.0, 163.0, 1.30, 1.0, 0.0); // Design by Contract -> Algorithmic Termination
+    csr_builder_add_edge(b, 163.0, 168.0, 1.25, 1.0, 0.0); // Algorithmic Termination -> Amortized Complexity
+    csr_builder_add_edge(b, 166.0, 169.0, 1.20, 1.0, 0.0); // Deadlock Freedom -> Idempotent Retry
+    csr_builder_add_edge(b, 162.0, 82.0, 1.25, 1.0, 0.0);  // Design by Contract -> Type Soundness (Domain 18 -> Domain 10)
+    csr_builder_add_edge(b, 163.0, 21.0, 1.20, 1.0, 0.0);  // Algorithmic Termination -> Complexity Reductions (Domain 18 -> Domain 3)
+    csr_builder_add_edge(b, 166.0, 132.0, 1.20, 1.0, 0.0); // Deadlock Freedom -> Incentive Compatibility (Domain 18 -> Domain 15)
+
     // Hub-and-Spoke Universal Cross-Domain Linguistic Grounding (Domain 6 -> All Domains)
     csr_builder_add_edge(b, 47.0, 0.0, 1.25, 1.0, 0.0);   // Lexical Grounding -> Conservation Invariant (Domain 0)
     csr_builder_add_edge(b, 47.0, 6.0, 1.20, 1.0, 0.0);   // Lexical Grounding -> Kinetic Energy (Domain 1)
@@ -165,6 +173,7 @@ fn nses_pipeline_create(graph_path: string) -> NSES_Pipeline {
     csr_builder_add_edge(b, 47.0, 132.0, 1.25, 1.0, 0.0); // Lexical Grounding -> Correlated Equilibrium Invariant (Domain 15)
     csr_builder_add_edge(b, 47.0, 142.0, 1.25, 1.0, 0.0); // Lexical Grounding -> Empirical Falsifiability Invariant (Domain 16)
     csr_builder_add_edge(b, 47.0, 152.0, 1.25, 1.0, 0.0); // Lexical Grounding -> Capability Security Invariant (Domain 17)
+    csr_builder_add_edge(b, 47.0, 162.0, 1.25, 1.0, 0.0); // Lexical Grounding -> Design by Contract Invariant (Domain 18)
     let g = csr_builder_build(b);
     csr_builder_free(b);
 
@@ -261,6 +270,8 @@ fn nses_pipeline_execute_turn(
         routed_domain = 16.0; // SCIENTIFIC_METHOD
     } else if (cartan_string_contains(query, "security") != 0.0 || cartan_string_contains(query, "sandbox") != 0.0 || cartan_string_contains(query, "least_privilege") != 0.0 || cartan_string_contains(query, "isolation") != 0.0 || cartan_string_contains(query, "capability") != 0.0 || cartan_string_contains(query, "privilege") != 0.0) {
         routed_domain = 17.0; // SECURITY_SANDBOXING
+    } else if (cartan_string_contains(query, "software") != 0.0 || cartan_string_contains(query, "programming") != 0.0 || cartan_string_contains(query, "concurrency") != 0.0 || cartan_string_contains(query, "deadlock") != 0.0 || cartan_string_contains(query, "refactor") != 0.0 || cartan_string_contains(query, "algorithm") != 0.0 || cartan_string_contains(query, "contract") != 0.0 || cartan_string_contains(query, "data_structure") != 0.0 || cartan_string_contains(query, "liskov") != 0.0 || cartan_string_contains(query, "idempotenc") != 0.0) {
+        routed_domain = 18.0; // SOFTWARE_ENGINEERING_ALGORITHMS
     }
 
     // -------------------------------------------------------------------------
@@ -324,6 +335,9 @@ fn nses_pipeline_execute_turn(
         collections_list_push(pipe.act_list, 1.0);
     } else if (routed_domain == 17.0) {
         collections_list_push(pipe.seed_list, 152.0); // Seed: Rule 152 (Capability Security Invariant)
+        collections_list_push(pipe.act_list, 1.0);
+    } else if (routed_domain == 18.0) {
+        collections_list_push(pipe.seed_list, 162.0); // Seed: Rule 162 (Design by Contract Invariant)
         collections_list_push(pipe.act_list, 1.0);
     } else {
         collections_list_push(pipe.seed_list, 44.0);
@@ -460,6 +474,14 @@ fn nses_pipeline_execute_turn(
                 cartan_tree_push(pipe.memory_tree, "Capability-Based Security Principle: Process execution authority is governed exclusively by possession of unforgeable capability tokens, rejecting ambient authority.");
             } else if (n_id == 153.0) {
                 cartan_tree_push(pipe.memory_tree, "Principle of Least Privilege: Every security principal and execution domain must be granted only the minimal privileges strictly necessary to perform authorized operations.");
+            } else if (n_id == 162.0) {
+                cartan_tree_push(pipe.memory_tree, "Design by Contract Invariant: Preconditions and postconditions define inviolable Hoare contracts; caller precondition breach produces undefined state.");
+            } else if (n_id == 163.0) {
+                cartan_tree_push(pipe.memory_tree, "Algorithmic Termination and Bounded Space Invariant: Iterative and recursive loops must strictly satisfy monotonic termination metrics with bounded stack and heap footprints.");
+            } else if (n_id == 166.0) {
+                cartan_tree_push(pipe.memory_tree, "Deadlock Freedom in Resource Allocation: Enforcing a total linear acquisition order across shared locks prevents circular wait conditions.");
+            } else if (n_id == 168.0) {
+                cartan_tree_push(pipe.memory_tree, "Amortized Complexity & Dynamic Resizing: Geometric table expansion guarantees O(1) amortized insertion cost across sequential append workloads.");
             }
         }
         m_idx = m_idx + 1.0;

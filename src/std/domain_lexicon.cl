@@ -104,6 +104,8 @@ fn domain_lexicon_register_frames(lex: DomainLexicon) {
     cartan_tree_push(lex.discourse_frames_tree, "[Scientific Method Frame] Falsifiable empirical hypothesis confronts controlled experimental observation, minimizing confounding bias through blinded counterfactual controls and statistical power.");
     // Domain 17: SECURITY_SANDBOXING (Compartmentalization & Capability Boundaries Framing)
     cartan_tree_push(lex.discourse_frames_tree, "[Security Sandbox Frame] Under strict capability-based access control and principle of least privilege, memory isolation sandbox prevents privilege escalation and enforces inviolable compartmentalization boundaries.");
+    // Domain 18: SOFTWARE_ENGINEERING_ALGORITHMS (Hoare Contracts & Algorithmic Termination Framing)
+    cartan_tree_push(lex.discourse_frames_tree, "[Software Engineering Frame] Under formal Hoare logic contracts, preconditions ensure execution safety and postconditions guarantee correctness, enforcing bounded complexity and deadlock freedom.");
 }
 
 // Populates universal cross-domain lexicons and ontologies across all 18 domains
@@ -241,6 +243,13 @@ fn domain_lexicon_populate_defaults(lex: DomainLexicon) {
     domain_lexicon_add_term(lex, "privilege_escalation", 17.0, 0.96, "operator");
     domain_lexicon_add_term(lex, "sandboxing", 17.0, 0.95, "entity");
 
+    // --- Domain 18: SOFTWARE_ENGINEERING_ALGORITHMS ---
+    domain_lexicon_add_term(lex, "hoare_contract", 18.0, 0.98, "entity");
+    domain_lexicon_add_term(lex, "algorithmic_termination", 18.0, 0.97, "predicate");
+    domain_lexicon_add_term(lex, "deadlock_freedom", 18.0, 0.96, "predicate");
+    domain_lexicon_add_term(lex, "amortized_complexity", 18.0, 0.95, "entity");
+    domain_lexicon_add_term(lex, "cache_locality", 18.0, 0.96, "operator");
+
     domain_lexicon_register_frames(lex);
 }
 
@@ -280,19 +289,19 @@ fn domain_lexicon_validate_predicate_category(
 ) -> float {
     if (predicate == 0.0) { return 1.0; }
 
-    // Category Error: Biological predicates (photosynthesize, metabolize, phosphorylate) applied to formal math/logic/physics/compiler/systems/security
+    // Category Error: Biological predicates (photosynthesize, metabolize, phosphorylate) applied to formal math/logic/physics/compiler/systems/security/software
     if (cartan_string_contains(predicate, "photosynthesize") != 0.0 ||
         cartan_string_contains(predicate, "metabolize") != 0.0 ||
         cartan_string_contains(predicate, "digest") != 0.0) {
-        if (subject_domain == 2.0 || subject_domain == 3.0 || subject_domain == 7.0 || subject_domain == 8.0 || subject_domain == 9.0 || subject_domain == 10.0 || subject_domain == 11.0 || subject_domain == 12.0 || subject_domain == 13.0 || subject_domain == 15.0 || subject_domain == 17.0) {
+        if (subject_domain == 2.0 || subject_domain == 3.0 || subject_domain == 7.0 || subject_domain == 8.0 || subject_domain == 9.0 || subject_domain == 10.0 || subject_domain == 11.0 || subject_domain == 12.0 || subject_domain == 13.0 || subject_domain == 15.0 || subject_domain == 17.0 || subject_domain == 18.0) {
             return 0.0; // Invariant violation: Abstract formal systems do not have biological metabolism
         }
     }
 
-    // Category Error: Differential geometry / topological calculus applied to discrete propositional truth tables, compilers, or security sandboxes
+    // Category Error: Differential geometry / topological calculus applied to discrete propositional truth tables, compilers, security sandboxes, or software
     if (cartan_string_contains(predicate, "exterior_derivative_of") != 0.0 ||
         cartan_string_contains(predicate, "geodesic_curvature_of") != 0.0) {
-        if (subject_domain == 7.0 || subject_domain == 3.0 || subject_domain == 9.0 || subject_domain == 10.0 || subject_domain == 17.0) {
+        if (subject_domain == 7.0 || subject_domain == 3.0 || subject_domain == 9.0 || subject_domain == 10.0 || subject_domain == 17.0 || subject_domain == 18.0) {
             return 0.0; // Discrete logic / Turing complexity classes / Compilers do not have smooth differential forms
         }
     }

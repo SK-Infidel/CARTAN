@@ -3561,6 +3561,24 @@ This file tracks technical debt and bugs identified during repository code revie
   5. Wired Stage 1 intent detection routing, Stage 3 seed nodes (92, 102, 112, 122, 132, 142, 152), CSR causal edges, linguistic hub connections (Rule 47 $\to$ all domain roots), and memory fallbacks in `src/std/nses_pipeline.cl`. Added dataset routing for Domains 11..17 in `test/geomind/train.cl`.
   6. Authored Target 80 (`test/compiler_suite/test_nses_universal_cognitive_domains.car`), whitelisted in `.gitignore`, registered in `test/compiler_suite/run_tests.car`, and verified clean test execution.
 
+---
+
+## [ISSUE-262] [FIXED] Synthesis of Domain 18: Software Engineering, Application Programming & Algorithms
+- **Severity**: High (Expert Cognitive Architecture Expansion)
+- **Component**: [`src/std/cargraph.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/cargraph.cl), [`src/std/nses_pipeline.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/nses_pipeline.cl), [`src/std/veto_gate.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/veto_gate.cl), [`src/std/domain_lexicon.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/domain_lexicon.cl), [`src/std/burroughs.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/burroughs.cl), [`src/std/dynamic_gamma.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/dynamic_gamma.cl), [`tools/cargraph_ingest.car`](file:///C:/Users/rich-/source/repos/CARTAN/tools/cargraph_ingest.car), [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl)
+- **Description**:
+  1. CARTAN NSES possesses Domain 10 (`COMPILER_SYSTEMS`) for compiler internals, IR lowering, and formal type systems, but lacks an expert domain for general Application Programming, Software Engineering, Algorithmic Problem Solving, and Robust Systems Design.
+  2. Need to synthesize Domain 18 (`SOFTWARE_ENGINEERING_ALGORITHMS`) with 2 strict invariants (Pre/Postcondition Contract Invariant Rule 162, Algorithmic Termination & Bounded Space Invariant Rule 163) and 8 relational rules (Rules 164..171: Idempotence, Interface Segregation, Deadlock Freedom, Input Sanitization, Amortized Resizing, Idempotent Retries, Cache Locality, Liskov Substitution).
+  3. Expand the knowledge base to 19 domains, 172 rules, and 38 strict invariants verified via a 256-variable SMT/SAT consistency proof.
+  4. Implement Veto Rule 23 (Software Engineering Fallacies & Anti-Patterns: circular wait deadlock, infinite recursion/stack overflow, contract violation, unvalidated buffer injection) and contradiction tokens `1801.0`–`1804.0`.
+  5. Add Domain 18 lexicon terms, canonical discourse frame, Burroughs lateral primes, dynamic gamma baseline, pipeline intent routing, CSR bridges, and training dataset routing.
+- **Resolution**:
+  1. Synthesized Domain 18 in `tools/cargraph_ingest.car` with Rules 162..171, 256-variable SAT solver, strict invariants 37 and 38, intra-domain and cross-domain implications; re-serialized `test/geomind/trainingdata/nses_knowledge.car_graph` (19 domains, 172 rules, 38 strict invariants proved SAT).
+  2. Implemented Veto Rule 23 in `src/std/veto_gate.cl` evaluating software engineering anti-patterns and registered contradiction tokens 1801.0–1804.0.
+  3. Registered Frame 18 (`[Software Engineering Frame]`), domain terms (IC $\ge 0.90$), and category error checks in `src/std/domain_lexicon.cl`. Added lateral primes (fragments 49, 50, 51) in `src/std/burroughs.cl` and baseline coupling factor (`b * 1.25`) in `src/std/dynamic_gamma.cl`.
+  4. Wired Stage 1 intent detection routing, Stage 3 seed (162.0), CSR bridges (162 $\to$ 163 $\to$ 168, 166 $\to$ 169, 162 $\to$ 82, 163 $\to$ 21, 166 $\to$ 132; hub 47 $\to$ 162), and memory fallbacks in `src/std/nses_pipeline.cl`. Added dataset routing in `test/geomind/train.cl`.
+  5. Authored Target 81 (`test/compiler_suite/test_nses_software_engineering_domain.car`), whitelisted in `.gitignore`, registered in `test/compiler_suite/run_tests.car`, and verified 81/81 regression targets pass cleanly with 0 failures.
+
 
 
 

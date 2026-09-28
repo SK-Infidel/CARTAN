@@ -1,3 +1,34 @@
+## [8.429.0] - 2026-09-28 (Sprint 471: Software Engineering, Application Programming & Algorithms Domain 18)
+
+### Completed & Validated
+- **Software Engineering, Application Programming & Algorithms Domain Synthesis (`tools/cargraph_ingest.car`, `test/geomind/trainingdata/nses_knowledge.car_graph`, `[ISSUE-262]`)**:
+  - Synthesized Domain 18 (`SOFTWARE_ENGINEERING_ALGORITHMS`) with 2 strict invariants (Pre/Postcondition Contract Invariant Rule 162, Algorithmic Termination & Bounded Space Invariant Rule 163) and 8 relational rules:
+    - Rule 164: Referential Transparency & Function Idempotence.
+    - Rule 165: Interface Segregation & Decoupled Abstraction.
+    - Rule 166: Concurrency Safety & Linear Lock Hierarchy (Deadlock Freedom).
+    - Rule 167: Defensive Input Validation & Boundary Sanitization.
+    - Rule 168: Amortized Complexity & Geometric Table Growth.
+    - Rule 169: Fault-Tolerant Distributed Retry & Exponential Backoff Jitter.
+    - Rule 170: Spatial Cacheline Locality & Structure of Arrays (SoA) Layout.
+    - Rule 171: Liskov Substitution & Behavioral Subtyping.
+  - Scaled active knowledge base to 19 cognitive domains, 172 rules, and 38 strict invariants, mathematically proved consistent via 256-variable SMT/SAT consistency check prior to flat binary serialization.
+- **Software Engineering Anti-Pattern Veto Gate & Contradiction Suppression (`src/std/veto_gate.cl`)**:
+  - Implemented Veto Rule 23 (Domain 18) detecting circular wait lock hierarchies, unbounded recursion / stack overflow, contract postcondition violations, and unvalidated buffer indexing.
+  - Registered contradiction tokens `1801.0` (Circular Wait Deadlock), `1802.0` (Unbounded Recursive Overflow), `1803.0` (Contract Postcondition Violation), `1804.0` (Unchecked Buffer Out-of-Bounds Injection), suppressing output logits below 0.0 and calculating genuine positive analytical loss penalties.
+- **Universal Cross-Domain Lexicon, Frame 18 & Lateral Primes (`src/std/domain_lexicon.cl`, `src/std/burroughs.cl`, `src/std/dynamic_gamma.cl`)**:
+  - Added Domain 18 specialized terminology (`hoare_contract`, `algorithmic_termination`, `referential_transparency`, `interface_segregation`, `linear_lock_hierarchy`, `defensive_sanitization`, `amortized_geometric_growth`, `exponential_backoff_retry`, `cacheline_spatial_locality`, `liskov_substitution`) with authentic IC weights ($\ge 0.90$).
+  - Registered canonical discourse frame `[Software Engineering Frame]` in `domain_lexicon.cl` and extended category error validation across Domain 18 (e.g., rejecting botanical photosynthesis and differential geometric exterior derivatives on software engineering rules).
+  - Added Domain 18 lateral primes (fragments 49, 50, 51 across Tiers 1..3) in `burroughs.cl` and configured baseline dynamic gamma coupling (`b * 1.25`) in `dynamic_gamma.cl`.
+- **Software Engineering Pipeline Routing, CSR Semantic Bridges & Dataset Streams (`src/std/nses_pipeline.cl`, `test/geomind/train.cl`)**:
+  - Implemented Stage 1 intent detection routing programming and software engineering queries (`software`, `programming`, `algorithm`, `concurrency`, `deadlock`, `contract`, `refactor`, `amortized`, `cacheline`, `liskov`, `recursion`, `idempotent`) to Domain 18.0, seeding Rule 162.
+  - Wired CSR intra-domain causal edges (Rule 162 $\to$ Rule 163 $\to$ Rule 168, Rule 166 $\to$ Rule 169) and cross-domain bridges: Rule 162 $\to$ Rule 82 (Contracts $\to$ Type Soundness), Rule 163 $\to$ Rule 21 (Termination $\to$ Polynomial Complexity), Rule 166 $\to$ Rule 132 (Lock Hierarchies $\to$ Mechanism Compatibility), and Rule 47 Hub $\to$ Rule 162 (Linguistic Grounding $\to$ Software Contract Invariant).
+  - Added memory tree fallbacks for unbacked node IDs 162..168.
+  - Wired dataset routing for software engineering and programming corpora in `train.cl`.
+- **Regression Suite Expansion & Empirical Verification (`test/compiler_suite/`)**:
+  - Authored Target 81 regression test: `test/compiler_suite/test_nses_software_engineering_domain.car` verifying knowledge base structure (19 domains, 172 rules, 38 invariants), Stage 1 intent detection routing, CSR intra-domain and cross-domain traversal, Veto Rule 23 anti-pattern blocking, contradiction token suppression (1801..1804), domain lexicon discourse framing and category error validation, Burroughs lateral prime sampling, dynamic gamma coupling, and training dataset routing.
+  - Whitelisted Target 81 in `.gitignore` and registered in `test/compiler_suite/run_tests.car`.
+  - Rebuilt test runner `build/run_tests.exe` and verified 100% clean execution across all 81 compiler snapshot test targets (0 failures).
+
 ## [8.428.0] - 2026-09-28 (Sprint 470: Universal Cognitive Architecture Synthesis: Domains 11..17 & Universal Veto Harmonization)
 
 ### Completed & Validated
