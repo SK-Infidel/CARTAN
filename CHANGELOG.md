@@ -1,3 +1,26 @@
+## [8.423.0] - 2026-09-28 (Sprint 465: Formal Logic & Deductive Reasoning Domain 7 & Dynamic CSR Scaling)
+
+### Completed & Validated
+- **Dynamic CSR Capacity & Scratchpad Scaling (`src/std/nses_pipeline.cl`, `[ISSUE-256]`)**:
+  - Dynamically scaled CSR graph builder and traversal scratchpad memory allocation from hardcoded 64 nodes to $\max(\text{num\_rules} + 64, 256)$ nodes.
+  - Eliminated edge clipping and visited table boundary overflow when traversing large-scale knowledge bases exceeding 64 rules.
+- **Formal Logic & Deductive Reasoning Synthesis (`tools/cargraph_ingest.car`, `test/geomind/trainingdata/nses_knowledge.car_graph`)**:
+  - Synthesized Domain 7 (`LOGIC_REASONING`) with 2 strict invariants (Law of Excluded Middle, Principle of Explosion) and 8 classical deductive inference rules (Modus Ponens, Modus Tollens, Hypothetical Syllogism, Contraposition, De Morgan's Laws, Resolution Refutation, Syllogistic Subsumption).
+  - Scaled active knowledge base to 8 domains, 62 rules, and 16 strict invariants, mathematically verified via 64-variable SMT/SAT consistency check prior to binary serialization.
+- **Fallacy Veto Detection & Contradiction Logit Suppression (`src/std/veto_gate.cl`)**:
+  - Expanded `domain_forbidden_tokens` capacity from 8 to 16 domain slots.
+  - Added Rule 9 (Domain 7) formal fallacy detection catching affirming the consequent, denying the antecedent, and circular reasoning.
+  - Registered contradiction tokens `701.0`, `702.0`, `703.0`, `704.0` in veto registry, suppressing contradiction logits below $0.0$ and calculating positive analytical loss penalties.
+- **Domain 7 Intent Routing, CSR Deductive Topology & Burroughs Primes (`src/std/`, `test/geomind/train.cl`)**:
+  - Added Stage 1 intent detection in `nses_pipeline.cl` routing queries containing deductive keywords (`logic`, `deduce`, `premise`, `conclusion`, `syllogism`, `modus`, `proof`, `infer`, `axiom`, `contradict`) to Domain 7.
+  - Wired CSR deductive inference edges (Rule 54 Modus Ponens $\to$ Rule 56 Hypothetical Syllogism $\to$ Rule 60 Resolution Refutation).
+  - Added Domain 7 deductive lateral primes to `burroughs.cl`.
+  - Added Domain 7 dataset routing in `test/geomind/train.cl` for proof, logic, and entailment corpora.
+- **Regression Suite Expansion & Empirical Verification (`test/compiler_suite/`)**:
+  - Authored Target 75 regression test: `test/compiler_suite/test_nses_logic_domain.car` verifying knowledge base structure (8 domains, 62 rules, 16 invariants), dynamic CSR capacity scaling, Stage 1 intent routing, Modus Ponens deductive seed traversal, formal fallacy veto gating, contradiction logit suppression, and dataset routing with zero mocking.
+  - Whitelisted Target 75 in `.gitignore` and registered in `test/compiler_suite/run_tests.car`.
+  - Rebuilt test runner `build/run_tests.exe` and verified 100% clean execution across all 75 compiler snapshot test targets (0 failures).
+
 ## [8.422.0] - 2026-09-28 (Sprint 464: Chat & Training NSES Forward Pass & Loss Integration)
 
 ### Completed & Validated

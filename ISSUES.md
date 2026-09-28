@@ -3456,6 +3456,24 @@ This file tracks technical debt and bugs identified during repository code revie
   4. Upgraded `test/geomind/train.cl` with Domain 6 (`LANGUAGE_DISCOURSE`) dataset routing matching `"discourse"`, `"dialogue"`, `"chat"`, `"language"`, `"conversation"`, and `"atomic"`.
   5. Authored Target 74 (`test/compiler_suite/test_chat_train_nses_forward_integration.car`) verifying auto-forbidden token extraction, forward logit modulation, Hopfield attractor priming, and dataset routing, passing 100% cleanly across all 74 compiler regression targets.
 
+---
+
+## [ISSUE-256] [FIXED] Hardcoded 64-Node CSR Capacity Bottleneck & Lack of Formal Logic & Deductive Reasoning Domain (Domain 7)
+- **Severity**: High (Scalability Bottleneck & Core Cognitive Reasoning Gap)
+- **Component**: [`src/std/csr_graph.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/csr_graph.cl), [`src/std/nses_pipeline.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/nses_pipeline.cl), [`src/std/veto_gate.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/veto_gate.cl), [`tools/cargraph_ingest.car`](file:///C:/Users/rich-/source/repos/CARTAN/tools/cargraph_ingest.car)
+- **Description**:
+  1. In `src/std/nses_pipeline.cl`, the CSR graph builder and scratchpad were hardcoded to `64.0` nodes (`csr_builder_create(64.0)` and `nses_scratchpad_create(64.0, 64.0)`). When a `.car_graph` knowledge base exceeds 64 rules (e.g. `atomic_discourse.car_graph` with 110 rules, and Domain 7 rules), edge insertion silently dropped targets with `dst >= 64.0`, and BFS traversal could not traverse node indices $\ge 64.0$.
+  2. In `src/std/veto_gate.cl`, `domain_forbidden_tokens` pre-allocated exactly 8 domain lists (`while (d < 8.0)`), which risked out-of-bounds access as new domains (Domains 7, 8, 9) were introduced.
+  3. The NSES cognitive architecture lacked Domain 7: Formal Logic & Deductive Reasoning (`LOGIC_REASONING`), covering propositional logic, classical inference (Modus Ponens, Modus Tollens, Hypothetical Syllogism), Resolution refutation, De Morgan's laws, and logical fallacy veto gates.
+- **Resolution**:
+  1. Dynamically scaled CSR builder and scratchpad capacities in `src/std/nses_pipeline.cl` to `math_max(cg.header.num_rules + 64.0, 256.0)` nodes, supporting arbitrary large-scale graph topologies without edge clipping.
+  2. Expanded `domain_forbidden_tokens` in `src/std/veto_gate.cl` from 8 to 16 domain slots and updated boundary checks to `16.0`.
+  3. Synthesized Domain 7 (`LOGIC_REASONING`) in `tools/cargraph_ingest.car` with 2 strict invariants (Law of Excluded Middle, Principle of Explosion) and 8 deductive inference rules (Modus Ponens, Modus Tollens, Hypothetical Syllogism, Contraposition, De Morgan's Laws, Resolution Refutation, Syllogistic Subsumption). Successfully recompiled `test/geomind/trainingdata/nses_knowledge.car_graph` (62 rules, 16 invariants across 8 domains) with mathematical SMT/SAT consistency proof.
+  4. Added formal fallacy veto detection (affirming consequent, denying antecedent, circular reasoning) and registered contradiction tokens `701`-`704` in `src/std/veto_gate.cl`.
+  5. Added Domain 7 lateral primes to `src/std/burroughs.cl`.
+  6. Implemented Stage 1 intent detection and Modus Ponens seed traversal in `src/std/nses_pipeline.cl` and dataset routing in `test/geomind/train.cl`.
+  7. Authored Target 75 (`test/compiler_suite/test_nses_logic_domain.car`) and verified 100% clean test execution across all 75 regression targets.
+
 
 
 

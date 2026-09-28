@@ -323,6 +323,8 @@ This roadmap tracks the implementation of the advanced AI optimizations and nati
 - [x] **23. Full Regression Suite (73 Targets)**: 73/73 regression suite test targets passing with 0 failures (Exit code 0).
 - [x] **24. Chat & Training NSES Forward Pass & Loss Integration (`src/std/veto_gate.cl`, `test/geomind/chat.cl`, `test/geomind/train.cl`, Sprint 464)**: Automated domain contradiction extraction in veto gate under null token arrays; real-time logit modulation in chat forward generation loop; Continuous Hopfield attractor memory priming from `.car_graph` embeddings; Domain 6 (`LANGUAGE_DISCOURSE`) dataset routing; Target 74 passing.
 - [x] **25. Full Regression Suite (74 Targets)**: 74/74 regression suite test targets passing with 0 failures (Exit code 0).
+- [x] **26. Formal Logic & Deductive Reasoning Domain 7 Synthesis & Dynamic CSR Sizing (`src/std/nses_pipeline.cl`, `tools/cargraph_ingest.car`, `src/std/veto_gate.cl`, Sprint 465)**: Ingested Domain 7 (LOGIC_REASONING, 8 domains, 62 rules, 16 invariants) with SMT/SAT consistency proof; scaled CSR builder & scratchpad to >= 256 nodes; added formal fallacy veto rules and tokens 701-704; Target 75 passing.
+- [x] **27. Full Regression Suite (75 Targets)**: 75/75 regression suite test targets passing with 0 failures (Exit code 0).
 
 
 

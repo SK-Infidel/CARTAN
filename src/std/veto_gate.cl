@@ -60,7 +60,7 @@ fn veto_registry_create() -> VetoRegistry {
     let p_tree = cartan_tree_create();
     let d_toks = cartan_tree_create();
     var d = 0.0;
-    while (d < 8.0) {
+    while (d < 16.0) {
         let t_list = collections_create_list();
         cartan_tree_push(d_toks, t_list);
         d = d + 1.0;
@@ -87,7 +87,7 @@ fn veto_registry_add_rule(reg: VetoRegistry, rule_id: float, domain_id: float, a
 
 // Registers a forbidden token ID associated with contradictions in a domain
 fn veto_registry_add_forbidden_token(reg: VetoRegistry, domain_id: float, token_id: float) -> float {
-    if (reg.domain_forbidden_tokens == 0.0 || domain_id < 0.0 || domain_id >= 8.0) { return 0.0; }
+    if (reg.domain_forbidden_tokens == 0.0 || domain_id < 0.0 || domain_id >= 16.0) { return 0.0; }
     let t_list = cartan_tree_get_f32(reg.domain_forbidden_tokens, domain_id);
     if (t_list != 0.0) {
         collections_list_push(t_list, token_id);
@@ -291,6 +291,28 @@ fn veto_registry_populate_defaults(reg: VetoRegistry) {
     veto_registry_add_forbidden_token(reg, 6.0, 602.0);
     veto_registry_add_forbidden_token(reg, 6.0, 603.0);
     veto_registry_add_forbidden_token(reg, 6.0, 604.0);
+
+    // 9. Formal Logic Invariants & Deductive Validity (Domain 7: LOGIC_REASONING)
+    let p9 = cartan_tree_create();
+    cartan_tree_push(p9, "affirming the consequent is valid");
+    cartan_tree_push(p9, "denying the antecedent is valid");
+    cartan_tree_push(p9, "circular reasoning proves the premise");
+    cartan_tree_push(p9, "contradictory premises are true");
+    cartan_tree_push(p9, "false implies true is invalid");
+    cartan_tree_push(p9, "modus ponens is false");
+    veto_registry_add_rule(
+        reg,
+        9.0,
+        7.0,
+        "In accordance with classical deductive logic, valid inferences must preserve truth, contradictions cannot both be true, and affirming the consequent or denying the antecedent are invalid formal fallacies.",
+        p9
+    );
+
+    // Domain 7: LOGIC_REASONING (Formal fallacies, contradiction assertions)
+    veto_registry_add_forbidden_token(reg, 7.0, 701.0);
+    veto_registry_add_forbidden_token(reg, 7.0, 702.0);
+    veto_registry_add_forbidden_token(reg, 7.0, 703.0);
+    veto_registry_add_forbidden_token(reg, 7.0, 704.0);
 }
 
 // Computes analytical symbolic penalty across output logits to shape training loss

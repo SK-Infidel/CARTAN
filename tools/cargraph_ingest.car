@@ -42,6 +42,7 @@ fn main(argc: float, argv: ptr) -> float {
     cargraph_builder_add_domain(builder, 4.0, 24.0, 8.0, 2.0);  // BIOLOGICAL_SYSTEMS (2 strict, 6 factual)
     cargraph_builder_add_domain(builder, 5.0, 32.0, 10.0, 2.0); // CAUSAL_TAXONOMY (2 strict, 8 factual)
     cargraph_builder_add_domain(builder, 6.0, 42.0, 10.0, 2.0); // LANGUAGE_DISCOURSE (2 strict, 8 factual)
+    cargraph_builder_add_domain(builder, 7.0, 52.0, 10.0, 2.0); // LOGIC_REASONING (2 strict, 8 factual)
 
     // -------------------------------------------------------------------------
     // 2. Ingest Rules & Guardrails
@@ -112,15 +113,27 @@ fn main(argc: float, argv: ptr) -> float {
     cargraph_builder_add_rule(builder, 6.0, 1.0, 0.0, "Conversational cooperative principle: Contributions should be informative, truthful, relevant, and perspicuous.");
     cargraph_builder_add_rule(builder, 6.0, 1.0, 0.0, "Discourse transition bridges establish explicit causal, contrastive, or elaborative relationships between thoughts.");
 
-    printf("[Ingest Compiler] Ingested 7 cognitive domains and 52 structured rules (14 strict invariants).\n");
+    // --- Domain 7: LOGIC_REASONING (Formal Logic & Deductive Invariants) ---
+    cargraph_builder_add_rule(builder, 7.0, 0.0, 1.0, "Law of Excluded Middle: A well-formed proposition in classical bivalent logic is either strictly True or strictly False; no third truth value exists.");
+    cargraph_builder_add_rule(builder, 7.0, 0.0, 1.0, "Principle of Explosion (Ex Falso Quodlibet): From contradictory premises (P and not P), any arbitrary false assertion follows, invalidating logical consistency.");
+    cargraph_builder_add_rule(builder, 7.0, 1.0, 0.0, "Modus Ponens: If conditional antecedent P implies Q and premise P is asserted True, consequent Q is validly deduced True.");
+    cargraph_builder_add_rule(builder, 7.0, 1.0, 0.0, "Modus Tollens: If conditional antecedent P implies Q and consequent Q is asserted False, antecedent P is validly deduced False.");
+    cargraph_builder_add_rule(builder, 7.0, 1.0, 0.0, "Hypothetical Syllogism: If proposition P implies Q and Q implies R, then P transitively implies R.");
+    cargraph_builder_add_rule(builder, 7.0, 1.0, 0.0, "Contraposition: The conditional statement P implies Q is logically equivalent to not Q implies not P.");
+    cargraph_builder_add_rule(builder, 7.0, 1.0, 0.0, "De Morgan's Law of Conjunction: The negation of a conjunction (not (P and Q)) is logically equivalent to the disjunction of negations (not P or not Q).");
+    cargraph_builder_add_rule(builder, 7.0, 1.0, 0.0, "De Morgan's Law of Disjunction: The negation of a disjunction (not (P or Q)) is logically equivalent to the conjunction of negations (not P and not Q).");
+    cargraph_builder_add_rule(builder, 7.0, 1.0, 0.0, "Resolution Refutation: Disjunctive clauses (A or B) and (not A or C) resolve to the valid resolvent clause (B or C).");
+    cargraph_builder_add_rule(builder, 7.0, 1.0, 0.0, "Syllogistic Subsumption: If all elements of class S belong to genus M, and all elements of genus M belong to predicate P, then all S belong to P.");
+
+    printf("[Ingest Compiler] Ingested 8 cognitive domains and 62 structured rules (16 strict invariants).\n");
 
     // -------------------------------------------------------------------------
     // 3. Automated SMT/SAT Consistency Verification Pass
     // -------------------------------------------------------------------------
     printf("[Ingest Compiler] Running SMT/SAT Propositional Consistency Verification Pass...\n");
-    let solver = sat_solver_create(52.0);
+    let solver = sat_solver_create(64.0);
 
-    // Assert strict invariants as positive ground axioms across all 7 domains
+    // Assert strict invariants as positive ground axioms across all 8 domains
     sat_assert_axiom(solver, 0.0);
     sat_assert_axiom(solver, 1.0);
     sat_assert_axiom(solver, 2.0);
@@ -135,6 +148,8 @@ fn main(argc: float, argv: ptr) -> float {
     sat_assert_axiom(solver, 33.0);
     sat_assert_axiom(solver, 42.0);
     sat_assert_axiom(solver, 43.0);
+    sat_assert_axiom(solver, 52.0);
+    sat_assert_axiom(solver, 53.0);
 
     // Model valid implication dependencies across domains
     sat_add_implication(solver, 6.0, 7.0);   // Kinetic Energy -> Inelastic Dissipation
@@ -150,6 +165,10 @@ fn main(argc: float, argv: ptr) -> float {
     sat_add_implication(solver, 42.0, 49.0); // Speech act coherence -> Propositional commitment
     sat_add_implication(solver, 47.0, 48.0); // Lexical grounding -> High IC discrimination
     sat_add_implication(solver, 50.0, 51.0); // Cooperative principle -> Discourse transition bridges
+    sat_add_implication(solver, 54.0, 56.0); // Modus Ponens -> Hypothetical Syllogism
+    sat_add_implication(solver, 56.0, 60.0); // Hypothetical Syllogism -> Resolution Refutation
+    sat_add_implication(solver, 57.0, 55.0); // Contraposition -> Modus Tollens
+    sat_add_implication(solver, 58.0, 59.0); // De Morgan Conjunction -> De Morgan Disjunction
 
     let is_consistent = sat_solve_consistency(solver);
     if (is_consistent == 0.0) {
@@ -159,7 +178,7 @@ fn main(argc: float, argv: ptr) -> float {
         sat_solver_free(solver);
         return 1.0;
     }
-    printf("[Ingest Compiler] [PASS] SMT/SAT consistency mathematically proved across 52 rules. Graph is SAT.\n");
+    printf("[Ingest Compiler] [PASS] SMT/SAT consistency mathematically proved across 62 rules. Graph is SAT.\n");
 
     // -------------------------------------------------------------------------
     // 4. Binary Emission

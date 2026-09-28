@@ -2628,12 +2628,14 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
                         active_d = 4.0; // BIOLOGICAL_SYSTEMS
                     } else if (cartan_string_contains(cur_dataset_name, "math") != 0.0 || cartan_string_contains(cur_dataset_name, "arxiv") != 0.0 || cartan_string_contains(cur_dataset_name, "geometry") != 0.0) {
                         active_d = 2.0; // TOPOLOGY_GEOMETRY
-                    } else if (cartan_string_contains(cur_dataset_name, "edu") != 0.0 || cartan_string_contains(cur_dataset_name, "logic") != 0.0 || cartan_string_contains(cur_dataset_name, "complexity") != 0.0) {
-                        active_d = 3.0; // COMPLEXITY_THEORY / Formal Logic
+                    } else if (cartan_string_contains(cur_dataset_name, "edu") != 0.0 || cartan_string_contains(cur_dataset_name, "complexity") != 0.0) {
+                        active_d = 3.0; // COMPLEXITY_THEORY
                     } else if (cartan_string_contains(cur_dataset_name, "physics") != 0.0 || cartan_string_contains(cur_dataset_name, "mechanics") != 0.0) {
                         active_d = 1.0; // PHYSICS_SIM
                     } else if (cartan_string_contains(cur_dataset_name, "discourse") != 0.0 || cartan_string_contains(cur_dataset_name, "dialogue") != 0.0 || cartan_string_contains(cur_dataset_name, "chat") != 0.0 || cartan_string_contains(cur_dataset_name, "language") != 0.0 || cartan_string_contains(cur_dataset_name, "conversation") != 0.0 || cartan_string_contains(cur_dataset_name, "atomic") != 0.0) {
                         active_d = 6.0; // LANGUAGE_DISCOURSE
+                    } else if (cartan_string_contains(cur_dataset_name, "logic") != 0.0 || cartan_string_contains(cur_dataset_name, "reasoning") != 0.0 || cartan_string_contains(cur_dataset_name, "deduction") != 0.0 || cartan_string_contains(cur_dataset_name, "proof") != 0.0 || cartan_string_contains(cur_dataset_name, "syllogism") != 0.0 || cartan_string_contains(cur_dataset_name, "rule_taker") != 0.0 || cartan_string_contains(cur_dataset_name, "entailment") != 0.0) {
+                        active_d = 7.0; // LOGIC_REASONING
                     } else {
                         active_d = 5.0; // CAUSAL_TAXONOMY
                     }

@@ -1,0 +1,28 @@
+# Sprint 465 Task List: Formal Logic & Deductive Reasoning Domain (Domain 7) & Dynamic CSR Sizing
+
+- [x] **Task 1: Dynamic CSR Capacity & Veto Slots Scaling**
+  - [x] Scale `csr_builder_create` and `nses_scratchpad_create` dynamically in `src/std/nses_pipeline.cl` to `math_max(cg.header.num_rules + 64.0, 256.0)`.
+  - [x] Expand `domain_forbidden_tokens` in `src/std/veto_gate.cl` from 8 to 16 domain slots and update boundary checks to 16.0.
+- [x] **Task 2: Ingest Domain 7 in Knowledge Compiler (`tools/cargraph_ingest.car`)**
+  - [x] Add Domain 7 (`LOGIC_REASONING`) with 2 strict invariants and 8 deductive rules (Rules 52..61).
+  - [x] Update total domains to 8, total rules to 62, strict count to 16.
+  - [x] Recompile `tools/cargraph_ingest.car` and generate updated `nses_knowledge.car_graph`.
+- [x] **Task 3: Veto Gate & Burroughs Primes Integration**
+  - [x] Add Rule 9 (Domain 7) formal fallacy detection (affirming consequent, denying antecedent, circular reasoning) in `src/std/veto_gate.cl`.
+  - [x] Register default contradiction tokens `701`, `702`, `703`, `704` for Domain 7 in `veto_registry_populate_defaults`.
+  - [x] Add Domain 7 lateral primes in `src/std/burroughs.cl`.
+- [x] **Task 4: Pipeline Intent Routing, CSR Topology & Training Routing**
+  - [x] Add Stage 1 intent detection for logical queries in `src/std/nses_pipeline.cl`.
+  - [x] Add Stage 3 seed selection for Domain 7 (Rule 54: Modus Ponens).
+  - [x] Wire CSR deductive inference edges (54 -> 56 -> 60) and backward compatibility fallbacks in `src/std/nses_pipeline.cl`.
+  - [x] In `test/geomind/train.cl`, update logging to 8 domains and route logic/proof datasets to Domain 7.
+- [x] **Task 5: Author Target 75 & Regression Verification**
+  - [x] Author `test/compiler_suite/test_nses_logic_domain.car`.
+  - [x] Whitelist Target 75 in `.gitignore`.
+  - [x] Register Target 75 in `test/compiler_suite/run_tests.car`.
+  - [x] Rebuild `build/run_tests.exe` and execute all 75 targets (75/75 passing cleanly).
+- [x] **Task 6: Documentation & Session Closeout**
+  - [x] Update `ISSUES.md` (`[ISSUE-256]` -> `[FIXED]`).
+  - [x] Update `CHANGELOG.md` (`[8.423.0]`).
+  - [x] Update `docs/ROADMAP.md`.
+  - [x] Save walkthrough to `docs/archive/sprint_465_walkthrough.md`.

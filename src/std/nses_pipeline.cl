@@ -62,8 +62,14 @@ fn nses_pipeline_create(graph_path: string) -> NSES_Pipeline {
         printf("[NSES Pipeline] Warning: Could not load .car_graph at %s\n", graph_path);
     }
 
+    // Compute dynamic CSR node capacity (minimum 256)
+    var n_cap = 256.0;
+    if (cg.is_valid != 0.0 && cg.header.num_rules + 64.0 > n_cap) {
+        n_cap = cg.header.num_rules + 64.0;
+    }
+
     // Build CSR topology from graph
-    let b = csr_builder_create(64.0);
+    let b = csr_builder_create(n_cap);
     // Add default causal dependencies across domains
     csr_builder_add_edge(b, 6.0, 7.0, 1.25, 1.0, 0.0);   // Kinetic Energy -> Inelastic Dissipation
     csr_builder_add_edge(b, 7.0, 8.0, 1.20, 1.0, 0.0);   // Inelastic Dissipation -> Restitution e < 1.0
@@ -78,10 +84,14 @@ fn nses_pipeline_create(graph_path: string) -> NSES_Pipeline {
     csr_builder_add_edge(b, 42.0, 49.0, 1.30, 1.0, 0.0); // Speech act coherence -> Propositional commitment
     csr_builder_add_edge(b, 47.0, 48.0, 1.15, 1.0, 0.0); // Lexical grounding -> High IC discrimination
     csr_builder_add_edge(b, 50.0, 51.0, 1.20, 1.0, 0.0); // Cooperative principle -> Discourse transition bridges
+    csr_builder_add_edge(b, 54.0, 56.0, 1.30, 1.0, 0.0); // Modus Ponens -> Hypothetical Syllogism
+    csr_builder_add_edge(b, 56.0, 60.0, 1.25, 1.0, 0.0); // Hypothetical Syllogism -> Resolution Refutation
+    csr_builder_add_edge(b, 57.0, 55.0, 1.20, 1.0, 0.0); // Contraposition -> Modus Tollens
+    csr_builder_add_edge(b, 58.0, 59.0, 1.15, 1.0, 0.0); // De Morgan Conjunction -> De Morgan Disjunction
     let g = csr_builder_build(b);
     csr_builder_free(b);
 
-    let pad = nses_scratchpad_create(64.0, 64.0);
+    let pad = nses_scratchpad_create(n_cap, n_cap);
     let pool = burroughs_pool_create(32.0);
     burroughs_pool_populate_defaults(pool);
 
@@ -152,6 +162,8 @@ fn nses_pipeline_execute_turn(
         routed_domain = 5.0; // CAUSAL_TAXONOMY
     } else if (cartan_string_contains(query, "language") != 0.0 || cartan_string_contains(query, "word") != 0.0 || cartan_string_contains(query, "grammar") != 0.0 || cartan_string_contains(query, "speech") != 0.0 || cartan_string_contains(query, "talk") != 0.0 || cartan_string_contains(query, "dialogue") != 0.0 || cartan_string_contains(query, "conversation") != 0.0 || cartan_string_contains(query, "syntax") != 0.0 || cartan_string_contains(query, "communicate") != 0.0 || cartan_string_contains(query, "question") != 0.0 || cartan_string_contains(query, "pronoun") != 0.0) {
         routed_domain = 6.0; // LANGUAGE_DISCOURSE
+    } else if (cartan_string_contains(query, "logic") != 0.0 || cartan_string_contains(query, "deduce") != 0.0 || cartan_string_contains(query, "premise") != 0.0 || cartan_string_contains(query, "conclusion") != 0.0 || cartan_string_contains(query, "syllogism") != 0.0 || cartan_string_contains(query, "modus") != 0.0 || cartan_string_contains(query, "proof") != 0.0 || cartan_string_contains(query, "infer") != 0.0 || cartan_string_contains(query, "axiom") != 0.0 || cartan_string_contains(query, "contradict") != 0.0) {
+        routed_domain = 7.0; // LOGIC_REASONING
     }
 
     // -------------------------------------------------------------------------
@@ -182,6 +194,9 @@ fn nses_pipeline_execute_turn(
         collections_list_push(pipe.act_list, 1.0);
     } else if (routed_domain == 6.0) {
         collections_list_push(pipe.seed_list, 44.0); // Seed: Rule 44 (Syntactic parsing and lexical recognition)
+        collections_list_push(pipe.act_list, 1.0);
+    } else if (routed_domain == 7.0) {
+        collections_list_push(pipe.seed_list, 54.0); // Seed: Rule 54 (Modus Ponens)
         collections_list_push(pipe.act_list, 1.0);
     } else {
         collections_list_push(pipe.seed_list, 44.0);
@@ -246,6 +261,12 @@ fn nses_pipeline_execute_turn(
                 cartan_tree_push(pipe.memory_tree, "Conversational cooperative principle: Contributions should be informative, truthful, relevant, and perspicuous.");
             } else if (n_id == 51.0) {
                 cartan_tree_push(pipe.memory_tree, "Discourse transition bridges establish explicit causal, contrastive, or elaborative relationships between thoughts.");
+            } else if (n_id == 54.0) {
+                cartan_tree_push(pipe.memory_tree, "Modus Ponens: If conditional antecedent P implies Q and premise P is asserted True, consequent Q is validly deduced True.");
+            } else if (n_id == 56.0) {
+                cartan_tree_push(pipe.memory_tree, "Hypothetical Syllogism: If proposition P implies Q and Q implies R, then P transitively implies R.");
+            } else if (n_id == 60.0) {
+                cartan_tree_push(pipe.memory_tree, "Resolution Refutation: Disjunctive clauses (A or B) and (not A or C) resolve to the valid resolvent clause (B or C).");
             }
         }
         m_idx = m_idx + 1.0;

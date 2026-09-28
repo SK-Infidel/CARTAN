@@ -214,4 +214,9 @@ fn burroughs_pool_populate_defaults(pool: BurroughsPool) {
     burroughs_pool_add(pool, 13.0, 6.0, 1.0, "Language acts as a discrete coordinate system mapped across continuous topological thought manifolds.");
     burroughs_pool_add(pool, 14.0, 6.0, 2.0, "Syntactic recursion reflects hierarchical mental models through symbolic feedback loops.");
     burroughs_pool_add(pool, 15.0, 6.0, 3.0, "Spoken words dissolve into acoustic interference patterns carrying the geometry of intent.");
+
+    // --- Domain 7: Formal Logic & Deductive Lateral Primes ---
+    burroughs_pool_add(pool, 16.0, 7.0, 1.0, "Deductive implication forms a directed acyclic poset across semantic truth lattices.");
+    burroughs_pool_add(pool, 17.0, 7.0, 2.0, "Gödel incompleteness demonstrates that consistent axiomatic systems contain unprovable semantic truths.");
+    burroughs_pool_add(pool, 18.0, 7.0, 3.0, "The self-referential liar sentence oscillates perpetually between truth and falsity.");
 }

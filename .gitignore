@@ -46,6 +46,7 @@ test*.car
 !test/compiler_suite/test_ns_rule_generator.car
 !test/compiler_suite/test_bulk_corpus_ingestion.car
 !test/compiler_suite/test_chat_train_nses_forward_integration.car
+!test/compiler_suite/test_nses_logic_domain.car
 !test/geomind/nses/**
 test/geomind/nses/*.exe
 test/geomind/nses/*.pdb
