@@ -194,50 +194,59 @@ fn nses_pipeline_execute_turn(
     var m_idx = 0.0;
     while (m_idx < traversed_cnt) {
         let n_id = collections_list_get(pipe.scratchpad.result_node_ids, m_idx);
-        if (n_id == 6.0) {
-            cartan_tree_push(pipe.memory_tree, "Kinetic energy is calculated as 0.5 * mass * velocity^2.");
-        } else if (n_id == 7.0) {
-            cartan_tree_push(pipe.memory_tree, "Inelastic collisions dissipate kinetic energy into thermal energy and material deformation.");
-        } else if (n_id == 8.0) {
-            cartan_tree_push(pipe.memory_tree, "Coefficient of restitution e < 1.0 indicates kinetic energy dissipation during impact.");
-        } else if (n_id == 10.0) {
-            cartan_tree_push(pipe.memory_tree, "Thermal conduction transfers internal molecular kinetic agitation toward lower temperatures.");
-        } else if (n_id == 14.0) {
-            cartan_tree_push(pipe.memory_tree, "Exterior derivative d generalizes gradient, curl, and divergence across differential k-forms.");
-        } else if (n_id == 15.0) {
-            cartan_tree_push(pipe.memory_tree, "Stokes theorem equates the integral of differential form over boundary to its derivative over interior.");
-        } else if (n_id == 21.0) {
-            cartan_tree_push(pipe.memory_tree, "Polynomial-time reductions preserve computational tractability across complexity classes.");
-        } else if (n_id == 22.0) {
-            cartan_tree_push(pipe.memory_tree, "NP-complete problems can verify candidate certificates in deterministic polynomial time.");
-        } else if (n_id == 26.0) {
-            cartan_tree_push(pipe.memory_tree, "Photosynthesis converts radiant solar energy into chemical bond energy.");
-        } else if (n_id == 27.0) {
-            cartan_tree_push(pipe.memory_tree, "Cellular respiration catabolizes glucose to synthesize ATP free energy carrier.");
-        } else if (n_id == 37.0) {
-            cartan_tree_push(pipe.memory_tree, "Physical velocity is the first time derivative of spatial displacement position: v = dx/dt.");
-        } else if (n_id == 38.0) {
-            cartan_tree_push(pipe.memory_tree, "Physical acceleration is the time derivative of velocity and second derivative of position: a = dv/dt.");
-        } else if (n_id == 42.0) {
-            cartan_tree_push(pipe.memory_tree, "Speech act coherence: Query and question speech acts mandate an informative assertion or clarification response, not an ungrounded directive.");
-        } else if (n_id == 43.0) {
-            cartan_tree_push(pipe.memory_tree, "Anaphoric binding: Pronoun referents must maintain syntactic agreement in number, person, and entity category with their antecedent.");
-        } else if (n_id == 44.0) {
-            cartan_tree_push(pipe.memory_tree, "Syntactic parsing and lexical recognition are mandatory prerequisites for semantic comprehension.");
-        } else if (n_id == 45.0) {
-            cartan_tree_push(pipe.memory_tree, "Adjacent conversational dialogue turns must preserve topical coherence or transition via explicit discourse markers.");
-        } else if (n_id == 46.0) {
-            cartan_tree_push(pipe.memory_tree, "Human dialogue consists of alternating conversational turns bounded by end-of-turn delimiter tokens.");
-        } else if (n_id == 47.0) {
-            cartan_tree_push(pipe.memory_tree, "Lexical tokens ground continuous semantic concept embeddings into symbolic communication structures.");
-        } else if (n_id == 48.0) {
-            cartan_tree_push(pipe.memory_tree, "High Information Content (IC) terms carry higher semantic discriminative weight than closed-class syntactic stopwords.");
-        } else if (n_id == 49.0) {
-            cartan_tree_push(pipe.memory_tree, "Asserting a proposition commits the speaker to its direct logical consequences across subsequent turns.");
-        } else if (n_id == 50.0) {
-            cartan_tree_push(pipe.memory_tree, "Conversational cooperative principle: Contributions should be informative, truthful, relevant, and perspicuous.");
-        } else if (n_id == 51.0) {
-            cartan_tree_push(pipe.memory_tree, "Discourse transition bridges establish explicit causal, contrastive, or elaborative relationships between thoughts.");
+        var resolved_text = "";
+        if (pipe.graph_file.is_valid != 0.0 && n_id < pipe.graph_file.header.num_rules) {
+            resolved_text = cargraph_get_rule_text(pipe.graph_file, n_id);
+        }
+        if (cartan_string_length(resolved_text) > 0.0) {
+            cartan_tree_push(pipe.memory_tree, resolved_text);
+        } else {
+            // Backward-compatible fallback for unbacked/mock node IDs
+            if (n_id == 6.0) {
+                cartan_tree_push(pipe.memory_tree, "Kinetic energy is calculated as 0.5 * mass * velocity^2.");
+            } else if (n_id == 7.0) {
+                cartan_tree_push(pipe.memory_tree, "Inelastic collisions dissipate kinetic energy into thermal energy and material deformation.");
+            } else if (n_id == 8.0) {
+                cartan_tree_push(pipe.memory_tree, "Coefficient of restitution e < 1.0 indicates kinetic energy dissipation during impact.");
+            } else if (n_id == 10.0) {
+                cartan_tree_push(pipe.memory_tree, "Thermal conduction transfers internal molecular kinetic agitation toward lower temperatures.");
+            } else if (n_id == 14.0) {
+                cartan_tree_push(pipe.memory_tree, "Exterior derivative d generalizes gradient, curl, and divergence across differential k-forms.");
+            } else if (n_id == 15.0) {
+                cartan_tree_push(pipe.memory_tree, "Stokes theorem equates the integral of differential form over boundary to its derivative over interior.");
+            } else if (n_id == 21.0) {
+                cartan_tree_push(pipe.memory_tree, "Polynomial-time reductions preserve computational tractability across complexity classes.");
+            } else if (n_id == 22.0) {
+                cartan_tree_push(pipe.memory_tree, "NP-complete problems can verify candidate certificates in deterministic polynomial time.");
+            } else if (n_id == 26.0) {
+                cartan_tree_push(pipe.memory_tree, "Photosynthesis converts radiant solar energy into chemical bond energy.");
+            } else if (n_id == 27.0) {
+                cartan_tree_push(pipe.memory_tree, "Cellular respiration catabolizes glucose to synthesize ATP free energy carrier.");
+            } else if (n_id == 37.0) {
+                cartan_tree_push(pipe.memory_tree, "Physical velocity is the first time derivative of spatial displacement position: v = dx/dt.");
+            } else if (n_id == 38.0) {
+                cartan_tree_push(pipe.memory_tree, "Physical acceleration is the time derivative of velocity and second derivative of position: a = dv/dt.");
+            } else if (n_id == 42.0) {
+                cartan_tree_push(pipe.memory_tree, "Speech act coherence: Query and question speech acts mandate an informative assertion or clarification response, not an ungrounded directive.");
+            } else if (n_id == 43.0) {
+                cartan_tree_push(pipe.memory_tree, "Anaphoric binding: Pronoun referents must maintain syntactic agreement in number, person, and entity category with their antecedent.");
+            } else if (n_id == 44.0) {
+                cartan_tree_push(pipe.memory_tree, "Syntactic parsing and lexical recognition are mandatory prerequisites for semantic comprehension.");
+            } else if (n_id == 45.0) {
+                cartan_tree_push(pipe.memory_tree, "Adjacent conversational dialogue turns must preserve topical coherence or transition via explicit discourse markers.");
+            } else if (n_id == 46.0) {
+                cartan_tree_push(pipe.memory_tree, "Human dialogue consists of alternating conversational turns bounded by end-of-turn delimiter tokens.");
+            } else if (n_id == 47.0) {
+                cartan_tree_push(pipe.memory_tree, "Lexical tokens ground continuous semantic concept embeddings into symbolic communication structures.");
+            } else if (n_id == 48.0) {
+                cartan_tree_push(pipe.memory_tree, "High Information Content (IC) terms carry higher semantic discriminative weight than closed-class syntactic stopwords.");
+            } else if (n_id == 49.0) {
+                cartan_tree_push(pipe.memory_tree, "Asserting a proposition commits the speaker to its direct logical consequences across subsequent turns.");
+            } else if (n_id == 50.0) {
+                cartan_tree_push(pipe.memory_tree, "Conversational cooperative principle: Contributions should be informative, truthful, relevant, and perspicuous.");
+            } else if (n_id == 51.0) {
+                cartan_tree_push(pipe.memory_tree, "Discourse transition bridges establish explicit causal, contrastive, or elaborative relationships between thoughts.");
+            }
         }
         m_idx = m_idx + 1.0;
     }

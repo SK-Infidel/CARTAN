@@ -44,6 +44,7 @@ test*.car
 !test/compiler_suite/test_impl_trait_methods.car
 !test/compiler_suite/test_nses_language_domain.car
 !test/compiler_suite/test_ns_rule_generator.car
+!test/compiler_suite/test_bulk_corpus_ingestion.car
 !test/geomind/nses/**
 test/geomind/nses/*.exe
 test/geomind/nses/*.pdb
@@ -61,3 +62,6 @@ src/archive/
 trainingdata/
 **/trainingdata/
 **/checkpoints/
+!test/geomind/trainingdata/atomic_conceptnet_discourse.tsv
+!test/geomind/trainingdata/atomic_discourse.car_graph
+!test/geomind/trainingdata/atomic_discourse.car

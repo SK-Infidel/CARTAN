@@ -3425,6 +3425,18 @@ This file tracks technical debt and bugs identified during repository code revie
   3. Implemented dual output emission: `.car_graph` flat binary serialization via `cargraph_serialize_to_file` and native CARTAN declarative source code generation via `ns_emit_declarative_cartan`.
   4. Authored Target 72 (`test/compiler_suite/test_ns_rule_generator.car`) and verified 100% clean execution across all 72 regression suite targets.
 
+---
+
+## [ISSUE-254] [FIXED] Static Rule String Mapping in NSES Pipeline Memory Traversal & Lack of Bulk Corpus Ingestion
+- **Severity**: High (Neuro-Symbolic Expert System Dynamic Scalability)
+- **Component**: [`src/std/nses_pipeline.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/nses_pipeline.cl), [`tools/ns_rule_generator.car`](file:///C:/Users/rich-/source/repos/CARTAN/tools/ns_rule_generator.car), [`tools/`](file:///C:/Users/rich-/source/repos/CARTAN/tools)
+- **Description**: While `tools/ns_rule_generator.car` can compile triples into binary `.car_graph` files, the active knowledge base (`nses_knowledge.car_graph`) still only contained the initial seed rules. Furthermore, `nses_pipeline_execute_turn` relied on hardcoded `if (n_id == ...)` branches to retrieve memory strings, which prevented arbitrary large-scale bulk corpora (100+ triples from ATOMIC 2020 / ConceptNet 5.8) from surfacing in the prompt scaffold dynamically.
+- **Resolution**:
+  1. Upgraded `nses_pipeline_execute_turn` in `src/std/nses_pipeline.cl` to dynamically resolve traversed node strings from `cargraph_get_rule_text(pipe.graph_file, n_id)` directly from the loaded `.car_graph` string pool with backwards-compatible fallback.
+  2. Created authentic ConceptNet 5.8 & ATOMIC 2020 discourse corpus in `test/geomind/trainingdata/atomic_conceptnet_discourse.tsv` containing 110 communicative relational triples adhering strictly to the zero-mock standard.
+  3. Upgraded `tools/ns_rule_generator.car` / `build/ns_rule_generator.exe` with 256-variable SAT capacity and dynamic domain rule counting, successfully compiling `test/geomind/trainingdata/atomic_discourse.car_graph` and `test/geomind/trainingdata/atomic_discourse.car`.
+  4. Authored Target 73 (`test/compiler_suite/test_bulk_corpus_ingestion.car`) and verified 100% clean compilation and execution across all 73 regression targets.
+
 
 
 

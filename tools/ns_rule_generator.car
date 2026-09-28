@@ -182,12 +182,11 @@ fn main(argc: float, argv: ptr) -> float {
     }
 
     let builder = cargraph_builder_create(1536.0);
-    cargraph_builder_add_domain(builder, 6.0, 0.0, 6.0, 3.0); // Domain 6: LANGUAGE_DISCOURSE
-
-    let solver = sat_solver_create(32.0);
+    let solver = sat_solver_create(256.0);
 
     let count = ns_process_triples_buffer(content, builder, solver, 6.0, 0.95);
     printf("[Rule Generator] Ingested %.0f validated relational triples.\n", count);
+    cargraph_builder_add_domain(builder, 6.0, 0.0, count, builder.num_strict); // Domain 6: LANGUAGE_DISCOURSE
 
     // Verify SMT/SAT consistency
     printf("[Rule Generator] Verifying SMT/SAT propositional consistency...\n");

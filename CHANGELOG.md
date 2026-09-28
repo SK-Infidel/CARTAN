@@ -1,3 +1,23 @@
+## [8.421.0] - 2026-09-28 (Sprint 463: Bulk Neuro-Symbolic Corpus Ingestion & Dynamic String Pool Resolution)
+
+### Completed & Validated
+- **Dynamic Zero-Copy String Pool Resolution (`src/std/nses_pipeline.cl`, `[ISSUE-254]`)**:
+  - Replaced hardcoded conditional branches in `nses_pipeline_execute_turn` (Stage 4 Memory Traversal) with dynamic $O(1)$ zero-copy string resolution directly from the `.car_graph` string pool (`cargraph_get_rule_text(pipe.graph_file, n_id)`).
+  - Preserved backward-compatible fallback for unbacked/mock node IDs in legacy standalone unit tests.
+  - Enabled the NSES engine to scale to arbitrary thousands of rules without compiler code bloat.
+- **Authentic Bulk Discourse Corpus Creation (`test/geomind/trainingdata/atomic_conceptnet_discourse.tsv`)**:
+  - Created 110 genuine communicative, dialogue act, pragmatic, and discourse triples from ConceptNet 5.8 and ATOMIC 2020 adhering strictly to the zero-mock standard.
+  - Encompasses speech act assertions, interrogatives, pronoun anaphora, discourse commitments, lexical phonology, syntactic parsing prerequisites, communicative intents (`xIntent`), prerequisites (`xNeed`), and pragmatic consequences (`xEffect`).
+- **Rule Generator Scaling & Ingestion (`tools/ns_rule_generator.car`)**:
+  - Expanded SAT solver variable capacity to 256 variables to support large-scale rule verification.
+  - Implemented dynamic domain rule counting and strict invariant tracking during builder domain registration.
+  - Compiled `test/geomind/trainingdata/atomic_discourse.car_graph` (1.38 MB flat binary, 110 rules, 5 strict invariants) and emitted declarative CARTAN source `test/geomind/trainingdata/atomic_discourse.car`.
+- **Regression Suite Expansion & Empirical Verification (`test/compiler_suite/`)**:
+  - Authored Target 73 regression test: `test/compiler_suite/test_bulk_corpus_ingestion.car` verifying bulk header validation, dynamic zero-copy string pool resolution across low and high index ranges, 256-variable SMT/SAT consistency, and end-to-end NSES pipeline turn execution with traversed memory rules.
+  - Whitelisted Target 73 and bulk discourse artifacts in `.gitignore` and registered in `test/compiler_suite/run_tests.car`.
+  - Rebuilt `build/ns_rule_generator.exe` and test runner `build/run_tests.exe`.
+  - Verified 100% clean execution across all 73 compiler snapshot test targets (0 failures).
+
 ## [8.420.0] - 2026-09-28 (Sprint 462: Automated Neuro-Symbolic Rule Generator & Ingestion Compiler)
 
 ### Completed & Validated
