@@ -41,6 +41,7 @@ fn main(argc: float, argv: ptr) -> float {
     cargraph_builder_add_domain(builder, 3.0, 18.0, 6.0, 1.0);  // COMPLEXITY_THEORY (1 strict, 5 factual)
     cargraph_builder_add_domain(builder, 4.0, 24.0, 8.0, 2.0);  // BIOLOGICAL_SYSTEMS (2 strict, 6 factual)
     cargraph_builder_add_domain(builder, 5.0, 32.0, 10.0, 2.0); // CAUSAL_TAXONOMY (2 strict, 8 factual)
+    cargraph_builder_add_domain(builder, 6.0, 42.0, 10.0, 2.0); // LANGUAGE_DISCOURSE (2 strict, 8 factual)
 
     // -------------------------------------------------------------------------
     // 2. Ingest Rules & Guardrails
@@ -99,15 +100,27 @@ fn main(argc: float, argv: ptr) -> float {
     cargraph_builder_add_rule(builder, 5.0, 1.0, 0.0, "Liquid state matter flows to conform to container geometry while maintaining invariant volume.");
     cargraph_builder_add_rule(builder, 5.0, 1.0, 0.0, "Gaseous state matter expands spontaneously to uniformly occupy all available container volume.");
 
-    printf("[Ingest Compiler] Ingested 6 cognitive domains and 42 structured rules (12 strict invariants).\n");
+    // --- Domain 6: LANGUAGE_DISCOURSE (Conversational Pragmatics, Speech Acts & Coherence) ---
+    cargraph_builder_add_rule(builder, 6.0, 0.0, 1.0, "Speech act coherence: Query and question speech acts mandate an informative assertion or clarification response, not an ungrounded directive.");
+    cargraph_builder_add_rule(builder, 6.0, 0.0, 1.0, "Anaphoric binding: Pronoun referents must maintain syntactic agreement in number, person, and entity category with their antecedent.");
+    cargraph_builder_add_rule(builder, 6.0, 1.0, 0.0, "Syntactic parsing and lexical recognition are mandatory prerequisites for semantic comprehension.");
+    cargraph_builder_add_rule(builder, 6.0, 1.0, 0.0, "Adjacent conversational dialogue turns must preserve topical coherence or transition via explicit discourse markers.");
+    cargraph_builder_add_rule(builder, 6.0, 1.0, 0.0, "Human dialogue consists of alternating conversational turns bounded by end-of-turn delimiter tokens.");
+    cargraph_builder_add_rule(builder, 6.0, 1.0, 0.0, "Lexical tokens ground continuous semantic concept embeddings into symbolic communication structures.");
+    cargraph_builder_add_rule(builder, 6.0, 1.0, 0.0, "High Information Content (IC) terms carry higher semantic discriminative weight than closed-class syntactic stopwords.");
+    cargraph_builder_add_rule(builder, 6.0, 1.0, 0.0, "Asserting a proposition commits the speaker to its direct logical consequences across subsequent turns.");
+    cargraph_builder_add_rule(builder, 6.0, 1.0, 0.0, "Conversational cooperative principle: Contributions should be informative, truthful, relevant, and perspicuous.");
+    cargraph_builder_add_rule(builder, 6.0, 1.0, 0.0, "Discourse transition bridges establish explicit causal, contrastive, or elaborative relationships between thoughts.");
+
+    printf("[Ingest Compiler] Ingested 7 cognitive domains and 52 structured rules (14 strict invariants).\n");
 
     // -------------------------------------------------------------------------
     // 3. Automated SMT/SAT Consistency Verification Pass
     // -------------------------------------------------------------------------
     printf("[Ingest Compiler] Running SMT/SAT Propositional Consistency Verification Pass...\n");
-    let solver = sat_solver_create(42.0);
+    let solver = sat_solver_create(52.0);
 
-    // Assert strict invariants as positive ground axioms across all 6 domains
+    // Assert strict invariants as positive ground axioms across all 7 domains
     sat_assert_axiom(solver, 0.0);
     sat_assert_axiom(solver, 1.0);
     sat_assert_axiom(solver, 2.0);
@@ -120,6 +133,8 @@ fn main(argc: float, argv: ptr) -> float {
     sat_assert_axiom(solver, 25.0);
     sat_assert_axiom(solver, 32.0);
     sat_assert_axiom(solver, 33.0);
+    sat_assert_axiom(solver, 42.0);
+    sat_assert_axiom(solver, 43.0);
 
     // Model valid implication dependencies across domains
     sat_add_implication(solver, 6.0, 7.0);   // Kinetic Energy -> Inelastic Dissipation
@@ -130,6 +145,11 @@ fn main(argc: float, argv: ptr) -> float {
     sat_add_implication(solver, 25.0, 31.0); // Central Dogma -> Translation
     sat_add_implication(solver, 37.0, 38.0); // Velocity -> Acceleration
     sat_add_implication(solver, 39.0, 40.0); // States of Matter: Solid -> Liquid phase continuity
+    sat_add_implication(solver, 44.0, 45.0); // Lexical parsing -> Topical coherence
+    sat_add_implication(solver, 45.0, 47.0); // Topical coherence -> Lexical grounding
+    sat_add_implication(solver, 42.0, 49.0); // Speech act coherence -> Propositional commitment
+    sat_add_implication(solver, 47.0, 48.0); // Lexical grounding -> High IC discrimination
+    sat_add_implication(solver, 50.0, 51.0); // Cooperative principle -> Discourse transition bridges
 
     let is_consistent = sat_solve_consistency(solver);
     if (is_consistent == 0.0) {
@@ -139,7 +159,7 @@ fn main(argc: float, argv: ptr) -> float {
         sat_solver_free(solver);
         return 1.0;
     }
-    printf("[Ingest Compiler] [PASS] SMT/SAT consistency mathematically proved across 42 rules. Graph is SAT.\n");
+    printf("[Ingest Compiler] [PASS] SMT/SAT consistency mathematically proved across 52 rules. Graph is SAT.\n");
 
     // -------------------------------------------------------------------------
     // 4. Binary Emission

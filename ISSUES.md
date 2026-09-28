@@ -3399,6 +3399,20 @@ This file tracks technical debt and bugs identified during repository code revie
 - **Description**: `ImplDecl` (`34.0 || 88.0 || 157.0`) methods were omitted from codegen forward declarations and function lowering, preventing trait/struct method calls from resolving.
 - **Resolution**: Added `ImplDecl` method scanning in Pass 1 forward declarations and Pass 2 function generation. Implemented method receiver resolution (`safe_name = <Struct>_<method>`) with both implicit and explicit `self` binding (`%arg_self` / alloca ptr / struct type tag). Updated `MethodCall` lowering to resolve receiver struct types and dispatch to `@<Struct>_<method>`, verified with Target 70 passing cleanly.
 
+---
+
+## [ISSUE-252] [FIXED] Missing Language/Discourse Domain & Static Node Branching in NSES Knowledge Pipeline
+- **Severity**: High (Neuro-Symbolic Expert System & Conversational Coherence)
+- **Component**: [`src/std/nses_pipeline.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/nses_pipeline.cl), [`tools/cargraph_ingest.car`](file:///C:/Users/rich-/source/repos/CARTAN/tools/cargraph_ingest.car), [`src/std/veto_gate.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/veto_gate.cl), [`src/std/burroughs.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/burroughs.cl)
+- **Description**: The NSES knowledge graph partitions only covered physics, topology, complexity, biology, and physical causality (Domains 0-5). It lacked a foundational `LANGUAGE_DISCOURSE` domain (Domain 6) encompassing conversational pragmatics, discourse coherence, anaphora consistency, and speech act invariants. Additionally, `nses_pipeline_execute_turn` resolved memory node strings via hardcoded branches, which dropped newly added memory nodes.
+- **Resolution**:
+  1. Ingested Domain 6 (`LANGUAGE_DISCOURSE`) into `tools/cargraph_ingest.car` with 2 strict invariants (speech act coherence, anaphoric binding agreement) and 8 factual/causal rules (syntactic prerequisites, topical continuity, turn delimiters, lexical grounding, Gricean cooperative principles), validated under 52-variable SMT/SAT consistency.
+  2. Added Domain 6 CSR directed causal edges to `tools/cargraph_ingest.car` and `src/std/nses_pipeline.cl`.
+  3. Added Rule 8 linguistic contradiction triggers and canonical assertions to `src/std/veto_gate.cl`.
+  4. Added Domain 6 lateral injection fragments to `src/std/burroughs.cl`.
+  5. Added Stage 1 conversational intent routing, Stage 3 seed activation, and memory string resolution for nodes 42.0 to 51.0 in `src/std/nses_pipeline.cl`.
+  6. Recompiled `test/geomind/trainingdata/nses_knowledge.car_graph` with 7 active domains, 52 rules, and 14 strict invariants. Verified end-to-end with Target 71 passing cleanly across the 71-target regression suite.
+
 
 
 

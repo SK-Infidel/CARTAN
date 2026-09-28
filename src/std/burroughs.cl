@@ -209,4 +209,9 @@ fn burroughs_pool_populate_defaults(pool: BurroughsPool) {
     burroughs_pool_add(pool, 10.0, 3.0, 3.0, "Shadow of a magnetic needle spinning freely in a room without cardinal poles.");
     burroughs_pool_add(pool, 11.0, 3.0, 3.0, "Fractured liquid mercury beads across dry desert sand before morning rain.");
     burroughs_pool_add(pool, 12.0, 3.0, 3.0, "Echo of an unstruck iron bell vibrates the dormant crystal lattice.");
+
+    // --- Domain 6: Language & Communicative Lateral Primes ---
+    burroughs_pool_add(pool, 13.0, 6.0, 1.0, "Language acts as a discrete coordinate system mapped across continuous topological thought manifolds.");
+    burroughs_pool_add(pool, 14.0, 6.0, 2.0, "Syntactic recursion reflects hierarchical mental models through symbolic feedback loops.");
+    burroughs_pool_add(pool, 15.0, 6.0, 3.0, "Spoken words dissolve into acoustic interference patterns carrying the geometry of intent.");
 }

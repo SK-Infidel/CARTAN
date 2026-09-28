@@ -234,6 +234,22 @@ fn veto_registry_populate_defaults(reg: VetoRegistry) {
         "In accordance with causal and taxonomic invariants, causes strictly precede their effects in time, and organisms cannot hold mutually exclusive kingdom classifications.",
         p7
     );
+
+    // 8. Linguistic Invariants & Communicative Pragmatics (Domain 6: LANGUAGE_DISCOURSE)
+    let p8 = cartan_tree_create();
+    cartan_tree_push(p8, "words have no meaning");
+    cartan_tree_push(p8, "language cannot communicate");
+    cartan_tree_push(p8, "questions do not require answers");
+    cartan_tree_push(p8, "statements contradict their premises");
+    cartan_tree_push(p8, "grammar has no rules");
+    cartan_tree_push(p8, "pronouns have no antecedents");
+    veto_registry_add_rule(
+        reg,
+        8.0,
+        6.0,
+        "In accordance with communicative pragmatics, language conveys structured meaning through shared vocabulary, grammatical syntax, and coherent speech acts.",
+        p8
+    );
 }
 
 // Computes analytical symbolic penalty across output logits to shape training loss

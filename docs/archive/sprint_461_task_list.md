@@ -1,0 +1,30 @@
+# Sprint 461 Task List: Language & Discourse Domain Synthesis
+
+- [x] **Task 1: Ingest Domain 6 in `tools/cargraph_ingest.car`**
+  - [x] Add Domain 6 metadata declaration (ID 6.0, start 42.0, count 10.0, strict 2.0).
+  - [x] Register 10 language/discourse rules (Rules 42 to 51) with exact physical and communicative formulations.
+  - [x] Register CSR directed causal edges between linguistic prerequisite, coherence, and speech act nodes.
+- [x] **Task 2: Add Linguistic Veto Guardrails in `src/std/veto_gate.cl`**
+  - [x] Register Rule 8 in `veto_registry_populate_defaults` for Domain 6.
+  - [x] Define contradiction pattern triggers ("words have no meaning", "language cannot communicate", etc.).
+  - [x] Define canonical invariant assertion.
+- [x] **Task 3: Add Linguistic Lateral Fragments in `src/std/burroughs.cl`**
+  - [x] Register Domain 6 fragments for Tiers 1, 2, and 3.
+- [x] **Task 4: Update Domain Routing & Memory Traversal in `src/std/nses_pipeline.cl`**
+  - [x] Update Stage 1 routing with language/discourse keywords.
+  - [x] Add Domain 6 seed activation in Stage 3.
+  - [x] Map memory node IDs 42.0 to 51.0 in Stage 4.
+  - [x] Connect Domain 6 edges to CSR topology in `nses_pipeline_create`.
+- [x] **Task 5: Recompile Tools & Ingest Fresh `.car_graph`**
+  - [x] Compile `tools/cargraph_ingest.car` -> `build/cargraph_ingest.exe`.
+  - [x] Run `build/cargraph_ingest.exe` to generate updated `test/geomind/trainingdata/nses_knowledge.car_graph`.
+- [x] **Task 6: Author Target 71 & Regression Testing**
+  - [x] Author `test/compiler_suite/test_nses_language_domain.car` with full zero-mock validation.
+  - [x] Whitelist Target 71 in `.gitignore`.
+  - [x] Register Target 71 in `test/compiler_suite/run_tests.car`.
+  - [x] Rebuild `build/run_tests.exe` and execute all 71 targets (71/71 passing cleanly).
+- [x] **Task 7: Documentation & Session Closeout**
+  - [x] Update `ISSUES.md` (`[ISSUE-252]` -> `[FIXED]`).
+  - [x] Update `CHANGELOG.md` (`[8.419.0]`).
+  - [x] Update `docs/ROADMAP.md`.
+  - [x] Save walkthrough to `docs/archive/sprint_461_walkthrough.md`.

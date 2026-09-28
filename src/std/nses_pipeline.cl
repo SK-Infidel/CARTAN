@@ -73,6 +73,11 @@ fn nses_pipeline_create(graph_path: string) -> NSES_Pipeline {
     csr_builder_add_edge(b, 26.0, 27.0, 1.20, 1.0, 0.0); // Photosynthesis -> Cellular Respiration
     csr_builder_add_edge(b, 37.0, 38.0, 1.15, 1.0, 0.0); // Velocity -> Acceleration
     csr_builder_add_edge(b, 39.0, 40.0, 1.10, 1.0, 0.0); // Solid -> Liquid phase transition
+    csr_builder_add_edge(b, 44.0, 45.0, 1.25, 1.0, 0.0); // Lexical parsing -> Topical coherence
+    csr_builder_add_edge(b, 45.0, 47.0, 1.20, 1.0, 0.0); // Topical coherence -> Lexical grounding
+    csr_builder_add_edge(b, 42.0, 49.0, 1.30, 1.0, 0.0); // Speech act coherence -> Propositional commitment
+    csr_builder_add_edge(b, 47.0, 48.0, 1.15, 1.0, 0.0); // Lexical grounding -> High IC discrimination
+    csr_builder_add_edge(b, 50.0, 51.0, 1.20, 1.0, 0.0); // Cooperative principle -> Discourse transition bridges
     let g = csr_builder_build(b);
     csr_builder_free(b);
 
@@ -145,6 +150,8 @@ fn nses_pipeline_execute_turn(
         routed_domain = 4.0; // BIOLOGICAL_SYSTEMS
     } else if (cartan_string_contains(query, "cause") != 0.0 || cartan_string_contains(query, "state") != 0.0 || cartan_string_contains(query, "matter") != 0.0 || cartan_string_contains(query, "taxonomy") != 0.0) {
         routed_domain = 5.0; // CAUSAL_TAXONOMY
+    } else if (cartan_string_contains(query, "language") != 0.0 || cartan_string_contains(query, "word") != 0.0 || cartan_string_contains(query, "grammar") != 0.0 || cartan_string_contains(query, "speech") != 0.0 || cartan_string_contains(query, "talk") != 0.0 || cartan_string_contains(query, "dialogue") != 0.0 || cartan_string_contains(query, "conversation") != 0.0 || cartan_string_contains(query, "syntax") != 0.0 || cartan_string_contains(query, "communicate") != 0.0 || cartan_string_contains(query, "question") != 0.0 || cartan_string_contains(query, "pronoun") != 0.0) {
+        routed_domain = 6.0; // LANGUAGE_DISCOURSE
     }
 
     // -------------------------------------------------------------------------
@@ -170,8 +177,14 @@ fn nses_pipeline_execute_turn(
     } else if (routed_domain == 4.0) {
         collections_list_push(pipe.seed_list, 26.0); // Seed: Rule 26 (Photosynthesis)
         collections_list_push(pipe.act_list, 1.0);
-    } else {
+    } else if (routed_domain == 5.0) {
         collections_list_push(pipe.seed_list, 37.0); // Seed: Rule 37 (Velocity -> Acceleration)
+        collections_list_push(pipe.act_list, 1.0);
+    } else if (routed_domain == 6.0) {
+        collections_list_push(pipe.seed_list, 44.0); // Seed: Rule 44 (Syntactic parsing and lexical recognition)
+        collections_list_push(pipe.act_list, 1.0);
+    } else {
+        collections_list_push(pipe.seed_list, 44.0);
         collections_list_push(pipe.act_list, 1.0);
     }
 
@@ -205,6 +218,26 @@ fn nses_pipeline_execute_turn(
             cartan_tree_push(pipe.memory_tree, "Physical velocity is the first time derivative of spatial displacement position: v = dx/dt.");
         } else if (n_id == 38.0) {
             cartan_tree_push(pipe.memory_tree, "Physical acceleration is the time derivative of velocity and second derivative of position: a = dv/dt.");
+        } else if (n_id == 42.0) {
+            cartan_tree_push(pipe.memory_tree, "Speech act coherence: Query and question speech acts mandate an informative assertion or clarification response, not an ungrounded directive.");
+        } else if (n_id == 43.0) {
+            cartan_tree_push(pipe.memory_tree, "Anaphoric binding: Pronoun referents must maintain syntactic agreement in number, person, and entity category with their antecedent.");
+        } else if (n_id == 44.0) {
+            cartan_tree_push(pipe.memory_tree, "Syntactic parsing and lexical recognition are mandatory prerequisites for semantic comprehension.");
+        } else if (n_id == 45.0) {
+            cartan_tree_push(pipe.memory_tree, "Adjacent conversational dialogue turns must preserve topical coherence or transition via explicit discourse markers.");
+        } else if (n_id == 46.0) {
+            cartan_tree_push(pipe.memory_tree, "Human dialogue consists of alternating conversational turns bounded by end-of-turn delimiter tokens.");
+        } else if (n_id == 47.0) {
+            cartan_tree_push(pipe.memory_tree, "Lexical tokens ground continuous semantic concept embeddings into symbolic communication structures.");
+        } else if (n_id == 48.0) {
+            cartan_tree_push(pipe.memory_tree, "High Information Content (IC) terms carry higher semantic discriminative weight than closed-class syntactic stopwords.");
+        } else if (n_id == 49.0) {
+            cartan_tree_push(pipe.memory_tree, "Asserting a proposition commits the speaker to its direct logical consequences across subsequent turns.");
+        } else if (n_id == 50.0) {
+            cartan_tree_push(pipe.memory_tree, "Conversational cooperative principle: Contributions should be informative, truthful, relevant, and perspicuous.");
+        } else if (n_id == 51.0) {
+            cartan_tree_push(pipe.memory_tree, "Discourse transition bridges establish explicit causal, contrastive, or elaborative relationships between thoughts.");
         }
         m_idx = m_idx + 1.0;
     }
