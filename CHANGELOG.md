@@ -1,3 +1,28 @@
+## [8.413.0] - 2026-09-28 (Sprint 455: Authentic GEMM Matrix Multiplication, Tensor Transposition, Dynamic Graph Hot-Swap, & Pointer Ops)
+
+### Completed & Validated
+- **Authentic GEMM Matrix Multiplication (`src/cartanc/core_runtime.car`, `src/std/tensor.cl`, `[ISSUE-232]`)**:
+  - Implemented authentic $O(M \times K \times N)$ general matrix multiplication (`cartan_tensor_matmul_gemm(A, B, M, K, N)`) in `core_runtime.car`.
+  - Implemented dynamic 2D row-vector / flat-vector matrix multiplication (`cartan_tensor_matmul(A, B)` and `cartan_tensor_matmul_dynamic`) and exported `cartan_matmul_gemm` wrapper.
+  - Replaced element-wise multiplication zero-mock simulation in `src/std/tensor.cl:tensor_matmul` with genuine matrix multiplication.
+- **Tensor Transposition AST Lowering & Standard Library Parity (`src/cartanc/ast.ch`, `src/cartanc/parser.car`, `src/cartanc/type_checker.car`, `src/cartanc/llvm_codegen.car`, `src/std/tensor.cl`, `[ISSUE-229]`)**:
+  - Aligned AST definitions `TransposeWeights` in `ast.ch` to 2 parameters and added `Cartan.transpose(A)` method parser in `parser.car`.
+  - Added dual discriminant checking (38.0 / 102.0) in `type_checker.car:tc_visit_expr`.
+  - Lowered `Expr::Transpose` and `Expr::TransposeWeights` to `@cartan_tensor_transpose` in `llvm_codegen.car`.
+  - Replaced dummy no-op in `src/std/tensor.cl:tensor_transpose` with genuine call to `cartan_tensor_transpose`.
+- **Dynamic Graph Hot-Swap AST Lowering & Runtime Integrity (`src/cartanc/parser.car`, `src/cartanc/type_checker.car`, `src/cartanc/llvm_codegen.car`, `src/cartanc/core_runtime.car`, `[ISSUE-230]`)**:
+  - Updated `parser.car:1702` Identifier check to `6.0 || 70.0` with payload extraction via `cartan_tree_get_f32(expr, 1.0)`.
+  - Added dual discriminant checking (39.0 / 103.0) returning `CartanType::Ptr` in `type_checker.car`.
+  - Lowered `Expr::HotSwap` to `@cartan_rt_atomic_swap_graph(slot, shadow)` in `llvm_codegen.car`.
+  - Upgraded `cartan_rt_atomic_swap_graph` in `core_runtime.car` with tree container support for safe pointer storage.
+- **Address-Of (`&x`) & Dereference (`*p`) AST Alignment (`src/cartanc/type_checker.car`, `src/cartanc/llvm_codegen.car`, `[ISSUE-231]`)**:
+  - Implemented `Expr::AddressOf` (42.0 / 106.0 -> `CartanType::Ptr`) and `Expr::Dereference` (43.0 / 107.0 -> `CartanType::Float`) in `type_checker.car`.
+  - Updated `llvm_codegen.car` to accept current dual discriminants (`42.0 || 75.0 || 106.0` and `43.0 || 76.0 || 107.0`) and lowered authentic pointer dereferencing and address loads.
+- **Regression Suite Expansion & Empirical Verification (`test/compiler_suite/`)**:
+  - Authored regression Target 65: `test/compiler_suite/test_tensor_and_pointer_ops.car` validating GEMM multiplication ($2\times 3\times 2$), matrix transposition ($2\times 3 \to 3\times 2$), atomic graph hot-swap, pointer `&x` and `*p`, and 2D tree matmul.
+  - Whitelisted Target 65 in `.gitignore` and registered as Target 65 in `test/compiler_suite/run_tests.car`.
+  - Rebuilt self-hosting stage 1 `cartanc.exe` and verified 100% clean pass across all 65 compiler regression suite targets with 0 failures (Exit Code 0).
+
 ## [8.412.0] - 2026-09-28 (Sprint 454: MSE Loss, Riemannian Parallel Transport, BPE Tokenization, & Tree Search Execution)
 
 ### Completed & Validated

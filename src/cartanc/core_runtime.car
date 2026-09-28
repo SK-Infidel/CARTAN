@@ -818,6 +818,11 @@ fn cartan_rt_atomic_swap_graph(slot: ptr, shadow: ptr) -> ptr {
     if (slot == 0.0) {
         return shadow;
     }
+    if (cartan_c_is_tree(slot) != 0.0) {
+        let prev = cartan_tree_get_f32(slot, 0.0);
+        cartan_tree_set(slot, 0.0, shadow);
+        return prev;
+    }
     let prev = slot[0];
     slot[0] = shadow;
     return prev;
@@ -1092,6 +1097,110 @@ fn cartan_tensor_transpose(A: ptr) -> ptr {
         i = i + 1.0;
     }
     return res;
+}
+
+// Authentic General Matrix Multiplication (GEMM) for Flat Buffers: C = A (M x K) * B (K x N)
+fn cartan_tensor_matmul_gemm(A: ptr, B: ptr, M: float, K: float, N: float) -> ptr {
+    if (A == 0.0 || B == 0.0) { return 0.0; }
+    if (M <= 0.0 || K <= 0.0 || N <= 0.0) { return 0.0; }
+    let C = cartan_tensor_alloc(M * N);
+    var i = 0.0;
+    while (i < M) {
+        let i_row = i * N;
+        let a_row = i * K;
+        var j = 0.0;
+        while (j < N) {
+            var sum = 0.0;
+            var k = 0.0;
+            while (k < K) {
+                let a_val = cartan_vec_get_f32(A, a_row + k);
+                let b_val = cartan_vec_get_f32(B, k * N + j);
+                sum = sum + a_val * b_val;
+                k = k + 1.0;
+            }
+            cartan_vec_set_f32(C, i_row + j, sum);
+            j = j + 1.0;
+        }
+        i = i + 1.0;
+    }
+    return C;
+}
+
+// Authentic Matrix Multiplication supporting 2D Trees and Dynamic Layouts
+fn cartan_tensor_matmul(A: ptr, B: ptr) -> ptr {
+    if (A == 0.0 || B == 0.0) { return 0.0; }
+    // Case 1: 2D Tree representation
+    if (cartan_c_is_tree(A) != 0.0) {
+        let M = cartan_tree_len_f(A);
+        if (M <= 0.0) { return cartan_tree_create(); }
+        let first_row = cartan_tree_get_f32(A, 0.0);
+        let K = cartan_vec_len(first_row);
+
+        // Subcase 1a: B is also a 2D tree
+        if (cartan_c_is_tree(B) != 0.0) {
+            let first_b = cartan_tree_get_f32(B, 0.0);
+            let N = cartan_vec_len(first_b);
+            let C = cartan_tree_create();
+            var i = 0.0;
+            while (i < M) {
+                let a_r = cartan_tree_get_f32(A, i);
+                let c_row = cartan_vec_create();
+                var j = 0.0;
+                while (j < N) {
+                    var sum = 0.0;
+                    var k = 0.0;
+                    while (k < K) {
+                        let a_v = cartan_vec_get_f32(a_r, k);
+                        let b_r = cartan_tree_get_f32(B, k);
+                        let b_v = cartan_vec_get_f32(b_r, j);
+                        sum = sum + a_v * b_v;
+                        k = k + 1.0;
+                    }
+                    cartan_vec_push_f32(c_row, sum);
+                    j = j + 1.0;
+                }
+                cartan_tree_push(C, c_row);
+                i = i + 1.0;
+            }
+            return C;
+        }
+        // Subcase 1b: B is a 1D vector (matrix-vector multiplication)
+        let C_vec = cartan_vec_create();
+        var i = 0.0;
+        while (i < M) {
+            let a_r = cartan_tree_get_f32(A, i);
+            var sum = 0.0;
+            var k = 0.0;
+            while (k < K) {
+                let a_v = cartan_vec_get_f32(a_r, k);
+                let b_v = cartan_vec_get_f32(B, k);
+                sum = sum + a_v * b_v;
+                k = k + 1.0;
+            }
+            cartan_vec_push_f32(C_vec, sum);
+            i = i + 1.0;
+        }
+        return C_vec;
+    }
+    // Case 2: 1D flat vectors
+    let lenA = cartan_vec_len(A);
+    let lenB = cartan_vec_len(B);
+    if (lenA == lenB && lenA > 0.0) {
+        var sum = 0.0;
+        var i = 0.0;
+        while (i < lenA) {
+            sum = sum + cartan_vec_get_f32(A, i) * cartan_vec_get_f32(B, i);
+            i = i + 1.0;
+        }
+        let res = cartan_vec_create();
+        cartan_vec_push_f32(res, sum);
+        return res;
+    }
+    return 0.0;
+}
+
+fn cartan_tensor_matmul_dynamic(A: ptr, B: ptr) -> ptr {
+    return cartan_tensor_matmul(A, B);
 }
 
 // --- Prompt & Pattern Matching ---
@@ -1547,6 +1656,18 @@ fn tokenize_bpe(vocab_path: string, text: string) -> ptr {
 
 fn mse_loss(pred: ptr, target: ptr) -> float {
     return cartan_tensor_mse_loss(pred, target);
+}
+
+fn cartan_matmul_gemm(A: ptr, B: ptr, M: float, K: float, N: float) -> ptr {
+    return cartan_tensor_matmul_gemm(A, B, M, K, N);
+}
+
+fn cartan_transpose(A: ptr) -> ptr {
+    return cartan_tensor_transpose(A);
+}
+
+fn cartan_hotswap(slot: ptr, shadow: ptr) -> ptr {
+    return cartan_rt_atomic_swap_graph(slot, shadow);
 }
 
 

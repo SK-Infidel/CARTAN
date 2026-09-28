@@ -36,6 +36,7 @@ test*.car
 !test/compiler_suite/test_transforms_and_logic.car
 !test/compiler_suite/test_loops_and_primitives.car
 !test/compiler_suite/test_geometric_and_search_primitives.car
+!test/compiler_suite/test_tensor_and_pointer_ops.car
 !test/geomind/nses/**
 test/geomind/nses/*.exe
 test/geomind/nses/*.pdb

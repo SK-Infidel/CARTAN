@@ -3,6 +3,8 @@ extern fn free(p: ptr) -> void;
 extern fn exp(x: float) -> float;
 extern fn sqrt(x: float) -> float;
 extern fn tanh(x: float) -> float;
+extern fn cartan_tensor_matmul(a: ptr, b: ptr) -> ptr;
+extern fn cartan_tensor_transpose(t: ptr) -> ptr;
 
 struct Tensor {
     data: ptr;
@@ -238,21 +240,11 @@ fn tensor_alloc_sequence(size: float) -> ptr {
 }
 
 fn tensor_matmul(a: ptr, b: ptr) -> ptr {
-    if (a == 0.0) { return 0.0; }
-    if (b == 0.0) { return a; }
-    var len = cartan_vec_len(a);
-    if (len <= 0.0) { len = 10.0; }
-    let out = tensor_alloc(len);
-    var i = 0.0;
-    while (i < len) {
-        out[i] = a[i] * b[i];
-        i = i + 1.0;
-    }
-    return out;
+    return cartan_tensor_matmul(a, b);
 }
 
 fn tensor_transpose(t: ptr) -> ptr {
-    return t;
+    return cartan_tensor_transpose(t);
 }
 
 fn tensor_div_scalar(t: ptr, s: float) -> ptr {

@@ -3197,6 +3197,43 @@ This file tracks technical debt and bugs identified during repository code revie
 - **Description**: `parser.car:2006` parses `search(algorithm, tree, state)` into `Expr::TreeSearch(tree, algorithm, state)`. `core_runtime.car` lacked `cartan_tree_search` and `llvm_codegen.car` returned `"0.0"`.
 - **Resolution**: Implemented authentic UCB1 / state-space heuristic search in `core_runtime.car:cartan_tree_search`, updated `ast.ch` to 3 parameters, added type checking for discriminant 33.0/97.0, and lowered calling `@cartan_tree_search` in `llvm_codegen.car`. Verified with Target 64 regression test.
 
+---
+
+## [ISSUE-229] [FIXED] Unhandled AST Expression Lowering for `Expr::Transpose` & Broken `tensor_transpose` No-Op in Standard Library
+- **Severity**: High (Mathematical Correctness & Zero-Mock Directive)
+- **Component**: [`src/cartanc/type_checker.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/type_checker.car#L470), [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car), [`src/std/tensor.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/tensor.cl#L254)
+- **Status**: Fixed in Sprint 455.
+- **Description**: `Expr::Transpose` (discriminant 38.0 / 102.0) is not handled in `llvm_codegen.car:llvm_visit_expr`, silently returning `"0.0"`. `type_checker.car` only checks `38.0` and misses `102.0`. Additionally, `src/std/tensor.cl:254` defines `tensor_transpose(t)` as a no-op returning `return t;` instead of delegating to `cartan_tensor_transpose(t)`.
+- **Resolution**: Added dual discriminant checking (38.0/102.0) in `type_checker.car`, implemented LLVM lowering calling `@cartan_tensor_transpose` in `llvm_codegen.car`, added `Cartan.transpose(A)` method parser, and updated `tensor_transpose` in `src/std/tensor.cl` to delegate to `cartan_tensor_transpose`. Verified with Target 65.
+
+---
+
+## [ISSUE-230] [FIXED] Unhandled AST Expression Lowering for `Expr::HotSwap` & Missing Discriminant Check in Parser
+- **Severity**: Medium (Dynamic Graph Architecture)
+- **Component**: [`src/cartanc/parser.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/parser.car#L1702), [`src/cartanc/type_checker.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/type_checker.car#L493), [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car), [`src/cartanc/core_runtime.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/core_runtime.car)
+- **Status**: Fixed in Sprint 455.
+- **Description**: `parser.car:1702` checks only `expr[0] == 6.0` (missing `70.0`), preventing `Cartan.hot_swap` from being recognized. `Expr::HotSwap` (discriminant 39.0 / 103.0) is unhandled in `llvm_codegen.car` and returns `CartanType::Unknown` in `type_checker.car`.
+- **Resolution**: Updated `parser.car` identifier check to accept `6.0 || 70.0` with payload extraction via `cartan_tree_get_f32(expr, 1.0)`, added `Expr::HotSwap` (39.0/103.0) type checking returning `CartanType::Ptr`, lowered calling `@cartan_rt_atomic_swap_graph` in `llvm_codegen.car`, and enhanced runtime swap logic with tree container support. Verified with Target 65.
+
+---
+
+## [ISSUE-231] [FIXED] Missing Expression Handlers for Address-Of (`&x`) & Dereference (`*p`) in Type Checker & Outdated Line Discriminants in Codegen
+- **Severity**: Medium (Pointer & Memory Integrity)
+- **Component**: [`src/cartanc/type_checker.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/type_checker.car), [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car#L3290)
+- **Status**: Fixed in Sprint 455.
+- **Description**: `AddressOf` (disc 42.0 / 106.0) and `Dereference` (disc 43.0 / 107.0) are completely missing from `type_checker.car:tc_visit_expr`. In `llvm_codegen.car`, they check outdated legacy line numbers `75.0` and `76.0` instead of current `106.0` and `107.0`, causing codegen to drop them.
+- **Resolution**: Implemented `AddressOf` (42.0/106.0 -> `CartanType::Ptr`) and `Dereference` (43.0/107.0 -> `CartanType::Float`) in `type_checker.car`. Updated `llvm_codegen.car` to accept dual discriminants (`42.0 || 75.0 || 106.0` and `43.0 || 76.0 || 107.0`) and lowered authentic pointer dereferencing and address loads. Verified with Target 65.
+
+---
+
+## [ISSUE-232] [FIXED] Mock Matrix Multiplication (`tensor_matmul`) in Standard Library
+- **Severity**: Critical (Zero-Mock Directive Compliance)
+- **Component**: [`src/std/tensor.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/tensor.cl#L240), [`src/cartanc/core_runtime.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/core_runtime.car)
+- **Status**: Fixed in Sprint 455.
+- **Description**: `tensor_matmul` in `src/std/tensor.cl` simulates matrix multiplication by multiplying elements index-by-index (`out[i] = a[i] * b[i]`). This violates the project zero-mock directive.
+- **Resolution**: Implemented authentic $O(M \times K \times N)$ general matrix multiplication (`cartan_tensor_matmul_gemm`), dynamic 2D row-vector / flat-vector matrix multiplication (`cartan_tensor_matmul`), exported wrappers in `core_runtime.car`, and updated `src/std/tensor.cl:tensor_matmul` to execute genuine matrix multiplication. Verified with Target 65.
+
+
 
 
 

@@ -467,7 +467,7 @@ fn type_checker_init() -> TypeChecker {
             tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
             tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 2.0));
             return CartanType::Unknown;
-        } else if (disc == 38.0) { // Transpose
+        } else if (disc == 38.0 || disc == 102.0) { // Transpose
             let inner_type = tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
             if (cartan_tree_get_f32(inner_type, 0.0) == 8.0) { // Tensor
                 let dims = cartan_tree_get_f32(inner_type, 1.0);
@@ -477,9 +477,9 @@ fn type_checker_init() -> TypeChecker {
                 return CartanType::Tensor(new_dims, space, m_layout);
             }
             return inner_type;
-        } else if (disc == 37.0) { // TransposeWeights
+        } else if (disc == 37.0 || disc == 101.0) { // TransposeWeights
             tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
-            return CartanType::Unknown;
+            return CartanType::Tensor(cartan_tree_create(), 0.0, 0.0);
         } else if (disc == 10.0) { // Quote
             let block_stmt = cartan_tree_get_f32(expr, 1.0);
             var idx_stmt = 0.0;
@@ -490,10 +490,16 @@ fn type_checker_init() -> TypeChecker {
             let d = cartan_tree_create();
             cartan_tree_push(d, Dimension::Fixed(0.0));
             return CartanType::Tensor(d, 0.0, 0.0);
-        } else if (disc == 39.0) { // HotSwap
+        } else if (disc == 39.0 || disc == 103.0) { // HotSwap
             tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
             tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 2.0));
-            return CartanType::Unknown;
+            return CartanType::Ptr;
+        } else if (disc == 42.0 || disc == 106.0) { // AddressOf
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
+            return CartanType::Ptr;
+        } else if (disc == 43.0 || disc == 107.0) { // Dereference
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
+            return CartanType::Float;
         } else if (disc == 40.0 || disc == 104.0) { // Transform (vmap, grad)
             let target = cartan_tree_get_f32(expr, 2.0);
             return tc_visit_expr(self_ptr, target);

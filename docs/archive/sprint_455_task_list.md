@@ -1,0 +1,30 @@
+# Sprint 455 Task List
+
+- [x] **Task 1: Tensor Transposition (`[ISSUE-229]`)**
+  - [x] Add dual discriminant check (`38.0 || 102.0`) in `src/cartanc/type_checker.car:tc_visit_expr`
+  - [x] Lower `Expr::Transpose` in `src/cartanc/llvm_codegen.car:llvm_visit_expr` calling `@cartan_tensor_transpose`
+  - [x] Replace no-op `tensor_transpose` in `src/std/tensor.cl` with call to `cartan_tensor_transpose`
+- [x] **Task 2: Graph Hot-Swap (`[ISSUE-230]`)**
+  - [x] Update `src/cartanc/parser.car:1702` Identifier check to `expr[0] == 6.0 || expr[0] == 70.0`
+  - [x] Add dual discriminant check (`39.0 || 103.0`) returning `CartanType::Ptr` in `src/cartanc/type_checker.car:tc_visit_expr`
+  - [x] Lower `Expr::HotSwap` in `src/cartanc/llvm_codegen.car:llvm_visit_expr` calling `@cartan_rt_atomic_swap_graph`
+- [x] **Task 3: Address-Of & Dereference Alignment (`[ISSUE-231]`)**
+  - [x] Add `Expr::AddressOf` (`42.0 || 106.0`) and `Expr::Dereference` (`43.0 || 107.0`) in `src/cartanc/type_checker.car:tc_visit_expr`
+  - [x] Update line discriminant checks in `src/cartanc/llvm_codegen.car:3290` and `3302` to `106.0` and `107.0`
+- [x] **Task 4: Authentic GEMM Matrix Multiplication (`[ISSUE-232]`)**
+  - [x] Implement `cartan_tensor_matmul(A, B, M, K, N)` in `src/cartanc/core_runtime.car`
+  - [x] Expose `matmul` in `src/cartanc/core_runtime.car`
+  - [x] Update `src/std/tensor.cl:tensor_matmul` with authentic GEMM calculation
+- [x] **Task 5: Author Regression Target 65 (`test/compiler_suite/test_tensor_and_pointer_ops.car`)**
+  - [x] Test 1: Authentic GEMM matrix multiplication ($2 \times 3 \times 2$)
+  - [x] Test 2: Authentic matrix transposition ($2 \times 3 \to 3 \times 2$)
+  - [x] Test 3: Atomic graph hot-swap
+  - [x] Test 4: Pointer address-of and dereference
+  - [x] Register Target 65 in `test/compiler_suite/run_tests.car` and update `.gitignore`
+- [x] **Task 6: Recompile & Empirical Regression Verification**
+  - [x] Rebuild self-hosted `cartanc.exe`
+  - [x] Execute `run_tests.exe` and verify all 65 targets pass with 0 failures
+- [x] **Task 7: Sprint Closeout & Documentation**
+  - [x] Update `ISSUES.md` (mark Issues 229-232 resolved)
+  - [x] Update `CHANGELOG.md` (`[8.413.0]`)
+  - [x] Save `docs/archive/sprint_455_walkthrough.md`

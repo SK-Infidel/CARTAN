@@ -1699,27 +1699,32 @@ extern fn printf(fmt: string) -> i32;
                     let args_len = cartan_tree_len_f(args);
                     let handled = 0.0;
                     
-                    if (expr[0] == 6.0) {
-                        let obj_name = expr[1];
+                    if (expr[0] == 6.0 || expr[0] == 70.0) {
+                        let obj_name = cartan_tree_get_f32(expr, 1.0);
                         if (cartan_string_eq(obj_name, "Cartan") != 0.0) {
                             if (cartan_string_eq(name, "lex_and_embed") != 0.0) {
                                 if (args_len == 1.0) {
-                                    expr = Expr::LexAndEmbed(cartan_tree_get_f32(args, 0));
+                                    expr = Expr::LexAndEmbed(cartan_tree_get_f32(args, 0.0));
                                     handled = 1.0;
                                 }
                             } else if (cartan_string_eq(name, "align_geodesics") != 0.0) {
                                 if (args_len == 2.0) {
-                                    expr = Expr::AlignGeodesics(cartan_tree_get_f32(args, 0), cartan_tree_get_f32(args, 1));
+                                    expr = Expr::AlignGeodesics(cartan_tree_get_f32(args, 0.0), cartan_tree_get_f32(args, 1.0));
                                     handled = 1.0;
                                 }
                             } else if (cartan_string_eq(name, "GeometricBridge") != 0.0) {
                                 if (args_len == 2.0) {
-                                    expr = Expr::GeometricBridge(cartan_tree_get_f32(args, 0), cartan_tree_get_f32(args, 1));
+                                    expr = Expr::GeometricBridge(cartan_tree_get_f32(args, 0.0), cartan_tree_get_f32(args, 1.0));
+                                    handled = 1.0;
+                                }
+                            } else if (cartan_string_eq(name, "transpose") != 0.0) {
+                                if (args_len == 1.0) {
+                                    expr = Expr::Transpose(cartan_tree_get_f32(args, 0.0));
                                     handled = 1.0;
                                 }
                             } else if (cartan_string_eq(name, "transpose_weights") != 0.0) {
                                 if (args_len == 2.0) {
-                                    expr = Expr::TransposeWeights(cartan_tree_get_f32(args, 0), cartan_tree_get_f32(args, 1));
+                                    expr = Expr::TransposeWeights(cartan_tree_get_f32(args, 0.0), cartan_tree_get_f32(args, 1.0));
                                     handled = 1.0;
                                 }
                             } else if (cartan_string_eq(name, "reflect_repo") != 0.0) {
@@ -1729,7 +1734,7 @@ extern fn printf(fmt: string) -> i32;
                                 }
                             } else if (cartan_string_eq(name, "hot_swap") != 0.0) {
                                 if (args_len == 2.0) {
-                                    expr = Expr::HotSwap(cartan_tree_get_f32(args, 0), cartan_tree_get_f32(args, 1));
+                                    expr = Expr::HotSwap(cartan_tree_get_f32(args, 0.0), cartan_tree_get_f32(args, 1.0));
                                     handled = 1.0;
                                 }
                             }

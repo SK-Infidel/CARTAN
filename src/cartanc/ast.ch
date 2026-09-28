@@ -98,7 +98,7 @@ enum Expr {
     LexAndEmbed(ptr, ptr),
     AlignGeodesics(ptr, ptr),
     GeometricBridge(ptr, ptr),
-    TransposeWeights(ptr),
+    TransposeWeights(ptr, ptr),
     Transpose(ptr),
     HotSwap(ptr, ptr),
     Transform(ptr, ptr),
