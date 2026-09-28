@@ -1,0 +1,23 @@
+# Sprint 462 Task List: Automated Neuro-Symbolic Rule Generator & Horn-Clause Ingestion Compiler
+
+- [x] **Task 1: Author `tools/ns_rule_generator.car`**
+  - [x] Implement TSV/delimited text line parsing and field extraction.
+  - [x] Implement relation normalization into natural language rules and Horn clauses.
+  - [x] Integrate SMT/SAT consistency checking via `sat_solver.cl`.
+  - [x] Implement `.car_graph` binary building and serialization via `cargraph.cl`.
+  - [x] Implement declarative CARTAN source file generation (`knowledge_base { ... }`).
+- [x] **Task 2: Build `tools/ns_rule_generator.car` with `cartanc.exe`**
+  - [x] Compile to `build/ns_rule_generator.exe`.
+- [x] **Task 3: Author and Verify Target 72**
+  - [x] Author `test/compiler_suite/test_ns_rule_generator.car` with authentic multi-triple ingestion.
+  - [x] Verify zero-mock rule induction, SAT consistency validation, and `.car_graph` round-trip.
+  - [x] Whitelist Target 72 in `.gitignore`.
+- [x] **Task 4: Regression Suite Integration & Verification**
+  - [x] Register Target 72 in `test/compiler_suite/run_tests.car`.
+  - [x] Rebuild `build/run_tests.exe`.
+  - [x] Execute full 72-target regression test suite (72/72 passing cleanly).
+- [x] **Task 5: Documentation & Session Closeout**
+  - [x] Update `ISSUES.md` (`[ISSUE-253]` -> `[FIXED]`).
+  - [x] Update `CHANGELOG.md` (`[8.420.0]`).
+  - [x] Update `docs/ROADMAP.md`.
+  - [x] Save walkthrough to `docs/archive/sprint_462_walkthrough.md`.

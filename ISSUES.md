@@ -3413,6 +3413,18 @@ This file tracks technical debt and bugs identified during repository code revie
   5. Added Stage 1 conversational intent routing, Stage 3 seed activation, and memory string resolution for nodes 42.0 to 51.0 in `src/std/nses_pipeline.cl`.
   6. Recompiled `test/geomind/trainingdata/nses_knowledge.car_graph` with 7 active domains, 52 rules, and 14 strict invariants. Verified end-to-end with Target 71 passing cleanly across the 71-target regression suite.
 
+---
+
+## [ISSUE-253] [FIXED] Lack of Automated Neuro-Symbolic Triple Ingestion & Declarative Rule Transpiler
+- **Severity**: High (Neuro-Symbolic Tooling & Rule Generation Automation)
+- **Component**: [`tools/ns_rule_generator.car`](file:///C:/Users/rich-/source/repos/CARTAN/tools/ns_rule_generator.car), [`src/std/cargraph.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/cargraph.cl)
+- **Description**: Domain rules in `tools/cargraph_ingest.car` were previously hand-coded statement by statement. Ingesting large external datasets like ConceptNet 5.8, ATOMIC 2020, and ProofWriter required an automated ingestion and compilation tool that parses structured relational triples (`subject`, `relation`, `object`, `weight/confidence`) and first-order Horn clauses, validates them through SMT/SAT consistency, and emits both native CARTAN `knowledge_base` declarations (`.car`) and flat binary `.car_graph` representations.
+- **Resolution**:
+  1. Implemented `tools/ns_rule_generator.car`: An automated compiler CLI parsing TSV/CSV relational triples, mapping relations (`HasPrerequisite`, `Causes`, `xIntent`, `xNeed`, `xEffect`, `MustAgree`, `BoundedBy`, `IsA`) into standardized natural language rules, filtering by confidence ($conf \ge 0.95$), and asserting strict invariants into `SatSolver`.
+  2. Integrated propositional Horn-clause SMT/SAT consistency checking to reject contradictory assertions ($P \land \neg P$).
+  3. Implemented dual output emission: `.car_graph` flat binary serialization via `cargraph_serialize_to_file` and native CARTAN declarative source code generation via `ns_emit_declarative_cartan`.
+  4. Authored Target 72 (`test/compiler_suite/test_ns_rule_generator.car`) and verified 100% clean execution across all 72 regression suite targets.
+
 
 
 

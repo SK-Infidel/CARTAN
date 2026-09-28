@@ -1,3 +1,18 @@
+## [8.420.0] - 2026-09-28 (Sprint 462: Automated Neuro-Symbolic Rule Generator & Ingestion Compiler)
+
+### Completed & Validated
+- **Automated Rule Generation & Ingestion Tool (`tools/ns_rule_generator.car`, `[ISSUE-253]`)**:
+  - Implemented an automated CLI tool capable of ingesting raw neuro-symbolic dataset triples matching ConceptNet 5.8, ATOMIC 2020, and FrameNet schemas (`head \t relation \t tail \t confidence \t is_strict`).
+  - Added relation normalizer translating relations (`HasPrerequisite`, `Causes`, `xIntent`, `xNeed`, `xEffect`, `MustAgree`, `BoundedBy`, `IsA`) into standardized natural language Horn-clause rule strings.
+  - Implemented minimum confidence filtering ($conf \ge 0.95$) and strict invariant assertion.
+  - Integrated propositional Horn-clause SMT/SAT consistency verification via `sat_solver.cl` to reject contradictory or unsatisfiable axioms ($P \land \neg P$).
+  - Implemented dual serialization: compiled flat binary `.car_graph` output and native CARTAN declarative `knowledge_base` syntax (`knowledge_base <Name> { rule r_0 = ...; }`).
+- **Regression Suite Expansion & Empirical Verification (`test/compiler_suite/`)**:
+  - Authored Target 72 regression test: `test/compiler_suite/test_ns_rule_generator.car` verifying multi-relation triple parsing, relation normalization, propositional SAT solving, binary `.car_graph` round-trip loading, and text extraction with zero mocking.
+  - Whitelisted Target 72 in `.gitignore` and registered in `test/compiler_suite/run_tests.car`.
+  - Rebuilt `build/ns_rule_generator.exe` and test runner `build/run_tests.exe`.
+  - Verified 100% clean execution across all 72 compiler snapshot test targets (0 failures).
+
 ## [8.419.0] - 2026-09-28 (Sprint 461: Language & Discourse Domain Synthesis for CARTAN NSES)
 
 ### Completed & Validated

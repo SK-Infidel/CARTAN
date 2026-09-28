@@ -43,6 +43,7 @@ test*.car
 !test/compiler_suite/test_neuro_symbolic_jit.car
 !test/compiler_suite/test_impl_trait_methods.car
 !test/compiler_suite/test_nses_language_domain.car
+!test/compiler_suite/test_ns_rule_generator.car
 !test/geomind/nses/**
 test/geomind/nses/*.exe
 test/geomind/nses/*.pdb

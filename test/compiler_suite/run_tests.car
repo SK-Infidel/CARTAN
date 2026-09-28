@@ -451,11 +451,17 @@ fn main(argc: float, argv: ptr) -> float {
     cartan_flush(0.0);
     run_step(t70_cmd);
 
-    // [71/71] Positive test: test_nses_language_domain
+    // [71/72] Positive test: test_nses_language_domain
     let t71_cmd = "cartanc.exe build test/compiler_suite/test_nses_language_domain.car -o build/test_nses_language_domain.exe && build\\test_nses_language_domain.exe";
-    printf("[71/71] [// run-pass] Building and Executing NSES Language & Discourse Domain 6 Verification: %s\n", t71_cmd);
+    printf("[71/72] [// run-pass] Building and Executing NSES Language & Discourse Domain 6 Verification: %s\n", t71_cmd);
     cartan_flush(0.0);
     run_step(t71_cmd);
+
+    // [72/72] Positive test: test_ns_rule_generator
+    let t72_cmd = "cartanc.exe build test/compiler_suite/test_ns_rule_generator.car -o build/test_ns_rule_generator.exe && build\\test_ns_rule_generator.exe";
+    printf("[72/72] [// run-pass] Building and Executing Automated Neuro-Symbolic Rule Generator & Ingestion: %s\n", t72_cmd);
+    cartan_flush(0.0);
+    run_step(t72_cmd);
 
     if (g_failed_count > 0.0) {
         printf("\n====================================================\n", "");
@@ -463,7 +469,7 @@ fn main(argc: float, argv: ptr) -> float {
         printf("====================================================\n", "");
         return 1.0;
     }
-    printf("\nAll 71 compiler snapshot test targets executed successfully (0 failures)!\n", "");
+    printf("\nAll 72 compiler snapshot test targets executed successfully (0 failures)!\n", "");
     return 0.0;
 }
 
