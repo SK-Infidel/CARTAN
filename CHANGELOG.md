@@ -1,3 +1,22 @@
+## [8.416.0] - 2026-09-28 (Sprint 458: Statement Line Index Alignment, AST Arity Harmonization, and Spawn/Evolve Block Lowering)
+
+### Completed & Validated
+- **Statement Discriminant Line Number Alignment (`src/cartanc/llvm_codegen.car`, `[ISSUE-242]`)**:
+  - Aligned all statement discriminant checks in `llvm_visit_stmt` to canonical line indices from `ast.ch:enum Stmt`: `ParameterDecl` (`7.0 || 130.0`), `SequenceDecl` (`9.0 || 132.0`), `BlockDecl` (`10.0 || 133.0`), `LatticeDecl` (`11.0 || 134.0`), `TreeDecl` (`12.0 || 135.0`), `ExternFunctionDecl` (`15.0 || 138.0`), `Block` (`40.0 || 163.0`), `AsyncCompute` (`43.0 || 166.0`), `Backward` (`44.0 || 167.0`), `MeshBlock` (`47.0 || 170.0`), `MultimodalBlock` (`48.0 || 171.0`), `VmapBlock` (`49.0 || 172.0`), `DoubtBlock` (`50.0 || 173.0`), `ChainBlock` (`51.0 || 174.0`), `RouteBlock` (`52.0 || 175.0`), `GrokBlock` (`53.0 || 176.0`), `OverrideBlock` (`54.0 || 177.0`), `ToolDecl` (`55.0 || 178.0`), `Satisfy` (`56.0 || 179.0`), `Backtrack` (`57.0 || 180.0`), `FluidPrecisionBlock` (`59.0 || 182.0`), `SparsityBlock` (`60.0 || 183.0`), `PruneGraph` (`61.0 || 184.0`), and `EmitSpike` (`62.0 || 185.0`).
+  - Completely eliminated silent interception vulnerabilities between obsolete line numbers (`124..126`) and common statements (`ExprStmt`, `EnumDecl`, `VarDecl`).
+- **AST Arity Harmonization (`src/cartanc/ast.ch`, `[ISSUE-243]`)**:
+  - Harmonized statement constructors in `ast.ch:enum Stmt` to match parser AST node construction signatures: `EvolveBlock(string, ptr)`, `Spawn(string, ptr)`, and `ReceiveDecl(string, tree<ptr>, ptr)`.
+  - Added full lexical scoping and statement traversal support for `EvolveBlock`, `Spawn`, and `ReceiveDecl` in `src/cartanc/type_checker.car:tc_visit_stmt`.
+- **`Spawn`, `EvolveBlock`, & `ReceiveDecl` Lowering (`src/cartanc/llvm_codegen.car`, `src/cartanc/core_runtime.car`, `[ISSUE-244]`)**:
+  - Implemented `Stmt::Spawn` (`36.0 || 159.0`) lowering with LLVM register preservation, invoking `@cartan_async_spawn` and `@cartan_async_yield`.
+  - Implemented `Stmt::EvolveBlock` (`32.0 || 155.0`) lowering with full statement traversal.
+  - Implemented `Stmt::ReceiveDecl` (`35.0 || 158.0`) message handler lowering inside actor contexts.
+  - Implemented missing `cartan_tensor_alloc_nd(ndim, d0, d1, d2, d3)` in `src/cartanc/core_runtime.car` and harmonized extern signature in `llvm_codegen.car`.
+- **Regression Suite Expansion & Empirical Verification (`test/compiler_suite/`)**:
+  - Authored Target 68 regression test: `test/compiler_suite/test_async_spawn_evolve.car` validating `spawn` task dispatch and state accumulation, `evolve` block genetic optimization, `receive` message handler execution, and collision-free statement declarations (`sequence`, `block`, `lattice`, `tree`, `parameter`, `VarDecl`, `ExprStmt`, `emit_spike`, `prune_graph`).
+  - Whitelisted Target 68 in `.gitignore` and registered in `test/compiler_suite/run_tests.car`.
+  - Rebuilt self-hosting stage 1 `cartanc.exe` and test runner `build/run_tests.exe`.
+
 ## [8.415.0] - 2026-09-28 (Sprint 457: AST Variant Hardening, Statement Collisions & Attention/Fused Codegen)
 
 ### Completed & Validated

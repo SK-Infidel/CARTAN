@@ -1316,6 +1316,15 @@ fn cartan_alloc_parameter_adam_nd(ndim: float, d0: float, d1: float, d2: float, 
     return cartan_alloc_parameter_adam(total);
 }
 
+fn cartan_tensor_alloc_nd(ndim: float, d0: float, d1: float, d2: float, d3: float) -> ptr {
+    var total = 1.0;
+    if (d0 > 0.0) { total = total * d0; }
+    if (d1 > 0.0) { total = total * d1; }
+    if (d2 > 0.0) { total = total * d2; }
+    if (d3 > 0.0) { total = total * d3; }
+    return cartan_tensor_alloc(total);
+}
+
 // --- Built-in Hardware & Spike Primitives ---
 var g_last_emitted_spike = 0.0;
 

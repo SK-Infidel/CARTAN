@@ -732,6 +732,10 @@
 - **Type**: Verified TypeChecker Symbol Table Export
 - **Status**: Production-Grade Native Implementation
 
+### `cartan_tensor_alloc_nd()`
+- **Type**: Verified TypeChecker Symbol Table Export
+- **Status**: Production-Grade Native Implementation
+
 ### `cartan_emit_spike()`
 - **Type**: Verified TypeChecker Symbol Table Export
 - **Status**: Production-Grade Native Implementation

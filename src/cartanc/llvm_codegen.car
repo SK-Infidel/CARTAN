@@ -145,6 +145,9 @@ fn llvm_codegen_init() -> LLVMGenerator {
     cartan_dict_set(l.func_return_types, "cartan_attention", "ptr");
     cartan_dict_set(l.func_return_types, "attention", "ptr");
     cartan_dict_set(l.func_return_types, "cartan_init_fractal_attention", "ptr");
+    cartan_dict_set(l.func_return_types, "cartan_async_spawn", "double");
+    cartan_dict_set(l.func_return_types, "cartan_async_yield", "double");
+    cartan_dict_set(l.func_return_types, "cartan_async_await", "double");
     return l;
 }
 
@@ -472,7 +475,7 @@ fn llvm_codegen_init() -> LLVMGenerator {
         add_builtin_extern(self_ptr, user_defined_names, "cartan_tree_size", "declare double @cartan_tree_size(ptr)\n");
         add_builtin_extern(self_ptr, user_defined_names, "cartan_tree_set", "declare void @cartan_tree_set(ptr, double, ptr)\n");
         add_builtin_extern(self_ptr, user_defined_names, "printf", "declare i32 @printf(ptr, ...)\n");
-        add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_alloc_nd", "declare ptr @cartan_tensor_alloc_nd(double, double, double, double, double, double)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_alloc_nd", "declare ptr @cartan_tensor_alloc_nd(double, double, double, double, double)\n");
         add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_linear_relu", "declare ptr @cartan_tensor_linear_relu(ptr, ptr, ptr)\n");
         add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_add", "declare ptr @cartan_tensor_add(ptr, ptr)\n");
         add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_sub", "declare ptr @cartan_tensor_sub(ptr, ptr)\n");
@@ -540,6 +543,9 @@ fn llvm_codegen_init() -> LLVMGenerator {
         add_builtin_extern(self_ptr, user_defined_names, "cartan_rt_grok_begin", "declare void @cartan_rt_grok_begin()\n");
         add_builtin_extern(self_ptr, user_defined_names, "cartan_rt_grok_end", "declare void @cartan_rt_grok_end()\n");
         add_builtin_extern(self_ptr, user_defined_names, "cartan_rt_override_begin", "declare void @cartan_rt_override_begin()\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_async_spawn", "declare double @cartan_async_spawn(ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_async_yield", "declare double @cartan_async_yield()\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_async_await", "declare double @cartan_async_await(double)\n");
         add_builtin_extern(self_ptr, user_defined_names, "cartan_rt_paged_attention", "declare ptr @cartan_rt_paged_attention(ptr, ptr, ptr, ptr)\n");
         add_builtin_extern(self_ptr, user_defined_names, "cartan_vec_len", "declare double @cartan_vec_len(ptr)\n");
         add_builtin_extern(self_ptr, user_defined_names, "cartan_vec_get_f32", "declare double @cartan_vec_get_f32(ptr, double)\n");
@@ -1747,7 +1753,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 cartan_dict_set(self_ptr.var_types, name, "ptr");
             }
 
-            if (disc == 9.0 || disc == 127.0) {
+            if (disc == 9.0 || disc == 132.0) {
                 let name = cartan_tree_get_f32(stmt, 1.0);
                 let max_len = cartan_tree_get_f32(stmt, 2.0);
                 let size_reg = llvm_visit_expr(self_ptr, max_len);
@@ -1760,7 +1766,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 cartan_dict_set(self_ptr.symbols, name, ptr_reg);
                 cartan_dict_set(self_ptr.var_types, name, "ptr");
             }
-            if (disc == 10.0 || disc == 128.0) {
+            if (disc == 10.0 || disc == 133.0) {
                 let name = cartan_tree_get_f32(stmt, 1.0);
                 let block_size = cartan_tree_get_f32(stmt, 2.0);
                 let size_reg = llvm_visit_expr(self_ptr, block_size);
@@ -1773,7 +1779,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 cartan_dict_set(self_ptr.symbols, name, ptr_reg);
                 cartan_dict_set(self_ptr.var_types, name, "ptr");
             }
-            if (disc == 11.0 || disc == 129.0) {
+            if (disc == 11.0 || disc == 134.0) {
                 let name = cartan_tree_get_f32(stmt, 1.0);
                 let dim = cartan_tree_get_f32(stmt, 3.0);
                 let size_reg = llvm_visit_expr(self_ptr, dim);
@@ -1786,7 +1792,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 cartan_dict_set(self_ptr.symbols, name, ptr_reg);
                 cartan_dict_set(self_ptr.var_types, name, "ptr");
             }
-            if (disc == 12.0 || disc == 130.0) {
+            if (disc == 12.0 || disc == 135.0) {
                 let name = cartan_tree_get_f32(stmt, 1.0);
                 let res_reg = next_reg(self_ptr);
                 cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat("  ", res_reg), " = call ptr @cartan_rt_alloc_tree(double 0.0)\n"));
@@ -1796,7 +1802,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 cartan_dict_set(self_ptr.symbols, name, ptr_reg);
                 cartan_dict_set(self_ptr.var_types, name, "ptr");
             }
-            if (disc == 7.0 || disc == 125.0) {
+            if (disc == 7.0 || disc == 130.0) {
                 let name = cartan_tree_get_f32(stmt, 1.0);
                 let shape = cartan_tree_get_f32(stmt, 2.0);
                 let manifold_val = cartan_tree_get_f32(stmt, 3.0);
@@ -1944,7 +1950,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 let unreachable = next_label(self_ptr, "unreachable_throw_");
                 cartan_tree_push(self_ptr.output, cartan_string_concat(unreachable, ":\n"));
             }
-            if (disc == 43.0 || disc == 103.0) {
+            if (disc == 43.0 || disc == 166.0) {
                 let block_val = cartan_tree_get_f32(stmt, 1.0);
                 cartan_tree_push(self_ptr.output, "  ; Begin Async Compute Block\n");
                 let block_stmts = cartan_tree_get_f32(block_val, 0.0);
@@ -1956,7 +1962,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 }
                 cartan_tree_push(self_ptr.output, "  ; End Async Compute Block\n");
             }
-            if (disc == 44.0 || disc == 104.0) {
+            if (disc == 44.0 || disc == 167.0) {
                 let expr = cartan_tree_get_f32(stmt, 1.0);
                 cartan_tree_push(self_ptr.output, "  ; --- Begin Backward Pass ---\n");
                 let loss_reg = llvm_visit_expr(self_ptr, expr);
@@ -1966,7 +1972,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 cartan_tree_push(self_ptr.output, "  call void @cartan_free_compute_graph()\n");
                 cartan_tree_push(self_ptr.output, "  ; --- End Backward Pass ---\n");
             }
-            if (disc == 59.0 || disc == 123.0) {
+            if (disc == 59.0 || disc == 182.0) {
                 let primary_type = cartan_tree_get_f32(stmt, 1.0);
                 let fallback_type = cartan_tree_get_f32(stmt, 2.0);
                 let block_val = cartan_tree_get_f32(stmt, 3.0);
@@ -1981,7 +1987,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 }
                 cartan_tree_push(self_ptr.output, "  call void @cartan_fluid_precision_end()\n");
             }
-            if (disc == 60.0 || disc == 124.0) {
+            if (disc == 60.0 || disc == 183.0) {
                 let block_size = cartan_tree_get_f32(stmt, 1.0);
                 let density = cartan_tree_get_f32(stmt, 2.0);
                 let block_val = cartan_tree_get_f32(stmt, 3.0);
@@ -1998,7 +2004,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 }
                 cartan_tree_push(self_ptr.output, "  call void @cartan_sparsity_end()\n");
             }
-            if (disc == 61.0 || disc == 125.0) {
+            if (disc == 61.0 || disc == 184.0) {
 
                 let expr = cartan_tree_get_f32(stmt, 1.0);
 
@@ -2006,7 +2012,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 let thr_reg = llvm_visit_expr(self_ptr, expr);
                 cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat("  call void @cartan_prune_graph(double ", as_float(self_ptr, thr_reg)), ")\n"));
             }
-            if (disc == 62.0 || disc == 126.0) {
+            if (disc == 62.0 || disc == 185.0) {
                 let intensity = cartan_tree_get_f32(stmt, 1.0);
                 cartan_tree_push(self_ptr.output, "  ; --- Emit Spike ---\n");
                 let int_reg = llvm_visit_expr(self_ptr, intensity);
@@ -2016,11 +2022,11 @@ while (idx_method < cartan_tree_len_f(methods)) {
 
                 // Handled in a separate pass
             }
-            if (disc == 15.0 || disc == 133.0) {
+            if (disc == 15.0 || disc == 138.0) {
 
                 // Handled in Pass 1
             }
-            if (disc == 40.0 || disc == 158.0) {
+            if (disc == 40.0 || disc == 163.0) {
                 let block_val = cartan_tree_get_f32(stmt, 1.0);
                 let block_stmts = cartan_tree_get_f32(block_val, 0.0);
                 var idx_stmt = 0.0;
@@ -2040,7 +2046,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                     cartan_tree_push(self_ptr.output, cartan_string_concat(unreachable, ":\n"));
                 }
             }
-            if (disc == 56.0 || disc == 119.0) {
+            if (disc == 56.0 || disc == 179.0) {
                 let condition = cartan_tree_get_f32(stmt, 1.0);
                 let body = cartan_tree_get_f32(stmt, 2.0);
                 let oth_val = cartan_tree_get_f32(stmt, 3.0);
@@ -2086,7 +2092,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 let num_labels = cartan_tree_len_f(self_ptr.loop_labels);
                 if (num_labels > 0.0) { cartan_tree_remove(self_ptr.loop_labels, num_labels - 1.0); }
             }
-            if (disc == 57.0 || disc == 120.0) {
+            if (disc == 57.0 || disc == 180.0) {
                 let num_labels = cartan_tree_len_f(self_ptr.loop_labels);
                 if (num_labels > 0.0) {
                     let last_pair = cartan_tree_get_f32(self_ptr.loop_labels, num_labels - 1.0);
@@ -2106,7 +2112,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                     cartan_tree_push(self_ptr.output, cartan_string_concat(unreachable, ":\n"));
                 }
             }
-            if (disc == 47.0 || disc == 109.0) {
+            if (disc == 47.0 || disc == 170.0) {
                 let name = cartan_tree_get_f32(stmt, 1.0);
                 let strategy = cartan_tree_get_f32(stmt, 2.0);
                 let body = cartan_tree_get_f32(stmt, 3.0);
@@ -2120,7 +2126,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 }
                 cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat("  ; --- End Mesh Block: ", name), " ---\n"));
             }
-            if (disc == 48.0 || disc == 111.0) {
+            if (disc == 48.0 || disc == 171.0) {
                 let body = cartan_tree_get_f32(stmt, 1.0);
                 let stmts = cartan_tree_get_f32(body, 0.0);
                 cartan_tree_push(self_ptr.output, "  ; --- Begin Multimodal Sync Block ---\n");
@@ -2134,7 +2140,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 cartan_tree_push(self_ptr.output, "  call void @cartan_rt_multimodal_sync_end()\n");
                 cartan_tree_push(self_ptr.output, "  ; --- End Multimodal Sync Block ---\n");
             }
-            if (disc == 49.0 || disc == 112.0) {
+            if (disc == 49.0 || disc == 172.0) {
                 let body = cartan_tree_get_f32(stmt, 1.0);
                 let stmts = cartan_tree_get_f32(body, 0.0);
 
@@ -2149,7 +2155,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 cartan_tree_push(self_ptr.output, "  call void @cartan_rt_vmap_end()\n");
                 cartan_tree_push(self_ptr.output, "  ; --- End Vmap Block ---\n");
             }
-            if (disc == 50.0 || disc == 113.0) {
+            if (disc == 50.0 || disc == 173.0) {
                 let body = cartan_tree_get_f32(stmt, 1.0);
                 let stmts = cartan_tree_get_f32(body, 0.0);
 
@@ -2162,7 +2168,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 }
                 cartan_tree_push(self_ptr.output, "  call void @cartan_rt_doubt_end()\n");
             }
-            if (disc == 51.0 || disc == 114.0) {
+            if (disc == 51.0 || disc == 174.0) {
                 let body = cartan_tree_get_f32(stmt, 1.0);
                 let stmts = cartan_tree_get_f32(body, 0.0);
 
@@ -2175,7 +2181,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 }
                 cartan_tree_push(self_ptr.output, "  call void @cartan_rt_chain_end()\n");
             }
-            if (disc == 52.0 || disc == 115.0) {
+            if (disc == 52.0 || disc == 175.0) {
                 let body = cartan_tree_get_f32(stmt, 1.0);
                 let stmts = cartan_tree_get_f32(body, 0.0);
 
@@ -2188,7 +2194,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 }
                 cartan_tree_push(self_ptr.output, "  call void @cartan_rt_route_end()\n");
             }
-            if (disc == 53.0 || disc == 116.0) {
+            if (disc == 53.0 || disc == 176.0) {
                 let body = cartan_tree_get_f32(stmt, 1.0);
                 let stmts = cartan_tree_get_f32(body, 0.0);
 
@@ -2201,7 +2207,7 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 }
                 cartan_tree_push(self_ptr.output, "  call void @cartan_rt_grok_end()\n");
             }
-            if (disc == 54.0 || disc == 117.0) {
+            if (disc == 54.0 || disc == 177.0) {
                 let body = cartan_tree_get_f32(stmt, 1.0);
                 let stmts = cartan_tree_get_f32(body, 0.0);
 
@@ -2214,12 +2220,62 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 }
                 cartan_tree_push(self_ptr.output, "  call void @cartan_rt_override_end()\n");
             }
-            if (disc == 55.0 || disc == 118.0) {
+            if (disc == 55.0 || disc == 178.0) {
                 let func = cartan_tree_get_f32(stmt, 1.0);
                 let f_decl = cartan_tree_create();
                 cartan_tree_push(f_decl, 44.0);
                 cartan_tree_push(f_decl, func);
                 llvm_visit_stmt(self_ptr, f_decl);
+            }
+            if (disc == 32.0 || disc == 155.0) { // EvolveBlock
+                let ev_name = cartan_tree_get_f32(stmt, 1.0);
+                let ev_body = cartan_tree_get_f32(stmt, 2.0);
+                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat("  ; --- Begin Evolve Block: ", ev_name), " ---\n"));
+                if (ev_body != 0.0) {
+                    let ev_stmts = cartan_tree_get_f32(ev_body, 0.0);
+                    var idx_ev = 0.0;
+                    while (idx_ev < cartan_tree_len_f(ev_stmts)) {
+                        var ev_stmt = cartan_tree_get_f32(ev_stmts, idx_ev);
+                        idx_ev = idx_ev + 1.0;
+                        llvm_visit_stmt(self_ptr, ev_stmt);
+                    }
+                }
+                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat("  ; --- End Evolve Block: ", ev_name), " ---\n"));
+            }
+            if (disc == 36.0 || disc == 159.0) { // Spawn
+                let sp_name = cartan_tree_get_f32(stmt, 1.0);
+                let sp_body = cartan_tree_get_f32(stmt, 2.0);
+                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat("  ; --- Begin Spawn Block: ", sp_name), " ---\n"));
+                let sp_task_reg = next_reg(self_ptr);
+                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", sp_task_reg), " = call double @cartan_async_spawn(ptr null)"), "\n"));
+                if (sp_body != 0.0) {
+                    let sp_stmts = cartan_tree_get_f32(sp_body, 0.0);
+                    var idx_sp = 0.0;
+                    while (idx_sp < cartan_tree_len_f(sp_stmts)) {
+                        var sp_stmt = cartan_tree_get_f32(sp_stmts, idx_sp);
+                        idx_sp = idx_sp + 1.0;
+                        llvm_visit_stmt(self_ptr, sp_stmt);
+                    }
+                }
+                let yld_reg = next_reg(self_ptr);
+                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", yld_reg), " = call double @cartan_async_yield()"), "\n"));
+                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat("  ; --- End Spawn Block: ", sp_name), " ---\n"));
+            }
+            if (disc == 35.0 || disc == 158.0) { // ReceiveDecl
+                let rc_name = cartan_tree_get_f32(stmt, 1.0);
+                let rc_params = cartan_tree_get_f32(stmt, 2.0);
+                let rc_body = cartan_tree_get_f32(stmt, 3.0);
+                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat("  ; --- Begin Receive Handler: ", rc_name), " ---\n"));
+                if (rc_body != 0.0) {
+                    let rc_stmts = cartan_tree_get_f32(rc_body, 0.0);
+                    var idx_rc = 0.0;
+                    while (idx_rc < cartan_tree_len_f(rc_stmts)) {
+                        var rc_stmt = cartan_tree_get_f32(rc_stmts, idx_rc);
+                        idx_rc = idx_rc + 1.0;
+                        llvm_visit_stmt(self_ptr, rc_stmt);
+                    }
+                }
+                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat("  ; --- End Receive Handler: ", rc_name), " ---\n"));
             }
         }
 

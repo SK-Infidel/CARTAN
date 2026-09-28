@@ -427,11 +427,17 @@ fn main(argc: float, argv: ptr) -> float {
     cartan_flush(0.0);
     run_step(t66_cmd);
 
-    // [67/67] Positive test: test_attention_fused_methods
+    // [67/68] Positive test: test_attention_fused_methods
     let t67_cmd = "cartanc.exe build test/compiler_suite/test_attention_fused_methods.car -o build/test_attention_fused_methods.exe && build\\test_attention_fused_methods.exe";
-    printf("[67/67] [// run-pass] Building and Executing Attention, Fused Kernel, Method Dispatch & Decls: %s\n", t67_cmd);
+    printf("[67/68] [// run-pass] Building and Executing Attention, Fused Kernel, Method Dispatch & Decls: %s\n", t67_cmd);
     cartan_flush(0.0);
     run_step(t67_cmd);
+
+    // [68/68] Positive test: test_async_spawn_evolve
+    let t68_cmd = "cartanc.exe build test/compiler_suite/test_async_spawn_evolve.car -o build/test_async_spawn_evolve.exe && build\\test_async_spawn_evolve.exe";
+    printf("[68/68] [// run-pass] Building and Executing Async Spawn, Evolve Block Lowering, & Collision Rectification: %s\n", t68_cmd);
+    cartan_flush(0.0);
+    run_step(t68_cmd);
 
     if (g_failed_count > 0.0) {
         printf("\n====================================================\n", "");
@@ -439,7 +445,7 @@ fn main(argc: float, argv: ptr) -> float {
         printf("====================================================\n", "");
         return 1.0;
     }
-    printf("\nAll 67 compiler snapshot test targets executed successfully (0 failures)!\n", "");
+    printf("\nAll 68 compiler snapshot test targets executed successfully (0 failures)!\n", "");
     return 0.0;
 }
 

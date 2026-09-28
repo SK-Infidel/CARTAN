@@ -3316,6 +3316,30 @@ This file tracks technical debt and bugs identified during repository code revie
 - **Description**: When lowering `Expr::MethodCall` for user-defined methods, `llvm_codegen.car` emits `call float @cartan_method_<name>(ptr clean_obj)` and completely drops the `args` tree, discarding all passed arguments. In addition, it checks `disc == 18.0 || disc == 29.0` instead of canonical line `82.0`.
 - **Resolution**: Updated `MethodCall` discriminant check to `18.0 || 82.0`, iterated across `args`, evaluated each parameter, correctly formatted typed parameter registers into the LLVM IR call instruction, and verified multi-argument dispatch in Target 67.
 
+---
+
+## [ISSUE-242] [FIXED] Obsolete Statement Line Number Discriminants in `llvm_codegen.car`
+- **Severity**: High (Codegen Safety & Silent Interception)
+- **Component**: [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car#L1947)
+- **Description**: Statements 43 through 62 in `llvm_visit_stmt` check obsolete line numbers (`103..126`). Several of these numbers collide directly with `ExprStmt` (line 124), `EnumDecl` (line 125), and `VarDecl` (line 126), causing common statements to be intercepted by Sparsity, PruneGraph, and EmitSpike.
+- **Resolution**: Updated all statement line discriminant checks in `llvm_codegen.car` to canonical line numbers from `ast.ch:enum Stmt` (`130..185`), eliminating collisions.
+
+---
+
+## [ISSUE-243] [FIXED] Statement Arity Mismatch in `ast.ch:enum Stmt` (`EvolveBlock`, `Spawn`, `ReceiveDecl`)
+- **Severity**: High (AST Integrity & Memory Safety)
+- **Component**: [`src/cartanc/ast.ch`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/ast.ch#L155), [`src/cartanc/parser.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/parser.car#L638)
+- **Description**: `parser.car` constructs `Stmt::EvolveBlock(name, body)` and `Stmt::Spawn(name, body)` with 2 arguments, and `Stmt::ReceiveDecl(name, params, body)` with 3 arguments. However, `ast.ch` declares `EvolveBlock(ptr)`, `Spawn(ptr)`, and `ReceiveDecl(string, ptr)`. These parameter count mismatches corrupt AST node payloads.
+- **Resolution**: Aligned declarations in `ast.ch:enum Stmt` to match parser constructions (`EvolveBlock(string, ptr)`, `Spawn(string, ptr)`, `ReceiveDecl(string, tree<ptr>, ptr)`).
+
+---
+
+## [ISSUE-244] [FIXED] Missing Codegen Lowering for `spawn` and `evolve` Blocks
+- **Severity**: High (Concurrency & Language Completeness)
+- **Component**: [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car)
+- **Description**: `Stmt::Spawn` (36.0 / 159.0) and `Stmt::EvolveBlock` (32.0 / 155.0) are parsed by `parser.car` but have zero lowering handlers in `llvm_codegen.car:llvm_visit_stmt`, silently dropping concurrency and evolution logic.
+- **Resolution**: Implemented lowering handlers in `llvm_codegen.car` for `Spawn`, `EvolveBlock`, and `ReceiveDecl`, integrated with `core_runtime.car:cartan_async_spawn` and `cartan_async_yield`, and verified execution in Target 68.
+
 
 
 

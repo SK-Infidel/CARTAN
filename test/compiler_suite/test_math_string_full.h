@@ -191,6 +191,7 @@ double cartan_export_cartan_rt_alloc_lattice(double* args);
 double cartan_export_cartan_rt_alloc_tree(double* args);
 double cartan_export_cartan_alloc_parameter_adam(double* args);
 double cartan_export_cartan_alloc_parameter_adam_nd(double* args);
+double cartan_export_cartan_tensor_alloc_nd(double* args);
 double cartan_export_cartan_emit_spike(double* args);
 double cartan_export_cartan_get_last_spike(double* args);
 double cartan_export_cartan_fluid_precision_start(double* args);

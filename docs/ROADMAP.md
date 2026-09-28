@@ -310,6 +310,8 @@ This roadmap tracks the implementation of the advanced AI optimizations and nati
 - [x] **9. Full Regression Suite (66 Targets)**: 66/66 regression suite test targets passing with 0 failures (Exit code 0).
 - [x] **10. AST Variant Hardening, Statement Collisions & Attention/Fused Codegen (`src/cartanc/`, Sprint 457)**: Rectified statement discriminant collisions, added 5 missing AST variants to `ast.ch:enum Expr`, implemented authentic `@attention` operator with Sigmoid gating and RMS scaling, lowered `fuse { ... }` blocks, and enabled multi-parameter `MethodCall` argument dispatch; Target 67 passing.
 - [x] **11. Full Regression Suite (67 Targets)**: 67/67 regression suite test targets passing with 0 failures (Exit code 0).
+- [x] **12. Statement Line Index Alignment, AST Arity Harmonization, and Spawn/Evolve Block Lowering (`src/cartanc/`, Sprint 458)**: Aligned all statement discriminant checks in `llvm_visit_stmt` to canonical line indices from `ast.ch:enum Stmt`, eliminating silent collision vulnerabilities with common statements (`ExprStmt`, `EnumDecl`, `VarDecl`). Harmonized AST constructor arities for `EvolveBlock`, `Spawn`, and `ReceiveDecl`. Implemented codegen lowering for `Spawn`, `EvolveBlock`, and `ReceiveDecl` with full register preservation, and implemented `cartan_tensor_alloc_nd` in `core_runtime.car`; Target 68 passing.
+- [x] **13. Full Regression Suite (68 Targets)**: 68/68 regression suite test targets passing with 0 failures (Exit code 0).
 
 
 

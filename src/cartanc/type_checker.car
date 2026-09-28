@@ -391,7 +391,7 @@ fn type_checker_init() -> TypeChecker {
             let alias = cartan_tree_get_f32(stmt, 2.0);
             var scope = cartan_tree_get_f32(self_ptr.symbol_table, cartan_tree_len(self_ptr.symbol_table) - 1.0);
             cartan_dict_set(scope, alias, CartanType::Unknown);
-        } else if (disc == 56.0 || disc == 119.0) { // Satisfy
+        } else if (disc == 56.0 || disc == 119.0 || disc == 179.0) { // Satisfy
             let condition = cartan_tree_get_f32(stmt, 1.0);
             let body = cartan_tree_get_f32(stmt, 2.0);
             let oth_val = cartan_tree_get_f32(stmt, 3.0);
@@ -412,8 +412,50 @@ fn type_checker_init() -> TypeChecker {
                 }
                 pop_scope(self_ptr);
             }
-        } else if (disc == 57.0 || disc == 120.0) { // Backtrack
+        } else if (disc == 57.0 || disc == 120.0 || disc == 180.0) { // Backtrack
             // Statement jump, scope preserved
+        } else if (disc == 32.0 || disc == 155.0) { // EvolveBlock
+            let ev_body = cartan_tree_get_f32(stmt, 2.0);
+            if (ev_body != 0.0) {
+                push_scope(self_ptr);
+                var idx_ev = 0.0;
+                let ev_stmts = cartan_tree_get_f32(ev_body, 0.0);
+                if (ev_stmts != 0.0) {
+                    while (idx_ev < cartan_tree_len(ev_stmts)) {
+                        tc_visit_stmt(self_ptr, cartan_tree_get_f32(ev_stmts, idx_ev));
+                        idx_ev = idx_ev + 1.0;
+                    }
+                }
+                pop_scope(self_ptr);
+            }
+        } else if (disc == 36.0 || disc == 159.0) { // Spawn
+            let sp_body = cartan_tree_get_f32(stmt, 2.0);
+            if (sp_body != 0.0) {
+                push_scope(self_ptr);
+                var idx_sp = 0.0;
+                let sp_stmts = cartan_tree_get_f32(sp_body, 0.0);
+                if (sp_stmts != 0.0) {
+                    while (idx_sp < cartan_tree_len(sp_stmts)) {
+                        tc_visit_stmt(self_ptr, cartan_tree_get_f32(sp_stmts, idx_sp));
+                        idx_sp = idx_sp + 1.0;
+                    }
+                }
+                pop_scope(self_ptr);
+            }
+        } else if (disc == 35.0 || disc == 158.0) { // ReceiveDecl
+            let rc_body = cartan_tree_get_f32(stmt, 3.0);
+            if (rc_body != 0.0) {
+                push_scope(self_ptr);
+                var idx_rc = 0.0;
+                let rc_stmts = cartan_tree_get_f32(rc_body, 0.0);
+                if (rc_stmts != 0.0) {
+                    while (idx_rc < cartan_tree_len(rc_stmts)) {
+                        tc_visit_stmt(self_ptr, cartan_tree_get_f32(rc_stmts, idx_rc));
+                        idx_rc = idx_rc + 1.0;
+                    }
+                }
+                pop_scope(self_ptr);
+            }
         }
     }
 
