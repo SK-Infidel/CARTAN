@@ -3340,6 +3340,38 @@ This file tracks technical debt and bugs identified during repository code revie
 - **Description**: `Stmt::Spawn` (36.0 / 159.0) and `Stmt::EvolveBlock` (32.0 / 155.0) are parsed by `parser.car` but have zero lowering handlers in `llvm_codegen.car:llvm_visit_stmt`, silently dropping concurrency and evolution logic.
 - **Resolution**: Implemented lowering handlers in `llvm_codegen.car` for `Spawn`, `EvolveBlock`, and `ReceiveDecl`, integrated with `core_runtime.car:cartan_async_spawn` and `cartan_async_yield`, and verified execution in Target 68.
 
+---
+
+## [ISSUE-245] [FIXED] AST Signature Mismatch for `GraphDecl` and `KnowledgeBaseDecl` in `ast.ch:enum Stmt`
+- **Severity**: High (AST Integrity & Type Consistency)
+- **Component**: [`src/cartanc/ast.ch`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/ast.ch#L152), [`src/cartanc/parser.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/parser.car#L612)
+- **Description**: `parser.car` parses blocks for `GraphDecl` and `KnowledgeBaseDecl` via `parse_block`, producing a `BlockStmt` pointer (`ptr`), and constructs `Stmt::GraphDecl(name, body)` and `Stmt::KnowledgeBaseDecl(name, body)`. However, `ast.ch` declares `GraphDecl(string, tree<ptr>)` and `KnowledgeBaseDecl(string, tree<ptr>)`. This parameter type mismatch corrupts node payload interpretation.
+- **Resolution**: Aligned declarations in `ast.ch:enum Stmt` to `GraphDecl(string, ptr)` and `KnowledgeBaseDecl(string, ptr)`.
+
+---
+
+## [ISSUE-246] [FIXED] Missing Lowering and Scoping for `JitBlock` (`39.0 || 162.0`) and `DataframeDecl` (`37.0 || 160.0`)
+- **Severity**: High (Compiler Language Completeness)
+- **Component**: [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car), [`src/cartanc/type_checker.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/type_checker.car)
+- **Description**: `Stmt::JitBlock` and `Stmt::DataframeDecl` are parsed in `parser.car` but have no visitor logic in `type_checker.car:tc_visit_stmt` and no lowering logic in `llvm_codegen.car:llvm_visit_stmt`, silently dropping JAX-style JIT compilation blocks and DataFrame definitions.
+- **Resolution**: Implemented recursive block statement visitor logic in `type_checker.car:tc_visit_stmt` and lowering in `llvm_codegen.car:llvm_visit_stmt`.
+
+---
+
+## [ISSUE-247] [FIXED] Missing Lowering for `GraphDecl`, `RuleDecl`, and `KnowledgeBaseDecl` (`29.0..31.0 || 152.0..154.0`)
+- **Severity**: High (Neuro-Symbolic Architecture Support)
+- **Component**: [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car), [`src/cartanc/type_checker.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/type_checker.car)
+- **Description**: Declarative neuro-symbolic language primitives `GraphDecl`, `RuleDecl`, and `KnowledgeBaseDecl` are parsed by `parser.car` but have no lowering handlers in `llvm_codegen.car:llvm_visit_stmt`.
+- **Resolution**: Implemented lowering in `llvm_codegen.car:llvm_visit_stmt` supporting both float and pointer/structure rule assignments, graph block statement execution, and knowledge base rule evaluations.
+
+---
+
+## [ISSUE-248] [FIXED] Contextual Declaration Dispatch for `graph` and `layer` in `src/cartanc/parser.car`
+- **Severity**: High (Lexical Analysis & Keyword Recognition)
+- **Component**: [`src/cartanc/parser.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/parser.car#L145), [`src/cartanc/lexer.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/lexer.car)
+- **Description**: `graph` and `layer` statements failed during declaration parsing because they were not matched as keywords. However, reserving them globally in `lexer.car:check_keyword` caused cascading collisions across standard libraries (`src/std/csr_graph.cl: graph: CsrGraph`, `src/std/ingest.cl: let pattern = ...`) and test models (`test/geomind/train.cl`).
+- **Resolution**: Implemented contextual declaration recognition in `parser.car:declaration` for `graph` and `layer` when encountered as leading identifiers at statement/declaration level, preserving full identifier flexibility for parameters and variables throughout the codebase.
+
 
 
 

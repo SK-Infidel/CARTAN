@@ -456,6 +456,67 @@ fn type_checker_init() -> TypeChecker {
                 }
                 pop_scope(self_ptr);
             }
+        } else if (disc == 39.0 || disc == 162.0) { // JitBlock
+            let jit_body = cartan_tree_get_f32(stmt, 1.0);
+            if (jit_body != 0.0) {
+                push_scope(self_ptr);
+                var idx_j = 0.0;
+                let j_stmts = cartan_tree_get_f32(jit_body, 0.0);
+                if (j_stmts != 0.0) {
+                    while (idx_j < cartan_tree_len(j_stmts)) {
+                        tc_visit_stmt(self_ptr, cartan_tree_get_f32(j_stmts, idx_j));
+                        idx_j = idx_j + 1.0;
+                    }
+                }
+                pop_scope(self_ptr);
+            }
+        } else if (disc == 37.0 || disc == 160.0) { // DataframeDecl
+            let df_body = cartan_tree_get_f32(stmt, 2.0);
+            if (df_body != 0.0) {
+                push_scope(self_ptr);
+                var idx_df = 0.0;
+                let df_stmts = cartan_tree_get_f32(df_body, 0.0);
+                if (df_stmts != 0.0) {
+                    while (idx_df < cartan_tree_len(df_stmts)) {
+                        tc_visit_stmt(self_ptr, cartan_tree_get_f32(df_stmts, idx_df));
+                        idx_df = idx_df + 1.0;
+                    }
+                }
+                pop_scope(self_ptr);
+            }
+        } else if (disc == 29.0 || disc == 152.0) { // GraphDecl
+            let g_body = cartan_tree_get_f32(stmt, 2.0);
+            if (g_body != 0.0) {
+                push_scope(self_ptr);
+                var idx_g = 0.0;
+                let g_stmts = cartan_tree_get_f32(g_body, 0.0);
+                if (g_stmts != 0.0) {
+                    while (idx_g < cartan_tree_len(g_stmts)) {
+                        tc_visit_stmt(self_ptr, cartan_tree_get_f32(g_stmts, idx_g));
+                        idx_g = idx_g + 1.0;
+                    }
+                }
+                pop_scope(self_ptr);
+            }
+        } else if (disc == 30.0 || disc == 153.0) { // RuleDecl
+            let r_expr = cartan_tree_get_f32(stmt, 2.0);
+            if (r_expr != 0.0) {
+                tc_visit_expr(self_ptr, r_expr);
+            }
+        } else if (disc == 31.0 || disc == 154.0) { // KnowledgeBaseDecl
+            let kb_body = cartan_tree_get_f32(stmt, 2.0);
+            if (kb_body != 0.0) {
+                push_scope(self_ptr);
+                var idx_kb = 0.0;
+                let kb_stmts = cartan_tree_get_f32(kb_body, 0.0);
+                if (kb_stmts != 0.0) {
+                    while (idx_kb < cartan_tree_len(kb_stmts)) {
+                        tc_visit_stmt(self_ptr, cartan_tree_get_f32(kb_stmts, idx_kb));
+                        idx_kb = idx_kb + 1.0;
+                    }
+                }
+                pop_scope(self_ptr);
+            }
         }
     }
 

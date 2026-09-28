@@ -1,3 +1,24 @@
+## [8.417.0] - 2026-09-28 (Sprint 459: Neuro-Symbolic Declarations, JIT & DataFrame Lowering, and Lexer Keywords)
+
+### Completed & Validated
+- **AST Signature Alignment (`src/cartanc/ast.ch`, `[ISSUE-245]`)**:
+  - Aligned `GraphDecl` and `KnowledgeBaseDecl` in `ast.ch:enum Stmt` to match `parser.car:parse_block` return signature (`GraphDecl(string, ptr)`, `KnowledgeBaseDecl(string, ptr)`), resolving node payload memory corruption.
+- **Type Checker Scoping & Visitor Handlers (`src/cartanc/type_checker.car`, `[ISSUE-246]`, `[ISSUE-247]`)**:
+  - Implemented statement visitor handlers in `tc_visit_stmt` for `JitBlock` (`39.0 || 162.0`), `DataframeDecl` (`37.0 || 160.0`), `GraphDecl` (`29.0 || 152.0`), `RuleDecl` (`30.0 || 153.0`), and `KnowledgeBaseDecl` (`31.0 || 154.0`).
+  - Added symbol environment binding for rules and recursive block statement type-checking for declarative structures.
+- **LLVM IR Codegen Lowering (`src/cartanc/llvm_codegen.car`, `[ISSUE-246]`, `[ISSUE-247]`)**:
+  - Implemented `Stmt::JitBlock` lowering with full internal statement codegen.
+  - Implemented `Stmt::DataframeDecl` lowering with structured DataFrame block emission.
+  - Implemented `Stmt::GraphDecl` lowering with graph topology and statement execution.
+  - Implemented `Stmt::RuleDecl` lowering with dynamic type detection for float vs pointer/structure allocations and local symbol binding.
+  - Implemented `Stmt::KnowledgeBaseDecl` lowering with nested rule and fact execution.
+- **Contextual Declaration Recognition (`src/cartanc/parser.car`, `[ISSUE-248]`)**:
+  - Implemented contextual keyword recognition for `graph` and `layer` declarations at the statement level in `parser.car:declaration`, preventing identifier collisions with parameters and variables across standard libraries and test models without modifying global lexer tokenization.
+- **Regression Suite Expansion & Empirical Verification (`test/compiler_suite/`)**:
+  - Authored Target 69 regression test: `test/compiler_suite/test_neuro_symbolic_jit.car` verifying `jit` block execution, `dataframe` block calculations, `graph` block topological metrics, `rule` arithmetic / predicate resolution, and `knowledge_base` rule evaluation.
+  - Whitelisted Target 69 in `.gitignore` and registered in `test/compiler_suite/run_tests.car`.
+  - Rebuilt self-hosting `cartanc.exe` and test runner `build/run_tests.exe`.
+
 ## [8.416.0] - 2026-09-28 (Sprint 458: Statement Line Index Alignment, AST Arity Harmonization, and Spawn/Evolve Block Lowering)
 
 ### Completed & Validated

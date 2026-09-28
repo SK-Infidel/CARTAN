@@ -143,6 +143,12 @@ extern fn printf(fmt: string) -> i32;
                 let name_tok = consume(self_ptr, 107.0, "Expected module identifier");
                 consume(self_ptr, 161.0, "Expected ; after module directive");
                 return Stmt::Placeholder("module_directive");
+            } else if (cartan_string_eq(lex, "graph") != 0.0) {
+                advance(self_ptr);
+                return graph_declaration(self_ptr);
+            } else if (cartan_string_eq(lex, "layer") != 0.0) {
+                advance(self_ptr);
+                return layer_declaration(self_ptr);
             }
         }
 

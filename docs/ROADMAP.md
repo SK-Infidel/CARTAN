@@ -312,6 +312,8 @@ This roadmap tracks the implementation of the advanced AI optimizations and nati
 - [x] **11. Full Regression Suite (67 Targets)**: 67/67 regression suite test targets passing with 0 failures (Exit code 0).
 - [x] **12. Statement Line Index Alignment, AST Arity Harmonization, and Spawn/Evolve Block Lowering (`src/cartanc/`, Sprint 458)**: Aligned all statement discriminant checks in `llvm_visit_stmt` to canonical line indices from `ast.ch:enum Stmt`, eliminating silent collision vulnerabilities with common statements (`ExprStmt`, `EnumDecl`, `VarDecl`). Harmonized AST constructor arities for `EvolveBlock`, `Spawn`, and `ReceiveDecl`. Implemented codegen lowering for `Spawn`, `EvolveBlock`, and `ReceiveDecl` with full register preservation, and implemented `cartan_tensor_alloc_nd` in `core_runtime.car`; Target 68 passing.
 - [x] **13. Full Regression Suite (68 Targets)**: 68/68 regression suite test targets passing with 0 failures (Exit code 0).
+- [x] **14. Neuro-Symbolic Declarations, JIT & DataFrame Lowering, and Lexer Keywords (`src/cartanc/`, Sprint 459)**: Aligned AST signatures for `GraphDecl` and `KnowledgeBaseDecl` to match `parser.car:parse_block` return type (`ptr`). Implemented lexical scoping in `type_checker.car:tc_visit_stmt` and LLVM IR lowering in `llvm_codegen.car:llvm_visit_stmt` for `JitBlock`, `DataframeDecl`, `GraphDecl`, `RuleDecl`, and `KnowledgeBaseDecl`. Added keyword recognition in `src/cartanc/lexer.car` for `graph`, `layer`, `macro`, `pattern`, and `replace`. Target 69 passing.
+- [x] **15. Full Regression Suite (69 Targets)**: 69/69 regression suite test targets passing with 0 failures (Exit code 0).
 
 
 

@@ -40,6 +40,7 @@ test*.car
 !test/compiler_suite/test_geometric_bridge_and_reflection.car
 !test/compiler_suite/test_attention_fused_methods.car
 !test/compiler_suite/test_async_spawn_evolve.car
+!test/compiler_suite/test_neuro_symbolic_jit.car
 !test/geomind/nses/**
 test/geomind/nses/*.exe
 test/geomind/nses/*.pdb

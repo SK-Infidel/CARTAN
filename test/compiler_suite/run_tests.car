@@ -433,11 +433,17 @@ fn main(argc: float, argv: ptr) -> float {
     cartan_flush(0.0);
     run_step(t67_cmd);
 
-    // [68/68] Positive test: test_async_spawn_evolve
+    // [68/69] Positive test: test_async_spawn_evolve
     let t68_cmd = "cartanc.exe build test/compiler_suite/test_async_spawn_evolve.car -o build/test_async_spawn_evolve.exe && build\\test_async_spawn_evolve.exe";
-    printf("[68/68] [// run-pass] Building and Executing Async Spawn, Evolve Block Lowering, & Collision Rectification: %s\n", t68_cmd);
+    printf("[68/69] [// run-pass] Building and Executing Async Spawn, Evolve Block Lowering, & Collision Rectification: %s\n", t68_cmd);
     cartan_flush(0.0);
     run_step(t68_cmd);
+
+    // [69/69] Positive test: test_neuro_symbolic_jit
+    let t69_cmd = "cartanc.exe build test/compiler_suite/test_neuro_symbolic_jit.car -o build/test_neuro_symbolic_jit.exe && build\\test_neuro_symbolic_jit.exe";
+    printf("[69/69] [// run-pass] Building and Executing Neuro-Symbolic Declarations, JIT, DataFrame, & Lexer Keywords: %s\n", t69_cmd);
+    cartan_flush(0.0);
+    run_step(t69_cmd);
 
     if (g_failed_count > 0.0) {
         printf("\n====================================================\n", "");
@@ -445,7 +451,7 @@ fn main(argc: float, argv: ptr) -> float {
         printf("====================================================\n", "");
         return 1.0;
     }
-    printf("\nAll 68 compiler snapshot test targets executed successfully (0 failures)!\n", "");
+    printf("\nAll 69 compiler snapshot test targets executed successfully (0 failures)!\n", "");
     return 0.0;
 }
 
