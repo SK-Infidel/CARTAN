@@ -3509,6 +3509,24 @@ This file tracks technical debt and bugs identified during repository code revie
   4. Implemented Rule 11 (Ontological Category Error & Discourse Veto) in `src/std/veto_gate.cl` and registered contradiction tokens `605`–`608` for Domain 6 logit suppression.
   5. Authored Target 77 (`test/compiler_suite/test_universal_domain_lexicon.car`), whitelisted in `.gitignore`, registered in `test/compiler_suite/run_tests.car`, and verified clean test execution.
 
+---
+
+## [ISSUE-259] [FIXED] Lack of Epistemology, Belief Revision & Probabilistic Reasoning Domain (Domain 9) & Defeasible Reasoning Integration
+- **Severity**: High (Core Probabilistic Reasoning & Belief State Estimation Gap)
+- **Component**: [`src/std/cargraph.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/cargraph.cl), [`src/std/nses_pipeline.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/nses_pipeline.cl), [`src/std/veto_gate.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/veto_gate.cl), [`src/std/domain_lexicon.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/domain_lexicon.cl), [`tools/cargraph_ingest.car`](file:///C:/Users/rich-/source/repos/CARTAN/tools/cargraph_ingest.car), [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl)
+- **Description**:
+  1. The NSES cognitive architecture currently lacks formal representations of Bayesian evidence updating ($P(H|E) \propto P(E|H)P(H)$), AGM belief revision postulates, Dempster-Shafer epistemic intervals, and Occam model selection.
+  2. There is no deductive-epistemic bridge connecting formal monotonic logic (Domain 7, Modus Ponens) with defeasible default reasoning (Domain 9), nor an epistemic-decision bridge connecting belief states to POMDP sequential decision making (Domain 8).
+  3. The veto gate lacks protection against dogmatic non-updatable priors, confirmation bias assertions, and base-rate neglect fallacies.
+- **Resolution**:
+  1. Synthesized Domain 9 (`EPISTEMOLOGY_BELIEF`) in `tools/cargraph_ingest.car` with 2 strict invariants (Bayesian Posterior Invariant Rule 72, AGM Minimal Loss Rule 73) and 8 relational rules (Rules 74..81), expanding the knowledge graph to 10 domains, 82 rules, and 20 strict invariants with a 96-variable SMT/SAT proof. Serialized updated flat binary `test/geomind/trainingdata/nses_knowledge.car_graph`.
+  2. Wired deductive-epistemic-decision CSR bridges in `src/std/nses_pipeline.cl`: Rule 54 (Modus Ponens) $\to$ Rule 75 (Defeasible Inference) $\to$ Rule 77 (POMDP Belief State), Rule 72 $\to$ Rule 74, Rule 73 $\to$ Rule 75, Rule 76 $\to$ Rule 80, and Hub-and-Spoke Rule 47 $\to$ Rule 72 (Language Hub $\to$ Bayesian Invariant). Added Stage 1 intent detection and Stage 3 seed selection (Rule 72).
+  3. Added Rule 12 (Epistemic Fallacy & Dogmatic Prior Veto) in `src/std/veto_gate.cl` and registered contradiction tokens `901`-`904` for loss shaping and logit suppression.
+  4. Expanded `src/std/domain_lexicon.cl` with Domain 9 lexicons, IC weights ($\ge 0.90$), and discourse framing (`[Epistemic Belief Frame]`).
+  5. Added Domain 9 lateral primes in `src/std/burroughs.cl` and dataset routing in `test/geomind/train.cl`.
+  6. Authored Target 78 (`test/compiler_suite/test_nses_epistemology_domain.car`), whitelisted in `.gitignore`, registered in `test/compiler_suite/run_tests.car`, and verified clean test execution across all 78 regression targets.
+
+
 
 
 

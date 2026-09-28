@@ -1,0 +1,28 @@
+# Sprint 468 Task List: Epistemology, Belief Revision & Probabilistic Reasoning (Domain 9)
+
+- [x] **Task 1: Ingest Domain 9 in Knowledge Compiler (`tools/cargraph_ingest.car`)**
+  - [x] Add Domain 9 (`EPISTEMOLOGY_BELIEF`) with 2 strict invariants and 8 relational rules (Rules 72..81).
+  - [x] Scale total domains to 10, total rules to 82, strict count to 20.
+  - [x] Wire SMT/SAT consistency checks (implications 72 -> 74, 73 -> 75, 54 -> 75, 75 -> 77, 76 -> 80, 47 -> 72) with 96-variable solver.
+  - [x] Recompile `tools/cargraph_ingest.car` and generate updated `nses_knowledge.car_graph`.
+- [x] **Task 2: Veto Gate, Lexicon & Burroughs Primes Integration**
+  - [x] Add Rule 12 (Domain 9) epistemic fallacy veto in `src/std/veto_gate.cl`.
+  - [x] Register default contradiction tokens `901`, `902`, `903`, `904` for Domain 9 in `veto_registry_populate_defaults`.
+  - [x] Add Domain 9 terms, IC weights, and discourse frame in `src/std/domain_lexicon.cl`.
+  - [x] Add Domain 9 lateral primes in `src/std/burroughs.cl`.
+- [x] **Task 3: Pipeline Intent Routing, CSR Bridges & Training Routing**
+  - [x] Add Stage 1 intent detection for epistemic queries in `src/std/nses_pipeline.cl`.
+  - [x] Add Stage 3 seed selection for Domain 9 (Rule 72: Bayesian Posterior Invariant).
+  - [x] Wire CSR bridges (72 -> 74, 73 -> 75, 54 -> 75, 75 -> 77, 76 -> 80, 47 -> 72) and fallbacks in `src/std/nses_pipeline.cl`.
+  - [x] In `test/geomind/train.cl`, route epistemic and probabilistic reasoning datasets to Domain 9.
+- [x] **Task 4: Author Target 78 & Regression Verification**
+  - [x] Author `test/compiler_suite/test_nses_epistemology_domain.car`.
+  - [x] Whitelist Target 78 in `.gitignore`.
+  - [x] Register Target 78 in `test/compiler_suite/run_tests.car` and update total count to 78.
+  - [x] Rebuild `build/run_tests.exe` and execute all 78 targets (must pass 78/78 cleanly with exit code 0).
+- [x] **Task 5: Documentation & Session Closeout**
+  - [x] Update `ISSUES.md` (`[ISSUE-259]` -> `[FIXED]`).
+  - [x] Update `CHANGELOG.md` (`[8.426.0]`).
+  - [x] Update `docs/ROADMAP.md`.
+  - [x] Save walkthrough to `docs/archive/sprint_468_walkthrough.md`.
+  - [x] Commit and push to `origin/master`.

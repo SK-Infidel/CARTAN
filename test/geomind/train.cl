@@ -2638,6 +2638,8 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
                         active_d = 7.0; // LOGIC_REASONING
                     } else if (cartan_string_contains(cur_dataset_name, "plan") != 0.0 || cartan_string_contains(cur_dataset_name, "decision") != 0.0 || cartan_string_contains(cur_dataset_name, "policy") != 0.0 || cartan_string_contains(cur_dataset_name, "game") != 0.0 || cartan_string_contains(cur_dataset_name, "pddl") != 0.0 || cartan_string_contains(cur_dataset_name, "mcts") != 0.0 || cartan_string_contains(cur_dataset_name, "reward") != 0.0 || cartan_string_contains(cur_dataset_name, "trajectory") != 0.0 || cartan_string_contains(cur_dataset_name, "alfworld") != 0.0) {
                         active_d = 8.0; // DECISION_PLANNING
+                    } else if (cartan_string_contains(cur_dataset_name, "epistem") != 0.0 || cartan_string_contains(cur_dataset_name, "belief") != 0.0 || cartan_string_contains(cur_dataset_name, "bayes") != 0.0 || cartan_string_contains(cur_dataset_name, "evidence") != 0.0 || cartan_string_contains(cur_dataset_name, "uncertain") != 0.0 || cartan_string_contains(cur_dataset_name, "credence") != 0.0) {
+                        active_d = 9.0; // EPISTEMOLOGY_BELIEF
                     } else {
                         active_d = 5.0; // CAUSAL_TAXONOMY
                     }

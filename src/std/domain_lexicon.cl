@@ -86,9 +86,11 @@ fn domain_lexicon_register_frames(lex: DomainLexicon) {
     cartan_tree_push(lex.discourse_frames_tree, "[Deductive Proof Frame] Given premises P and conditional implication P -> Q, rule of inference Modus Ponens validly entails consequent conclusion Q.");
     // Domain 8: DECISION_PLANNING (Sequential Policies & Game-Theoretic Framing)
     cartan_tree_push(lex.discourse_frames_tree, "[Decision Policy Frame] Optimal action A is executable because preconditions Pre(A) are entailed in state S, maximizing recursive Bellman value V*(s) toward goal G.");
+    // Domain 9: EPISTEMOLOGY_BELIEF (Epistemic Credence & Defeasible Belief Revision Framing)
+    cartan_tree_push(lex.discourse_frames_tree, "[Epistemic Belief Frame] Given prior probability P(H) and likelihood ratio P(E|H), empirical evidence E updates posterior credence P(H|E) via Bayes rule, minimally revising commitments under AGM contraction.");
 }
 
-// Populates universal cross-domain lexicons and ontologies across all 9 domains
+// Populates universal cross-domain lexicons and ontologies across all 10 domains
 fn domain_lexicon_populate_defaults(lex: DomainLexicon) {
     // --- Domain 0: SYSTEM_CORE ---
     domain_lexicon_add_term(lex, "conservation", 0.0, 0.95, "predicate");
@@ -153,6 +155,17 @@ fn domain_lexicon_populate_defaults(lex: DomainLexicon) {
     domain_lexicon_add_term(lex, "precondition", 8.0, 0.93, "predicate");
     domain_lexicon_add_term(lex, "admissibility", 8.0, 0.95, "predicate");
 
+    // --- Domain 9: EPISTEMOLOGY_BELIEF ---
+    domain_lexicon_add_term(lex, "bayes", 9.0, 0.98, "operator");
+    domain_lexicon_add_term(lex, "posterior", 9.0, 0.96, "entity");
+    domain_lexicon_add_term(lex, "likelihood", 9.0, 0.95, "entity");
+    domain_lexicon_add_term(lex, "prior", 9.0, 0.92, "entity");
+    domain_lexicon_add_term(lex, "epistemic", 9.0, 0.94, "predicate");
+    domain_lexicon_add_term(lex, "defeasible", 9.0, 0.96, "predicate");
+    domain_lexicon_add_term(lex, "agm_revision", 9.0, 0.97, "operator");
+    domain_lexicon_add_term(lex, "dempster_shafer", 9.0, 0.95, "operator");
+    domain_lexicon_add_term(lex, "credence", 9.0, 0.91, "entity");
+
     domain_lexicon_register_frames(lex);
 }
 
@@ -196,7 +209,7 @@ fn domain_lexicon_validate_predicate_category(
     if (cartan_string_contains(predicate, "photosynthesize") != 0.0 ||
         cartan_string_contains(predicate, "metabolize") != 0.0 ||
         cartan_string_contains(predicate, "digest") != 0.0) {
-        if (subject_domain == 2.0 || subject_domain == 3.0 || subject_domain == 7.0 || subject_domain == 8.0) {
+        if (subject_domain == 2.0 || subject_domain == 3.0 || subject_domain == 7.0 || subject_domain == 8.0 || subject_domain == 9.0) {
             return 0.0; // Invariant violation: Abstract formal systems do not have biological metabolism
         }
     }
@@ -204,7 +217,7 @@ fn domain_lexicon_validate_predicate_category(
     // Category Error: Differential geometry / topological calculus applied to discrete propositional truth tables
     if (cartan_string_contains(predicate, "exterior_derivative_of") != 0.0 ||
         cartan_string_contains(predicate, "geodesic_curvature_of") != 0.0) {
-        if (subject_domain == 7.0 || subject_domain == 3.0) {
+        if (subject_domain == 7.0 || subject_domain == 3.0 || subject_domain == 9.0) {
             return 0.0; // Discrete logic / Turing complexity classes do not have smooth differential forms
         }
     }

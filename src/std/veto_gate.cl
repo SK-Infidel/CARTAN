@@ -357,6 +357,30 @@ fn veto_registry_populate_defaults(reg: VetoRegistry) {
         "In accordance with formal ontological category theory, predicates and causal operations must preserve type-theoretic validity and cannot be attributed across disjoint ontological domains.",
         p11
     );
+
+    // 12. Epistemic Fallacy, Dogmatic Priors & Non-Updatable Beliefs (Domain 9: EPISTEMOLOGY_BELIEF)
+    let p12 = cartan_tree_create();
+    cartan_tree_push(p12, "dogmatic prior immune to evidence");
+    cartan_tree_push(p12, "zero likelihood updates prior to one");
+    cartan_tree_push(p12, "evidence contradicts prior so discard evidence");
+    cartan_tree_push(p12, "base rate is zero so posterior is certain");
+    cartan_tree_push(p12, "contradictory evidence retains prior without revision");
+    cartan_tree_push(p12, "posterior does not depend on likelihood");
+    cartan_tree_push(p12, "probability exceeds one");
+    cartan_tree_push(p12, "negative probability");
+    veto_registry_add_rule(
+        reg,
+        12.0,
+        9.0,
+        "In accordance with Bayesian epistemology and AGM belief revision, credences must obey finite probability axioms, update rationally via likelihood ratios upon empirical evidence, and minimally contract prior commitments to preserve consistency.",
+        p12
+    );
+
+    // Domain 9: EPISTEMOLOGY_BELIEF (Dogmatic priors, confirmation bias, base rate neglect, AGM collapse)
+    veto_registry_add_forbidden_token(reg, 9.0, 901.0);
+    veto_registry_add_forbidden_token(reg, 9.0, 902.0);
+    veto_registry_add_forbidden_token(reg, 9.0, 903.0);
+    veto_registry_add_forbidden_token(reg, 9.0, 904.0);
 }
 
 // Computes analytical symbolic penalty across output logits to shape training loss

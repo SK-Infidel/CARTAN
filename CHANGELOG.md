@@ -1,3 +1,26 @@
+## [8.426.0] - 2026-09-28 (Sprint 468: Epistemology, Belief Revision & Probabilistic Reasoning Domain 9)
+
+### Completed & Validated
+- **Epistemology, Belief Revision & Probabilistic Reasoning Domain Synthesis (`tools/cargraph_ingest.car`, `test/geomind/trainingdata/nses_knowledge.car_graph`, `[ISSUE-259]`)**:
+  - Synthesized Domain 9 (`EPISTEMOLOGY_BELIEF`) with 2 strict invariants (Bayesian Posterior Invariant Rule 72, AGM Minimal Information Loss Rule 73) and 8 relational rules (Likelihood Evidence Ratio Rule 74, Defeasible Default Inference Rule 75, Occam Model Selection Rule 76, POMDP Epistemic State Estimation Rule 77, Dempster-Shafer Epistemic Bounds Rule 78, Epistemic Closure & Warrant Rule 79, Bayesian Confirmation Holism Rule 80, Iterated Belief Contraction Rule 81).
+  - Scaled active knowledge base to 10 cognitive domains, 82 rules, and 20 strict invariants, mathematically proved consistent via 96-variable SMT/SAT consistency check prior to flat binary serialization.
+- **Deductive-Epistemic-Decision Architectural Bridge (`src/std/nses_pipeline.cl`)**:
+  - Established formal neuro-symbolic link connecting Domain 7 (Formal Logic) $\to$ Domain 9 (Epistemology & Defeasible Inference) $\to$ Domain 8 (POMDP Sequential Decisions): Rule 54 (Modus Ponens) $\to$ Rule 75 (Defeasible Inference) $\to$ Rule 77 (POMDP Epistemic State Estimation), bridging monotonic deduction with tentative belief revision and partially observable planning.
+  - Wired CSR bridge edges: Rule 72 $\to$ Rule 74 (Bayes Rule $\to$ Likelihood Ratio), Rule 73 $\to$ Rule 75 (AGM Revision $\to$ Defeasible Inference), Rule 76 $\to$ Rule 80 (Occam Model Selection $\to$ Bayesian Confirmation Holism), and Hub-and-Spoke Rule 47 $\to$ Rule 72 (Language Grounding $\to$ Bayesian Prior Invariant).
+  - Implemented Stage 1 intent detection routing epistemic queries (`epistemolog`, `belief`, `bayes`, `posterior`, `prior`, `evidence`, `credence`, `uncertainty`, `agm`, `defeasible`, `likelihood`, `occam`) to Domain 9.0, seeding Rule 72.
+  - Added memory tree fallbacks for unbacked node IDs 72..77.
+- **Epistemic Fallacy Veto Gate & Contradiction Logit Suppression (`src/std/veto_gate.cl`)**:
+  - Implemented Rule 12 (Domain 9) epistemic fallacy veto detecting dogmatic priors immune to evidence, confirmation bias assertions, base rate neglect, and catastrophic belief collapse violating AGM postulates.
+  - Registered contradiction tokens `901.0` (Dogmatic Prior Assertion), `902.0` (Confirmation Bias Fallacy), `903.0` (Base Rate Neglect), `904.0` (AGM Postulate Violation) in veto registry, suppressing logits below $0.0$ and calculating positive analytical loss penalties.
+- **Universal Cross-Domain Lexicon, Discourse Framing & Lateral Primes (`src/std/domain_lexicon.cl`, `src/std/burroughs.cl`, `test/geomind/train.cl`)**:
+  - Added Domain 9 specialized terminology (`bayes`, `posterior`, `likelihood`, `prior`, `epistemic`, `defeasible`, `agm_revision`, `dempster_shafer`, `credence`) with authentic IC weights ($\ge 0.90$).
+  - Registered canonical discourse frame `[Epistemic Belief Frame]` in `domain_lexicon.cl` and extended category error validation across Domain 9.
+  - Added Domain 9 lateral primes in `burroughs.cl` and dataset routing for epistemic corpora in `train.cl`.
+- **Regression Suite Expansion & Empirical Verification (`test/compiler_suite/`)**:
+  - Authored Target 78 regression test: `test/compiler_suite/test_nses_epistemology_domain.car` verifying knowledge base structure (10 domains, 82 rules, 20 invariants), Stage 1 epistemic intent routing, CSR Deductive-Epistemic bridge traversal, Rule 12 epistemic fallacy veto gating, contradiction logit suppression (901-904), cross-domain lexicon IC weights and discourse framing, and training dataset routing with zero mocking.
+  - Whitelisted Target 78 in `.gitignore` and registered in `test/compiler_suite/run_tests.car`.
+  - Rebuilt test runner `build/run_tests.exe` and verified 100% clean execution across all 78 compiler snapshot test targets (0 failures).
+
 ## [8.425.0] - 2026-09-28 (Sprint 467: Universal Cross-Domain Lexicon, Ontology & Discourse Grounding)
 
 ### Completed & Validated

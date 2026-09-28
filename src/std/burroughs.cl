@@ -224,4 +224,9 @@ fn burroughs_pool_populate_defaults(pool: BurroughsPool) {
     burroughs_pool_add(pool, 19.0, 8.0, 1.0, "Decision policy surfaces collapse along Pareto frontiers toward mixed-strategy Nash equilibria.");
     burroughs_pool_add(pool, 20.0, 8.0, 2.0, "Monte Carlo tree expansions prune suboptimal state branches through stochastic upper confidence bounds.");
     burroughs_pool_add(pool, 21.0, 8.0, 3.0, "The shadow of iterated prisoner games enforces cooperation through infinite horizon discount factors.");
+
+    // --- Domain 9: Epistemology & Belief Revision Lateral Primes ---
+    burroughs_pool_add(pool, 22.0, 9.0, 1.0, "Bayesian belief distributions contract and shift across probability simplexes under streams of incoming empirical evidence.");
+    burroughs_pool_add(pool, 23.0, 9.0, 2.0, "Defeasible default assumptions hold tentatively until sharp counter-evidence triggers AGM epistemic contraction.");
+    burroughs_pool_add(pool, 24.0, 9.0, 3.0, "Occam razor carves minimal Kolmogorov complexity pathways through high-dimensional hypothesis spaces.");
 }

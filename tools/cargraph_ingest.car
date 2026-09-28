@@ -33,7 +33,7 @@ fn main(argc: float, argv: ptr) -> float {
     let builder = cargraph_builder_create(1536.0);
 
     // -------------------------------------------------------------------------
-    // 1. Ingest Cognitive Domains (6 Total Domains)
+    // 1. Ingest Cognitive Domains (10 Total Domains)
     // -------------------------------------------------------------------------
     cargraph_builder_add_domain(builder, 0.0, 0.0, 4.0, 4.0);   // SYSTEM_CORE (4 strict invariants)
     cargraph_builder_add_domain(builder, 1.0, 4.0, 8.0, 2.0);   // PHYSICS_SIM (2 strict, 6 factual)
@@ -44,6 +44,7 @@ fn main(argc: float, argv: ptr) -> float {
     cargraph_builder_add_domain(builder, 6.0, 42.0, 10.0, 2.0); // LANGUAGE_DISCOURSE (2 strict, 8 factual)
     cargraph_builder_add_domain(builder, 7.0, 52.0, 10.0, 2.0); // LOGIC_REASONING (2 strict, 8 factual)
     cargraph_builder_add_domain(builder, 8.0, 62.0, 10.0, 2.0); // DECISION_PLANNING (2 strict, 8 factual)
+    cargraph_builder_add_domain(builder, 9.0, 72.0, 10.0, 2.0); // EPISTEMOLOGY_BELIEF (2 strict, 8 factual)
 
     // -------------------------------------------------------------------------
     // 2. Ingest Rules & Guardrails
@@ -138,15 +139,27 @@ fn main(argc: float, argv: ptr) -> float {
     cargraph_builder_add_rule(builder, 8.0, 1.0, 0.0, "Deductive Action Preconditions: An action A is executable in state S if and only if the logical preconditions Pre(A) are deductively satisfied in S.");
     cargraph_builder_add_rule(builder, 8.0, 1.0, 0.0, "Heuristic Admissibility: An A* state-space search heuristic h(s) must never overestimate the true minimal cost to the goal state to guarantee optimality.");
 
-    printf("[Ingest Compiler] Ingested 9 cognitive domains and 72 structured rules (18 strict invariants).\n");
+    // --- Domain 9: EPISTEMOLOGY_BELIEF (Epistemology, Belief Revision & Probabilistic Reasoning) ---
+    cargraph_builder_add_rule(builder, 9.0, 0.0, 1.0, "Bayesian Posterior Invariant: Epistemic degrees of belief must update in accordance with Bayes rule: P(H|E) = (P(E|H) * P(H)) / P(E), preserving finite probability axioms.");
+    cargraph_builder_add_rule(builder, 9.0, 0.0, 1.0, "AGM Minimal Information Loss Invariant: Belief revision under contradictory evidence must satisfy the AGM postulates, minimally contracting prior commitments to restore consistency.");
+    cargraph_builder_add_rule(builder, 9.0, 1.0, 0.0, "Likelihood Evidence Ratio: Empirical observation E provides evidential support for hypothesis H over alternative H' if and only if likelihood ratio P(E|H) / P(E|H') strictly exceeds 1.0.");
+    cargraph_builder_add_rule(builder, 9.0, 1.0, 0.0, "Defeasible Default Inference: A proposition normally entailed by default logic holds tentatively until explicit contrary evidence defeats the defeasible inference.");
+    cargraph_builder_add_rule(builder, 9.0, 1.0, 0.0, "Occam Model Selection: Given equal empirical likelihood and explanatory warrant, models with lower Kolmogorov complexity and fewer free parameters possess higher prior probability.");
+    cargraph_builder_add_rule(builder, 9.0, 1.0, 0.0, "POMDP Epistemic State Estimation: In partially observable environments, the belief state vector updates through observation probabilities and state transition dynamics.");
+    cargraph_builder_add_rule(builder, 9.0, 1.0, 0.0, "Dempster-Shafer Epistemic Bounds: Epistemic uncertainty defines an interval [Bel(A), Pl(A)] bounded by lower belief commitment and upper plausibility measure.");
+    cargraph_builder_add_rule(builder, 9.0, 1.0, 0.0, "Epistemic Closure & Warrant: Knowledge entails justified true belief supported by reliable truth-conducive cognitive processes immune to Gettier defeaters.");
+    cargraph_builder_add_rule(builder, 9.0, 1.0, 0.0, "Bayesian Confirmation Holism: Evidence confirms an interconnected theoretical network rather than isolated propositions, distributing likelihood updates across prior dependencies.");
+    cargraph_builder_add_rule(builder, 9.0, 1.0, 0.0, "Iterated Belief Contraction: When retracting an asserted belief B, the agent removes B and all dependent derived propositions while retaining independent ground axioms.");
+
+    printf("[Ingest Compiler] Ingested 10 cognitive domains and 82 structured rules (20 strict invariants).\n");
 
     // -------------------------------------------------------------------------
     // 3. Automated SMT/SAT Consistency Verification Pass
     // -------------------------------------------------------------------------
     printf("[Ingest Compiler] Running SMT/SAT Propositional Consistency Verification Pass...\n");
-    let solver = sat_solver_create(80.0);
+    let solver = sat_solver_create(96.0);
 
-    // Assert strict invariants as positive ground axioms across all 9 domains
+    // Assert strict invariants as positive ground axioms across all 10 domains
     sat_assert_axiom(solver, 0.0);
     sat_assert_axiom(solver, 1.0);
     sat_assert_axiom(solver, 2.0);
@@ -165,6 +178,8 @@ fn main(argc: float, argv: ptr) -> float {
     sat_assert_axiom(solver, 53.0);
     sat_assert_axiom(solver, 62.0);
     sat_assert_axiom(solver, 63.0);
+    sat_assert_axiom(solver, 72.0);
+    sat_assert_axiom(solver, 73.0);
 
     // Model valid implication dependencies across domains
     sat_add_implication(solver, 6.0, 7.0);   // Kinetic Energy -> Inelastic Dissipation
@@ -189,6 +204,12 @@ fn main(argc: float, argv: ptr) -> float {
     sat_add_implication(solver, 62.0, 66.0); // Bellman Optimality -> Temporal Credit Assignment
     sat_add_implication(solver, 64.0, 65.0); // Nash Equilibrium -> Pareto Efficiency
     sat_add_implication(solver, 67.0, 71.0); // MCTS UCB1 -> Heuristic Admissibility
+    sat_add_implication(solver, 72.0, 74.0); // Bayes Rule -> Likelihood Ratio
+    sat_add_implication(solver, 73.0, 75.0); // AGM Revision -> Defeasible Inference
+    sat_add_implication(solver, 54.0, 75.0); // Modus Ponens -> Defeasible Logic Bridge
+    sat_add_implication(solver, 75.0, 77.0); // Defeasible Inference -> POMDP Epistemic State Estimation
+    sat_add_implication(solver, 76.0, 80.0); // Occam Model Selection -> Bayesian Confirmation Holism
+    sat_add_implication(solver, 47.0, 72.0); // Lexical Grounding Hub -> Bayesian Prior Invariant
 
     let is_consistent = sat_solve_consistency(solver);
     if (is_consistent == 0.0) {
@@ -198,7 +219,7 @@ fn main(argc: float, argv: ptr) -> float {
         sat_solver_free(solver);
         return 1.0;
     }
-    printf("[Ingest Compiler] [PASS] SMT/SAT consistency mathematically proved across 72 rules. Graph is SAT.\n");
+    printf("[Ingest Compiler] [PASS] SMT/SAT consistency mathematically proved across 82 rules. Graph is SAT.\n");
 
     // -------------------------------------------------------------------------
     // 4. Binary Emission

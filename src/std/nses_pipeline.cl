@@ -93,6 +93,11 @@ fn nses_pipeline_create(graph_path: string) -> NSES_Pipeline {
     csr_builder_add_edge(b, 62.0, 66.0, 1.20, 1.0, 0.0); // Bellman Optimality -> Temporal Credit Assignment
     csr_builder_add_edge(b, 64.0, 65.0, 1.15, 1.0, 0.0); // Nash Equilibrium -> Pareto Efficiency
     csr_builder_add_edge(b, 67.0, 71.0, 1.20, 1.0, 0.0); // MCTS UCB1 -> Heuristic Admissibility
+    csr_builder_add_edge(b, 72.0, 74.0, 1.30, 1.0, 0.0); // Bayes Rule -> Likelihood Ratio
+    csr_builder_add_edge(b, 73.0, 75.0, 1.25, 1.0, 0.0); // AGM Revision -> Defeasible Inference
+    csr_builder_add_edge(b, 54.0, 75.0, 1.25, 1.0, 0.0); // Modus Ponens -> Defeasible Logic Bridge (Domain 7 -> Domain 9)
+    csr_builder_add_edge(b, 75.0, 77.0, 1.20, 1.0, 0.0); // Defeasible Inference -> POMDP Epistemic State Estimation (Domain 9 -> Domain 8)
+    csr_builder_add_edge(b, 76.0, 80.0, 1.20, 1.0, 0.0); // Occam Model Selection -> Bayesian Confirmation Holism
 
     // Hub-and-Spoke Universal Cross-Domain Linguistic Grounding (Domain 6 -> All Domains)
     csr_builder_add_edge(b, 47.0, 0.0, 1.25, 1.0, 0.0);  // Lexical Grounding -> Conservation Invariant (Domain 0)
@@ -103,6 +108,7 @@ fn nses_pipeline_create(graph_path: string) -> NSES_Pipeline {
     csr_builder_add_edge(b, 47.0, 37.0, 1.15, 1.0, 0.0); // Lexical Grounding -> Kinematic Velocity (Domain 5)
     csr_builder_add_edge(b, 47.0, 54.0, 1.30, 1.0, 0.0); // Lexical Grounding -> Modus Ponens (Domain 7)
     csr_builder_add_edge(b, 47.0, 62.0, 1.25, 1.0, 0.0); // Lexical Grounding -> Bellman Optimality (Domain 8)
+    csr_builder_add_edge(b, 47.0, 72.0, 1.25, 1.0, 0.0); // Lexical Grounding -> Bayesian Posterior Invariant (Domain 9)
     let g = csr_builder_build(b);
     csr_builder_free(b);
 
@@ -181,6 +187,8 @@ fn nses_pipeline_execute_turn(
         routed_domain = 7.0; // LOGIC_REASONING
     } else if (cartan_string_contains(query, "decision") != 0.0 || cartan_string_contains(query, "plan") != 0.0 || cartan_string_contains(query, "game") != 0.0 || cartan_string_contains(query, "policy") != 0.0 || cartan_string_contains(query, "utility") != 0.0 || cartan_string_contains(query, "nash") != 0.0 || cartan_string_contains(query, "pareto") != 0.0 || cartan_string_contains(query, "bellman") != 0.0 || cartan_string_contains(query, "action") != 0.0 || cartan_string_contains(query, "reward") != 0.0 || cartan_string_contains(query, "mcts") != 0.0 || cartan_string_contains(query, "heuristic") != 0.0) {
         routed_domain = 8.0; // DECISION_PLANNING
+    } else if (cartan_string_contains(query, "epistemolog") != 0.0 || cartan_string_contains(query, "belief") != 0.0 || cartan_string_contains(query, "bayes") != 0.0 || cartan_string_contains(query, "posterior") != 0.0 || cartan_string_contains(query, "prior") != 0.0 || cartan_string_contains(query, "evidence") != 0.0 || cartan_string_contains(query, "credence") != 0.0 || cartan_string_contains(query, "uncertainty") != 0.0 || cartan_string_contains(query, "agm") != 0.0 || cartan_string_contains(query, "defeasible") != 0.0 || cartan_string_contains(query, "likelihood") != 0.0 || cartan_string_contains(query, "occam") != 0.0) {
+        routed_domain = 9.0; // EPISTEMOLOGY_BELIEF
     }
 
     // -------------------------------------------------------------------------
@@ -217,6 +225,9 @@ fn nses_pipeline_execute_turn(
         collections_list_push(pipe.act_list, 1.0);
     } else if (routed_domain == 8.0) {
         collections_list_push(pipe.seed_list, 70.0); // Seed: Rule 70 (Deductive Action Preconditions)
+        collections_list_push(pipe.act_list, 1.0);
+    } else if (routed_domain == 9.0) {
+        collections_list_push(pipe.seed_list, 72.0); // Seed: Rule 72 (Bayesian Posterior Invariant)
         collections_list_push(pipe.act_list, 1.0);
     } else {
         collections_list_push(pipe.seed_list, 44.0);
@@ -301,6 +312,18 @@ fn nses_pipeline_execute_turn(
                 cartan_tree_push(pipe.memory_tree, "Deductive Action Preconditions: An action A is executable in state S if and only if all preconditions Pre(A) are formally entailed: S entails Pre(A).");
             } else if (n_id == 71.0) {
                 cartan_tree_push(pipe.memory_tree, "Heuristic Admissibility: An evaluation heuristic h(n) in A* search is admissible if it never overestimates the true remaining cost to the goal state: h(n) <= h*(n).");
+            } else if (n_id == 72.0) {
+                cartan_tree_push(pipe.memory_tree, "Bayesian Posterior Invariant: Epistemic degrees of belief must update in accordance with Bayes rule: P(H|E) = (P(E|H) * P(H)) / P(E), preserving finite probability axioms.");
+            } else if (n_id == 73.0) {
+                cartan_tree_push(pipe.memory_tree, "AGM Minimal Information Loss Invariant: Belief revision under contradictory evidence must satisfy the AGM postulates, minimally contracting prior commitments to restore consistency.");
+            } else if (n_id == 74.0) {
+                cartan_tree_push(pipe.memory_tree, "Likelihood Evidence Ratio: Empirical observation E provides evidential support for hypothesis H over alternative H' if and only if likelihood ratio P(E|H) / P(E|H') strictly exceeds 1.0.");
+            } else if (n_id == 75.0) {
+                cartan_tree_push(pipe.memory_tree, "Defeasible Default Inference: A proposition normally entailed by default logic holds tentatively until explicit contrary evidence defeats the defeasible inference.");
+            } else if (n_id == 76.0) {
+                cartan_tree_push(pipe.memory_tree, "Occam Model Selection: Given equal empirical likelihood and explanatory warrant, models with lower Kolmogorov complexity and fewer free parameters possess higher prior probability.");
+            } else if (n_id == 77.0) {
+                cartan_tree_push(pipe.memory_tree, "POMDP Epistemic State Estimation: In partially observable environments, the belief state vector updates through observation probabilities and state transition dynamics.");
             }
         }
         m_idx = m_idx + 1.0;
