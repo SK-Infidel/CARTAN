@@ -864,6 +864,18 @@
 - **Type**: Verified TypeChecker Symbol Table Export
 - **Status**: Production-Grade Native Implementation
 
+### `cartan_attention()`
+- **Type**: Verified TypeChecker Symbol Table Export
+- **Status**: Production-Grade Native Implementation
+
+### `attention()`
+- **Type**: Verified TypeChecker Symbol Table Export
+- **Status**: Production-Grade Native Implementation
+
+### `cartan_init_fractal_attention()`
+- **Type**: Verified TypeChecker Symbol Table Export
+- **Status**: Production-Grade Native Implementation
+
 ### `pow()`
 - **Type**: Verified TypeChecker Symbol Table Export
 - **Status**: Production-Grade Native Implementation

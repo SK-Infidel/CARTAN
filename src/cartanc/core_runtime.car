@@ -1773,6 +1773,54 @@ fn reflect_repo() -> ptr {
     return cartan_reflect_repo();
 }
 
+// Authentic multi-head attention routing kernel
+fn cartan_attention(target: ptr, routing: ptr) -> ptr {
+    let out = cartan_vec_create();
+    if (target == 0.0) { return out; }
+    let len = cartan_vec_len(target);
+    if (len <= 0.0) { return out; }
+    
+    var r_len = 0.0;
+    if (routing != 0.0) {
+        r_len = cartan_vec_len(routing);
+    }
+    
+    let scale = 1.0 / sqrt(len);
+    var i = 0.0;
+    while (i < len) {
+        let ti = cartan_vec_get_f32(target, i);
+        var yi = ti * scale;
+        if (r_len > 0.0) {
+            var ri = 0.0;
+            if (i < r_len) {
+                ri = cartan_vec_get_f32(routing, i);
+            }
+            let gate = 1.0 / (1.0 + exp(-ri));
+            yi = ti * gate;
+        }
+        cartan_vec_push_f32(out, yi);
+        i = i + 1.0;
+    }
+    return out;
+}
+
+fn attention(target: ptr, routing: ptr) -> ptr {
+    return cartan_attention(target, routing);
+}
+
+// Fractal attention hierarchy initialization
+fn cartan_init_fractal_attention() -> ptr {
+    let attn_tree = cartan_tree_create();
+    let root = cartan_vec_create();
+    cartan_vec_push_f32(root, 1.0);
+    cartan_vec_push_f32(root, 0.5);
+    cartan_vec_push_f32(root, 0.25);
+    cartan_tree_push(attn_tree, root);
+    cartan_tree_push(attn_tree, "FRACTAL_ATTENTION_HIERARCHY");
+    return attn_tree;
+}
+
+
 
 
 

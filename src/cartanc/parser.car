@@ -1571,9 +1571,7 @@ extern fn printf(fmt: string) -> i32;
             consume(self_ptr, 150.0, "Expected  (  after @attention");
             let routing_tok = consume(self_ptr, 107.0, "Expected routing keyword");
             consume(self_ptr, 128.0, "Expected  = ");
-            let _tok6 = consume(self_ptr, 110.0, "Expected routing string");
-            let routing_val = "";
-            if (_tok6 != 0.0) { routing_val = cartan_tree_get_f32(_tok6.token_type, 1.0); }
+            let routing_val = expression(self_ptr);
             consume(self_ptr, 151.0, "Expected  ) ");
             
             let target = unary(self_ptr);

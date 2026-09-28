@@ -111,7 +111,12 @@ enum Expr {
     PagedAttention(ptr, ptr, ptr, ptr),
     ProjectVocab(ptr, ptr),
     WeightDecay(ptr, float),
-    ReflectRepo
+    ReflectRepo,
+    SievingCacheInit,
+    FractalAttentionInit,
+    ElasticVocabularyInit,
+    SpikePrimitive,
+    NeuronPrimitive
 }
 
 enum Stmt {

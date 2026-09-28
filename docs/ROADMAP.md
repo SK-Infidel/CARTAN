@@ -306,6 +306,11 @@ This roadmap tracks the implementation of the advanced AI optimizations and nati
 - [x] **5. Geometric Primitives, MSE Loss, BPE Tokenization, & MCTS Tree Search (`src/cartanc/core_runtime.car`, `src/cartanc/llvm_codegen.car`, Sprint 454)**: Implemented MSE loss calculation, Levi-Civita Riemannian parallel transport, BPE subword tokenization, span alignment, and UCB1 state-space tree search; Target 64 passing.
 - [x] **6. Authentic GEMM Matrix Multiplication, Transpose, Dynamic Hot-Swap & Pointer Ops (`src/cartanc/core_runtime.car`, `src/std/tensor.cl`, `src/cartanc/llvm_codegen.car`, Sprint 455)**: Implemented authentic $O(M \times K \times N)$ GEMM matrix multiplication, matrix transposition lowering and stdlib parity, dynamic graph hot-swapping with tree container support, and pointer `&x` and `*p` ops; Target 65 passing.
 - [x] **7. Full Regression Suite (65 Targets)**: 65/65 regression suite test targets passing with 0 failures (Exit code 0).
+- [x] **8. Geometric Alignment, Bridge, Text Manifold Embedding, & Repo Reflection (`src/cartanc/core_runtime.car`, `src/cartanc/llvm_codegen.car`, Sprint 456)**: Implemented continuous Lie manifold text embedding (`Cartan.lex_and_embed`), Riemannian geodesic tangent alignment (`Cartan.align_geodesics`), geometric chord bridge calculation (`Cartan.GeometricBridge`), and active repository graph reflection (`Cartan.reflect_repo`); Target 66 passing.
+- [x] **9. Full Regression Suite (66 Targets)**: 66/66 regression suite test targets passing with 0 failures (Exit code 0).
+- [x] **10. AST Variant Hardening, Statement Collisions & Attention/Fused Codegen (`src/cartanc/`, Sprint 457)**: Rectified statement discriminant collisions, added 5 missing AST variants to `ast.ch:enum Expr`, implemented authentic `@attention` operator with Sigmoid gating and RMS scaling, lowered `fuse { ... }` blocks, and enabled multi-parameter `MethodCall` argument dispatch; Target 67 passing.
+- [x] **11. Full Regression Suite (67 Targets)**: 67/67 regression suite test targets passing with 0 failures (Exit code 0).
+
 
 
 

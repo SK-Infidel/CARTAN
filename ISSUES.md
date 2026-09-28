@@ -3269,6 +3269,54 @@ This file tracks technical debt and bugs identified during repository code revie
 - **Description**: `ast.ch:98` defines `LexAndEmbed(ptr, ptr)` (2 arguments), but `parser.car:1707` constructs it with 1 argument (`Expr::LexAndEmbed(args[0])`). `ast.ch:91` defines `Attention(ptr, ptr, ptr, ptr)` (4 arguments), but `parser.car:1580` constructs it with 2 arguments (`Expr::Attention(target, routing_val)`).
 - **Resolution**: Aligned `LexAndEmbed(ptr)` to 1 argument and `Attention(ptr, ptr)` to 2 arguments in `ast.ch`.
 
+---
+
+## [ISSUE-237] [FIXED] Statement Discriminant Collisions in LLVM Codegen
+- **Severity**: High (Codegen Correctness & AST Integrity)
+- **Component**: [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car#L1745)
+- **Description**: Statement discriminant checks in `llvm_codegen.car` use obsolete line indices that collide with active enum variants in `ast.ch:enum Stmt`:
+  - `SequenceDecl`: checks `9.0 || 32.0` (collides with `EvolveBlock` 32.0; correct line is 127.0).
+  - `BlockDecl`: checks `10.0 || 34.0` (collides with `ImplDecl` 34.0; correct line is 128.0).
+  - `LatticeDecl`: checks `11.0 || 36.0` (collides with `Spawn` 36.0; correct line is 129.0).
+  - `TreeDecl`: checks `12.0 || 39.0` (collides with `JitBlock` 39.0; correct line is 130.0).
+  - `ExternFunctionDecl`: checks `15.0 || 48.0` (collides with `MultimodalBlock` 48.0; correct line is 133.0).
+  - `Block`: checks `36.0 || 99.0` (collides with `Spawn` 36.0; correct line is 158.0, index 40.0).
+  - `FunctionCall`: checks `17.0 || 27.0` (collides with `Expr::Attention` 27.0; correct line is 81.0).
+- **Resolution**: Aligned statement and expression discriminant checks in `llvm_codegen.car` to canonical variant indices and `ast.ch` line numbers. Verified in Target 67.
+
+---
+
+## [ISSUE-238] [FIXED] Missing AST Variant Definitions in `ast.ch:enum Expr`
+- **Severity**: High (AST Integrity & Type Safety)
+- **Component**: [`src/cartanc/ast.ch`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/ast.ch#L114), [`src/cartanc/parser.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/parser.car#L1882)
+- **Description**: `parser.car` constructs and returns `Expr::SievingCacheInit`, `Expr::FractalAttentionInit`, `Expr::ElasticVocabularyInit`, `Expr::SpikePrimitive`, and `Expr::NeuronPrimitive`. None of these variants are defined in `ast.ch:enum Expr`. Consequently, their variant tag defaults to `0.0`, silently corrupting these AST nodes into `Expr::Integer`.
+- **Resolution**: Declared all 5 variants in `ast.ch:enum Expr` (lines 115-119), added dual-discriminant type checking in `type_checker.car`, and implemented safe IR lowering in `llvm_codegen.car`.
+
+---
+
+## [ISSUE-239] [FIXED] Unhandled AST Expression Lowering & Missing Runtime for `@attention` (`Expr::Attention`)
+- **Severity**: High (Frontend Intelligence Primitives)
+- **Component**: [`src/cartanc/parser.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/parser.car#L1580), [`src/cartanc/type_checker.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/type_checker.car#L582), [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car), [`src/cartanc/core_runtime.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/core_runtime.car)
+- **Description**: `@attention(target, routing_val)` parses into `Expr::Attention(target, routing_val)`. In `type_checker.car`, it only checks single discriminant `27.0` (missing line discriminant `91.0`). In `llvm_codegen.car`, it is completely unhandled, falling through to `"0.0"`. `core_runtime.car` lacks an authentic `@attention` runtime kernel.
+- **Resolution**: Implemented authentic `cartan_attention(target: ptr, routing: ptr) -> ptr` in `core_runtime.car` with Sigmoid gating and RMS scaling, added `@attention` lexer/parser support, and lowered call to `@cartan_attention` in `llvm_codegen.car`. Verified in Target 67.
+
+---
+
+## [ISSUE-240] [FIXED] Unhandled AST Expression Lowering for `fused { ... }` (`Expr::FusedKernel`)
+- **Severity**: Medium (Compiler Feature Gap)
+- **Component**: [`src/cartanc/parser.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/parser.car#L2123), [`src/cartanc/type_checker.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/type_checker.car#L433), [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car)
+- **Description**: `fused { ... }` parses into `Expr::FusedKernel(blk)` (index 26.0 / line 90.0). `type_checker.car` only checks `26.0` (missing `90.0`). In `llvm_codegen.car`, `FusedKernel` is completely unhandled and returns `"0.0"`.
+- **Resolution**: Added dual discriminant checks (`26.0 || 90.0`) in `type_checker.car` and `llvm_codegen.car`. Lowered fused block statement execution and return value extraction in `llvm_visit_expr`. Verified in Target 67.
+
+---
+
+## [ISSUE-241] [FIXED] Argument Dropping in `Expr::MethodCall` Lowering in `src/cartanc/llvm_codegen.car`
+- **Severity**: High (Compiler Codegen Bug)
+- **Component**: [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car#L3089)
+- **Description**: When lowering `Expr::MethodCall` for user-defined methods, `llvm_codegen.car` emits `call float @cartan_method_<name>(ptr clean_obj)` and completely drops the `args` tree, discarding all passed arguments. In addition, it checks `disc == 18.0 || disc == 29.0` instead of canonical line `82.0`.
+- **Resolution**: Updated `MethodCall` discriminant check to `18.0 || 82.0`, iterated across `args`, evaluated each parameter, correctly formatted typed parameter registers into the LLVM IR call instruction, and verified multi-argument dispatch in Target 67.
+
+
 
 
 

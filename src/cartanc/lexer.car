@@ -124,6 +124,10 @@ fn check_keyword(lexeme: string) -> ptr {
     if (cartan_string_eq(lexeme, "fuzzy") != 0.0) { return TokenType::Fuzzy;}
     if (cartan_string_eq(lexeme, "evolve") != 0.0) { return TokenType::Evolve;}
     if (cartan_string_eq(lexeme, "paged_attention") != 0.0) { return TokenType::PagedAttention;}
+    if (cartan_string_eq(lexeme, "FractalAttentionBlock") != 0.0) { return TokenType::FractalAttentionBlockKw;}
+    if (cartan_string_eq(lexeme, "SievingCache") != 0.0) { return TokenType::SievingCacheKw;}
+    if (cartan_string_eq(lexeme, "ElasticVocabulary") != 0.0) { return TokenType::ElasticVocabularyKw;}
+    if (cartan_string_eq(lexeme, "backed_by") != 0.0) { return TokenType::BackedBy;}
     return TokenType::Identifier(lexeme);
 }
 
@@ -228,6 +232,37 @@ fn lexer_next_token(lexer: Lexer) -> Token {
                 span: Span { line: start_line, col_start: start_col, col_end: lexer.col, line_end: lexer.line }
             };
             return tok_prompt;
+        }
+
+        if (c == 64.0) { // '@'
+            lexer_advance(lexer); // skip '@'
+            if (is_alpha(lexer_peek(lexer)) == 1.0) {
+                while (is_alphanumeric(lexer_peek(lexer)) == 1.0) {
+                    lexer_advance(lexer);
+                }
+                var lexeme_at = substring(lexer.source, start_current + 1.0, lexer.current);
+                if (cartan_string_eq(lexeme_at, "attention") != 0.0) {
+                    var tok_attn = Token {
+                        token_type: TokenType::Attention,
+                        span: Span { line: start_line, col_start: start_col, col_end: lexer.col, line_end: lexer.line }
+                    };
+                    return tok_attn;
+                }
+                if (cartan_string_eq(lexeme_at, "simd") != 0.0) {
+                    var tok_simd = Token {
+                        token_type: TokenType::AtSimd,
+                        span: Span { line: start_line, col_start: start_col, col_end: lexer.col, line_end: lexer.line }
+                    };
+                    return tok_simd;
+                }
+                if (cartan_string_eq(lexeme_at, "inbounds") != 0.0) {
+                    var tok_inb = Token {
+                        token_type: TokenType::AtInbounds,
+                        span: Span { line: start_line, col_start: start_col, col_end: lexer.col, line_end: lexer.line }
+                    };
+                    return tok_inb;
+                }
+            }
         }
 
         // Identifiers and Keywords

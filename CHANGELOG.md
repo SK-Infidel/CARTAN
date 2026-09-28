@@ -1,3 +1,35 @@
+## [8.415.0] - 2026-09-28 (Sprint 457: AST Variant Hardening, Statement Collisions & Attention/Fused Codegen)
+
+### Completed & Validated
+- **Statement & Expression Discriminant Collision Rectification (`src/cartanc/llvm_codegen.car`, `[ISSUE-237]`)**:
+  - Aligned `SequenceDecl` check to `9.0 || 127.0` (unblocking `EvolveBlock` at 32.0).
+  - Aligned `BlockDecl` check to `10.0 || 128.0` (unblocking `ImplDecl` at 34.0).
+  - Aligned `LatticeDecl` check to `11.0 || 129.0` (unblocking `Spawn` at 36.0).
+  - Aligned `TreeDecl` check to `12.0 || 130.0` (unblocking `JitBlock` at 39.0).
+  - Aligned `ParameterDecl` check to `7.0 || 125.0` (unblocking `Throw` at 21.0).
+  - Aligned `ExternFunctionDecl` check to `15.0 || 133.0` (unblocking `MultimodalBlock` at 48.0).
+  - Aligned `Block` check to `40.0 || 158.0` (unblocking `Spawn` at 36.0).
+  - Aligned `FunctionCall` check to `17.0 || 81.0` (unblocking `Expr::Attention` at 27.0).
+- **AST Variant Hardening & Full Type Support (`src/cartanc/ast.ch`, `src/cartanc/type_checker.car`, `src/cartanc/llvm_codegen.car`, `[ISSUE-238]`)**:
+  - Declared missing AST enum variants in `ast.ch:enum Expr`: `SievingCacheInit` (51/115), `FractalAttentionInit` (52/116), `ElasticVocabularyInit` (53/117), `SpikePrimitive` (54/118), and `NeuronPrimitive` (55/119).
+  - Added dual discriminant type resolution in `type_checker.car` returning `CartanType::Ptr` and `CartanType::Float`.
+  - Implemented LLVM IR lowering in `llvm_codegen.car` returning tree instances and primitive floats.
+- **Authentic `@attention` Primitives & Codegen (`src/cartanc/core_runtime.car`, `src/cartanc/lexer.car`, `src/cartanc/parser.car`, `src/cartanc/llvm_codegen.car`, `[ISSUE-239]`)**:
+  - Implemented `cartan_attention(target: ptr, routing: ptr) -> ptr` in `core_runtime.car` featuring genuine Sigmoid gating and RMS scaling.
+  - Implemented `cartan_init_fractal_attention() -> ptr` in `core_runtime.car` and exported `attention(target, routing)` wrapper.
+  - Added `@` prefix operator tokenization in `lexer.car` and full expression routing parsing in `parser.car`.
+  - Registered extern declarations and lowered `@cartan_attention` call in `llvm_codegen.car`.
+- **`fused { ... }` Kernel Block Codegen (`src/cartanc/type_checker.car`, `src/cartanc/llvm_codegen.car`, `[ISSUE-240]`)**:
+  - Added dual discriminant typing (`26.0 || 90.0`) in `type_checker.car`.
+  - Implemented fused block statement traversal and final expression result extraction in `llvm_codegen.car:llvm_visit_expr`.
+- **`MethodCall` Multi-Parameter Dispatch (`src/cartanc/llvm_codegen.car`, `[ISSUE-241]`)**:
+  - Aligned discriminant check to `18.0 || 82.0`.
+  - Iterated across all arguments in `args`, evaluated each parameter node, formatted typed registers (`ptr` / `double`), and emitted complete call parameter signatures.
+- **Regression Suite Expansion & Empirical Verification (`test/compiler_suite/`)**:
+  - Authored Target 67 regression test: `test/compiler_suite/test_attention_fused_methods.car` validating authentic `@attention` operator, `attention()` wrapper, `fuse { ... }` block execution, `MethodCall` multi-argument dispatch, `FractalAttentionBlock` initialization, and statement declarations.
+  - Whitelisted Target 67 in `.gitignore` and registered in `test/compiler_suite/run_tests.car`.
+  - Rebuilt self-hosting stage 1 `cartanc.exe` and verified 100% clean pass across all 67 compiler regression suite targets with 0 failures (Exit Code 0).
+
 ## [8.414.0] - 2026-09-28 (Sprint 456: Geometric Alignment, Bridge, Manifold Embedding, & Repository Reflection)
 
 ### Completed & Validated

@@ -421,11 +421,17 @@ fn main(argc: float, argv: ptr) -> float {
     cartan_flush(0.0);
     run_step(t65_cmd);
 
-    // [66/66] Positive test: test_geometric_bridge_and_reflection
+    // [66/67] Positive test: test_geometric_bridge_and_reflection
     let t66_cmd = "cartanc.exe build test/compiler_suite/test_geometric_bridge_and_reflection.car -o build/test_geometric_bridge_and_reflection.exe && build\\test_geometric_bridge_and_reflection.exe";
-    printf("[66/66] [// run-pass] Building and Executing Geometric Alignment, Bridge, Embedding, & Reflection: %s\n", t66_cmd);
+    printf("[66/67] [// run-pass] Building and Executing Geometric Alignment, Bridge, Embedding, & Reflection: %s\n", t66_cmd);
     cartan_flush(0.0);
     run_step(t66_cmd);
+
+    // [67/67] Positive test: test_attention_fused_methods
+    let t67_cmd = "cartanc.exe build test/compiler_suite/test_attention_fused_methods.car -o build/test_attention_fused_methods.exe && build\\test_attention_fused_methods.exe";
+    printf("[67/67] [// run-pass] Building and Executing Attention, Fused Kernel, Method Dispatch & Decls: %s\n", t67_cmd);
+    cartan_flush(0.0);
+    run_step(t67_cmd);
 
     if (g_failed_count > 0.0) {
         printf("\n====================================================\n", "");
@@ -433,7 +439,7 @@ fn main(argc: float, argv: ptr) -> float {
         printf("====================================================\n", "");
         return 1.0;
     }
-    printf("\nAll 66 compiler snapshot test targets executed successfully (0 failures)!\n", "");
+    printf("\nAll 67 compiler snapshot test targets executed successfully (0 failures)!\n", "");
     return 0.0;
 }
 

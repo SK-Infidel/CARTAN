@@ -430,7 +430,7 @@ fn type_checker_init() -> TypeChecker {
         } else if (disc == 23.0) { // BroadcastOp
             tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
             return tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 3.0));
-        } else if (disc == 26.0) { // FusedKernel
+        } else if (disc == 26.0 || disc == 90.0) { // FusedKernel
             let block_stmt = cartan_tree_get_f32(expr, 1.0);
             var last_type = CartanType::Unknown;
             var idx_s = 0.0;
@@ -502,6 +502,16 @@ fn type_checker_init() -> TypeChecker {
             return CartanType::Ptr;
         } else if (disc == 50.0 || disc == 114.0) { // ReflectRepo
             return CartanType::Ptr;
+        } else if (disc == 51.0 || disc == 115.0) { // SievingCacheInit
+            return CartanType::Ptr;
+        } else if (disc == 52.0 || disc == 116.0) { // FractalAttentionInit
+            return CartanType::Ptr;
+        } else if (disc == 53.0 || disc == 117.0) { // ElasticVocabularyInit
+            return CartanType::Ptr;
+        } else if (disc == 54.0 || disc == 118.0) { // SpikePrimitive
+            return CartanType::Float;
+        } else if (disc == 55.0 || disc == 119.0) { // NeuronPrimitive
+            return CartanType::Float;
         } else if (disc == 42.0 || disc == 106.0) { // AddressOf
             tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
             return CartanType::Ptr;
@@ -579,8 +589,14 @@ fn type_checker_init() -> TypeChecker {
                 idx_arm = idx_arm + 1.0;
             }
             return return_type;
-        } else if (disc == 27.0) { // Attention
-            return tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
+        } else if (disc == 27.0 || disc == 91.0) { // Attention
+            let target = cartan_tree_get_f32(expr, 1.0);
+            let routing = cartan_tree_get_f32(expr, 2.0);
+            let t_type = tc_visit_expr(self_ptr, target);
+            if (routing != 0.0) {
+                tc_visit_expr(self_ptr, routing);
+            }
+            return t_type;
         } else if (disc == 17.0) { // FunctionCall
             let name = cartan_tree_get_f32(expr, 1.0);
             let args = cartan_tree_get_f32(expr, 2.0);
