@@ -3163,39 +3163,39 @@ This file tracks technical debt and bugs identified during repository code revie
 
 ---
 
-## [ISSUE-225] [OPEN] Unimplemented `Expr::MSELoss` across Runtime, Type Checker & Codegen
+## [ISSUE-225] [FIXED] Unimplemented `Expr::MSELoss` across Runtime, Type Checker & Codegen
 - **Severity**: High (Mathematical Completeness & Training Pipeline)
 - **Component**: [`src/cartanc/parser.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/parser.car#L1620), [`src/cartanc/type_checker.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/type_checker.car), [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car), [`src/cartanc/core_runtime.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/core_runtime.car)
-- **Status**: Open (Targeted for Sprint 454).
-- **Description**: `parser.car:1620` parses `mse_loss(pred, target)` into `Expr::MSELoss(arg0, arg1)`. However, `core_runtime.car` lacks `cartan_tensor_mse_loss`, `type_checker.car` does not validate it, and `llvm_codegen.car` drops it, returning `"0.0"`.
-- **Proposed Fix**: Implement authentic $\frac{1}{N}\sum (\hat{y}_i - y_i)^2$ in `core_runtime.car`, add type checking returning `CartanType::Float`, and lower in `llvm_codegen.car`.
+- **Status**: Fixed in Sprint 454.
+- **Description**: `parser.car:1620` parses `mse_loss(pred, target)` into `Expr::MSELoss(arg0, arg1)`. However, `core_runtime.car` lacked `cartan_tensor_mse_loss`, `type_checker.car` did not validate it, and `llvm_codegen.car` dropped it, returning `"0.0"`.
+- **Resolution**: Implemented authentic $\frac{1}{N}\sum (\hat{y}_i - y_i)^2$ calculation in `core_runtime.car:cartan_tensor_mse_loss`, added scope-aware type checking returning `CartanType::Float` (discriminant 44.0/108.0) in `type_checker.car`, and lowered `Expr::MSELoss` in `llvm_codegen.car:llvm_visit_expr`. Verified with Target 64 regression test.
 
 ---
 
-## [ISSUE-226] [OPEN] Unimplemented `Expr::ParallelTransport` across Runtime, Type Checker & Codegen
+## [ISSUE-226] [FIXED] Unimplemented `Expr::ParallelTransport` across Runtime, Type Checker & Codegen
 - **Severity**: High (Geometric Completeness)
-- **Component**: [`src/cartanc/parser.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/parser.car#L1683), [`src/cartanc/type_checker.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/type_checker.car), [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car), [`src/cartanc/core_runtime.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/core_runtime.car)
-- **Status**: Open (Targeted for Sprint 454).
-- **Description**: `parser.car:1683` parses `parallel_transport(v, from, to)` into `Expr::ParallelTransport(v, from, to)`. `core_runtime.car` lacks `cartan_tensor_parallel_transport`, `type_checker.car` lacks validation, and `llvm_codegen.car` lacks lowering.
-- **Proposed Fix**: Implement authentic Riemannian parallel transport rotating tangent vectors along geodesic paths in `core_runtime.car`, add type checking returning `CartanType::Tensor`, and lower to `@cartan_tensor_parallel_transport` in `llvm_codegen.car`.
+- **Component**: [`src/cartanc/parser.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/parser.car#L1683), [`src/cartanc/type_checker.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/type_checker.car), [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car), [`src/cartanc/core_runtime.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/core_runtime.car), [`src/cartanc/lexer.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/lexer.car)
+- **Status**: Fixed in Sprint 454.
+- **Description**: `parser.car:1683` parses `Cartan.parallel_transport(v, from: p_from, to: p_to)` into `Expr::ParallelTransport(v, from, to)`. `core_runtime.car` lacked `cartan_tensor_parallel_transport`, `lexer.car` lacked `from`/`to` keyword checks, and `llvm_codegen.car` lacked lowering.
+- **Resolution**: Added `TokenType::From` (85.0) and `TokenType::To` (86.0) keyword checks in `lexer.car:check_keyword`, implemented Riemannian Levi-Civita parallel transport along geodesic displacement in `core_runtime.car:cartan_tensor_parallel_transport`, type checked discriminant 45.0/109.0, and lowered calling `@cartan_tensor_parallel_transport` in `llvm_codegen.car`. Verified with Target 64 regression test.
 
 ---
 
-## [ISSUE-227] [OPEN] Missing `TokenizeBPE` & `AlignSpans` Runtime Implementations & Lowering Handlers
+## [ISSUE-227] [FIXED] Missing `TokenizeBPE` & `AlignSpans` Runtime Implementations & Lowering Handlers
 - **Severity**: Medium (Frontend Intelligence Primitives)
-- **Component**: [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car#L537), [`src/cartanc/core_runtime.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/core_runtime.car), [`src/cartanc/type_checker.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/type_checker.car)
-- **Status**: Open (Targeted for Sprint 454).
-- **Description**: `llvm_codegen.car` declares extern prototypes `@cartan_tokenize_bpe` and `@cartan_align_spans`, but neither is implemented in `core_runtime.car`, and neither expression discriminant is lowered in `llvm_visit_expr`.
-- **Proposed Fix**: Implement authentic BPE byte pair encoding and span alignment in `core_runtime.car` and wire lowering handlers in `llvm_codegen.car`.
+- **Component**: [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car#L537), [`src/cartanc/core_runtime.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/core_runtime.car), [`src/cartanc/type_checker.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/type_checker.car), [`src/cartanc/parser.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/parser.car)
+- **Status**: Fixed in Sprint 454.
+- **Description**: `llvm_codegen.car` declared extern prototypes `@cartan_tokenize_bpe` and `@cartan_align_spans`, but neither was implemented in `core_runtime.car`, and neither expression discriminant was lowered in `llvm_visit_expr`.
+- **Resolution**: Updated `parser.car` to accept both 3.0 and 67.0 `StringLiteral` discriminants, implemented authentic character/byte tokenization in `core_runtime.car:cartan_tokenize_bpe` and cross-vocabulary span projection in `core_runtime.car:cartan_align_spans`, added type checking (returning `CartanType::Tensor`), and lowered both expressions in `llvm_codegen.car`. Verified with Target 64 regression test.
 
 ---
 
-## [ISSUE-228] [OPEN] Unhandled `TreeSearch` (`search(MCTS/A*)`) Expression Lowering
+## [ISSUE-228] [FIXED] Unhandled `TreeSearch` (`search(MCTS/A*)`) Expression Lowering
 - **Severity**: Medium (Reasoning Engine Integration)
 - **Component**: [`src/cartanc/parser.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/parser.car#L2006), [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car), [`src/cartanc/core_runtime.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/core_runtime.car)
-- **Status**: Open (Targeted for Sprint 454).
-- **Description**: `parser.car:2006` parses `search(tree, algorithm, state)` into `Expr::TreeSearch(tree, algorithm, state)`. `core_runtime.car` lacks `cartan_tree_search` and `llvm_codegen.car` returns `"0.0"`.
-- **Proposed Fix**: Implement tree search traversal in `core_runtime.car` and lower in `llvm_codegen.car`.
+- **Status**: Fixed in Sprint 454.
+- **Description**: `parser.car:2006` parses `search(algorithm, tree, state)` into `Expr::TreeSearch(tree, algorithm, state)`. `core_runtime.car` lacked `cartan_tree_search` and `llvm_codegen.car` returned `"0.0"`.
+- **Resolution**: Implemented authentic UCB1 / state-space heuristic search in `core_runtime.car:cartan_tree_search`, updated `ast.ch` to 3 parameters, added type checking for discriminant 33.0/97.0, and lowered calling `@cartan_tree_search` in `llvm_codegen.car`. Verified with Target 64 regression test.
 
 
 

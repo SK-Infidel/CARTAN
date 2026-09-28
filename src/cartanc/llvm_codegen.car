@@ -416,6 +416,9 @@ fn llvm_codegen_init() -> LLVMGenerator {
         add_builtin_extern(self_ptr, user_defined_names, "strncpy", "declare ptr @strncpy(ptr, ptr, i64)\n");
         add_builtin_extern(self_ptr, user_defined_names, "llvm.floor.f64", "declare double @llvm.floor.f64(double)\n");
         add_builtin_extern(self_ptr, user_defined_names, "sqrt", "declare double @sqrt(double)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cos", "declare double @cos(double)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "sin", "declare double @sin(double)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "log", "declare double @log(double)\n");
         add_builtin_extern(self_ptr, user_defined_names, "strcmp", "declare i32 @strcmp(ptr, ptr)\n");
         add_builtin_extern(self_ptr, user_defined_names, "cartan_init_ising_embeddings", "declare void @cartan_init_ising_embeddings(ptr)\n");
         add_builtin_extern(self_ptr, user_defined_names, "cartan_sample_ising_attractor", "declare float @cartan_sample_ising_attractor(ptr, float, float)\n");
@@ -476,13 +479,17 @@ fn llvm_codegen_init() -> LLVMGenerator {
         add_builtin_extern(self_ptr, user_defined_names, "cartan_file_read_tokens", "declare float @cartan_file_read_tokens(ptr, float, ptr)\n");
         add_builtin_extern(self_ptr, user_defined_names, "cartan_net_fetch_tokens", "declare float @cartan_net_fetch_tokens(ptr, ptr)\n");
         add_builtin_extern(self_ptr, user_defined_names, "cartan_file_read_batch", "declare float @cartan_file_read_batch(ptr, ptr, float, ptr)\n");
-        add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_mse_loss", "declare float @cartan_tensor_mse_loss(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_mse_loss", "declare double @cartan_tensor_mse_loss(ptr, ptr)\n");
         add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_cross_entropy_loss", "declare float @cartan_tensor_cross_entropy_loss(ptr, ptr)\n");
         add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_spherical_cosine_loss", "declare float @cartan_tensor_spherical_cosine_loss(ptr, ptr)\n");
         add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_finsler_randers_loss", "declare float @cartan_tensor_finsler_randers_loss(ptr, ptr)\n");
         add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_betti_homology_loss", "declare float @cartan_tensor_betti_homology_loss(ptr, ptr)\n");
         add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_embed", "declare ptr @cartan_tensor_embed(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tensor_parallel_transport", "declare ptr @cartan_tensor_parallel_transport(ptr, ptr, ptr)\n");
         add_builtin_extern(self_ptr, user_defined_names, "cartan_rt_parallel_transport", "declare ptr @cartan_rt_parallel_transport(ptr, ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tokenize_bpe", "declare ptr @cartan_tokenize_bpe(ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_align_spans", "declare ptr @cartan_align_spans(ptr, ptr, ptr)\n");
+        add_builtin_extern(self_ptr, user_defined_names, "cartan_tree_search", "declare ptr @cartan_tree_search(ptr, ptr, ptr)\n");
         add_builtin_extern(self_ptr, user_defined_names, "cartan_gpu_init", "declare double @cartan_gpu_init()\n");
         add_builtin_extern(self_ptr, user_defined_names, "cartan_gpu_create_buffer", "declare ptr @cartan_gpu_create_buffer(double, double)\n");
         add_builtin_extern(self_ptr, user_defined_names, "cartan_gpu_write_buffer", "declare double @cartan_gpu_write_buffer(ptr, double, ptr, double)\n");
@@ -3336,6 +3343,118 @@ while (idx_method < cartan_tree_len_f(methods)) {
             let clean_tgt = clean_reg(tgt_reg);
             cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  call void @cartan_project_vocab(ptr ", clean_src), ", ptr "), clean_tgt), ")\n"));
             return cartan_string_concat("ptr:", clean_tgt);
+        }
+        if (disc == 44.0 || disc == 108.0) { // MSELoss
+            let pred = cartan_tree_get_f32(expr, 1.0);
+            let target = cartan_tree_get_f32(expr, 2.0);
+            let p_reg = llvm_visit_expr(self_ptr, pred);
+            let t_reg = llvm_visit_expr(self_ptr, target);
+            let clean_p = clean_reg(p_reg);
+            let clean_t = clean_reg(t_reg);
+            let res_reg = next_reg(self_ptr);
+            let p1 = cartan_string_concat("  ", res_reg);
+            let p2 = cartan_string_concat(p1, " = call double @cartan_tensor_mse_loss(ptr ");
+            let p3 = cartan_string_concat(p2, clean_p);
+            let p4 = cartan_string_concat(p3, ", ptr ");
+            let p5 = cartan_string_concat(p4, clean_t);
+            let p6 = cartan_string_concat(p5, ")\n");
+            cartan_tree_push(self_ptr.output, p6);
+            return res_reg;
+        }
+        if (disc == 45.0 || disc == 109.0) { // ParallelTransport
+            let vec_expr = cartan_tree_get_f32(expr, 1.0);
+            let from_expr = cartan_tree_get_f32(expr, 2.0);
+            let to_expr = cartan_tree_get_f32(expr, 3.0);
+            let v_reg = llvm_visit_expr(self_ptr, vec_expr);
+            let f_reg = llvm_visit_expr(self_ptr, from_expr);
+            let t_reg = llvm_visit_expr(self_ptr, to_expr);
+            let clean_v = clean_reg(v_reg);
+            let clean_f = clean_reg(f_reg);
+            let clean_t = clean_reg(t_reg);
+            let res_reg = next_reg(self_ptr);
+            let p1 = cartan_string_concat("  ", res_reg);
+            let p2 = cartan_string_concat(p1, " = call ptr @cartan_tensor_parallel_transport(ptr ");
+            let p3 = cartan_string_concat(p2, clean_v);
+            let p4 = cartan_string_concat(p3, ", ptr ");
+            let p5 = cartan_string_concat(p4, clean_f);
+            let p6 = cartan_string_concat(p5, ", ptr ");
+            let p7 = cartan_string_concat(p6, clean_t);
+            let p8 = cartan_string_concat(p7, ")\n");
+            cartan_tree_push(self_ptr.output, p8);
+            return cartan_string_concat("ptr:", res_reg);
+        }
+        if (disc == 31.0 || disc == 95.0) { // TokenizeBPE
+            let text_expr = cartan_tree_get_f32(expr, 1.0);
+            let tok_path = cartan_tree_get_f32(expr, 2.0);
+            let txt_reg = llvm_visit_expr(self_ptr, text_expr);
+            let clean_txt = clean_reg(txt_reg);
+            let id = self_ptr.string_counter;
+            self_ptr.string_counter = self_ptr.string_counter + 1.0;
+            let str_label = cartan_string_concat("@.str.", cartan_int_to_string(id));
+            let global_decl = cartan_llvm_format_string_literal(tok_path, id);
+            cartan_tree_push(self_ptr.globals, global_decl);
+            let res_reg = next_reg(self_ptr);
+            let p1 = cartan_string_concat("  ", res_reg);
+            let p2 = cartan_string_concat(p1, " = call ptr @cartan_tokenize_bpe(ptr ");
+            let p3 = cartan_string_concat(p2, clean_txt);
+            let p4 = cartan_string_concat(p3, ", ptr ");
+            let p5 = cartan_string_concat(p4, str_label);
+            let p6 = cartan_string_concat(p5, ")\n");
+            cartan_tree_push(self_ptr.output, p6);
+            return cartan_string_concat("ptr:", res_reg);
+        }
+        if (disc == 32.0 || disc == 96.0) { // AlignSpans
+            let vocab_a = cartan_tree_get_f32(expr, 1.0);
+            let vocab_b = cartan_tree_get_f32(expr, 2.0);
+            let spans_expr = cartan_tree_get_f32(expr, 3.0);
+            let spans_reg = llvm_visit_expr(self_ptr, spans_expr);
+            let clean_spans = clean_reg(spans_reg);
+            let id_a = self_ptr.string_counter;
+            self_ptr.string_counter = self_ptr.string_counter + 1.0;
+            let str_a = cartan_string_concat("@.str.", cartan_int_to_string(id_a));
+            cartan_tree_push(self_ptr.globals, cartan_llvm_format_string_literal(vocab_a, id_a));
+            let id_b = self_ptr.string_counter;
+            self_ptr.string_counter = self_ptr.string_counter + 1.0;
+            let str_b = cartan_string_concat("@.str.", cartan_int_to_string(id_b));
+            cartan_tree_push(self_ptr.globals, cartan_llvm_format_string_literal(vocab_b, id_b));
+            let res_reg = next_reg(self_ptr);
+            let p1 = cartan_string_concat("  ", res_reg);
+            let p2 = cartan_string_concat(p1, " = call ptr @cartan_align_spans(ptr ");
+            let p3 = cartan_string_concat(p2, str_a);
+            let p4 = cartan_string_concat(p3, ", ptr ");
+            let p5 = cartan_string_concat(p4, str_b);
+            let p6 = cartan_string_concat(p5, ", ptr ");
+            let p7 = cartan_string_concat(p6, clean_spans);
+            let p8 = cartan_string_concat(p7, ")\n");
+            cartan_tree_push(self_ptr.output, p8);
+            return cartan_string_concat("ptr:", res_reg);
+        }
+        if (disc == 33.0 || disc == 97.0) { // TreeSearch
+            let tree_expr = cartan_tree_get_f32(expr, 1.0);
+            let algo_name = cartan_tree_get_f32(expr, 2.0);
+            let state_expr = cartan_tree_get_f32(expr, 3.0);
+            let t_reg = llvm_visit_expr(self_ptr, tree_expr);
+            let clean_t = clean_reg(t_reg);
+            var clean_s = "null";
+            if (state_expr != 0.0) {
+                let s_reg = llvm_visit_expr(self_ptr, state_expr);
+                clean_s = clean_reg(s_reg);
+            }
+            let id_algo = self_ptr.string_counter;
+            self_ptr.string_counter = self_ptr.string_counter + 1.0;
+            let str_algo = cartan_string_concat("@.str.", cartan_int_to_string(id_algo));
+            cartan_tree_push(self_ptr.globals, cartan_llvm_format_string_literal(algo_name, id_algo));
+            let res_reg = next_reg(self_ptr);
+            let p1 = cartan_string_concat("  ", res_reg);
+            let p2 = cartan_string_concat(p1, " = call ptr @cartan_tree_search(ptr ");
+            let p3 = cartan_string_concat(p2, clean_t);
+            let p4 = cartan_string_concat(p3, ", ptr ");
+            let p5 = cartan_string_concat(p4, str_algo);
+            let p6 = cartan_string_concat(p5, ", ptr ");
+            let p7 = cartan_string_concat(p6, clean_s);
+            let p8 = cartan_string_concat(p7, ")\n");
+            cartan_tree_push(self_ptr.output, p8);
+            return cartan_string_concat("ptr:", res_reg);
         }
         return "0.0";
     }

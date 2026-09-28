@@ -446,12 +446,16 @@ fn type_checker_init() -> TypeChecker {
             return last_type;
         } else if (disc == 19.0) { // StreamInit
             return CartanType::Stream;
-        } else if (disc == 31.0) { // TokenizeBPE
+        } else if (disc == 31.0 || disc == 95.0) { // TokenizeBPE
             tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
-            return CartanType::Unknown;
-        } else if (disc == 32.0) { // AlignSpans
-            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
-            return CartanType::Unknown;
+            let d = cartan_tree_create();
+            cartan_tree_push(d, Dimension::Fixed(0.0));
+            return CartanType::Tensor(d, 0.0, 0.0);
+        } else if (disc == 32.0 || disc == 96.0) { // AlignSpans
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 3.0));
+            let d = cartan_tree_create();
+            cartan_tree_push(d, Dimension::Fixed(0.0));
+            return CartanType::Tensor(d, 0.0, 0.0);
         } else if (disc == 34.0) { // LexAndEmbed
             tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
             return CartanType::Unknown;
@@ -526,7 +530,11 @@ fn type_checker_init() -> TypeChecker {
         } else if (disc == 13.0) { // SimdMaskAlpha
             tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
             return CartanType::Integer;
-        } else if (disc == 45.0) { // ParallelTransport
+        } else if (disc == 44.0 || disc == 108.0) { // MSELoss
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 2.0));
+            return CartanType::Float;
+        } else if (disc == 45.0 || disc == 109.0) { // ParallelTransport
             let vec_type = tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
             let from_type = tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 2.0));
             let to_type = tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 3.0));
@@ -655,14 +663,13 @@ fn type_checker_init() -> TypeChecker {
             return CartanType::Boolean;
         } else if (disc == 3.0) { // StringLiteral
             return CartanType::String;
-        } else if (disc == 33.0) { // TreeSearch
-            let tree_type = tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
-            if (cartan_tree_get_f32(tree_type, 0.0) == 13.0) { // Tree
-                let d = cartan_tree_create();
-                cartan_tree_push(d, Dimension::Fixed(1.0));
-                return CartanType::Tensor(d, 0.0, 0.0);
-            }
-            return 0.0;
+        } else if (disc == 33.0 || disc == 97.0) { // TreeSearch
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
+            let state_expr = cartan_tree_get_f32(expr, 3.0);
+            if (state_expr != 0.0) { tc_visit_expr(self_ptr, state_expr); }
+            let d = cartan_tree_create();
+            cartan_tree_push(d, Dimension::Fixed(2.0));
+            return CartanType::Tensor(d, 0.0, 0.0);
         }
         
         return CartanType::Unknown;

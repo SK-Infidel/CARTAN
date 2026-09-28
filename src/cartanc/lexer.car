@@ -82,6 +82,8 @@ fn check_keyword(lexeme: string) -> ptr {
     if (cartan_string_eq(lexeme, "spawn") != 0.0) { return TokenType::Spawn;}
     if (cartan_string_eq(lexeme, "as") != 0.0) { return TokenType::As;}
     if (cartan_string_eq(lexeme, "at") != 0.0) { return TokenType::At;}
+    if (cartan_string_eq(lexeme, "from") != 0.0) { return TokenType::From;}
+    if (cartan_string_eq(lexeme, "to") != 0.0) { return TokenType::To;}
     if (cartan_string_eq(lexeme, "import") != 0.0) { return TokenType::Import;}
     if (cartan_string_eq(lexeme, "doubt") != 0.0) { return TokenType::Doubt;}
     if (cartan_string_eq(lexeme, "vmap") != 0.0) { return TokenType::Vmap;}

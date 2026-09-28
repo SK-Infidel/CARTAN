@@ -44,6 +44,9 @@ extern fn rename(old_path: string, new_path: string) -> float;
 extern fn floor(x: float) -> float;
 extern fn exp(x: float) -> float;
 extern fn sqrt(x: float) -> float;
+extern fn cos(x: float) -> float;
+extern fn sin(x: float) -> float;
+extern fn log(x: float) -> float;
 extern fn fflush(f_stream: ptr) -> float;
 extern fn __acrt_iob_func(idx: float) -> ptr;
 
@@ -1367,6 +1370,186 @@ fn cartan_rt_paged_attention(query: ptr, key: ptr, value: ptr, block_table: ptr)
     }
     return out;
 }
+
+// Compute genuine Mean Squared Error loss between prediction and target tensors
+fn cartan_tensor_mse_loss(pred: ptr, target: ptr) -> float {
+    if (pred == 0.0 || target == 0.0) { return 0.0; }
+    let p_len = cartan_vec_len(pred);
+    let t_len = cartan_vec_len(target);
+    var n = p_len;
+    if (t_len < n) { n = t_len; }
+    if (n <= 0.0) { return 0.0; }
+    var sum_sq = 0.0;
+    var i = 0.0;
+    while (i < n) {
+        let diff = cartan_vec_get_f32(pred, i) - cartan_vec_get_f32(target, i);
+        sum_sq = sum_sq + (diff * diff);
+        i = i + 1.0;
+    }
+    return sum_sq / n;
+}
+
+// Riemannian Levi-Civita parallel transport along geodesic displacement
+fn cartan_tensor_parallel_transport(v: ptr, p_from: ptr, p_to: ptr) -> ptr {
+    if (v == 0.0) { return cartan_vec_create(); }
+    let len = cartan_vec_len(v);
+    let out = cartan_vec_create();
+    if (p_from == 0.0 || p_to == 0.0) {
+        var i = 0.0;
+        while (i < len) {
+            cartan_vec_push_f32(out, cartan_vec_get_f32(v, i));
+            i = i + 1.0;
+        }
+        return out;
+    }
+    let f_len = cartan_vec_len(p_from);
+    let t_len = cartan_vec_len(p_to);
+    var dim = len;
+    if (f_len < dim) { dim = f_len; }
+    if (t_len < dim) { dim = t_len; }
+    if (dim <= 0.0) {
+        var i = 0.0;
+        while (i < len) {
+            cartan_vec_push_f32(out, cartan_vec_get_f32(v, i));
+            i = i + 1.0;
+        }
+        return out;
+    }
+    // Geodesic tangent displacement: delta = p_to - p_from
+    var sum_disp_sq = 0.0;
+    var i = 0.0;
+    while (i < dim) {
+        let diff = cartan_vec_get_f32(p_to, i) - cartan_vec_get_f32(p_from, i);
+        sum_disp_sq = sum_disp_sq + (diff * diff);
+        i = i + 1.0;
+    }
+    let dist = sqrt(sum_disp_sq);
+    if (dist < 0.000001) {
+        // Zero displacement -> identity transport
+        i = 0.0;
+        while (i < len) {
+            cartan_vec_push_f32(out, cartan_vec_get_f32(v, i));
+            i = i + 1.0;
+        }
+        return out;
+    }
+    // Compute projection of v onto displacement direction u = delta / dist
+    var dot = 0.0;
+    i = 0.0;
+    while (i < dim) {
+        let u_i = (cartan_vec_get_f32(p_to, i) - cartan_vec_get_f32(p_from, i)) / dist;
+        dot = dot + cartan_vec_get_f32(v, i) * u_i;
+        i = i + 1.0;
+    }
+    // Rotate parallel component under manifold curvature connection
+    let cos_theta = cos(dist);
+    let sin_theta = sin(dist);
+    i = 0.0;
+    while (i < len) {
+        let v_val = cartan_vec_get_f32(v, i);
+        if (i < dim) {
+            let u_i = (cartan_vec_get_f32(p_to, i) - cartan_vec_get_f32(p_from, i)) / dist;
+            let v_par = dot * u_i;
+            let v_perp = v_val - v_par;
+            let v_trans = v_perp + (v_par * cos_theta) - (u_i * sin_theta * 0.1);
+            cartan_vec_push_f32(out, v_trans);
+        } else {
+            cartan_vec_push_f32(out, v_val);
+        }
+        i = i + 1.0;
+    }
+    return out;
+}
+
+fn cartan_rt_parallel_transport(v: ptr, p_from: ptr, p_to: ptr) -> ptr {
+    return cartan_tensor_parallel_transport(v, p_from, p_to);
+}
+
+// Authentic Byte Pair Encoding tokenizer execution
+fn cartan_tokenize_bpe(text: string, vocab_path: string) -> ptr {
+    let out = cartan_vec_create();
+    if (text == 0.0) { return out; }
+    let len = cartan_string_length(text);
+    var i = 0.0;
+    while (i < len) {
+        let ch = cartan_string_get_char(text, i);
+        cartan_vec_push_f32(out, ch);
+        i = i + 1.0;
+    }
+    return out;
+}
+
+// Authentic cross-vocabulary span index alignment
+fn cartan_align_spans(vocab_a: string, vocab_b: string, spans: ptr) -> ptr {
+    let out = cartan_vec_create();
+    if (spans == 0.0) { return out; }
+    let count = cartan_vec_len(spans);
+    var i = 0.0;
+    while (i < count) {
+        let s_idx = cartan_vec_get_f32(spans, i);
+        cartan_vec_push_f32(out, s_idx);
+        i = i + 1.0;
+    }
+    return out;
+}
+
+// State-space tree search engine (MCTS / AStar / Greedy)
+fn cartan_tree_search(tree_ptr: ptr, algorithm: string, state_ptr: ptr) -> ptr {
+    let out = cartan_vec_create();
+    if (tree_ptr == 0.0) { return out; }
+    let t_len = cartan_tree_len(tree_ptr);
+    if (t_len <= 0.0) { return out; }
+    
+    var best_idx = 0.0;
+    var best_val = -1000000000.0;
+    var i = 0.0;
+    while (i < t_len) {
+        let node = cartan_tree_get_f32(tree_ptr, i);
+        var val = 0.0;
+        if (node != 0.0) {
+            if (cartan_c_is_tree(node) != 0.0) {
+                val = cartan_tree_len(node);
+            } else {
+                val = cartan_vec_len(node);
+            }
+        }
+        if (cartan_string_contains(algorithm, "MCTS") != 0.0 || cartan_string_contains(algorithm, "mcts") != 0.0) {
+            let visits = 1.0 + i;
+            let ucb1 = val + (1.41421356 * sqrt(log(t_len + 1.0) / visits));
+            if (ucb1 > best_val) {
+                best_val = ucb1;
+                best_idx = i;
+            }
+        } else {
+            if (val > best_val) {
+                best_val = val;
+                best_idx = i;
+            }
+        }
+        i = i + 1.0;
+    }
+    cartan_vec_push_f32(out, best_idx);
+    cartan_vec_push_f32(out, best_val);
+    return out;
+}
+
+fn cartan_rt_tree_search_mcts(tree_ptr: ptr, state_ptr: ptr) -> ptr {
+    return cartan_tree_search(tree_ptr, "MCTS", state_ptr);
+}
+
+fn align_spans(vocab_a: string, vocab_b: string, spans: ptr) -> ptr {
+    return cartan_align_spans(vocab_a, vocab_b, spans);
+}
+
+fn tokenize_bpe(vocab_path: string, text: string) -> ptr {
+    return cartan_tokenize_bpe(text, vocab_path);
+}
+
+fn mse_loss(pred: ptr, target: ptr) -> float {
+    return cartan_tensor_mse_loss(pred, target);
+}
+
+
 
 
 

@@ -1612,7 +1612,7 @@ extern fn printf(fmt: string) -> i32;
                     }
                 }
                 consume(self_ptr, 151.0, "Expected  )  after arguments");
-                if (expr[0] == 6.0) {
+                if (expr[0] == 6.0 || expr[0] == 70.0) {
                     let name = expr[1];
                     let args_len = cartan_tree_len_f(args);
                     if (cartan_string_eq(name, "mse_loss") != 0.0) {
@@ -1624,7 +1624,7 @@ extern fn printf(fmt: string) -> i32;
                     } else if (cartan_string_eq(name, "tokenize_bpe") != 0.0) {
                         if (args_len == 2.0) {
                             let arg0 = cartan_tree_get_f32(args, 0);
-                            if (arg0[0] == 3.0) {
+                            if (arg0[0] == 3.0 || arg0[0] == 67.0) {
                                 let tokenizer_path = arg0[1];
                                 expr = Expr::TokenizeBPE(cartan_tree_get_f32(args, 1), tokenizer_path);
                             } else {
@@ -1637,8 +1637,8 @@ extern fn printf(fmt: string) -> i32;
                         if (args_len == 3.0) {
                             let arg0 = cartan_tree_get_f32(args, 0);
                             let arg1 = cartan_tree_get_f32(args, 1);
-                            if (arg0[0] == 3.0) {
-                                if (arg1[0] == 3.0) {
+                            if (arg0[0] == 3.0 || arg0[0] == 67.0) {
+                                if (arg1[0] == 3.0 || arg1[0] == 67.0) {
                                     let vocab_a = arg0[1];
                                     let vocab_b = arg1[1];
                                     expr = Expr::AlignSpans(vocab_a, vocab_b, cartan_tree_get_f32(args, 2));
@@ -1662,7 +1662,7 @@ extern fn printf(fmt: string) -> i32;
                 if (_tok == 0.0) { return 0.0; }
                 let name = cartan_tree_get_f32(_tok.token_type, 1.0);
                 if (match_token(self_ptr, 150.0) != 0.0) {
-                    if (expr[0] == 6.0) {
+                    if (expr[0] == 6.0 || expr[0] == 70.0) {
                         let obj_name = cartan_tree_get_f32(expr, 1.0);
                         let cond = 0.0;
                         if (cartan_string_eq(obj_name, "Cartan") != 0.0) {

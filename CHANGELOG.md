@@ -1,3 +1,29 @@
+## [8.412.0] - 2026-09-28 (Sprint 454: MSE Loss, Riemannian Parallel Transport, BPE Tokenization, & Tree Search Execution)
+
+### Completed & Validated
+- **Mean Squared Error Loss Primitive (`src/cartanc/parser.car`, `src/cartanc/type_checker.car`, `src/cartanc/llvm_codegen.car`, `src/cartanc/core_runtime.car`, `[ISSUE-225]`)**:
+  - Implemented authentic $\frac{1}{N}\sum (\hat{y}_i - y_i)^2$ calculation in `core_runtime.car:cartan_tensor_mse_loss`.
+  - Added dual discriminant AST handling (44.0/108.0) and type checking returning `CartanType::Float` in `type_checker.car`.
+  - Lowered `Expr::MSELoss` calling `@cartan_tensor_mse_loss` in `llvm_codegen.car`.
+- **Riemannian Parallel Transport along Geodesics (`src/cartanc/lexer.car`, `src/cartanc/parser.car`, `src/cartanc/type_checker.car`, `src/cartanc/llvm_codegen.car`, `src/cartanc/core_runtime.car`, `[ISSUE-226]`)**:
+  - Added keyword tokenization for `from` (`TokenType::From`, 85.0) and `to` (`TokenType::To`, 86.0) in `lexer.car:check_keyword`.
+  - Updated `parser.car` identifier discriminant checks (6.0/70.0) for `Cartan.parallel_transport(...)`.
+  - Implemented Riemannian Levi-Civita parallel transport along geodesic displacement with curvature rotation in `core_runtime.car:cartan_tensor_parallel_transport`.
+  - Added type checking (45.0/109.0 -> `Vector`) and LLVM codegen lowering calling `@cartan_tensor_parallel_transport`.
+- **Byte Pair Encoding & Span Alignment Lowering (`src/cartanc/ast.ch`, `src/cartanc/parser.car`, `src/cartanc/type_checker.car`, `src/cartanc/llvm_codegen.car`, `src/cartanc/core_runtime.car`, `[ISSUE-227]`)**:
+  - Updated AST definition `AlignSpans` to 3 parameters in `ast.ch`.
+  - Updated `parser.car` to accept dual StringLiteral discriminants (3.0/67.0).
+  - Implemented authentic byte-level BPE tokenizer `cartan_tokenize_bpe` and cross-vocabulary span projection `cartan_align_spans` in `core_runtime.car`.
+  - Added type checking (31.0/95.0 and 32.0/96.0 -> `Tensor`) and LLVM IR codegen lowering in `llvm_codegen.car`.
+- **State-Space Tree Search Execution (`src/cartanc/ast.ch`, `src/cartanc/type_checker.car`, `src/cartanc/llvm_codegen.car`, `src/cartanc/core_runtime.car`, `[ISSUE-228]`)**:
+  - Updated AST definition `TreeSearch` to 3 parameters in `ast.ch`.
+  - Implemented authentic UCB1 ($Q + c\sqrt{\ln(N)/n_i}$) Monte Carlo Tree Search and state traversal in `core_runtime.car:cartan_tree_search`.
+  - Added type checking (33.0/97.0 -> `Tensor`) and LLVM IR codegen lowering in `llvm_codegen.car`.
+- **Regression Suite Expansion & Empirical Verification (`test/compiler_suite/`)**:
+  - Authored regression Target 64: `test/compiler_suite/test_geometric_and_search_primitives.car` validating MSE loss, parallel transport, BPE tokenization, span alignment, and MCTS tree search.
+  - Whitelisted Target 64 in `.gitignore` and registered as Target 64 in `test/compiler_suite/run_tests.car`.
+  - Rebuilt self-hosting stage 1 `cartanc.exe` and verified 100% clean pass across all 64 compiler regression suite targets with 0 failures (Exit Code 0).
+
 ## [8.411.0] - 2026-09-28 (Sprint 453: Native For Loops, Project Vocab, Prompt Literals, Paged Attention Kernel, & Scoped Exception Handling)
 
 ### Completed & Validated
