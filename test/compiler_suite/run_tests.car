@@ -439,11 +439,17 @@ fn main(argc: float, argv: ptr) -> float {
     cartan_flush(0.0);
     run_step(t68_cmd);
 
-    // [69/69] Positive test: test_neuro_symbolic_jit
+    // [69/70] Positive test: test_neuro_symbolic_jit
     let t69_cmd = "cartanc.exe build test/compiler_suite/test_neuro_symbolic_jit.car -o build/test_neuro_symbolic_jit.exe && build\\test_neuro_symbolic_jit.exe";
-    printf("[69/69] [// run-pass] Building and Executing Neuro-Symbolic Declarations, JIT, DataFrame, & Lexer Keywords: %s\n", t69_cmd);
+    printf("[69/70] [// run-pass] Building and Executing Neuro-Symbolic Declarations, JIT, DataFrame, & Lexer Keywords: %s\n", t69_cmd);
     cartan_flush(0.0);
     run_step(t69_cmd);
+
+    // [70/70] Positive test: test_impl_trait_methods
+    let t70_cmd = "cartanc.exe build test/compiler_suite/test_impl_trait_methods.car -o build/test_impl_trait_methods.exe && build\\test_impl_trait_methods.exe";
+    printf("[70/70] [// run-pass] Building and Executing Trait & Impl Method Lowering, Scoping, & Field Access: %s\n", t70_cmd);
+    cartan_flush(0.0);
+    run_step(t70_cmd);
 
     if (g_failed_count > 0.0) {
         printf("\n====================================================\n", "");
@@ -451,7 +457,7 @@ fn main(argc: float, argv: ptr) -> float {
         printf("====================================================\n", "");
         return 1.0;
     }
-    printf("\nAll 69 compiler snapshot test targets executed successfully (0 failures)!\n", "");
+    printf("\nAll 70 compiler snapshot test targets executed successfully (0 failures)!\n", "");
     return 0.0;
 }
 

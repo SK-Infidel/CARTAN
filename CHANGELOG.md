@@ -1,3 +1,28 @@
+## [8.418.0] - 2026-09-28 (Sprint 460: AST Arity Harmonization, Trait/Impl Type Checking & Method Lowering)
+
+### Completed & Validated
+- **AST Signature Harmonization (`src/cartanc/ast.ch`, `[ISSUE-249]`)**:
+  - Harmonized 7 mismatched statement variant signatures in `ast.ch:enum Stmt` to align with `parser.car` AST construction calls:
+    - `TreeDecl(string, string)`
+    - `LayerDecl(string, string, ptr, string)`
+    - `StreamDecl(ptr, string)`
+    - `MeshBlock(string, string, ptr)`
+    - `TopologyDecl(string, ptr)`
+    - `FluidPrecisionBlock(string, string, ptr)`
+    - `SparsityBlock(ptr, ptr, ptr)`
+- **Type Checker Scoping & Discriminants (`src/cartanc/type_checker.car`, `[ISSUE-250]`)**:
+  - Added dual discriminant checks `34.0 || 157.0` for `ImplDecl` and `33.0 || 156.0` for `TraitDecl`.
+  - Corrected target struct scope resolution in `ImplDecl` from index `1.0` (which is `trait_name`) to index `2.0` (`target_name`).
+- **LLVM IR Lowering & Method Dispatch (`src/cartanc/llvm_codegen.car`, `[ISSUE-251]`)**:
+  - Added `ImplDecl` (`34.0 || 88.0 || 157.0`) method scanning in Pass 1 forward declarations and Pass 2 function generation.
+  - Implemented method receiver resolution (`safe_name = <Struct>_<method>`) with both implicit and explicit `self` binding (`%arg_self` / alloca ptr / struct type tag).
+  - Enhanced `MethodCall` lowering to resolve receiver struct types from typed allocations and dispatch to `@<Struct>_<method>`, supporting both `obj.method(args...)` syntax and direct function invocation.
+- **Regression Suite Expansion & Empirical Verification (`test/compiler_suite/`)**:
+  - Authored Target 70 regression test: `test/compiler_suite/test_impl_trait_methods.car` validating `trait Measurable` definition, `struct Point` field layout, `impl Point` method lowering (`scale`, `distance_sq`), and authentic mathematical calculations without mocks.
+  - Whitelisted Target 70 in `.gitignore` and registered in `test/compiler_suite/run_tests.car`.
+  - Rebuilt self-hosting `cartanc.exe` and test runner `build/run_tests.exe`.
+  - Verified 100% clean execution across all 70 compiler snapshot test targets (0 failures).
+
 ## [8.417.0] - 2026-09-28 (Sprint 459: Neuro-Symbolic Declarations, JIT & DataFrame Lowering, and Lexer Keywords)
 
 ### Completed & Validated

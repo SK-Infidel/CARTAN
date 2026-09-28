@@ -133,24 +133,29 @@ fn type_checker_init() -> TypeChecker {
                 idx_f = idx_f + 1.0;
             }
             cartan_dict_set(self_ptr.struct_registry, struct_name, field_types);
-        } else if (disc == 34.0) { // ImplDecl
-            let target_name = cartan_tree_get_f32(stmt, 1.0);
+        } else if (disc == 34.0 || disc == 157.0) { // ImplDecl
+            let trait_name = cartan_tree_get_f32(stmt, 1.0);
+            let target_name = cartan_tree_get_f32(stmt, 2.0);
             let methods = cartan_tree_get_f32(stmt, 3.0);
             push_scope(self_ptr);
             var scope = cartan_tree_get_f32(self_ptr.symbol_table, cartan_tree_len(self_ptr.symbol_table) - 1.0);
             cartan_dict_set(scope, "self", CartanType::Struct(target_name));
-            var idx_m = 0.0;
-            while (idx_m < cartan_tree_len(methods)) {
-                tc_visit_stmt(self_ptr, cartan_tree_get_f32(methods, idx_m));
-                idx_m = idx_m + 1.0;
+            if (methods != 0.0) {
+                var idx_m = 0.0;
+                while (idx_m < cartan_tree_len(methods)) {
+                    tc_visit_stmt(self_ptr, cartan_tree_get_f32(methods, idx_m));
+                    idx_m = idx_m + 1.0;
+                }
             }
             pop_scope(self_ptr);
-        } else if (disc == 33.0) { // TraitDecl
+        } else if (disc == 33.0 || disc == 156.0) { // TraitDecl
             let methods = cartan_tree_get_f32(stmt, 2.0);
-            var idx_m = 0.0;
-            while (idx_m < cartan_tree_len(methods)) {
-                tc_visit_stmt(self_ptr, cartan_tree_get_f32(methods, idx_m));
-                idx_m = idx_m + 1.0;
+            if (methods != 0.0) {
+                var idx_m = 0.0;
+                while (idx_m < cartan_tree_len(methods)) {
+                    tc_visit_stmt(self_ptr, cartan_tree_get_f32(methods, idx_m));
+                    idx_m = idx_m + 1.0;
+                }
             }
         } else if (disc == 6.0) { // TensorDecl
             let name = cartan_tree_get_f32(stmt, 1.0);

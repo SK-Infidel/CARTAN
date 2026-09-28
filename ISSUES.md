@@ -3372,6 +3372,33 @@ This file tracks technical debt and bugs identified during repository code revie
 - **Description**: `graph` and `layer` statements failed during declaration parsing because they were not matched as keywords. However, reserving them globally in `lexer.car:check_keyword` caused cascading collisions across standard libraries (`src/std/csr_graph.cl: graph: CsrGraph`, `src/std/ingest.cl: let pattern = ...`) and test models (`test/geomind/train.cl`).
 - **Resolution**: Implemented contextual declaration recognition in `parser.car:declaration` for `graph` and `layer` when encountered as leading identifiers at statement/declaration level, preserving full identifier flexibility for parameters and variables throughout the codebase.
 
+---
+
+## [ISSUE-249] [FIXED] AST Arity & Signature Mismatch for LayerDecl, StreamDecl, TopologyDecl, MeshBlock, TreeDecl, FluidPrecisionBlock, and SparsityBlock
+- **Severity**: High (AST Integrity & Memory Layout)
+- **Component**: [`src/cartanc/ast.ch`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/ast.ch#L135), [`src/cartanc/parser.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/parser.car)
+- **Description**: Seven statement variants in `ast.ch:enum Stmt` had arity or payload type mismatches with their corresponding `parser.car` constructor invocations.
+- **Resolution**: Harmonized all seven constructor signatures in `ast.ch:enum Stmt` (`LayerDecl(string, string, ptr, string)`, `StreamDecl(ptr, string)`, `TopologyDecl(string, ptr)`, `MeshBlock(string, string, ptr)`, `TreeDecl(string, string)`, `FluidPrecisionBlock(string, string, ptr)`, `SparsityBlock(ptr, ptr, ptr)`), achieving 1:1 parity with parser AST constructor calls.
+
+---
+
+## [ISSUE-250] [FIXED] Type Checker Scope Field Inversion & Discriminant Normalization for ImplDecl and TraitDecl
+- **Severity**: High (Static Type Checking Integrity)
+- **Component**: [`src/cartanc/type_checker.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/type_checker.car#L136)
+- **Description**: In `tc_visit_stmt`:
+  - `ImplDecl` only checked discriminant `34.0`, missing canonical line discriminant `157.0`.
+  - Target struct lookup in `ImplDecl` read index `1.0` (which is `trait_name`), rather than index `2.0` (`target_name`).
+  - `TraitDecl` only checked discriminant `33.0`, missing line discriminant `156.0`.
+- **Resolution**: Added dual discriminant checks `34.0 || 157.0` for `ImplDecl` and `33.0 || 156.0` for `TraitDecl`. Corrected target struct resolution in `ImplDecl` from index `1.0` to index `2.0`.
+
+---
+
+## [ISSUE-251] [FIXED] LLVM IR Lowering for ImplDecl Methods in `llvm_codegen.car`
+- **Severity**: High (Compiler Language Completeness & OOP Integration)
+- **Component**: [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car)
+- **Description**: `ImplDecl` (`34.0 || 88.0 || 157.0`) methods were omitted from codegen forward declarations and function lowering, preventing trait/struct method calls from resolving.
+- **Resolution**: Added `ImplDecl` method scanning in Pass 1 forward declarations and Pass 2 function generation. Implemented method receiver resolution (`safe_name = <Struct>_<method>`) with both implicit and explicit `self` binding (`%arg_self` / alloca ptr / struct type tag). Updated `MethodCall` lowering to resolve receiver struct types and dispatch to `@<Struct>_<method>`, verified with Target 70 passing cleanly.
+
 
 
 

@@ -341,6 +341,40 @@ fn llvm_codegen_init() -> LLVMGenerator {
                 } else {}
                 cartan_dict_set(self_ptr.func_return_types, fn_name, logical_ret_type);
             }
+            if (disc == 34.0 || disc == 88.0 || disc == 157.0) {
+                var target_name = cartan_tree_get_f32(stmt, 2.0);
+                var methods = cartan_tree_get_f32(stmt, 3.0);
+                if (methods == 0.0) {
+                    target_name = cartan_tree_get_f32(stmt, 1.0);
+                    methods = cartan_tree_get_f32(stmt, 2.0);
+                }
+                if (methods != 0.0) {
+                    var idx_im = 0.0;
+                    while (idx_im < cartan_tree_len_f(methods)) {
+                        var m = cartan_tree_get_f32(methods, idx_im);
+                        idx_im = idx_im + 1.0;
+                        let md = cartan_tree_get_f32(m, 0.0);
+                        if (md == 14.0 || md == 131.0) {
+                            let fn_name = cartan_tree_get_f32(m, 1.0);
+                            let rt = cartan_tree_get_f32(m, 4.0);
+                            var logical_ret_type = "void";
+                            if (rt != 0.0) {
+                                if (rt == "void") { logical_ret_type = "void"; }
+                                else if (rt == "float" || rt == "int" || rt == "i32" || rt == "i64" || rt == "bool" || rt == "double") { logical_ret_type = "double"; }
+                                else if (rt == "ptr" || rt == "string" || (cartan_string_starts_with(rt, "tree<") != 0.0)) { logical_ret_type = rt; }
+                                else if (is_uppercase(rt) != 0.0) { logical_ret_type = cartan_string_concat("%", rt); }
+                                else { logical_ret_type = "double"; }
+                            }
+                            var safe_name = fn_name;
+                            if (target_name != 0.0 && cartan_string_length(target_name) > 0.0) {
+                                safe_name = cartan_string_concat(cartan_string_concat(target_name, "_"), fn_name);
+                            }
+                            cartan_dict_set(self_ptr.func_return_types, safe_name, logical_ret_type);
+                            cartan_dict_set(self_ptr.func_return_types, fn_name, logical_ret_type);
+                        }
+                    }
+                }
+            }
         }
         // Module header
         let q = "\"";
@@ -377,16 +411,26 @@ fn llvm_codegen_init() -> LLVMGenerator {
                     }
                 }
             }
-            if (d_u == 88.0) {
-                let methods = cartan_tree_get_f32(s_u, 2.0);
-                var idx_im = 0.0;
-                while (idx_im < cartan_tree_len_f(methods)) {
-                    var m = cartan_tree_get_f32(methods, idx_im);
-                    idx_im = idx_im + 1.0;
-                    let md = cartan_tree_get_f32(m, 0.0);
-                    if (md == 14.0 || md == 131.0) {
-                        let fn_name = cartan_tree_get_f32(m, 1.0);
-                        cartan_tree_push(user_defined_names, fn_name);
+            if (d_u == 34.0 || d_u == 88.0 || d_u == 157.0) {
+                var target_name = cartan_tree_get_f32(s_u, 2.0);
+                var methods = cartan_tree_get_f32(s_u, 3.0);
+                if (methods == 0.0) {
+                    target_name = cartan_tree_get_f32(s_u, 1.0);
+                    methods = cartan_tree_get_f32(s_u, 2.0);
+                }
+                if (methods != 0.0) {
+                    var idx_im = 0.0;
+                    while (idx_im < cartan_tree_len_f(methods)) {
+                        var m = cartan_tree_get_f32(methods, idx_im);
+                        idx_im = idx_im + 1.0;
+                        let md = cartan_tree_get_f32(m, 0.0);
+                        if (md == 14.0 || md == 131.0) {
+                            let fn_name = cartan_tree_get_f32(m, 1.0);
+                            cartan_tree_push(user_defined_names, fn_name);
+                            if (target_name != 0.0 && cartan_string_length(target_name) > 0.0) {
+                                cartan_tree_push(user_defined_names, cartan_string_concat(cartan_string_concat(target_name, "_"), fn_name));
+                            }
+                        }
                     }
                 }
             }
@@ -802,13 +846,25 @@ fn llvm_codegen_init() -> LLVMGenerator {
                     }
                 }
             }
-            if (stmt_disc == 88.0) { let target_name = cartan_tree_get_f32(stmt, 1.0); let methods = cartan_tree_get_f32(stmt, 2.0);
-                var idx_method = 0.0;
-while (idx_method < cartan_tree_len_f(methods)) {
-    var method = cartan_tree_get_f32(methods, idx_method);
-    idx_method = idx_method + 1.0;
-                    let method_disc = cartan_tree_get_f32(method, 0.0); if (method_disc == 14.0 || method_disc == 131.0) {
-                        let tup = cartan_tree_create(); cartan_tree_push(tup, target_name); cartan_tree_push(tup, method); cartan_tree_push(all_funcs, tup);
+            if (stmt_disc == 34.0 || stmt_disc == 88.0 || stmt_disc == 157.0) {
+                var target_name = cartan_tree_get_f32(stmt, 2.0);
+                var methods = cartan_tree_get_f32(stmt, 3.0);
+                if (methods == 0.0) {
+                    target_name = cartan_tree_get_f32(stmt, 1.0);
+                    methods = cartan_tree_get_f32(stmt, 2.0);
+                }
+                if (methods != 0.0) {
+                    var idx_method = 0.0;
+                    while (idx_method < cartan_tree_len_f(methods)) {
+                        var method = cartan_tree_get_f32(methods, idx_method);
+                        idx_method = idx_method + 1.0;
+                        let method_disc = cartan_tree_get_f32(method, 0.0);
+                        if (method_disc == 14.0 || method_disc == 131.0) {
+                            let tup = cartan_tree_create();
+                            cartan_tree_push(tup, target_name);
+                            cartan_tree_push(tup, method);
+                            cartan_tree_push(all_funcs, tup);
+                        }
                     }
                 }
             }
@@ -834,9 +890,21 @@ while (idx_method < cartan_tree_len_f(methods)) {
 
             let param_types = cartan_tree_create();
             let _sname = struct_name;
+            var has_explicit_self = 0.0;
+            var idx_chk = 0.0;
+            while (idx_chk < cartan_tree_len_f(parameters)) {
+                var p_chk = cartan_tree_get_f32(parameters, idx_chk);
+                idx_chk = idx_chk + 1.0;
+                let chk_name = cartan_tree_get_f32(p_chk, 0.0);
+                if (cartan_string_eq(chk_name, "self") != 0.0) {
+                    has_explicit_self = 1.0;
+                }
+            }
             if (_sname != 0.0 && cartan_string_length(_sname) > 0.0) {
-                cartan_tree_push(param_types, "ptr %arg_self");
-            } else {}
+                if (has_explicit_self == 0.0) {
+                    cartan_tree_push(param_types, "ptr %arg_self");
+                }
+            }
             
             var idx_p = 0.0;
             while (idx_p < cartan_tree_len_f(parameters)) {
@@ -894,12 +962,14 @@ while (idx_method < cartan_tree_len_f(methods)) {
             cartan_tree_push(self_ptr.output, cartan_string_concat(params, ") {\nentry:\n"));
 
             if (struct_name != 0.0 && cartan_string_length(struct_name) > 0.0) {
-                let alloc_ptr = next_reg(self_ptr);
-                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat("  ", alloc_ptr), " = alloca ptr, align 8\n"));
-                cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat("  store ptr %arg_self, ptr ", alloc_ptr), ", align 8\n"));
-                cartan_dict_set(self_ptr.symbols, "self", alloc_ptr);
-                cartan_dict_set(self_ptr.var_types, "self", cartan_string_concat("%", struct_name));
-            } else {}
+                if (has_explicit_self == 0.0) {
+                    let alloc_ptr = next_reg(self_ptr);
+                    cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat("  ", alloc_ptr), " = alloca ptr, align 8\n"));
+                    cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat("  store ptr %arg_self, ptr ", alloc_ptr), ", align 8\n"));
+                    cartan_dict_set(self_ptr.symbols, "self", alloc_ptr);
+                    cartan_dict_set(self_ptr.var_types, "self", cartan_string_concat("%", struct_name));
+                }
+            }
 
             idx_p = 0.0;
             while (idx_p < cartan_tree_len_f(parameters)) {
@@ -924,7 +994,9 @@ while (idx_method < cartan_tree_len_f(methods)) {
                 cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  store ", p_type), " %arg_"), p_name), ", ptr "), alloc_ptr), ", align "), align), "\n"));
                 cartan_dict_set(self_ptr.symbols, p_name, alloc_ptr);
                 var type_to_insert = p_type;
-                if (p_type == "ptr") {
+                if (cartan_string_eq(p_name, "self") != 0.0 && struct_name != 0.0 && cartan_string_length(struct_name) > 0.0) {
+                    type_to_insert = cartan_string_concat("%", struct_name);
+                } else if (p_type == "ptr") {
                     if (is_uppercase(p_type_name) != 0.0) {
                         if (p_type_name != "Tensor") {
                             if (p_type_name != "Vector") {
@@ -1491,13 +1563,11 @@ while (idx_method < cartan_tree_len_f(methods)) {
 
                 // Handled in Pass 0
             }
-            if (disc == 88.0) {
-
+            if (disc == 34.0 || disc == 88.0 || disc == 157.0) { // ImplDecl
                 // Handled in Pass 2
             }
-            if (disc == 86.0) {
-
-                // Handled in Pass 2
+            if (disc == 33.0 || disc == 86.0 || disc == 156.0) { // TraitDecl
+                // Handled in Pass 2 / Interface metadata
             }
             if (disc == 3.0) {
                 let name = cartan_tree_get_f32(stmt, 1.0);
@@ -3239,14 +3309,14 @@ while (idx_method < cartan_tree_len_f(methods)) {
             let method_name = cartan_tree_get_f32(expr, 2.0);
             let args = cartan_tree_get_f32(expr, 3.0);
             let obj_reg = llvm_visit_expr(self_ptr, object);
-            let clean_obj = cartan_string_replace(cartan_string_replace(cartan_string_replace(cartan_string_replace(obj_reg, "ptr:", ""), "string:", ""), "array:", ""), "struct:", "");
+            let clean_obj = clean_reg(obj_reg);
 
             if (method_name == "push_str") {
                 var arg_str = "";
                 if (cartan_tree_len_f(args) > 0.0) {
                     let arg0 = cartan_tree_get_f32(args, 0.0);
                     let arg_reg = llvm_visit_expr(self_ptr, arg0);
-                    arg_str = cartan_string_replace(cartan_string_replace(cartan_string_replace(cartan_string_replace(arg_reg, "ptr:", ""), "string:", ""), "array:", ""), "struct:", "");
+                    arg_str = clean_reg(arg_reg);
                 } else {}
                 cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  call void @cartan_tree_push(ptr ", clean_obj), ", ptr "), arg_str), ")\n"));
                 return "0.0";
@@ -3290,12 +3360,48 @@ while (idx_method < cartan_tree_len_f(methods)) {
                     idx_m = idx_m + 1.0;
                 }
             }
+
+            var struct_type = "";
+            if (cartan_string_starts_with(obj_reg, "struct:") != 0.0) {
+                var s_part = cartan_string_replace(obj_reg, "struct:", "");
+                let clean_r = clean_reg(obj_reg);
+                struct_type = cartan_string_replace(s_part, cartan_string_concat(":", clean_r), "");
+            } else {
+                let obj_disc = cartan_tree_get_f32(object, 0.0);
+                if (obj_disc == 6.0 || obj_disc == 70.0) {
+                    let obj_name = cartan_tree_get_f32(object, 1.0);
+                    let vt = cartan_dict_get(self_ptr.var_types, obj_name);
+                    if (vt != 0.0 && cartan_string_starts_with(vt, "%") != 0.0) {
+                        struct_type = cartan_string_replace(vt, "%", "");
+                    }
+                }
+            }
+
+            var func_name = cartan_string_concat("cartan_method_", method_name);
+            if (struct_type != "" && struct_type != 0.0) {
+                let struct_method = cartan_string_concat(cartan_string_concat(struct_type, "_"), method_name);
+                if (cartan_dict_get(self_ptr.func_return_types, struct_method) != 0.0) {
+                    func_name = struct_method;
+                } else if (cartan_dict_get(self_ptr.func_return_types, method_name) != 0.0) {
+                    func_name = method_name;
+                }
+            } else if (cartan_dict_get(self_ptr.func_return_types, method_name) != 0.0) {
+                func_name = method_name;
+            }
+
             let res_reg = next_reg(self_ptr);
-            let func_name = cartan_string_concat("cartan_method_", method_name);
             var ret_type = "double";
             let known_rt = cartan_dict_get(self_ptr.func_return_types, func_name);
             if (known_rt != 0.0) {
                 ret_type = known_rt;
+            }
+            if (cartan_string_eq(ret_type, "void") != 0.0) {
+                let p1 = cartan_string_concat("  call void @", func_name);
+                let p2 = cartan_string_concat(p1, "(");
+                let p3 = cartan_string_concat(p2, call_args);
+                let p4 = cartan_string_concat(p3, ")\n");
+                cartan_tree_push(self_ptr.output, p4);
+                return "0.0";
             }
             let p1 = cartan_string_concat("  ", res_reg);
             let p2 = cartan_string_concat(p1, cartan_string_concat(" = call ", cartan_string_concat(ret_type, " @")));
