@@ -1,0 +1,25 @@
+# Sprint 467 Task List: Universal Cross-Domain Lexicon, Ontology & Discourse Grounding
+
+- [x] **Task 1: Author Standard Library Module `src/std/domain_lexicon.cl`**
+  - [x] Implement `DomainLexicon` container and entry types.
+  - [x] Implement `domain_lexicon_populate_defaults` with 45+ specialized terms across Domains 0..8 with authentic IC weights.
+  - [x] Implement `domain_lexicon_lookup_ic` and `domain_lexicon_get_discourse_frame`.
+  - [x] Implement `domain_lexicon_validate_predicate_category`.
+- [x] **Task 2: Author Cross-Domain Ontological Corpus & Ingest**
+  - [x] Author `test/geomind/trainingdata/cross_domain_ontology.tsv` with authentic relational triples across all 9 domains.
+  - [x] Compile `cross_domain_ontology.car_graph` via `tools/ns_rule_generator.car` with SMT/SAT consistency proof.
+- [x] **Task 3: Hub-and-Spoke CSR Topology & Veto Gate Rule 11**
+  - [x] Wire CSR edges in `src/std/nses_pipeline.cl` from Rule 47 to roots of Domains 0, 1, 2, 3, 4, 5, 7, 8.
+  - [x] Implement Rule 11 (Category Error & Incompatible Predicate Veto) in `src/std/veto_gate.cl`.
+  - [x] Register contradiction tokens `605`, `606`, `607`, `608` in `src/std/veto_gate.cl`.
+- [x] **Task 4: Author Target 77 & Verify Full Regression Suite**
+  - [x] Author `test/compiler_suite/test_universal_domain_lexicon.car`.
+  - [x] Whitelist Target 77 in `.gitignore`.
+  - [x] Register Target 77 in `test/compiler_suite/run_tests.car` and update total count to 77.
+  - [x] Rebuild `build/run_tests.exe` and execute all 77 targets (must pass 77/77 cleanly with exit code 0).
+- [x] **Task 5: Documentation & Session Closeout**
+  - [x] Update `ISSUES.md` (`[ISSUE-258]` -> `[FIXED]`).
+  - [x] Update `CHANGELOG.md` (`[8.425.0]`).
+  - [x] Update `docs/ROADMAP.md`.
+  - [x] Save walkthrough to `docs/archive/sprint_467_walkthrough.md`.
+  - [x] Commit and push to `origin/master`.

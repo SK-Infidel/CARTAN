@@ -3492,6 +3492,24 @@ This file tracks technical debt and bugs identified during repository code revie
   6. Implemented Stage 1 intent detection and seed selection in `src/std/nses_pipeline.cl` and dataset routing in `test/geomind/train.cl`.
   7. Authored Target 76 (`test/compiler_suite/test_nses_decision_domain.car`), whitelisted in `.gitignore`, registered in `test/compiler_suite/run_tests.car`, and verified clean test execution.
 
+---
+
+## [ISSUE-258] [FIXED] Lack of Universal Cross-Domain Lexicon, Ontology & Discourse Grounding across NSES Domains 0..8
+- **Severity**: High (Core Neuro-Symbolic Communicative & Ontological Grounding Gap)
+- **Component**: [`src/std/domain_lexicon.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/domain_lexicon.cl), [`src/std/nses_pipeline.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/nses_pipeline.cl), [`src/std/veto_gate.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/veto_gate.cl), [`tools/ns_rule_generator.car`](file:///C:/Users/rich-/source/repos/CARTAN/tools/ns_rule_generator.car), [`tools/cargraph_ingest.car`](file:///C:/Users/rich-/source/repos/CARTAN/tools/cargraph_ingest.car)
+- **Description**:
+  1. While CARTAN NSES now encompasses 9 specialized cognitive domains (0 through 8), Domain 6 (`LANGUAGE_DISCOURSE`) currently contains only generic conversational pragmatics and turn-taking rules. It lacks dedicated lexical mappings, formal ontological entity/predicate typing, and discourse framing templates for each specialized domain.
+  2. The CSR graph lacks bidirectional linguistic grounding edges connecting Domain 6 (Rule 47: Lexical Grounding, Rule 48: High IC discrimination, Rule 51: Discourse transition bridges) to the foundational nodes of Domains 0, 1, 2, 3, 4, 5, 7, and 8, preventing the pipeline from traversing between symbolic domain invariants and natural language expression frames.
+  3. The veto gate lacks category error detection (Rule 11) to prevent illegitimate cross-domain predicate binding (e.g. asserting geometric forms have biological metabolism or that physical mass propagates faster than light via decision heuristics).
+  4. There is no centralized standard library facility (`domain_lexicon.cl`) providing high Information Content (IC) token dictionaries and structured discourse articulation frames across all 9 domains.
+- **Resolution**:
+  1. Implemented `src/std/domain_lexicon.cl` with 45+ specialized terminology entries across all 9 domains (0..8), authentic Information Content (IC) weighting, 9 canonical discourse framing templates, and cross-domain predicate category validation under strict zero-mock standards.
+  2. Synthesized authentic cross-domain ontological triple corpus (`test/geomind/trainingdata/cross_domain_ontology.tsv`) linking relational predicates across all 9 domains, validated via SMT/SAT consistency proof, and compiled into binary `cross_domain_ontology.car_graph`.
+  3. Wired hub-and-spoke CSR linguistic grounding edges in `src/std/nses_pipeline.cl` connecting Rule 47 (Lexical Grounding Hub) to the foundational roots of Domains 0, 1, 2, 3, 4, 5, 7, and 8.
+  4. Implemented Rule 11 (Ontological Category Error & Discourse Veto) in `src/std/veto_gate.cl` and registered contradiction tokens `605`–`608` for Domain 6 logit suppression.
+  5. Authored Target 77 (`test/compiler_suite/test_universal_domain_lexicon.car`), whitelisted in `.gitignore`, registered in `test/compiler_suite/run_tests.car`, and verified clean test execution.
+
+
 
 
 

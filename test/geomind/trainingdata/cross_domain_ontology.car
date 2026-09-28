@@ -1,0 +1,46 @@
+// Auto-Generated Declarative Knowledge Base from Neuro-Symbolic Triples
+
+knowledge_base language_discourse_generated {
+    rule r_0.0 [invariant] = "energy_conservation must strictly maintain syntactic agreement with first_law_of_thermodynamics.";
+    rule r_1.0 [invariant] = "relativistic_propagation is structurally bounded by vacuum_speed_of_light_limit.";
+    rule r_2.0 = "causal_event_order is a mandatory prerequisite for spacetime_light_cone_geometry.";
+    rule r_3.0 [invariant] = "isolated_system_entropy must strictly maintain syntactic agreement with second_law_of_thermodynamics.";
+    rule r_4.0 = "kinetic_energy is a mandatory prerequisite for mass_and_velocity_squared.";
+    rule r_5.0 = "inelastic_collision directly causes mechanical_energy_dissipation.";
+    rule r_6.0 [invariant] = "restitution_coefficient is structurally bounded by unit_interval_zero_to_one.";
+    rule r_7.0 = "thermal_conduction directly causes molecular_kinetic_heat_transfer.";
+    rule r_8.0 = "exterior_derivative is a mandatory prerequisite for smooth_differential_k_form.";
+    rule r_9.0 [invariant] = "stokes_theorem must strictly maintain syntactic agreement with boundary_integral_equivalence.";
+    rule r_10.0 [invariant] = "riemannian_metric must strictly maintain syntactic agreement with positive_definite_inner_product.";
+    rule r_11.0 = "geodesic_motion directly causes extremal_length_trajectory.";
+    rule r_12.0 = "polynomial_reduction is a mandatory prerequisite for deterministic_turing_machine.";
+    rule r_13.0 = "np_complete_problem is a mandatory prerequisite for polynomial_time_certificate_verification.";
+    rule r_14.0 [invariant] = "halting_problem is structurally bounded by undecidability_frontier.";
+    rule r_15.0 = "circuit_depth is structurally bounded by logarithmic_space_bounds.";
+    rule r_16.0 = "cellular_respiration is a mandatory prerequisite for glucose_catabolic_phosphorylation.";
+    rule r_17.0 = "photosynthesis directly causes solar_to_chemical_bond_energy_conversion.";
+    rule r_18.0 [invariant] = "central_dogma must strictly maintain syntactic agreement with directional_dna_rna_protein_transcription.";
+    rule r_19.0 = "atp_hydrolysis directly causes cellular_free_energy_release.";
+    rule r_20.0 = "physical_velocity is a specialized taxonomic instance of spatial_displacement_time_derivative.";
+    rule r_21.0 = "physical_acceleration is a specialized taxonomic instance of velocity_first_time_derivative.";
+    rule r_22.0 [invariant] = "solid_state_matter must strictly maintain syntactic agreement with shear_stress_deformation_resistance.";
+    rule r_23.0 = "liquid_state_matter directly causes conformal_container_flow_with_invariant_volume.";
+    rule r_24.0 [invariant] = "taxonomic_classification must strictly maintain syntactic agreement with phylogenetic_lineage_exclusion.";
+    rule r_25.0 = "lexical_token directly causes symbolic_concept_grounding.";
+    rule r_26.0 = "dialogue_turn is structurally bounded by end_of_turn_delimiters.";
+    rule r_27.0 [invariant] = "anaphoric_reference must strictly maintain syntactic agreement with antecedent_person_and_number.";
+    rule r_28.0 [invariant] = "illocutionary_speech_act must strictly maintain syntactic agreement with informative_assertive_response.";
+    rule r_29.0 = "discourse_bridge directly causes causal_and_contrastive_topic_coherence.";
+    rule r_30.0 [invariant] = "modus_ponens directly causes sound_deductive_inference.";
+    rule r_31.0 = "hypothetical_syllogism directly causes transitive_implication_derivation.";
+    rule r_32.0 [invariant] = "law_of_excluded_middle must strictly maintain syntactic agreement with classical_bivalent_truth_values.";
+    rule r_33.0 = "resolution_refutation is a mandatory prerequisite for clausal_normal_form.";
+    rule r_34.0 [invariant] = "contraposition must strictly maintain syntactic agreement with conditional_negation_equivalence.";
+    rule r_35.0 [invariant] = "bellman_optimality must strictly maintain syntactic agreement with recursive_dynamic_programming_equation.";
+    rule r_36.0 = "action_execution is a mandatory prerequisite for deductive_action_preconditions.";
+    rule r_37.0 [invariant] = "nash_equilibrium must strictly maintain syntactic agreement with zero_profitable_unilateral_deviation.";
+    rule r_38.0 [invariant] = "pareto_efficiency must strictly maintain syntactic agreement with non_decreasing_payoff_allocation.";
+    rule r_39.0 [invariant] = "admissible_heuristic is structurally bounded by minimal_true_goal_cost.";
+    rule r_40.0 = "temporal_credit_assignment directly causes td_error_state_action_value_updates.";
+    rule r_41.0 = "mcts_tree_search directly causes ucb1_exploitation_exploration_balance.";
+}

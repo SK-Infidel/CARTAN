@@ -1,3 +1,24 @@
+## [8.425.0] - 2026-09-28 (Sprint 467: Universal Cross-Domain Lexicon, Ontology & Discourse Grounding)
+
+### Completed & Validated
+- **Standard Library Universal Lexicon & Discourse Framing Module (`src/std/domain_lexicon.cl`, `[ISSUE-258]`)**:
+  - Implemented `DomainLexicon` container storing specialized vocabularies, Information Content (IC) ratings, and canonical discourse frames for all 9 cognitive domains (`SYSTEM_CORE`, `PHYSICS_SIM`, `TOPOLOGY_GEOMETRY`, `COMPLEXITY_THEORY`, `BIOLOGICAL_SYSTEMS`, `CAUSAL_TAXONOMY`, `LANGUAGE_DISCOURSE`, `LOGIC_REASONING`, `DECISION_PLANNING`).
+  - Implemented `domain_lexicon_lookup_ic` providing authentic IC weights (e.g. 0.97 for `bellman`/`modus_ponens`, 0.15 for unlisted words, 0.10 for stopwords) for lexical attention weighting.
+  - Implemented `domain_lexicon_get_discourse_frame` providing formal grammatical discourse frames for each domain (System Invariant, Physical Dynamics, Differential Manifold, Complexity Reduction, Biological Pathway, Causal Taxonomy, Discourse Pragmatic, Deductive Proof, and Decision Policy).
+  - Implemented `domain_lexicon_validate_predicate_category` enforcing formal ontological type-theoretic boundaries.
+- **Cross-Domain Ontological Corpus & Binary Knowledge Graph (`test/geomind/trainingdata/`)**:
+  - Authored authentic 42-triple cross-domain corpus (`cross_domain_ontology.tsv`) linking relational predicates across all 9 domains.
+  - Compiled and verified via SMT/SAT consistency proof into flat binary `cross_domain_ontology.car_graph` and declarative CARTAN source `cross_domain_ontology.car`.
+- **Hub-and-Spoke CSR Linguistic Grounding Topology (`src/std/nses_pipeline.cl`)**:
+  - Transformed Rule 47 (Lexical Grounding) into a central communicative hub, wiring directed CSR edges to the root concepts of all other domains (Rule 0 System Core, Rule 6 Physics, Rule 14 Topology, Rule 21 Complexity, Rule 26 Biology, Rule 37 Causality, Rule 54 Logic, Rule 62 Planning).
+- **Rule 11 Ontological Category Error Veto & Logit Suppression (`src/std/veto_gate.cl`)**:
+  - Implemented Rule 11 (Domain 6) category error veto detecting incompatible cross-domain predicate binding (e.g. photosynthesizing manifolds, digestive exterior derivatives).
+  - Registered contradiction tokens `605.0` (Category Mismatch), `606.0` (Ungrounded Predicate), `607.0` (Discourse Frame Rupture), `608.0` (Type Violation), suppressing logits below $0.0$ and calculating positive analytical loss penalties.
+- **Regression Suite Expansion & Empirical Verification (`test/compiler_suite/`)**:
+  - Authored Target 77 regression test: `test/compiler_suite/test_universal_domain_lexicon.car` verifying lexicon IC calculations, canonical discourse frames, ontological category validation, hub-and-spoke CSR traversal, Rule 11 veto gating, contradiction logit suppression, and cross-domain ontology graph loading under strict zero-mock standards.
+  - Whitelisted Target 77 in `.gitignore` and registered in `test/compiler_suite/run_tests.car`.
+  - Rebuilt test runner `build/run_tests.exe` and verified 100% clean execution across all 77 compiler snapshot test targets (0 failures).
+
 ## [8.424.0] - 2026-09-28 (Sprint 466: Decision Making, Planning & Game Theory Domain 8 & Deductive-Decision Integration)
 
 ### Completed & Validated

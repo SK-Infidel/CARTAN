@@ -93,6 +93,16 @@ fn nses_pipeline_create(graph_path: string) -> NSES_Pipeline {
     csr_builder_add_edge(b, 62.0, 66.0, 1.20, 1.0, 0.0); // Bellman Optimality -> Temporal Credit Assignment
     csr_builder_add_edge(b, 64.0, 65.0, 1.15, 1.0, 0.0); // Nash Equilibrium -> Pareto Efficiency
     csr_builder_add_edge(b, 67.0, 71.0, 1.20, 1.0, 0.0); // MCTS UCB1 -> Heuristic Admissibility
+
+    // Hub-and-Spoke Universal Cross-Domain Linguistic Grounding (Domain 6 -> All Domains)
+    csr_builder_add_edge(b, 47.0, 0.0, 1.25, 1.0, 0.0);  // Lexical Grounding -> Conservation Invariant (Domain 0)
+    csr_builder_add_edge(b, 47.0, 6.0, 1.20, 1.0, 0.0);  // Lexical Grounding -> Kinetic Energy (Domain 1)
+    csr_builder_add_edge(b, 47.0, 14.0, 1.25, 1.0, 0.0); // Lexical Grounding -> Exterior Derivative (Domain 2)
+    csr_builder_add_edge(b, 47.0, 21.0, 1.20, 1.0, 0.0); // Lexical Grounding -> Polynomial Reduction (Domain 3)
+    csr_builder_add_edge(b, 47.0, 26.0, 1.20, 1.0, 0.0); // Lexical Grounding -> Photosynthesis (Domain 4)
+    csr_builder_add_edge(b, 47.0, 37.0, 1.15, 1.0, 0.0); // Lexical Grounding -> Kinematic Velocity (Domain 5)
+    csr_builder_add_edge(b, 47.0, 54.0, 1.30, 1.0, 0.0); // Lexical Grounding -> Modus Ponens (Domain 7)
+    csr_builder_add_edge(b, 47.0, 62.0, 1.25, 1.0, 0.0); // Lexical Grounding -> Bellman Optimality (Domain 8)
     let g = csr_builder_build(b);
     csr_builder_free(b);
 

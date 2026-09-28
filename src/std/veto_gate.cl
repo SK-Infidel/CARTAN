@@ -286,11 +286,15 @@ fn veto_registry_populate_defaults(reg: VetoRegistry) {
     veto_registry_add_forbidden_token(reg, 0.0, 102.0);
     veto_registry_add_forbidden_token(reg, 0.0, 103.0);
 
-    // Domain 6: LANGUAGE_DISCOURSE (Nonsense, meaninglessness, grammar denial)
+    // Domain 6: LANGUAGE_DISCOURSE (Nonsense, meaninglessness, grammar denial, category errors)
     veto_registry_add_forbidden_token(reg, 6.0, 601.0);
     veto_registry_add_forbidden_token(reg, 6.0, 602.0);
     veto_registry_add_forbidden_token(reg, 6.0, 603.0);
     veto_registry_add_forbidden_token(reg, 6.0, 604.0);
+    veto_registry_add_forbidden_token(reg, 6.0, 605.0); // Category mismatch
+    veto_registry_add_forbidden_token(reg, 6.0, 606.0); // Ungrounded predicate
+    veto_registry_add_forbidden_token(reg, 6.0, 607.0); // Discourse frame rupture
+    veto_registry_add_forbidden_token(reg, 6.0, 608.0); // Ontological type violation
 
     // 9. Formal Logic Invariants & Deductive Validity (Domain 7: LOGIC_REASONING)
     let p9 = cartan_tree_create();
@@ -336,6 +340,23 @@ fn veto_registry_populate_defaults(reg: VetoRegistry) {
     veto_registry_add_forbidden_token(reg, 8.0, 802.0);
     veto_registry_add_forbidden_token(reg, 8.0, 803.0);
     veto_registry_add_forbidden_token(reg, 8.0, 804.0);
+
+    // 11. Ontological Category Error & Incompatible Predicate Attribution (Domain 6: LANGUAGE_DISCOURSE)
+    let p11 = cartan_tree_create();
+    cartan_tree_push(p11, "photosynthesizing manifold");
+    cartan_tree_push(p11, "exterior derivative digests glucose");
+    cartan_tree_push(p11, "turing machine undergoes cellular respiration");
+    cartan_tree_push(p11, "logical proposition has physical velocity");
+    cartan_tree_push(p11, "bellman equation accelerates faster than light");
+    cartan_tree_push(p11, "nash equilibrium has physical mass");
+    cartan_tree_push(p11, "differential form metabolizes");
+    veto_registry_add_rule(
+        reg,
+        11.0,
+        6.0,
+        "In accordance with formal ontological category theory, predicates and causal operations must preserve type-theoretic validity and cannot be attributed across disjoint ontological domains.",
+        p11
+    );
 }
 
 // Computes analytical symbolic penalty across output logits to shape training loss

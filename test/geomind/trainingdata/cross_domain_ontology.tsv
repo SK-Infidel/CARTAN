@@ -1,0 +1,49 @@
+# Head	Relation	Tail	Confidence	IsStrict
+# -----------------------------------------------------------------------------
+# CARTAN Neuro-Symbolic Corpus: Cross-Domain Lexical & Ontological Triples
+# Authentic Predicates across All 9 Cognitive Domains (Domains 0..8)
+# Zero-Mock Compliant: Genuine Mathematical, Physical & Pragmatic Groundings
+# Format: Head \t Relation \t Tail \t Confidence \t IsStrict
+# -----------------------------------------------------------------------------
+energy_conservation	MustAgree	first_law_of_thermodynamics	1.00	1.0
+relativistic_propagation	BoundedBy	vacuum_speed_of_light_limit	1.00	1.0
+causal_event_order	HasPrerequisite	spacetime_light_cone_geometry	0.99	0.0
+isolated_system_entropy	MustAgree	second_law_of_thermodynamics	1.00	1.0
+kinetic_energy	HasPrerequisite	mass_and_velocity_squared	0.99	0.0
+inelastic_collision	Causes	mechanical_energy_dissipation	0.98	0.0
+restitution_coefficient	BoundedBy	unit_interval_zero_to_one	1.00	1.0
+thermal_conduction	Causes	molecular_kinetic_heat_transfer	0.97	0.0
+exterior_derivative	HasPrerequisite	smooth_differential_k_form	0.99	0.0
+stokes_theorem	MustAgree	boundary_integral_equivalence	1.00	1.0
+riemannian_metric	MustAgree	positive_definite_inner_product	1.00	1.0
+geodesic_motion	Causes	extremal_length_trajectory	0.98	0.0
+polynomial_reduction	HasPrerequisite	deterministic_turing_machine	0.99	0.0
+np_complete_problem	HasPrerequisite	polynomial_time_certificate_verification	0.99	0.0
+halting_problem	BoundedBy	undecidability_frontier	1.00	1.0
+circuit_depth	BoundedBy	logarithmic_space_bounds	0.97	0.0
+cellular_respiration	HasPrerequisite	glucose_catabolic_phosphorylation	0.99	0.0
+photosynthesis	Causes	solar_to_chemical_bond_energy_conversion	0.99	0.0
+central_dogma	MustAgree	directional_dna_rna_protein_transcription	1.00	1.0
+atp_hydrolysis	Causes	cellular_free_energy_release	0.98	0.0
+physical_velocity	IsA	spatial_displacement_time_derivative	0.99	0.0
+physical_acceleration	IsA	velocity_first_time_derivative	0.99	0.0
+solid_state_matter	MustAgree	shear_stress_deformation_resistance	1.00	1.0
+liquid_state_matter	Causes	conformal_container_flow_with_invariant_volume	0.98	0.0
+taxonomic_classification	MustAgree	phylogenetic_lineage_exclusion	1.00	1.0
+lexical_token	Causes	symbolic_concept_grounding	0.99	0.0
+dialogue_turn	BoundedBy	end_of_turn_delimiters	0.99	0.0
+anaphoric_reference	MustAgree	antecedent_person_and_number	1.00	1.0
+illocutionary_speech_act	MustAgree	informative_assertive_response	1.00	1.0
+discourse_bridge	Causes	causal_and_contrastive_topic_coherence	0.98	0.0
+modus_ponens	Causes	sound_deductive_inference	1.00	1.0
+hypothetical_syllogism	Causes	transitive_implication_derivation	0.99	0.0
+law_of_excluded_middle	MustAgree	classical_bivalent_truth_values	1.00	1.0
+resolution_refutation	HasPrerequisite	clausal_normal_form	0.99	0.0
+contraposition	MustAgree	conditional_negation_equivalence	1.00	1.0
+bellman_optimality	MustAgree	recursive_dynamic_programming_equation	1.00	1.0
+action_execution	HasPrerequisite	deductive_action_preconditions	0.99	0.0
+nash_equilibrium	MustAgree	zero_profitable_unilateral_deviation	1.00	1.0
+pareto_efficiency	MustAgree	non_decreasing_payoff_allocation	1.00	1.0
+admissible_heuristic	BoundedBy	minimal_true_goal_cost	1.00	1.0
+temporal_credit_assignment	Causes	td_error_state_action_value_updates	0.98	0.0
+mcts_tree_search	Causes	ucb1_exploitation_exploration_balance	0.98	0.0

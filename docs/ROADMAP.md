@@ -327,6 +327,8 @@ This roadmap tracks the implementation of the advanced AI optimizations and nati
 - [x] **27. Full Regression Suite (75 Targets)**: 75/75 regression suite test targets passing with 0 failures (Exit code 0).
 - [x] **28. Decision Making, Planning & Game Theory Domain 8 Synthesis & Deductive-Decision Bridge (`src/std/nses_pipeline.cl`, `tools/cargraph_ingest.car`, `src/std/veto_gate.cl`, Sprint 466)**: Ingested Domain 8 (`DECISION_PLANNING`, 9 domains, 72 rules, 18 invariants) with 80-variable SMT/SAT proof; established deductive-decision bridge (Rule 54 $\to$ Rule 70 $\to$ Rule 62 $\to$ Rule 66); added decision fallacy veto Rule 10 and tokens 801-804; Target 76 passing.
 - [x] **29. Full Regression Suite (76 Targets)**: 76/76 regression suite test targets passing with 0 failures (Exit code 0).
+- [x] **30. Universal Cross-Domain Lexicon, Ontology & Discourse Grounding (`src/std/domain_lexicon.cl`, `src/std/nses_pipeline.cl`, `src/std/veto_gate.cl`, Sprint 467)**: Implemented universal domain lexicon with authentic IC weights; 9 canonical discourse frames; category error validation; hub-and-spoke CSR linguistic topology (Rule 47 $\to$ all domain roots); Rule 11 category error veto and tokens 605-608; cross-domain ontology corpus (`cross_domain_ontology.tsv`/`.car_graph`); Target 77 passing.
+- [x] **31. Full Regression Suite (77 Targets)**: 77/77 regression suite test targets passing with 0 failures (Exit code 0).
 
 
 

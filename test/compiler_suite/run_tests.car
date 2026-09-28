@@ -481,11 +481,17 @@ fn main(argc: float, argv: ptr) -> float {
     cartan_flush(0.0);
     run_step(t75_cmd);
 
-    // [76/76] Positive test: test_nses_decision_domain
+    // [76/77] Positive test: test_nses_decision_domain
     let t76_cmd = "cartanc.exe build test/compiler_suite/test_nses_decision_domain.car -o build/test_nses_decision_domain.exe && build\\test_nses_decision_domain.exe";
-    printf("[76/76] [// run-pass] Building and Executing NSES Decision Making, Planning & Game Theory Domain 8: %s\n", t76_cmd);
+    printf("[76/77] [// run-pass] Building and Executing NSES Decision Making, Planning & Game Theory Domain 8: %s\n", t76_cmd);
     cartan_flush(0.0);
     run_step(t76_cmd);
+
+    // [77/77] Positive test: test_universal_domain_lexicon
+    let t77_cmd = "cartanc.exe build test/compiler_suite/test_universal_domain_lexicon.car -o build/test_universal_domain_lexicon.exe && build\\test_universal_domain_lexicon.exe";
+    printf("[77/77] [// run-pass] Building and Executing Universal Cross-Domain Lexicon, Ontology & Discourse Grounding: %s\n", t77_cmd);
+    cartan_flush(0.0);
+    run_step(t77_cmd);
 
     if (g_failed_count > 0.0) {
         printf("\n====================================================\n", "");
@@ -493,7 +499,7 @@ fn main(argc: float, argv: ptr) -> float {
         printf("====================================================\n", "");
         return 1.0;
     }
-    printf("\nAll 76 compiler snapshot test targets executed successfully (0 failures)!\n", "");
+    printf("\nAll 77 compiler snapshot test targets executed successfully (0 failures)!\n", "");
     return 0.0;
 }
 
