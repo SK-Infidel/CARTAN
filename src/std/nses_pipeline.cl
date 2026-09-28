@@ -88,6 +88,11 @@ fn nses_pipeline_create(graph_path: string) -> NSES_Pipeline {
     csr_builder_add_edge(b, 56.0, 60.0, 1.25, 1.0, 0.0); // Hypothetical Syllogism -> Resolution Refutation
     csr_builder_add_edge(b, 57.0, 55.0, 1.20, 1.0, 0.0); // Contraposition -> Modus Tollens
     csr_builder_add_edge(b, 58.0, 59.0, 1.15, 1.0, 0.0); // De Morgan Conjunction -> De Morgan Disjunction
+    csr_builder_add_edge(b, 54.0, 70.0, 1.30, 1.0, 0.0); // Modus Ponens -> Deductive Action Preconditions
+    csr_builder_add_edge(b, 70.0, 62.0, 1.25, 1.0, 0.0); // Deductive Action Preconditions -> Bellman Optimality
+    csr_builder_add_edge(b, 62.0, 66.0, 1.20, 1.0, 0.0); // Bellman Optimality -> Temporal Credit Assignment
+    csr_builder_add_edge(b, 64.0, 65.0, 1.15, 1.0, 0.0); // Nash Equilibrium -> Pareto Efficiency
+    csr_builder_add_edge(b, 67.0, 71.0, 1.20, 1.0, 0.0); // MCTS UCB1 -> Heuristic Admissibility
     let g = csr_builder_build(b);
     csr_builder_free(b);
 
@@ -164,6 +169,8 @@ fn nses_pipeline_execute_turn(
         routed_domain = 6.0; // LANGUAGE_DISCOURSE
     } else if (cartan_string_contains(query, "logic") != 0.0 || cartan_string_contains(query, "deduce") != 0.0 || cartan_string_contains(query, "premise") != 0.0 || cartan_string_contains(query, "conclusion") != 0.0 || cartan_string_contains(query, "syllogism") != 0.0 || cartan_string_contains(query, "modus") != 0.0 || cartan_string_contains(query, "proof") != 0.0 || cartan_string_contains(query, "infer") != 0.0 || cartan_string_contains(query, "axiom") != 0.0 || cartan_string_contains(query, "contradict") != 0.0) {
         routed_domain = 7.0; // LOGIC_REASONING
+    } else if (cartan_string_contains(query, "decision") != 0.0 || cartan_string_contains(query, "plan") != 0.0 || cartan_string_contains(query, "game") != 0.0 || cartan_string_contains(query, "policy") != 0.0 || cartan_string_contains(query, "utility") != 0.0 || cartan_string_contains(query, "nash") != 0.0 || cartan_string_contains(query, "pareto") != 0.0 || cartan_string_contains(query, "bellman") != 0.0 || cartan_string_contains(query, "action") != 0.0 || cartan_string_contains(query, "reward") != 0.0 || cartan_string_contains(query, "mcts") != 0.0 || cartan_string_contains(query, "heuristic") != 0.0) {
+        routed_domain = 8.0; // DECISION_PLANNING
     }
 
     // -------------------------------------------------------------------------
@@ -197,6 +204,9 @@ fn nses_pipeline_execute_turn(
         collections_list_push(pipe.act_list, 1.0);
     } else if (routed_domain == 7.0) {
         collections_list_push(pipe.seed_list, 54.0); // Seed: Rule 54 (Modus Ponens)
+        collections_list_push(pipe.act_list, 1.0);
+    } else if (routed_domain == 8.0) {
+        collections_list_push(pipe.seed_list, 70.0); // Seed: Rule 70 (Deductive Action Preconditions)
         collections_list_push(pipe.act_list, 1.0);
     } else {
         collections_list_push(pipe.seed_list, 44.0);
@@ -267,6 +277,20 @@ fn nses_pipeline_execute_turn(
                 cartan_tree_push(pipe.memory_tree, "Hypothetical Syllogism: If proposition P implies Q and Q implies R, then P transitively implies R.");
             } else if (n_id == 60.0) {
                 cartan_tree_push(pipe.memory_tree, "Resolution Refutation: Disjunctive clauses (A or B) and (not A or C) resolve to the valid resolvent clause (B or C).");
+            } else if (n_id == 62.0) {
+                cartan_tree_push(pipe.memory_tree, "Bellman Optimality: The value of a state under an optimal policy equals the maximum expected immediate reward plus discounted future state value: V*(s) = max_a [ R(s, a) + gamma * sum(P(s'|s, a) * V*(s')) ].");
+            } else if (n_id == 64.0) {
+                cartan_tree_push(pipe.memory_tree, "Nash Equilibrium: A joint strategy profile is a Nash equilibrium if no agent can unilaterally deviate to achieve a strictly higher expected payoff.");
+            } else if (n_id == 65.0) {
+                cartan_tree_push(pipe.memory_tree, "Pareto Efficiency: A state allocation is Pareto optimal if no agent can be made strictly better off without making at least one agent worse off.");
+            } else if (n_id == 66.0) {
+                cartan_tree_push(pipe.memory_tree, "Temporal Difference Credit Assignment: State-action value updates propagate through temporal error delta = r + gamma * max_a' Q(s', a') - Q(s, a).");
+            } else if (n_id == 67.0) {
+                cartan_tree_push(pipe.memory_tree, "Monte Carlo Tree Search (MCTS): Action selection balances exploitation and exploration via Upper Confidence Bounds for Trees: UCB1 = Q(s, a) + c * sqrt(ln(N(s)) / N(s, a)).");
+            } else if (n_id == 70.0) {
+                cartan_tree_push(pipe.memory_tree, "Deductive Action Preconditions: An action A is executable in state S if and only if all preconditions Pre(A) are formally entailed: S entails Pre(A).");
+            } else if (n_id == 71.0) {
+                cartan_tree_push(pipe.memory_tree, "Heuristic Admissibility: An evaluation heuristic h(n) in A* search is admissible if it never overestimates the true remaining cost to the goal state: h(n) <= h*(n).");
             }
         }
         m_idx = m_idx + 1.0;

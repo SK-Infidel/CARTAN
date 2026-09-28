@@ -219,4 +219,9 @@ fn burroughs_pool_populate_defaults(pool: BurroughsPool) {
     burroughs_pool_add(pool, 16.0, 7.0, 1.0, "Deductive implication forms a directed acyclic poset across semantic truth lattices.");
     burroughs_pool_add(pool, 17.0, 7.0, 2.0, "Gödel incompleteness demonstrates that consistent axiomatic systems contain unprovable semantic truths.");
     burroughs_pool_add(pool, 18.0, 7.0, 3.0, "The self-referential liar sentence oscillates perpetually between truth and falsity.");
+
+    // --- Domain 8: Decision Making & Strategic Planning Lateral Primes ---
+    burroughs_pool_add(pool, 19.0, 8.0, 1.0, "Decision policy surfaces collapse along Pareto frontiers toward mixed-strategy Nash equilibria.");
+    burroughs_pool_add(pool, 20.0, 8.0, 2.0, "Monte Carlo tree expansions prune suboptimal state branches through stochastic upper confidence bounds.");
+    burroughs_pool_add(pool, 21.0, 8.0, 3.0, "The shadow of iterated prisoner games enforces cooperation through infinite horizon discount factors.");
 }

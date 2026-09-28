@@ -1,3 +1,25 @@
+## [8.424.0] - 2026-09-28 (Sprint 466: Decision Making, Planning & Game Theory Domain 8 & Deductive-Decision Integration)
+
+### Completed & Validated
+- **Decision Making, Planning & Game Theory Domain Synthesis (`tools/cargraph_ingest.car`, `test/geomind/trainingdata/nses_knowledge.car_graph`, `[ISSUE-257]`)**:
+  - Synthesized Domain 8 (`DECISION_PLANNING`) with 2 strict invariants (Bellman Optimality, Strict Action Dominance) and 8 classical sequential decision and game-theoretic rules (Bellman Optimality Principle, Markov Property, Nash Equilibrium, Pareto Efficiency, Temporal Difference Credit Assignment, Monte Carlo Tree Search UCB1, Partially Observable Decision Process, Deductive Action Preconditions, Heuristic Admissibility).
+  - Scaled active knowledge base to 9 cognitive domains, 72 rules, and 18 strict invariants, validated via an 80-variable SMT/SAT consistency check prior to binary serialization.
+- **Deductive-Decision Architectural Bridge (`src/std/nses_pipeline.cl`)**:
+  - Established formal neuro-symbolic link between Domain 7 (Formal Logic & Deductive Reasoning) and Domain 8 (Decision Planning): an action is executable if and only if all preconditions are deductively entailed ($S \vdash Pre(A)$, Rule 70), driving recursive Bellman value updates (Rule 62) and temporal credit assignment (Rule 66).
+  - Wired CSR bridge edges: Rule 54 (Modus Ponens) $\to$ Rule 70 (Deductive Action Preconditions) $\to$ Rule 62 (Bellman Optimality) $\to$ Rule 66 (Temporal Credit Assignment), plus Nash Equilibrium $\to$ Pareto Efficiency (64 $\to$ 65) and MCTS UCB1 $\to$ Heuristic Admissibility (67 $\to$ 71).
+  - Implemented Stage 1 intent detection routing planning/decision queries (`decision`, `plan`, `game`, `policy`, `utility`, `nash`, `pareto`, `bellman`, `action`, `reward`, `mcts`, `heuristic`) to Domain 8.0, seeding Rule 70.
+- **Decision Theory Fallacy Veto Gate & Contradiction Logit Suppression (`src/std/veto_gate.cl`)**:
+  - Implemented Rule 10 (Domain 8) decision fallacy veto detecting strictly dominated action selection, intransitive preference cycles, negative discount rates, inadmissible heuristics, and sunk cost fallacy commitments.
+  - Registered contradiction tokens `801.0`, `802.0`, `803.0`, `804.0` in veto registry, suppressing logits below $0.0$ and calculating positive analytical loss penalties.
+  - Expanded `active_domain < 16.0` bound in `veto_compute_symbolic_loss_penalty` to support Domain 8 loss shaping.
+- **Domain 8 Burroughs Lateral Primes & Dataset Routing (`src/std/burroughs.cl`, `test/geomind/train.cl`)**:
+  - Added Domain 8 decision/planning lateral primes to `burroughs_pool_populate_defaults`.
+  - Added Domain 8 dataset routing in `test/geomind/train.cl` for planning, decision, game theory, PDDL, and MCTS corpora.
+- **Regression Suite Expansion & Empirical Verification (`test/compiler_suite/`)**:
+  - Authored Target 76 regression test: `test/compiler_suite/test_nses_decision_domain.car` verifying knowledge base structure (9 domains, 72 rules, 18 invariants), dynamic CSR scaling, Stage 1 intent routing, Deductive-Decision bridge traversal (Rule 70 $\to$ Rule 62 $\to$ Rule 66), decision fallacy veto gating, contradiction logit suppression, and dataset routing with zero mocking.
+  - Whitelisted Target 76 in `.gitignore` and registered in `test/compiler_suite/run_tests.car`.
+  - Rebuilt test runner `build/run_tests.exe` and verified 100% clean execution across all 76 compiler snapshot test targets (0 failures).
+
 ## [8.423.0] - 2026-09-28 (Sprint 465: Formal Logic & Deductive Reasoning Domain 7 & Dynamic CSR Scaling)
 
 ### Completed & Validated

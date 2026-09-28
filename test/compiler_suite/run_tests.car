@@ -451,35 +451,41 @@ fn main(argc: float, argv: ptr) -> float {
     cartan_flush(0.0);
     run_step(t70_cmd);
 
-    // [71/75] Positive test: test_nses_language_domain
+    // [71/76] Positive test: test_nses_language_domain
     let t71_cmd = "cartanc.exe build test/compiler_suite/test_nses_language_domain.car -o build/test_nses_language_domain.exe && build\\test_nses_language_domain.exe";
-    printf("[71/75] [// run-pass] Building and Executing NSES Language & Discourse Domain 6 Verification: %s\n", t71_cmd);
+    printf("[71/76] [// run-pass] Building and Executing NSES Language & Discourse Domain 6 Verification: %s\n", t71_cmd);
     cartan_flush(0.0);
     run_step(t71_cmd);
 
-    // [72/75] Positive test: test_ns_rule_generator
+    // [72/76] Positive test: test_ns_rule_generator
     let t72_cmd = "cartanc.exe build test/compiler_suite/test_ns_rule_generator.car -o build/test_ns_rule_generator.exe && build\\test_ns_rule_generator.exe";
-    printf("[72/75] [// run-pass] Building and Executing Automated Neuro-Symbolic Rule Generator & Ingestion: %s\n", t72_cmd);
+    printf("[72/76] [// run-pass] Building and Executing Automated Neuro-Symbolic Rule Generator & Ingestion: %s\n", t72_cmd);
     cartan_flush(0.0);
     run_step(t72_cmd);
 
-    // [73/75] Positive test: test_bulk_corpus_ingestion
+    // [73/76] Positive test: test_bulk_corpus_ingestion
     let t73_cmd = "cartanc.exe build test/compiler_suite/test_bulk_corpus_ingestion.car -o build/test_bulk_corpus_ingestion.exe && build\\test_bulk_corpus_ingestion.exe";
-    printf("[73/75] [// run-pass] Building and Executing Bulk Neuro-Symbolic Corpus Ingestion & Dynamic String Pool: %s\n", t73_cmd);
+    printf("[73/76] [// run-pass] Building and Executing Bulk Neuro-Symbolic Corpus Ingestion & Dynamic String Pool: %s\n", t73_cmd);
     cartan_flush(0.0);
     run_step(t73_cmd);
 
-    // [74/75] Positive test: test_chat_train_nses_forward_integration
+    // [74/76] Positive test: test_chat_train_nses_forward_integration
     let t74_cmd = "cartanc.exe build test/compiler_suite/test_chat_train_nses_forward_integration.car -o build/test_chat_train_nses_forward_integration.exe && build\\test_chat_train_nses_forward_integration.exe";
-    printf("[74/75] [// run-pass] Building and Executing Chat & Training NSES Forward Integration: %s\n", t74_cmd);
+    printf("[74/76] [// run-pass] Building and Executing Chat & Training NSES Forward Integration: %s\n", t74_cmd);
     cartan_flush(0.0);
     run_step(t74_cmd);
 
-    // [75/75] Positive test: test_nses_logic_domain
+    // [75/76] Positive test: test_nses_logic_domain
     let t75_cmd = "cartanc.exe build test/compiler_suite/test_nses_logic_domain.car -o build/test_nses_logic_domain.exe && build\\test_nses_logic_domain.exe";
-    printf("[75/75] [// run-pass] Building and Executing NSES Formal Logic & Deductive Reasoning Domain 7: %s\n", t75_cmd);
+    printf("[75/76] [// run-pass] Building and Executing NSES Formal Logic & Deductive Reasoning Domain 7: %s\n", t75_cmd);
     cartan_flush(0.0);
     run_step(t75_cmd);
+
+    // [76/76] Positive test: test_nses_decision_domain
+    let t76_cmd = "cartanc.exe build test/compiler_suite/test_nses_decision_domain.car -o build/test_nses_decision_domain.exe && build\\test_nses_decision_domain.exe";
+    printf("[76/76] [// run-pass] Building and Executing NSES Decision Making, Planning & Game Theory Domain 8: %s\n", t76_cmd);
+    cartan_flush(0.0);
+    run_step(t76_cmd);
 
     if (g_failed_count > 0.0) {
         printf("\n====================================================\n", "");
@@ -487,7 +493,7 @@ fn main(argc: float, argv: ptr) -> float {
         printf("====================================================\n", "");
         return 1.0;
     }
-    printf("\nAll 75 compiler snapshot test targets executed successfully (0 failures)!\n", "");
+    printf("\nAll 76 compiler snapshot test targets executed successfully (0 failures)!\n", "");
     return 0.0;
 }
 

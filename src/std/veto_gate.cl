@@ -313,6 +313,29 @@ fn veto_registry_populate_defaults(reg: VetoRegistry) {
     veto_registry_add_forbidden_token(reg, 7.0, 702.0);
     veto_registry_add_forbidden_token(reg, 7.0, 703.0);
     veto_registry_add_forbidden_token(reg, 7.0, 704.0);
+
+    // 10. Decision Theory, Game Theoretic Dominance & Bellman Invariants (Domain 8: DECISION_PLANNING)
+    let p10 = cartan_tree_create();
+    cartan_tree_push(p10, "selecting strictly dominated action");
+    cartan_tree_push(p10, "intransitive preference cycle");
+    cartan_tree_push(p10, "negative discount factor in bellman");
+    cartan_tree_push(p10, "inadmissible heuristic overestimates cost");
+    cartan_tree_push(p10, "unilateral deviation increases payoff in nash");
+    cartan_tree_push(p10, "sunk cost commitments");
+    cartan_tree_push(p10, "sunk cost fallacy");
+    veto_registry_add_rule(
+        reg,
+        10.0,
+        8.0,
+        "In accordance with sequential decision theory and game-theoretic rationality, agents must satisfy Bellman optimality, avoid strictly dominated actions, maintain transitive preferences, and preserve admissible heuristic search bounds.",
+        p10
+    );
+
+    // Domain 8: DECISION_PLANNING (Dominated action, preference cycles, divergence)
+    veto_registry_add_forbidden_token(reg, 8.0, 801.0);
+    veto_registry_add_forbidden_token(reg, 8.0, 802.0);
+    veto_registry_add_forbidden_token(reg, 8.0, 803.0);
+    veto_registry_add_forbidden_token(reg, 8.0, 804.0);
 }
 
 // Computes analytical symbolic penalty across output logits to shape training loss
@@ -366,7 +389,7 @@ fn veto_compute_symbolic_loss_penalty(reg: VetoRegistry, active_domain: float, l
         }
 
         // Active domain specific invariants
-        if (active_domain > 0.0 && active_domain < 8.0) {
+        if (active_domain > 0.0 && active_domain < 16.0) {
             let da_list = cartan_tree_get_f32(reg.domain_forbidden_tokens, active_domain);
             if (da_list != 0.0) {
                 let da_len = collections_list_len(da_list);

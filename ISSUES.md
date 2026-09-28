@@ -3474,6 +3474,24 @@ This file tracks technical debt and bugs identified during repository code revie
   6. Implemented Stage 1 intent detection and Modus Ponens seed traversal in `src/std/nses_pipeline.cl` and dataset routing in `test/geomind/train.cl`.
   7. Authored Target 75 (`test/compiler_suite/test_nses_logic_domain.car`) and verified 100% clean test execution across all 75 regression targets.
 
+---
+
+## [ISSUE-257] [FIXED] Lack of Decision Making, Planning & Game Theory Domain (Domain 8) & Deductive-Decision Integration
+- **Severity**: High (Core Autonomous Planning & Goal-Directed Action Gap)
+- **Component**: [`src/std/cargraph.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/cargraph.cl), [`src/std/nses_pipeline.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/nses_pipeline.cl), [`src/std/veto_gate.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/veto_gate.cl), [`tools/cargraph_ingest.car`](file:///C:/Users/rich-/source/repos/CARTAN/tools/cargraph_ingest.car), [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl)
+- **Description**:
+  1. The NSES cognitive architecture currently lacks formal representations of sequential decision theory, Markov Decision Processes, game-theoretic equilibria (Nash, Pareto), Bellman optimality, and heuristic state-space search (MCTS UCB1, A* admissibility).
+  2. While Domain 7 (`LOGIC_REASONING`) provides propositional deduction, there is no bridge linking logical precondition satisfaction ($Pre(A) \vdash S$) to action execution, optimal policy derivation, or credit assignment.
+  3. The veto gate lacks patterns and contradiction tokens to detect and suppress irrational preference cycles ($A \succ B \succ C \succ A$), strictly dominated action selection, and divergent negative discount rates.
+- **Resolution**:
+  1. Synthesized Domain 8 (`DECISION_PLANNING`) in `tools/cargraph_ingest.car` with 2 strict invariants (Bellman Optimality, Strict Action Dominance) and 8 relational/game-theoretic rules (Rules 62..71), expanding knowledge graph to 9 domains, 72 rules, and 18 strict invariants. Recompiled `test/geomind/trainingdata/nses_knowledge.car_graph` with an 80-variable SMT/SAT consistency proof.
+  2. Wired deductive-decision bridge in SMT/SAT consistency check and CSR graph: Rule 54 (Modus Ponens) $\to$ Rule 70 (Deductive Action Preconditions) $\to$ Rule 62 (Bellman Optimality) $\to$ Rule 66 (Temporal Credit Assignment).
+  3. Implemented Rule 10 decision fallacy veto in `src/std/veto_gate.cl` (strictly dominated action, sunk cost commitments, preference cycles) and registered contradiction tokens `801`-`804`.
+  4. Expanded `active_domain < 16.0` boundary in `veto_compute_symbolic_loss_penalty` to support Domain 8 loss shaping.
+  5. Added Domain 8 decision/planning lateral primes in `src/std/burroughs.cl`.
+  6. Implemented Stage 1 intent detection and seed selection in `src/std/nses_pipeline.cl` and dataset routing in `test/geomind/train.cl`.
+  7. Authored Target 76 (`test/compiler_suite/test_nses_decision_domain.car`), whitelisted in `.gitignore`, registered in `test/compiler_suite/run_tests.car`, and verified clean test execution.
+
 
 
 

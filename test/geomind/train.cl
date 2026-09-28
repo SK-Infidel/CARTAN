@@ -2636,6 +2636,8 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
                         active_d = 6.0; // LANGUAGE_DISCOURSE
                     } else if (cartan_string_contains(cur_dataset_name, "logic") != 0.0 || cartan_string_contains(cur_dataset_name, "reasoning") != 0.0 || cartan_string_contains(cur_dataset_name, "deduction") != 0.0 || cartan_string_contains(cur_dataset_name, "proof") != 0.0 || cartan_string_contains(cur_dataset_name, "syllogism") != 0.0 || cartan_string_contains(cur_dataset_name, "rule_taker") != 0.0 || cartan_string_contains(cur_dataset_name, "entailment") != 0.0) {
                         active_d = 7.0; // LOGIC_REASONING
+                    } else if (cartan_string_contains(cur_dataset_name, "plan") != 0.0 || cartan_string_contains(cur_dataset_name, "decision") != 0.0 || cartan_string_contains(cur_dataset_name, "policy") != 0.0 || cartan_string_contains(cur_dataset_name, "game") != 0.0 || cartan_string_contains(cur_dataset_name, "pddl") != 0.0 || cartan_string_contains(cur_dataset_name, "mcts") != 0.0 || cartan_string_contains(cur_dataset_name, "reward") != 0.0 || cartan_string_contains(cur_dataset_name, "trajectory") != 0.0 || cartan_string_contains(cur_dataset_name, "alfworld") != 0.0) {
+                        active_d = 8.0; // DECISION_PLANNING
                     } else {
                         active_d = 5.0; // CAUSAL_TAXONOMY
                     }

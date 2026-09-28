@@ -325,6 +325,8 @@ This roadmap tracks the implementation of the advanced AI optimizations and nati
 - [x] **25. Full Regression Suite (74 Targets)**: 74/74 regression suite test targets passing with 0 failures (Exit code 0).
 - [x] **26. Formal Logic & Deductive Reasoning Domain 7 Synthesis & Dynamic CSR Sizing (`src/std/nses_pipeline.cl`, `tools/cargraph_ingest.car`, `src/std/veto_gate.cl`, Sprint 465)**: Ingested Domain 7 (LOGIC_REASONING, 8 domains, 62 rules, 16 invariants) with SMT/SAT consistency proof; scaled CSR builder & scratchpad to >= 256 nodes; added formal fallacy veto rules and tokens 701-704; Target 75 passing.
 - [x] **27. Full Regression Suite (75 Targets)**: 75/75 regression suite test targets passing with 0 failures (Exit code 0).
+- [x] **28. Decision Making, Planning & Game Theory Domain 8 Synthesis & Deductive-Decision Bridge (`src/std/nses_pipeline.cl`, `tools/cargraph_ingest.car`, `src/std/veto_gate.cl`, Sprint 466)**: Ingested Domain 8 (`DECISION_PLANNING`, 9 domains, 72 rules, 18 invariants) with 80-variable SMT/SAT proof; established deductive-decision bridge (Rule 54 $\to$ Rule 70 $\to$ Rule 62 $\to$ Rule 66); added decision fallacy veto Rule 10 and tokens 801-804; Target 76 passing.
+- [x] **29. Full Regression Suite (76 Targets)**: 76/76 regression suite test targets passing with 0 failures (Exit code 0).
 
 
 

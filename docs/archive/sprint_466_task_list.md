@@ -1,0 +1,26 @@
+# Sprint 466 Task List: Decision Making, Planning & Game Theory (Domain 8) & Deductive-Decision Integration
+
+- [x] **Task 1: Ingest Domain 8 in Knowledge Compiler (`tools/cargraph_ingest.car`)**
+  - [x] Add Domain 8 (`DECISION_PLANNING`) with 2 strict invariants and 8 relational rules (Rules 62..71).
+  - [x] Update total domains to 9, total rules to 72, strict count to 18.
+  - [x] Wire SMT/SAT consistency checks (implications 54 -> 70 -> 62 -> 66, 64 -> 65, 67 -> 71).
+  - [x] Recompile `tools/cargraph_ingest.car` and generate updated `nses_knowledge.car_graph`.
+- [x] **Task 2: Veto Gate & Burroughs Primes Integration**
+  - [x] Add Rule 10 (Domain 8) decision fallacy veto (dominated action, intransitive preference, inadmissible heuristic) in `src/std/veto_gate.cl`.
+  - [x] Register default contradiction tokens `801`, `802`, `803`, `804` for Domain 8 in `veto_registry_populate_defaults`.
+  - [x] Add Domain 8 lateral primes in `src/std/burroughs.cl`.
+- [x] **Task 3: Pipeline Intent Routing, CSR Topology & Training Routing**
+  - [x] Add Stage 1 intent detection for planning/decision queries in `src/std/nses_pipeline.cl`.
+  - [x] Add Stage 3 seed selection for Domain 8 (Rule 70: Deductive Action Preconditions).
+  - [x] Wire CSR deductive-decision edges (54 -> 70 -> 62 -> 66, 67 -> 71) and memory fallbacks in `src/std/nses_pipeline.cl`.
+  - [x] In `test/geomind/train.cl`, route planning, decision, and game datasets to Domain 8.
+- [x] **Task 4: Author Target 76 & Regression Verification**
+  - [x] Author `test/compiler_suite/test_nses_decision_domain.car`.
+  - [x] Whitelist Target 76 in `.gitignore`.
+  - [x] Register Target 76 in `test/compiler_suite/run_tests.car`.
+  - [x] Rebuild `build/run_tests.exe` and execute all 76 targets (76/76 passing cleanly).
+- [x] **Task 5: Documentation & Session Closeout**
+  - [x] Update `ISSUES.md` (`[ISSUE-257]` -> `[FIXED]`).
+  - [x] Update `CHANGELOG.md` (`[8.424.0]`).
+  - [x] Update `docs/ROADMAP.md`.
+  - [x] Save walkthrough to `docs/archive/sprint_466_walkthrough.md`.

@@ -43,6 +43,7 @@ fn main(argc: float, argv: ptr) -> float {
     cargraph_builder_add_domain(builder, 5.0, 32.0, 10.0, 2.0); // CAUSAL_TAXONOMY (2 strict, 8 factual)
     cargraph_builder_add_domain(builder, 6.0, 42.0, 10.0, 2.0); // LANGUAGE_DISCOURSE (2 strict, 8 factual)
     cargraph_builder_add_domain(builder, 7.0, 52.0, 10.0, 2.0); // LOGIC_REASONING (2 strict, 8 factual)
+    cargraph_builder_add_domain(builder, 8.0, 62.0, 10.0, 2.0); // DECISION_PLANNING (2 strict, 8 factual)
 
     // -------------------------------------------------------------------------
     // 2. Ingest Rules & Guardrails
@@ -125,15 +126,27 @@ fn main(argc: float, argv: ptr) -> float {
     cargraph_builder_add_rule(builder, 7.0, 1.0, 0.0, "Resolution Refutation: Disjunctive clauses (A or B) and (not A or C) resolve to the valid resolvent clause (B or C).");
     cargraph_builder_add_rule(builder, 7.0, 1.0, 0.0, "Syllogistic Subsumption: If all elements of class S belong to genus M, and all elements of genus M belong to predicate P, then all S belong to P.");
 
-    printf("[Ingest Compiler] Ingested 8 cognitive domains and 62 structured rules (16 strict invariants).\n");
+    // --- Domain 8: DECISION_PLANNING (Sequential Decisions, Game Theory & Heuristic Planning) ---
+    cargraph_builder_add_rule(builder, 8.0, 0.0, 1.0, "Bellman Optimality Principle: An optimal policy satisfies the recursive optimality equation V*(s) = max_a [R(s,a) + gamma * sum(P(s'|s,a) * V*(s'))] with discount factor gamma in [0, 1).");
+    cargraph_builder_add_rule(builder, 8.0, 0.0, 1.0, "Strict Action Dominance Invariant: A rational agent cannot select a strictly dominated action if an alternative yields strictly higher expected utility across all future states.");
+    cargraph_builder_add_rule(builder, 8.0, 1.0, 0.0, "Nash Equilibrium Stability: A strategy profile is a Nash equilibrium if no player has a profitable unilateral deviation given the strategies of all other players.");
+    cargraph_builder_add_rule(builder, 8.0, 1.0, 0.0, "Pareto Efficiency: A state allocation is Pareto optimal if no player payoff can be increased without strictly decreasing the payoff of at least one other player.");
+    cargraph_builder_add_rule(builder, 8.0, 1.0, 0.0, "Temporal Credit Assignment: State-action values update under temporal difference error: Q(s, a) = Q(s, a) + alpha * [r + gamma * max_a' Q(s', a') - Q(s, a)].");
+    cargraph_builder_add_rule(builder, 8.0, 1.0, 0.0, "MCTS UCB1 Exploration Balance: Upper Confidence Bound for Trees selects actions maximizing Q(s, a) + c * sqrt(ln(N(s)) / N(s, a)) balancing exploitation against exploration.");
+    cargraph_builder_add_rule(builder, 8.0, 1.0, 0.0, "Markov State Property: Future state transitions depend conditionally only upon the current state and action, independent of the historical trajectory.");
+    cargraph_builder_add_rule(builder, 8.0, 1.0, 0.0, "Goal-Directed Backward Induction: In finite extensive-form games, backward induction from terminal payoff nodes computes the subgame-perfect equilibrium.");
+    cargraph_builder_add_rule(builder, 8.0, 1.0, 0.0, "Deductive Action Preconditions: An action A is executable in state S if and only if the logical preconditions Pre(A) are deductively satisfied in S.");
+    cargraph_builder_add_rule(builder, 8.0, 1.0, 0.0, "Heuristic Admissibility: An A* state-space search heuristic h(s) must never overestimate the true minimal cost to the goal state to guarantee optimality.");
+
+    printf("[Ingest Compiler] Ingested 9 cognitive domains and 72 structured rules (18 strict invariants).\n");
 
     // -------------------------------------------------------------------------
     // 3. Automated SMT/SAT Consistency Verification Pass
     // -------------------------------------------------------------------------
     printf("[Ingest Compiler] Running SMT/SAT Propositional Consistency Verification Pass...\n");
-    let solver = sat_solver_create(64.0);
+    let solver = sat_solver_create(80.0);
 
-    // Assert strict invariants as positive ground axioms across all 8 domains
+    // Assert strict invariants as positive ground axioms across all 9 domains
     sat_assert_axiom(solver, 0.0);
     sat_assert_axiom(solver, 1.0);
     sat_assert_axiom(solver, 2.0);
@@ -150,6 +163,8 @@ fn main(argc: float, argv: ptr) -> float {
     sat_assert_axiom(solver, 43.0);
     sat_assert_axiom(solver, 52.0);
     sat_assert_axiom(solver, 53.0);
+    sat_assert_axiom(solver, 62.0);
+    sat_assert_axiom(solver, 63.0);
 
     // Model valid implication dependencies across domains
     sat_add_implication(solver, 6.0, 7.0);   // Kinetic Energy -> Inelastic Dissipation
@@ -169,6 +184,11 @@ fn main(argc: float, argv: ptr) -> float {
     sat_add_implication(solver, 56.0, 60.0); // Hypothetical Syllogism -> Resolution Refutation
     sat_add_implication(solver, 57.0, 55.0); // Contraposition -> Modus Tollens
     sat_add_implication(solver, 58.0, 59.0); // De Morgan Conjunction -> De Morgan Disjunction
+    sat_add_implication(solver, 54.0, 70.0); // Modus Ponens -> Deductive Preconditions
+    sat_add_implication(solver, 70.0, 62.0); // Deductive Preconditions -> Bellman Optimality
+    sat_add_implication(solver, 62.0, 66.0); // Bellman Optimality -> Temporal Credit Assignment
+    sat_add_implication(solver, 64.0, 65.0); // Nash Equilibrium -> Pareto Efficiency
+    sat_add_implication(solver, 67.0, 71.0); // MCTS UCB1 -> Heuristic Admissibility
 
     let is_consistent = sat_solve_consistency(solver);
     if (is_consistent == 0.0) {
@@ -178,7 +198,7 @@ fn main(argc: float, argv: ptr) -> float {
         sat_solver_free(solver);
         return 1.0;
     }
-    printf("[Ingest Compiler] [PASS] SMT/SAT consistency mathematically proved across 62 rules. Graph is SAT.\n");
+    printf("[Ingest Compiler] [PASS] SMT/SAT consistency mathematically proved across 72 rules. Graph is SAT.\n");
 
     // -------------------------------------------------------------------------
     // 4. Binary Emission
