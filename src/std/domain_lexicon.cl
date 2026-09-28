@@ -90,9 +90,23 @@ fn domain_lexicon_register_frames(lex: DomainLexicon) {
     cartan_tree_push(lex.discourse_frames_tree, "[Epistemic Belief Frame] Given prior probability P(H) and likelihood ratio P(E|H), empirical evidence E updates posterior credence P(H|E) via Bayes rule, minimally revising commitments under AGM contraction.");
     // Domain 10: COMPILER_SYSTEMS (Software Architecture, Compilers & Type Systems Framing)
     cartan_tree_push(lex.discourse_frames_tree, "[Compiler Architecture Frame] Under static single assignment (SSA) and type soundness constraints, source syntax lowers into canonical intermediate representation preserving memory exclusivity and type safety without stuck states.");
+    // Domain 11: INFORMATION_CYBERNETICS (Feedback Dynamics & Channel Bounds Framing)
+    cartan_tree_push(lex.discourse_frames_tree, "[Information Cybernetics Frame] Through feedback loops and channel capacity bounds, mutual information is maximized while continuous channel entropy is bounded by Shannon-Hartley limit.");
+    // Domain 12: SYSTEMS_CONTROL (Closed-Loop Dynamics & Lyapunov Stability Framing)
+    cartan_tree_push(lex.discourse_frames_tree, "[Systems Control Frame] Closed-loop transfer function stabilizes dynamical system toward asymptotic setpoint, ensuring bounded-input bounded-output (BIBO) stability under Lyapunov function V(x).");
+    // Domain 13: METACOGNITION_INTROSPECTION (Higher-Order Calibration & Self-Reflection Framing)
+    cartan_tree_push(lex.discourse_frames_tree, "[Metacognitive Introspection Frame] Higher-order epistemic monitor tracks belief confidence and calibration error, invoking cognitive restructuring when recursive self-reflection detects inference drift.");
+    // Domain 14: NEUROMORPHIC_SYSTEMS (Spike Timing Dynamics & Membrane Potentials Framing)
+    cartan_tree_push(lex.discourse_frames_tree, "[Neuromorphic Architecture Frame] Asynchronous event-driven spiking neural circuit integrates membrane potentials toward threshold firing, modulating synaptic plasticity via spike-timing-dependent plasticity (STDP).");
+    // Domain 15: GAME_THEORY_COORDINATION (Multi-Agent Strategic Equilibria Framing)
+    cartan_tree_push(lex.discourse_frames_tree, "[Game Coordination Frame] In multi-agent strategic interaction, correlated equilibrium and Pareto efficiency guide cooperative consensus, precluding dominated strategies under incentive-compatible payoffs.");
+    // Domain 16: SCIENTIFIC_METHOD (Empirical Falsifiability & Experimental Control Framing)
+    cartan_tree_push(lex.discourse_frames_tree, "[Scientific Method Frame] Falsifiable empirical hypothesis confronts controlled experimental observation, minimizing confounding bias through blinded counterfactual controls and statistical power.");
+    // Domain 17: SECURITY_SANDBOXING (Compartmentalization & Capability Boundaries Framing)
+    cartan_tree_push(lex.discourse_frames_tree, "[Security Sandbox Frame] Under strict capability-based access control and principle of least privilege, memory isolation sandbox prevents privilege escalation and enforces inviolable compartmentalization boundaries.");
 }
 
-// Populates universal cross-domain lexicons and ontologies across all 11 domains
+// Populates universal cross-domain lexicons and ontologies across all 18 domains
 fn domain_lexicon_populate_defaults(lex: DomainLexicon) {
     // --- Domain 0: SYSTEM_CORE ---
     domain_lexicon_add_term(lex, "conservation", 0.0, 0.95, "predicate");
@@ -178,6 +192,55 @@ fn domain_lexicon_populate_defaults(lex: DomainLexicon) {
     domain_lexicon_add_term(lex, "linear_type", 10.0, 0.93, "entity");
     domain_lexicon_add_term(lex, "dead_code_elimination", 10.0, 0.95, "operator");
 
+    // --- Domain 11: INFORMATION_CYBERNETICS ---
+    domain_lexicon_add_term(lex, "shannon_entropy", 11.0, 0.97, "entity");
+    domain_lexicon_add_term(lex, "channel_capacity", 11.0, 0.96, "entity");
+    domain_lexicon_add_term(lex, "cybernetic_feedback", 11.0, 0.95, "operator");
+    domain_lexicon_add_term(lex, "mutual_information", 11.0, 0.96, "entity");
+    domain_lexicon_add_term(lex, "ergodic", 11.0, 0.93, "predicate");
+
+    // --- Domain 12: SYSTEMS_CONTROL ---
+    domain_lexicon_add_term(lex, "lyapunov_stability", 12.0, 0.98, "predicate");
+    domain_lexicon_add_term(lex, "transfer_function", 12.0, 0.95, "entity");
+    domain_lexicon_add_term(lex, "closed_loop", 12.0, 0.94, "predicate");
+    domain_lexicon_add_term(lex, "kalman_filter", 12.0, 0.97, "operator");
+    domain_lexicon_add_term(lex, "controllability", 12.0, 0.96, "predicate");
+
+    // --- Domain 13: METACOGNITION_INTROSPECTION ---
+    domain_lexicon_add_term(lex, "metacognitive_monitoring", 13.0, 0.97, "operator");
+    domain_lexicon_add_term(lex, "epistemic_calibration", 13.0, 0.96, "predicate");
+    domain_lexicon_add_term(lex, "self_reflection", 13.0, 0.95, "operator");
+    domain_lexicon_add_term(lex, "cognitive_bias", 13.0, 0.94, "entity");
+    domain_lexicon_add_term(lex, "error_detection", 13.0, 0.95, "predicate");
+
+    // --- Domain 14: NEUROMORPHIC_SYSTEMS ---
+    domain_lexicon_add_term(lex, "spike_timing", 14.0, 0.97, "entity");
+    domain_lexicon_add_term(lex, "synaptic_plasticity", 14.0, 0.96, "predicate");
+    domain_lexicon_add_term(lex, "membrane_potential", 14.0, 0.95, "entity");
+    domain_lexicon_add_term(lex, "integrate_and_fire", 14.0, 0.96, "operator");
+    domain_lexicon_add_term(lex, "asynchronous_event", 14.0, 0.94, "predicate");
+
+    // --- Domain 15: GAME_THEORY_COORDINATION ---
+    domain_lexicon_add_term(lex, "pareto_efficient", 15.0, 0.97, "predicate");
+    domain_lexicon_add_term(lex, "correlated_equilibrium", 15.0, 0.98, "entity");
+    domain_lexicon_add_term(lex, "cooperative_game", 15.0, 0.95, "entity");
+    domain_lexicon_add_term(lex, "mechanism_design", 15.0, 0.96, "operator");
+    domain_lexicon_add_term(lex, "zero_sum", 15.0, 0.94, "predicate");
+
+    // --- Domain 16: SCIENTIFIC_METHOD ---
+    domain_lexicon_add_term(lex, "falsifiability", 16.0, 0.98, "predicate");
+    domain_lexicon_add_term(lex, "null_hypothesis", 16.0, 0.97, "entity");
+    domain_lexicon_add_term(lex, "controlled_experiment", 16.0, 0.96, "operator");
+    domain_lexicon_add_term(lex, "confounding_variable", 16.0, 0.95, "entity");
+    domain_lexicon_add_term(lex, "replicability", 16.0, 0.97, "predicate");
+
+    // --- Domain 17: SECURITY_SANDBOXING ---
+    domain_lexicon_add_term(lex, "capability_security", 17.0, 0.98, "entity");
+    domain_lexicon_add_term(lex, "least_privilege", 17.0, 0.97, "predicate");
+    domain_lexicon_add_term(lex, "memory_isolation", 17.0, 0.98, "predicate");
+    domain_lexicon_add_term(lex, "privilege_escalation", 17.0, 0.96, "operator");
+    domain_lexicon_add_term(lex, "sandboxing", 17.0, 0.95, "entity");
+
     domain_lexicon_register_frames(lex);
 }
 
@@ -217,19 +280,19 @@ fn domain_lexicon_validate_predicate_category(
 ) -> float {
     if (predicate == 0.0) { return 1.0; }
 
-    // Category Error: Biological predicates (photosynthesize, metabolize, phosphorylate) applied to formal math/logic/physics/compiler
+    // Category Error: Biological predicates (photosynthesize, metabolize, phosphorylate) applied to formal math/logic/physics/compiler/systems/security
     if (cartan_string_contains(predicate, "photosynthesize") != 0.0 ||
         cartan_string_contains(predicate, "metabolize") != 0.0 ||
         cartan_string_contains(predicate, "digest") != 0.0) {
-        if (subject_domain == 2.0 || subject_domain == 3.0 || subject_domain == 7.0 || subject_domain == 8.0 || subject_domain == 9.0 || subject_domain == 10.0) {
+        if (subject_domain == 2.0 || subject_domain == 3.0 || subject_domain == 7.0 || subject_domain == 8.0 || subject_domain == 9.0 || subject_domain == 10.0 || subject_domain == 11.0 || subject_domain == 12.0 || subject_domain == 13.0 || subject_domain == 15.0 || subject_domain == 17.0) {
             return 0.0; // Invariant violation: Abstract formal systems do not have biological metabolism
         }
     }
 
-    // Category Error: Differential geometry / topological calculus applied to discrete propositional truth tables or compiler IR
+    // Category Error: Differential geometry / topological calculus applied to discrete propositional truth tables, compilers, or security sandboxes
     if (cartan_string_contains(predicate, "exterior_derivative_of") != 0.0 ||
         cartan_string_contains(predicate, "geodesic_curvature_of") != 0.0) {
-        if (subject_domain == 7.0 || subject_domain == 3.0 || subject_domain == 9.0 || subject_domain == 10.0) {
+        if (subject_domain == 7.0 || subject_domain == 3.0 || subject_domain == 9.0 || subject_domain == 10.0 || subject_domain == 17.0) {
             return 0.0; // Discrete logic / Turing complexity classes / Compilers do not have smooth differential forms
         }
     }

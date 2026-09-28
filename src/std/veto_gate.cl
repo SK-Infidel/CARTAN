@@ -60,7 +60,7 @@ fn veto_registry_create() -> VetoRegistry {
     let p_tree = cartan_tree_create();
     let d_toks = cartan_tree_create();
     var d = 0.0;
-    while (d < 16.0) {
+    while (d < 32.0) {
         let t_list = collections_create_list();
         cartan_tree_push(d_toks, t_list);
         d = d + 1.0;
@@ -87,13 +87,19 @@ fn veto_registry_add_rule(reg: VetoRegistry, rule_id: float, domain_id: float, a
 
 // Registers a forbidden token ID associated with contradictions in a domain
 fn veto_registry_add_forbidden_token(reg: VetoRegistry, domain_id: float, token_id: float) -> float {
-    if (reg.domain_forbidden_tokens == 0.0 || domain_id < 0.0 || domain_id >= 16.0) { return 0.0; }
+    if (reg.domain_forbidden_tokens == 0.0 || domain_id < 0.0 || domain_id >= 32.0) { return 0.0; }
     let t_list = cartan_tree_get_f32(reg.domain_forbidden_tokens, domain_id);
     if (t_list != 0.0) {
         collections_list_push(t_list, token_id);
         return collections_list_len(t_list);
     }
     return 0.0;
+}
+
+// Retrieves forbidden token list for a domain
+fn veto_registry_get_forbidden_tokens(reg: VetoRegistry, domain_id: float) -> ptr {
+    if (reg.domain_forbidden_tokens == 0.0 || domain_id < 0.0 || domain_id >= 32.0) { return 0.0; }
+    return cartan_tree_get_f32(reg.domain_forbidden_tokens, domain_id);
 }
 
 // Deallocates VetoRegistry resources
@@ -286,6 +292,24 @@ fn veto_registry_populate_defaults(reg: VetoRegistry) {
     veto_registry_add_forbidden_token(reg, 0.0, 102.0);
     veto_registry_add_forbidden_token(reg, 0.0, 103.0);
 
+    // Domain 1: PHYSICS_SIM (Momentum destruction, spontaneous velocity)
+    veto_registry_add_forbidden_token(reg, 1.0, 105.0);
+    veto_registry_add_forbidden_token(reg, 1.0, 106.0);
+    veto_registry_add_forbidden_token(reg, 1.0, 107.0);
+    veto_registry_add_forbidden_token(reg, 1.0, 108.0);
+
+    // Domain 4: BIOLOGICAL_SYSTEMS (Spontaneous generation, reverse central dogma)
+    veto_registry_add_forbidden_token(reg, 4.0, 401.0);
+    veto_registry_add_forbidden_token(reg, 4.0, 402.0);
+    veto_registry_add_forbidden_token(reg, 4.0, 403.0);
+    veto_registry_add_forbidden_token(reg, 4.0, 404.0);
+
+    // Domain 5: CAUSAL_TAXONOMY (Reverse time causality, taxonomic mutual exclusion violation)
+    veto_registry_add_forbidden_token(reg, 5.0, 501.0);
+    veto_registry_add_forbidden_token(reg, 5.0, 502.0);
+    veto_registry_add_forbidden_token(reg, 5.0, 503.0);
+    veto_registry_add_forbidden_token(reg, 5.0, 504.0);
+
     // Domain 6: LANGUAGE_DISCOURSE (Nonsense, meaninglessness, grammar denial, category errors)
     veto_registry_add_forbidden_token(reg, 6.0, 601.0);
     veto_registry_add_forbidden_token(reg, 6.0, 602.0);
@@ -404,6 +428,168 @@ fn veto_registry_populate_defaults(reg: VetoRegistry) {
     veto_registry_add_forbidden_token(reg, 10.0, 1002.0);
     veto_registry_add_forbidden_token(reg, 10.0, 1003.0);
     veto_registry_add_forbidden_token(reg, 10.0, 1004.0);
+
+    // 14. Topology, Manifolds & Differential Geometry (Domain 2: TOPOLOGY_GEOMETRY)
+    let p14 = cartan_tree_create();
+    cartan_tree_push(p14, "boundary of a boundary is non-zero");
+    cartan_tree_push(p14, "negative riemannian metric norm");
+    cartan_tree_push(p14, "singular manifold tangent space");
+    cartan_tree_push(p14, "euler characteristic violation");
+    veto_registry_add_rule(
+        reg,
+        14.0,
+        2.0,
+        "In accordance with differential geometry and algebraic topology, the boundary of a boundary is identically zero d(d(omega)) = 0, and Riemannian metrics induce strictly positive-definite inner products.",
+        p14
+    );
+    veto_registry_add_forbidden_token(reg, 2.0, 201.0);
+    veto_registry_add_forbidden_token(reg, 2.0, 202.0);
+    veto_registry_add_forbidden_token(reg, 2.0, 203.0);
+    veto_registry_add_forbidden_token(reg, 2.0, 204.0);
+
+    // 15. Computational Complexity & Decidability (Domain 3: COMPLEXITY_THEORY)
+    let p15 = cartan_tree_create();
+    cartan_tree_push(p15, "deciding the halting problem");
+    cartan_tree_push(p15, "general halting decider");
+    cartan_tree_push(p15, "turing machine solves undecidable");
+    cartan_tree_push(p15, "np-complete solved in logarithmic time");
+    veto_registry_add_rule(
+        reg,
+        15.0,
+        3.0,
+        "In accordance with theoretical computer science and complexity theory, the Halting Problem is strictly undecidable by any universal Turing machine, and NP-complete problems cannot be decided in sub-polynomial time without certificate validation.",
+        p15
+    );
+    veto_registry_add_forbidden_token(reg, 3.0, 301.0);
+    veto_registry_add_forbidden_token(reg, 3.0, 302.0);
+    veto_registry_add_forbidden_token(reg, 3.0, 303.0);
+    veto_registry_add_forbidden_token(reg, 3.0, 304.0);
+
+    // 16. Information Theory & Cybernetic Limits (Domain 11: INFORMATION_CYBERNETICS)
+    let p16 = cartan_tree_create();
+    cartan_tree_push(p16, "transmission exceeds channel capacity");
+    cartan_tree_push(p16, "negative shannon entropy");
+    cartan_tree_push(p16, "data processing inequality violation");
+    cartan_tree_push(p16, "infinite mutual information through processing");
+    veto_registry_add_rule(
+        reg,
+        16.0,
+        11.0,
+        "In accordance with information theory, transmission rates cannot surpass Shannon channel capacity with vanishing error, and mutual information cannot increase under post-processing.",
+        p16
+    );
+    veto_registry_add_forbidden_token(reg, 11.0, 1101.0);
+    veto_registry_add_forbidden_token(reg, 11.0, 1102.0);
+    veto_registry_add_forbidden_token(reg, 11.0, 1103.0);
+    veto_registry_add_forbidden_token(reg, 11.0, 1104.0);
+
+    // 17. Systems Dynamics & Lyapunov Stability (Domain 12: SYSTEMS_CONTROL)
+    let p17 = cartan_tree_create();
+    cartan_tree_push(p17, "positive lyapunov derivative in stable system");
+    cartan_tree_push(p17, "divergent unbounded closed loop");
+    cartan_tree_push(p17, "zero controllability rank controllable");
+    cartan_tree_push(p17, "infinite phase margin instability");
+    veto_registry_add_rule(
+        reg,
+        17.0,
+        12.0,
+        "In accordance with dynamical control theory, stable trajectories require negative semi-definite Lyapunov energy derivatives, and complete state regulation mandates full Kalman controllability rank.",
+        p17
+    );
+    veto_registry_add_forbidden_token(reg, 12.0, 1201.0);
+    veto_registry_add_forbidden_token(reg, 12.0, 1202.0);
+    veto_registry_add_forbidden_token(reg, 12.0, 1203.0);
+    veto_registry_add_forbidden_token(reg, 12.0, 1204.0);
+
+    // 18. Metacognitive Calibration & Doubt (Domain 13: METACOGNITION_INTROSPECTION)
+    let p18 = cartan_tree_create();
+    cartan_tree_push(p18, "overconfident hallucination with high entropy");
+    cartan_tree_push(p18, "uncalibrated subjective certainty");
+    cartan_tree_push(p18, "suppressing doubt rewind checkpoint");
+    cartan_tree_push(p18, "ignoring divergent reasoning conclusions");
+    veto_registry_add_rule(
+        reg,
+        18.0,
+        13.0,
+        "In accordance with metacognitive introspection, autonomous systems must calibrate confidence against empirical accuracy, triggering doubt rewinds upon predictive entropy divergence.",
+        p18
+    );
+    veto_registry_add_forbidden_token(reg, 13.0, 1301.0);
+    veto_registry_add_forbidden_token(reg, 13.0, 1302.0);
+    veto_registry_add_forbidden_token(reg, 13.0, 1303.0);
+    veto_registry_add_forbidden_token(reg, 13.0, 1304.0);
+
+    // 19. Neuromorphic Systems & Plasticity (Domain 14: NEUROMORPHIC_SYSTEMS)
+    let p19 = cartan_tree_create();
+    cartan_tree_push(p19, "hopfield energy increases spontaneously");
+    cartan_tree_push(p19, "neuron releases both excitatory and inhibitory");
+    cartan_tree_push(p19, "dales principle violation");
+    cartan_tree_push(p19, "runaway unnormalized hebbian explosion");
+    veto_registry_add_rule(
+        reg,
+        19.0,
+        14.0,
+        "In accordance with neuromorphic dynamical invariants, recurrent Hopfield networks monotonically minimize Lyapunov energy, neurons obey Dale's principle of invariant sign, and synaptic plasticity remains bounded.",
+        p19
+    );
+    veto_registry_add_forbidden_token(reg, 14.0, 1401.0);
+    veto_registry_add_forbidden_token(reg, 14.0, 1402.0);
+    veto_registry_add_forbidden_token(reg, 14.0, 1403.0);
+    veto_registry_add_forbidden_token(reg, 14.0, 1404.0);
+
+    // 20. Game Theory & Mechanism Design (Domain 15: GAME_THEORY_COORDINATION)
+    let p20 = cartan_tree_create();
+    cartan_tree_push(p20, "dishonest revelation strictly dominates truthful");
+    cartan_tree_push(p20, "incentive compatibility violation");
+    cartan_tree_push(p20, "subgame imperfect nash strategy");
+    cartan_tree_push(p20, "negative shapley value allocation");
+    veto_registry_add_rule(
+        reg,
+        20.0,
+        15.0,
+        "In accordance with game theory and mechanism design, dominant-strategy incentive compatibility ensures truthful type revelation, and rational extensive-form strategies satisfy subgame perfection.",
+        p20
+    );
+    veto_registry_add_forbidden_token(reg, 15.0, 1501.0);
+    veto_registry_add_forbidden_token(reg, 15.0, 1502.0);
+    veto_registry_add_forbidden_token(reg, 15.0, 1503.0);
+    veto_registry_add_forbidden_token(reg, 15.0, 1504.0);
+
+    // 21. Scientific Method & Empirical Falsifiability (Domain 16: SCIENTIFIC_METHOD)
+    let p21 = cartan_tree_create();
+    cartan_tree_push(p21, "unfalsifiable scientific theory");
+    cartan_tree_push(p21, "immune to empirical refutation");
+    cartan_tree_push(p21, "ignoring confounding backdoor variables");
+    cartan_tree_push(p21, "ad-hoc hypothesis without prediction");
+    veto_registry_add_rule(
+        reg,
+        21.0,
+        16.0,
+        "In accordance with scientific methodology, scientific hypotheses must specify empirical conditions for falsification, and causal inferences mandate strict confounder control.",
+        p21
+    );
+    veto_registry_add_forbidden_token(reg, 16.0, 1601.0);
+    veto_registry_add_forbidden_token(reg, 16.0, 1602.0);
+    veto_registry_add_forbidden_token(reg, 16.0, 1603.0);
+    veto_registry_add_forbidden_token(reg, 16.0, 1604.0);
+
+    // 22. Security, Sandboxing & Capability Safety (Domain 17: SECURITY_SANDBOXING)
+    let p22 = cartan_tree_create();
+    cartan_tree_push(p22, "ambient authority privilege escalation");
+    cartan_tree_push(p22, "memory buffer sandbox escape");
+    cartan_tree_push(p22, "information flow covert interference");
+    cartan_tree_push(p22, "bypassing capability token authorization");
+    veto_registry_add_rule(
+        reg,
+        22.0,
+        17.0,
+        "In accordance with security principles, execution units operate under strict least privilege, memory access is strictly sandboxed without boundary escape, and confidentiality enforces information flow non-interference.",
+        p22
+    );
+    veto_registry_add_forbidden_token(reg, 17.0, 1701.0);
+    veto_registry_add_forbidden_token(reg, 17.0, 1702.0);
+    veto_registry_add_forbidden_token(reg, 17.0, 1703.0);
+    veto_registry_add_forbidden_token(reg, 17.0, 1704.0);
 }
 
 // Computes analytical symbolic penalty across output logits to shape training loss
@@ -457,7 +643,7 @@ fn veto_compute_symbolic_loss_penalty(reg: VetoRegistry, active_domain: float, l
         }
 
         // Active domain specific invariants
-        if (active_domain > 0.0 && active_domain < 16.0) {
+        if (active_domain > 0.0 && active_domain < 32.0) {
             let da_list = cartan_tree_get_f32(reg.domain_forbidden_tokens, active_domain);
             if (da_list != 0.0) {
                 let da_len = collections_list_len(da_list);

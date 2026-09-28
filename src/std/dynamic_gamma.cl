@@ -60,6 +60,42 @@ fn dynamic_gamma_domain_baseline(cfg: DynamicGammaConfig, domain_idx: float) -> 
     } else if (domain_idx == 5.0) {
         // CAUSAL_TAXONOMY: Linguistic & taxonomic mutual exclusion
         b = b * 0.85;
+    } else if (domain_idx == 6.0) {
+        // LANGUAGE_DISCOURSE: Conversational pragmatics & speech acts
+        b = b * 0.90;
+    } else if (domain_idx == 7.0) {
+        // LOGIC_REASONING: Deductive formal proof rules
+        b = b * 1.35;
+    } else if (domain_idx == 8.0) {
+        // DECISION_PLANNING: Bellman optimality & policy constraints
+        b = b * 1.10;
+    } else if (domain_idx == 9.0) {
+        // EPISTEMOLOGY_BELIEF: Bayesian posterior & AGM revision
+        b = b * 1.15;
+    } else if (domain_idx == 10.0) {
+        // COMPILER_SYSTEMS: Type soundness & memory safety
+        b = b * 1.30;
+    } else if (domain_idx == 11.0) {
+        // INFORMATION_CYBERNETICS: Shannon capacity & feedback bounds
+        b = b * 1.20;
+    } else if (domain_idx == 12.0) {
+        // SYSTEMS_CONTROL: Lyapunov stability & transfer functions
+        b = b * 1.25;
+    } else if (domain_idx == 13.0) {
+        // METACOGNITION_INTROSPECTION: Epistemic calibration & self-monitoring
+        b = b * 1.15;
+    } else if (domain_idx == 14.0) {
+        // NEUROMORPHIC_SYSTEMS: Spike timing & synaptic plasticity
+        b = b * 1.10;
+    } else if (domain_idx == 15.0) {
+        // GAME_THEORY_COORDINATION: Multi-agent equilibria & mechanism design
+        b = b * 1.15;
+    } else if (domain_idx == 16.0) {
+        // SCIENTIFIC_METHOD: Falsifiability & controlled experimentation
+        b = b * 1.20;
+    } else if (domain_idx == 17.0) {
+        // SECURITY_SANDBOXING: Capability boundaries & least privilege
+        b = b * 1.35;
     }
     return b;
 }

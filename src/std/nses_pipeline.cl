@@ -105,17 +105,66 @@ fn nses_pipeline_create(graph_path: string) -> NSES_Pipeline {
     csr_builder_add_edge(b, 87.0, 21.0, 1.25, 1.0, 0.0); // Register Allocation Chordal Coloring -> Polynomial Reduction (Domain 10 -> Domain 3)
     csr_builder_add_edge(b, 83.0, 91.0, 1.25, 1.0, 0.0); // SWMR Exclusivity -> Linear Resource Typing
 
+    // --- Domain 11: INFORMATION_CYBERNETICS ---
+    csr_builder_add_edge(b, 92.0, 93.0, 1.30, 1.0, 0.0); // Shannon Capacity Bound -> Continuous Channel Entropy
+    csr_builder_add_edge(b, 93.0, 94.0, 1.25, 1.0, 0.0); // Continuous Channel Entropy -> Negative Feedback Dampening
+    csr_builder_add_edge(b, 94.0, 95.0, 1.20, 1.0, 0.0); // Negative Feedback Dampening -> Mutual Information Reduction
+    csr_builder_add_edge(b, 93.0, 1.0, 1.20, 1.0, 0.0);  // Information Entropy -> Thermodynamic Entropy (Domain 11 -> Domain 0)
+
+    // --- Domain 12: SYSTEMS_CONTROL ---
+    csr_builder_add_edge(b, 102.0, 103.0, 1.30, 1.0, 0.0); // Lyapunov Stability Criterion -> Closed-Loop BIBO Stability
+    csr_builder_add_edge(b, 103.0, 104.0, 1.25, 1.0, 0.0); // Closed-Loop BIBO Stability -> Transfer Function Poles
+    csr_builder_add_edge(b, 104.0, 105.0, 1.20, 1.0, 0.0); // Transfer Function Poles -> Kalman Filter State Estimation
+    csr_builder_add_edge(b, 94.0, 102.0, 1.25, 1.0, 0.0);  // Cybernetic Feedback -> Lyapunov Stability (Domain 11 -> Domain 12)
+
+    // --- Domain 13: METACOGNITION_INTROSPECTION ---
+    csr_builder_add_edge(b, 112.0, 113.0, 1.30, 1.0, 0.0); // Metacognitive Monitoring -> Epistemic Calibration Divergence
+    csr_builder_add_edge(b, 113.0, 114.0, 1.25, 1.0, 0.0); // Epistemic Calibration Divergence -> Inferential Trace Audit
+    csr_builder_add_edge(b, 114.0, 115.0, 1.20, 1.0, 0.0); // Inferential Trace Audit -> Anomaly Surprise Restructuring
+    csr_builder_add_edge(b, 112.0, 72.0, 1.25, 1.0, 0.0);  // Metacognitive Monitoring -> Bayesian Posterior (Domain 13 -> Domain 9)
+
+    // --- Domain 14: NEUROMORPHIC_SYSTEMS ---
+    csr_builder_add_edge(b, 122.0, 123.0, 1.30, 1.0, 0.0); // Spike-Timing-Dependent Plasticity -> Membrane Refractory Period
+    csr_builder_add_edge(b, 123.0, 124.0, 1.25, 1.0, 0.0); // Membrane Refractory Period -> Leaky Integrate-and-Fire Dynamics
+    csr_builder_add_edge(b, 124.0, 125.0, 1.20, 1.0, 0.0); // Leaky Integrate-and-Fire Dynamics -> Asynchronous Clockless Routing
+    csr_builder_add_edge(b, 122.0, 26.0, 1.20, 1.0, 0.0);  // Neuromorphic Synaptic Plasticity -> Biological Phosphorylation (Domain 14 -> Domain 4)
+
+    // --- Domain 15: GAME_THEORY_COORDINATION ---
+    csr_builder_add_edge(b, 132.0, 133.0, 1.30, 1.0, 0.0); // Correlated Equilibrium Coordination -> Pareto Optimal Frontier
+    csr_builder_add_edge(b, 133.0, 134.0, 1.25, 1.0, 0.0); // Pareto Optimal Frontier -> VCG Incentive Compatibility
+    csr_builder_add_edge(b, 134.0, 135.0, 1.20, 1.0, 0.0); // VCG Incentive Compatibility -> Iterated Folk Theorem Coalitions
+    csr_builder_add_edge(b, 132.0, 64.0, 1.25, 1.0, 0.0);  // Correlated Equilibrium -> Nash Equilibrium (Domain 15 -> Domain 8)
+
+    // --- Domain 16: SCIENTIFIC_METHOD ---
+    csr_builder_add_edge(b, 142.0, 143.0, 1.30, 1.0, 0.0); // Empirical Falsifiability Criterion -> Controlled Randomized Trial
+    csr_builder_add_edge(b, 143.0, 144.0, 1.25, 1.0, 0.0); // Controlled Randomized Trial -> Null Hypothesis Statistical Power
+    csr_builder_add_edge(b, 144.0, 145.0, 1.20, 1.0, 0.0); // Null Hypothesis Statistical Power -> Replicability Demarcation
+    csr_builder_add_edge(b, 142.0, 54.0, 1.25, 1.0, 0.0);  // Empirical Falsifiability -> Modus Ponens (Domain 16 -> Domain 7)
+
+    // --- Domain 17: SECURITY_SANDBOXING ---
+    csr_builder_add_edge(b, 152.0, 153.0, 1.30, 1.0, 0.0); // Capability-Based Security Principle -> Principle of Least Privilege
+    csr_builder_add_edge(b, 153.0, 154.0, 1.25, 1.0, 0.0); // Principle of Least Privilege -> Hardware Memory Sandbox Isolation
+    csr_builder_add_edge(b, 154.0, 155.0, 1.20, 1.0, 0.0); // Hardware Memory Sandbox Isolation -> Temporal Privilege Revocation
+    csr_builder_add_edge(b, 153.0, 83.0, 1.30, 1.0, 0.0);  // Least Privilege Sandbox -> SWMR Memory Exclusivity (Domain 17 -> Domain 10)
+
     // Hub-and-Spoke Universal Cross-Domain Linguistic Grounding (Domain 6 -> All Domains)
-    csr_builder_add_edge(b, 47.0, 0.0, 1.25, 1.0, 0.0);  // Lexical Grounding -> Conservation Invariant (Domain 0)
-    csr_builder_add_edge(b, 47.0, 6.0, 1.20, 1.0, 0.0);  // Lexical Grounding -> Kinetic Energy (Domain 1)
-    csr_builder_add_edge(b, 47.0, 14.0, 1.25, 1.0, 0.0); // Lexical Grounding -> Exterior Derivative (Domain 2)
-    csr_builder_add_edge(b, 47.0, 21.0, 1.20, 1.0, 0.0); // Lexical Grounding -> Polynomial Reduction (Domain 3)
-    csr_builder_add_edge(b, 47.0, 26.0, 1.20, 1.0, 0.0); // Lexical Grounding -> Photosynthesis (Domain 4)
-    csr_builder_add_edge(b, 47.0, 37.0, 1.15, 1.0, 0.0); // Lexical Grounding -> Kinematic Velocity (Domain 5)
-    csr_builder_add_edge(b, 47.0, 54.0, 1.30, 1.0, 0.0); // Lexical Grounding -> Modus Ponens (Domain 7)
-    csr_builder_add_edge(b, 47.0, 62.0, 1.25, 1.0, 0.0); // Lexical Grounding -> Bellman Optimality (Domain 8)
-    csr_builder_add_edge(b, 47.0, 72.0, 1.25, 1.0, 0.0); // Lexical Grounding -> Bayesian Posterior Invariant (Domain 9)
-    csr_builder_add_edge(b, 47.0, 82.0, 1.25, 1.0, 0.0); // Lexical Grounding -> Type Soundness Invariant (Domain 10)
+    csr_builder_add_edge(b, 47.0, 0.0, 1.25, 1.0, 0.0);   // Lexical Grounding -> Conservation Invariant (Domain 0)
+    csr_builder_add_edge(b, 47.0, 6.0, 1.20, 1.0, 0.0);   // Lexical Grounding -> Kinetic Energy (Domain 1)
+    csr_builder_add_edge(b, 47.0, 14.0, 1.25, 1.0, 0.0);  // Lexical Grounding -> Exterior Derivative (Domain 2)
+    csr_builder_add_edge(b, 47.0, 21.0, 1.20, 1.0, 0.0);  // Lexical Grounding -> Polynomial Reduction (Domain 3)
+    csr_builder_add_edge(b, 47.0, 26.0, 1.20, 1.0, 0.0);  // Lexical Grounding -> Photosynthesis (Domain 4)
+    csr_builder_add_edge(b, 47.0, 37.0, 1.15, 1.0, 0.0);  // Lexical Grounding -> Kinematic Velocity (Domain 5)
+    csr_builder_add_edge(b, 47.0, 54.0, 1.30, 1.0, 0.0);  // Lexical Grounding -> Modus Ponens (Domain 7)
+    csr_builder_add_edge(b, 47.0, 62.0, 1.25, 1.0, 0.0);  // Lexical Grounding -> Bellman Optimality (Domain 8)
+    csr_builder_add_edge(b, 47.0, 72.0, 1.25, 1.0, 0.0);  // Lexical Grounding -> Bayesian Posterior Invariant (Domain 9)
+    csr_builder_add_edge(b, 47.0, 82.0, 1.25, 1.0, 0.0);  // Lexical Grounding -> Type Soundness Invariant (Domain 10)
+    csr_builder_add_edge(b, 47.0, 92.0, 1.25, 1.0, 0.0);  // Lexical Grounding -> Shannon Capacity Invariant (Domain 11)
+    csr_builder_add_edge(b, 47.0, 102.0, 1.25, 1.0, 0.0); // Lexical Grounding -> Lyapunov Stability Invariant (Domain 12)
+    csr_builder_add_edge(b, 47.0, 112.0, 1.25, 1.0, 0.0); // Lexical Grounding -> Metacognitive Monitoring Invariant (Domain 13)
+    csr_builder_add_edge(b, 47.0, 122.0, 1.25, 1.0, 0.0); // Lexical Grounding -> STDP Plasticity Invariant (Domain 14)
+    csr_builder_add_edge(b, 47.0, 132.0, 1.25, 1.0, 0.0); // Lexical Grounding -> Correlated Equilibrium Invariant (Domain 15)
+    csr_builder_add_edge(b, 47.0, 142.0, 1.25, 1.0, 0.0); // Lexical Grounding -> Empirical Falsifiability Invariant (Domain 16)
+    csr_builder_add_edge(b, 47.0, 152.0, 1.25, 1.0, 0.0); // Lexical Grounding -> Capability Security Invariant (Domain 17)
     let g = csr_builder_build(b);
     csr_builder_free(b);
 
@@ -196,8 +245,22 @@ fn nses_pipeline_execute_turn(
         routed_domain = 8.0; // DECISION_PLANNING
     } else if (cartan_string_contains(query, "epistemolog") != 0.0 || cartan_string_contains(query, "belief") != 0.0 || cartan_string_contains(query, "bayes") != 0.0 || cartan_string_contains(query, "posterior") != 0.0 || cartan_string_contains(query, "prior") != 0.0 || cartan_string_contains(query, "evidence") != 0.0 || cartan_string_contains(query, "credence") != 0.0 || cartan_string_contains(query, "uncertainty") != 0.0 || cartan_string_contains(query, "agm") != 0.0 || cartan_string_contains(query, "defeasible") != 0.0 || cartan_string_contains(query, "likelihood") != 0.0 || cartan_string_contains(query, "occam") != 0.0) {
         routed_domain = 9.0; // EPISTEMOLOGY_BELIEF
-    } else if (cartan_string_contains(query, "compiler") != 0.0 || cartan_string_contains(query, "type_check") != 0.0 || cartan_string_contains(query, "ast") != 0.0 || cartan_string_contains(query, "llvm") != 0.0 || cartan_string_contains(query, "ssa") != 0.0 || cartan_string_contains(query, "register") != 0.0 || cartan_string_contains(query, "monomorph") != 0.0 || cartan_string_contains(query, "borrow") != 0.0 || cartan_string_contains(query, "bytecode") != 0.0 || cartan_string_contains(query, "codegen") != 0.0 || cartan_string_contains(query, "syntax") != 0.0) {
+    } else if (cartan_string_contains(query, "compiler") != 0.0 || cartan_string_contains(query, "type_check") != 0.0 || cartan_string_contains(query, "syntax_tree") != 0.0 || cartan_string_contains(query, "llvm") != 0.0 || cartan_string_contains(query, "ssa") != 0.0 || cartan_string_contains(query, "register") != 0.0 || cartan_string_contains(query, "monomorph") != 0.0 || cartan_string_contains(query, "borrow") != 0.0 || cartan_string_contains(query, "bytecode") != 0.0 || cartan_string_contains(query, "codegen") != 0.0 || cartan_string_contains(query, "syntax") != 0.0) {
         routed_domain = 10.0; // COMPILER_SYSTEMS
+    } else if (cartan_string_contains(query, "shannon") != 0.0 || cartan_string_contains(query, "cybernet") != 0.0 || cartan_string_contains(query, "channel") != 0.0 || cartan_string_contains(query, "capacity") != 0.0 || cartan_string_contains(query, "mutual_information") != 0.0) {
+        routed_domain = 11.0; // INFORMATION_CYBERNETICS
+    } else if (cartan_string_contains(query, "control") != 0.0 || cartan_string_contains(query, "closed_loop") != 0.0 || cartan_string_contains(query, "lyapunov") != 0.0 || cartan_string_contains(query, "transfer_function") != 0.0 || cartan_string_contains(query, "kalman") != 0.0 || cartan_string_contains(query, "bibo") != 0.0) {
+        routed_domain = 12.0; // SYSTEMS_CONTROL
+    } else if (cartan_string_contains(query, "metacognit") != 0.0 || cartan_string_contains(query, "introspection") != 0.0 || cartan_string_contains(query, "calibration") != 0.0 || cartan_string_contains(query, "self_reflection") != 0.0 || cartan_string_contains(query, "cognitive_bias") != 0.0) {
+        routed_domain = 13.0; // METACOGNITION_INTROSPECTION
+    } else if (cartan_string_contains(query, "neuromorphic") != 0.0 || cartan_string_contains(query, "spike") != 0.0 || cartan_string_contains(query, "stdp") != 0.0 || cartan_string_contains(query, "synaptic") != 0.0 || cartan_string_contains(query, "membrane") != 0.0 || cartan_string_contains(query, "integrate_and_fire") != 0.0) {
+        routed_domain = 14.0; // NEUROMORPHIC_SYSTEMS
+    } else if (cartan_string_contains(query, "coordination") != 0.0 || cartan_string_contains(query, "correlated") != 0.0 || cartan_string_contains(query, "equilibrium") != 0.0 || cartan_string_contains(query, "mechanism") != 0.0 || cartan_string_contains(query, "auction") != 0.0 || cartan_string_contains(query, "cooperative") != 0.0 || cartan_string_contains(query, "folk_theorem") != 0.0) {
+        routed_domain = 15.0; // GAME_THEORY_COORDINATION
+    } else if (cartan_string_contains(query, "scientific") != 0.0 || cartan_string_contains(query, "falsifi") != 0.0 || cartan_string_contains(query, "hypothesis") != 0.0 || cartan_string_contains(query, "experiment") != 0.0 || cartan_string_contains(query, "replicab") != 0.0) {
+        routed_domain = 16.0; // SCIENTIFIC_METHOD
+    } else if (cartan_string_contains(query, "security") != 0.0 || cartan_string_contains(query, "sandbox") != 0.0 || cartan_string_contains(query, "least_privilege") != 0.0 || cartan_string_contains(query, "isolation") != 0.0 || cartan_string_contains(query, "capability") != 0.0 || cartan_string_contains(query, "privilege") != 0.0) {
+        routed_domain = 17.0; // SECURITY_SANDBOXING
     }
 
     // -------------------------------------------------------------------------
@@ -240,6 +303,27 @@ fn nses_pipeline_execute_turn(
         collections_list_push(pipe.act_list, 1.0);
     } else if (routed_domain == 10.0) {
         collections_list_push(pipe.seed_list, 82.0); // Seed: Rule 82 (Type Soundness Invariant)
+        collections_list_push(pipe.act_list, 1.0);
+    } else if (routed_domain == 11.0) {
+        collections_list_push(pipe.seed_list, 92.0); // Seed: Rule 92 (Shannon Capacity Invariant)
+        collections_list_push(pipe.act_list, 1.0);
+    } else if (routed_domain == 12.0) {
+        collections_list_push(pipe.seed_list, 102.0); // Seed: Rule 102 (Lyapunov Stability Invariant)
+        collections_list_push(pipe.act_list, 1.0);
+    } else if (routed_domain == 13.0) {
+        collections_list_push(pipe.seed_list, 112.0); // Seed: Rule 112 (Metacognitive Monitoring Invariant)
+        collections_list_push(pipe.act_list, 1.0);
+    } else if (routed_domain == 14.0) {
+        collections_list_push(pipe.seed_list, 122.0); // Seed: Rule 122 (STDP Plasticity Invariant)
+        collections_list_push(pipe.act_list, 1.0);
+    } else if (routed_domain == 15.0) {
+        collections_list_push(pipe.seed_list, 132.0); // Seed: Rule 132 (Correlated Equilibrium Invariant)
+        collections_list_push(pipe.act_list, 1.0);
+    } else if (routed_domain == 16.0) {
+        collections_list_push(pipe.seed_list, 142.0); // Seed: Rule 142 (Empirical Falsifiability Invariant)
+        collections_list_push(pipe.act_list, 1.0);
+    } else if (routed_domain == 17.0) {
+        collections_list_push(pipe.seed_list, 152.0); // Seed: Rule 152 (Capability Security Invariant)
         collections_list_push(pipe.act_list, 1.0);
     } else {
         collections_list_push(pipe.seed_list, 44.0);
@@ -348,6 +432,34 @@ fn nses_pipeline_execute_turn(
                 cartan_tree_push(pipe.memory_tree, "Dead Code Elimination Postulate: Instructions computing values with zero control flow side-effects and empty successor use sets can be eliminated without altering semantic execution.");
             } else if (n_id == 87.0) {
                 cartan_tree_push(pipe.memory_tree, "Register Allocation Chordal Graph Coloring: Register interference graphs over strict SSA programs are chordal and can be optimally colored in polynomial time.");
+            } else if (n_id == 92.0) {
+                cartan_tree_push(pipe.memory_tree, "Shannon Channel Capacity Bound: Maximum error-free information transmission rate over a channel is bounded by C = B * log2(1 + S/N).");
+            } else if (n_id == 93.0) {
+                cartan_tree_push(pipe.memory_tree, "Continuous Channel Entropy: Differential entropy of continuous Gaussian noise distributions is strictly maximized for a given variance constraint.");
+            } else if (n_id == 102.0) {
+                cartan_tree_push(pipe.memory_tree, "Lyapunov Stability Criterion: An equilibrium state x=0 is asymptotically stable if there exists a positive-definite function V(x) whose time derivative is strictly negative-definite.");
+            } else if (n_id == 103.0) {
+                cartan_tree_push(pipe.memory_tree, "Closed-Loop BIBO Stability: A linear dynamic system has bounded-input bounded-output stability if and only if all transfer function poles lie in the open left-half complex plane.");
+            } else if (n_id == 112.0) {
+                cartan_tree_push(pipe.memory_tree, "Metacognitive Monitoring Invariant: Second-order cognitive inspection monitors calibration error between subjective confidence and objective predictive accuracy.");
+            } else if (n_id == 113.0) {
+                cartan_tree_push(pipe.memory_tree, "Epistemic Calibration Divergence: Brier score and expected calibration error quantify systemic overconfidence and misaligned probability assignments.");
+            } else if (n_id == 122.0) {
+                cartan_tree_push(pipe.memory_tree, "Spike-Timing-Dependent Plasticity (STDP): Synaptic potentiation occurs when a presynaptic spike precedes a postsynaptic spike within a causal millisecond timing window.");
+            } else if (n_id == 123.0) {
+                cartan_tree_push(pipe.memory_tree, "Membrane Refractory Period: Following action potential initiation, hyperpolarizing refractory currents forbid instantaneous re-firing.");
+            } else if (n_id == 132.0) {
+                cartan_tree_push(pipe.memory_tree, "Correlated Equilibrium Coordination: A joint correlation device recommendation is self-enforcing when no player has an incentive to deviate given the private signal.");
+            } else if (n_id == 133.0) {
+                cartan_tree_push(pipe.memory_tree, "Pareto Optimal Frontier: A strategy profile is Pareto efficient if no alternative allocation increases any agent payoff without diminishing another.");
+            } else if (n_id == 142.0) {
+                cartan_tree_push(pipe.memory_tree, "Empirical Falsifiability Criterion: A scientific hypothesis must specify observable empirical conditions under which it can be decisively refuted.");
+            } else if (n_id == 143.0) {
+                cartan_tree_push(pipe.memory_tree, "Controlled Randomized Trial: Causal treatment effects are identifiable only when confounders are neutralized through randomized allocation and blinded control groups.");
+            } else if (n_id == 152.0) {
+                cartan_tree_push(pipe.memory_tree, "Capability-Based Security Principle: Process execution authority is governed exclusively by possession of unforgeable capability tokens, rejecting ambient authority.");
+            } else if (n_id == 153.0) {
+                cartan_tree_push(pipe.memory_tree, "Principle of Least Privilege: Every security principal and execution domain must be granted only the minimal privileges strictly necessary to perform authorized operations.");
             }
         }
         m_idx = m_idx + 1.0;

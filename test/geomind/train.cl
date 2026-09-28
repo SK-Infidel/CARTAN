@@ -2642,6 +2642,20 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
                         active_d = 9.0; // EPISTEMOLOGY_BELIEF
                     } else if (cartan_string_contains(cur_dataset_name, "compiler") != 0.0 || cartan_string_contains(cur_dataset_name, "llvm") != 0.0 || cartan_string_contains(cur_dataset_name, "syntax") != 0.0 || cartan_string_contains(cur_dataset_name, "ast") != 0.0 || cartan_string_contains(cur_dataset_name, "type_system") != 0.0 || cartan_string_contains(cur_dataset_name, "code") != 0.0) {
                         active_d = 10.0; // COMPILER_SYSTEMS
+                    } else if (cartan_string_contains(cur_dataset_name, "cybernet") != 0.0 || cartan_string_contains(cur_dataset_name, "shannon") != 0.0 || cartan_string_contains(cur_dataset_name, "channel") != 0.0) {
+                        active_d = 11.0; // INFORMATION_CYBERNETICS
+                    } else if (cartan_string_contains(cur_dataset_name, "control") != 0.0 || cartan_string_contains(cur_dataset_name, "lyapunov") != 0.0 || cartan_string_contains(cur_dataset_name, "kalman") != 0.0) {
+                        active_d = 12.0; // SYSTEMS_CONTROL
+                    } else if (cartan_string_contains(cur_dataset_name, "metacognit") != 0.0 || cartan_string_contains(cur_dataset_name, "introspection") != 0.0 || cartan_string_contains(cur_dataset_name, "calibration") != 0.0) {
+                        active_d = 13.0; // METACOGNITION_INTROSPECTION
+                    } else if (cartan_string_contains(cur_dataset_name, "neuromorph") != 0.0 || cartan_string_contains(cur_dataset_name, "spiking") != 0.0 || cartan_string_contains(cur_dataset_name, "stdp") != 0.0) {
+                        active_d = 14.0; // NEUROMORPHIC_SYSTEMS
+                    } else if (cartan_string_contains(cur_dataset_name, "coordination") != 0.0 || cartan_string_contains(cur_dataset_name, "multi_agent") != 0.0 || cartan_string_contains(cur_dataset_name, "auction") != 0.0) {
+                        active_d = 15.0; // GAME_THEORY_COORDINATION
+                    } else if (cartan_string_contains(cur_dataset_name, "falsifi") != 0.0 || cartan_string_contains(cur_dataset_name, "scientific") != 0.0 || cartan_string_contains(cur_dataset_name, "experiment") != 0.0) {
+                        active_d = 16.0; // SCIENTIFIC_METHOD
+                    } else if (cartan_string_contains(cur_dataset_name, "security") != 0.0 || cartan_string_contains(cur_dataset_name, "sandbox") != 0.0 || cartan_string_contains(cur_dataset_name, "privilege") != 0.0 || cartan_string_contains(cur_dataset_name, "isolation") != 0.0) {
+                        active_d = 17.0; // SECURITY_SANDBOXING
                     } else {
                         active_d = 5.0; // CAUSAL_TAXONOMY
                     }

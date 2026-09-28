@@ -33,19 +33,26 @@ fn main(argc: float, argv: ptr) -> float {
     let builder = cargraph_builder_create(1536.0);
 
     // -------------------------------------------------------------------------
-    // 1. Ingest Cognitive Domains (11 Total Domains)
+    // 1. Ingest Cognitive Domains (18 Total Domains)
     // -------------------------------------------------------------------------
-    cargraph_builder_add_domain(builder, 0.0, 0.0, 4.0, 4.0);   // SYSTEM_CORE (4 strict invariants)
-    cargraph_builder_add_domain(builder, 1.0, 4.0, 8.0, 2.0);   // PHYSICS_SIM (2 strict, 6 factual)
-    cargraph_builder_add_domain(builder, 2.0, 12.0, 6.0, 1.0);  // TOPOLOGY_GEOMETRY (1 strict, 5 factual)
-    cargraph_builder_add_domain(builder, 3.0, 18.0, 6.0, 1.0);  // COMPLEXITY_THEORY (1 strict, 5 factual)
-    cargraph_builder_add_domain(builder, 4.0, 24.0, 8.0, 2.0);  // BIOLOGICAL_SYSTEMS (2 strict, 6 factual)
-    cargraph_builder_add_domain(builder, 5.0, 32.0, 10.0, 2.0); // CAUSAL_TAXONOMY (2 strict, 8 factual)
-    cargraph_builder_add_domain(builder, 6.0, 42.0, 10.0, 2.0); // LANGUAGE_DISCOURSE (2 strict, 8 factual)
-    cargraph_builder_add_domain(builder, 7.0, 52.0, 10.0, 2.0); // LOGIC_REASONING (2 strict, 8 factual)
-    cargraph_builder_add_domain(builder, 8.0, 62.0, 10.0, 2.0); // DECISION_PLANNING (2 strict, 8 factual)
-    cargraph_builder_add_domain(builder, 9.0, 72.0, 10.0, 2.0); // EPISTEMOLOGY_BELIEF (2 strict, 8 factual)
+    cargraph_builder_add_domain(builder, 0.0, 0.0, 4.0, 4.0);    // SYSTEM_CORE (4 strict invariants)
+    cargraph_builder_add_domain(builder, 1.0, 4.0, 8.0, 2.0);    // PHYSICS_SIM (2 strict, 6 factual)
+    cargraph_builder_add_domain(builder, 2.0, 12.0, 6.0, 1.0);   // TOPOLOGY_GEOMETRY (1 strict, 5 factual)
+    cargraph_builder_add_domain(builder, 3.0, 18.0, 6.0, 1.0);   // COMPLEXITY_THEORY (1 strict, 5 factual)
+    cargraph_builder_add_domain(builder, 4.0, 24.0, 8.0, 2.0);   // BIOLOGICAL_SYSTEMS (2 strict, 6 factual)
+    cargraph_builder_add_domain(builder, 5.0, 32.0, 10.0, 2.0);  // CAUSAL_TAXONOMY (2 strict, 8 factual)
+    cargraph_builder_add_domain(builder, 6.0, 42.0, 10.0, 2.0);  // LANGUAGE_DISCOURSE (2 strict, 8 factual)
+    cargraph_builder_add_domain(builder, 7.0, 52.0, 10.0, 2.0);  // LOGIC_REASONING (2 strict, 8 factual)
+    cargraph_builder_add_domain(builder, 8.0, 62.0, 10.0, 2.0);  // DECISION_PLANNING (2 strict, 8 factual)
+    cargraph_builder_add_domain(builder, 9.0, 72.0, 10.0, 2.0);  // EPISTEMOLOGY_BELIEF (2 strict, 8 factual)
     cargraph_builder_add_domain(builder, 10.0, 82.0, 10.0, 2.0); // COMPILER_SYSTEMS (2 strict, 8 factual)
+    cargraph_builder_add_domain(builder, 11.0, 92.0, 10.0, 2.0);  // INFORMATION_CYBERNETICS (2 strict, 8 factual)
+    cargraph_builder_add_domain(builder, 12.0, 102.0, 10.0, 2.0); // SYSTEMS_CONTROL (2 strict, 8 factual)
+    cargraph_builder_add_domain(builder, 13.0, 112.0, 10.0, 2.0); // METACOGNITION_INTROSPECTION (2 strict, 8 factual)
+    cargraph_builder_add_domain(builder, 14.0, 122.0, 10.0, 2.0); // NEUROMORPHIC_SYSTEMS (2 strict, 8 factual)
+    cargraph_builder_add_domain(builder, 15.0, 132.0, 10.0, 2.0); // GAME_THEORY_COORDINATION (2 strict, 8 factual)
+    cargraph_builder_add_domain(builder, 16.0, 142.0, 10.0, 2.0); // SCIENTIFIC_METHOD (2 strict, 8 factual)
+    cargraph_builder_add_domain(builder, 17.0, 152.0, 10.0, 2.0); // SECURITY_SANDBOXING (2 strict, 8 factual)
 
     // -------------------------------------------------------------------------
     // 2. Ingest Rules & Guardrails
@@ -164,15 +171,99 @@ fn main(argc: float, argv: ptr) -> float {
     cargraph_builder_add_rule(builder, 10.0, 1.0, 0.0, "Monomorphization Specialization: Generic polymorphism specializes generic template instantiations into concrete monomorphic types at compile time, eliminating runtime dispatch overhead.");
     cargraph_builder_add_rule(builder, 10.0, 1.0, 0.0, "Linear Resource Typing: Linear type values must be consumed exactly once along every execution trajectory, guaranteeing deterministic zero-cost resource deallocation without garbage collection.");
 
-    printf("[Ingest Compiler] Ingested 11 cognitive domains and 92 structured rules (22 strict invariants).\n");
+    // --- Domain 11: INFORMATION_CYBERNETICS (Information Theory & Cybernetics) ---
+    cargraph_builder_add_rule(builder, 11.0, 0.0, 1.0, "Shannon Channel Capacity Invariant: Information transmission rate R cannot exceed channel capacity C = B * log2(1 + S/N) with vanishing error probability.");
+    cargraph_builder_add_rule(builder, 11.0, 0.0, 1.0, "Data Processing Inequality: For any Markov chain X -> Y -> Z, mutual information cannot increase through post-processing: I(X; Y) >= I(X; Z).");
+    cargraph_builder_add_rule(builder, 11.0, 1.0, 0.0, "Shannon Entropy: Discrete entropy H(X) measures average information content: H(X) = -sum(p(x) * log2(p(x))).");
+    cargraph_builder_add_rule(builder, 11.0, 1.0, 0.0, "Mutual Information Symmetry: Shared information between random variables is symmetric: I(X; Y) = H(X) - H(X|Y) = I(Y; X).");
+    cargraph_builder_add_rule(builder, 11.0, 1.0, 0.0, "Rate-Distortion Limit: Minimal transmission rate R(D) is required to represent source X within expected distortion threshold D.");
+    cargraph_builder_add_rule(builder, 11.0, 1.0, 0.0, "Kraft-McMillan Inequality: Uniquely decodable prefix codes satisfy sum(2^(-l_i)) <= 1.0 over codeword lengths l_i.");
+    cargraph_builder_add_rule(builder, 11.0, 1.0, 0.0, "Ashby's Law of Requisite Variety: A regulatory control mechanism requires at least as much internal variety as the disturbance variety it mitigates.");
+    cargraph_builder_add_rule(builder, 11.0, 1.0, 0.0, "Negative Cybernetic Feedback: Error-reducing feedback loops attenuate deviations, driving dynamic systems toward equilibrium setpoints.");
+    cargraph_builder_add_rule(builder, 11.0, 1.0, 0.0, "Kullback-Leibler Divergence: Non-negative relative entropy D_KL(P || Q) >= 0.0 quantifies informational divergence from reference distribution Q.");
+    cargraph_builder_add_rule(builder, 11.0, 1.0, 0.0, "Differential Entropy: Continuous entropy h(X) generalizes discrete entropy over probability density functions, invariant under orthogonal rotations.");
+
+    // --- Domain 12: SYSTEMS_CONTROL (Systems Dynamics & Control Theory) ---
+    cargraph_builder_add_rule(builder, 12.0, 0.0, 1.0, "Lyapunov Asymptotic Stability Invariant: A dynamical system is asymptotically stable if there exists a positive-definite energy function V(x) whose time derivative is strictly negative definite: dV/dt < 0.");
+    cargraph_builder_add_rule(builder, 12.0, 0.0, 1.0, "Kalman Controllability Rank Condition: A linear state-space system dx/dt = Ax + Bu is controllable if and only if the controllability matrix [B, AB, ..., A^(n-1)B] has full rank n.");
+    cargraph_builder_add_rule(builder, 12.0, 1.0, 0.0, "PID Error Regulation: Control signals combine proportional error, cumulative integral history, and rate-of-change derivative damping: u(t) = Kp*e + Ki*int(e) + Kd*de/dt.");
+    cargraph_builder_add_rule(builder, 12.0, 1.0, 0.0, "Linear Quadratic Regulator (LQR): State-feedback control u = -Kx minimizes quadratic cost integrating state error and control effort over infinite horizons.");
+    cargraph_builder_add_rule(builder, 12.0, 1.0, 0.0, "Phase and Gain Margin Stability: Frequency response Nyquist plots must maintain positive phase and gain margins to prevent closed-loop oscillatory instability.");
+    cargraph_builder_add_rule(builder, 12.0, 1.0, 0.0, "Pontryagin's Minimum Principle: Optimal trajectories minimize the control Hamiltonian H(x, u, p) across all admissible control bounds.");
+    cargraph_builder_add_rule(builder, 12.0, 1.0, 0.0, "Limit Cycle Attractors: Non-linear dissipative dynamical systems converge toward closed isolated periodic orbits in state phase space.");
+    cargraph_builder_add_rule(builder, 12.0, 1.0, 0.0, "State-Space Observer Reconstruction: Luenberger observers reconstruct unmeasured internal states x_hat from output measurements y via error feedback L*(y - y_hat).");
+    cargraph_builder_add_rule(builder, 12.0, 1.0, 0.0, "Sliding Mode Invariant Manifold: Variable-structure control drives system trajectories onto a predetermined sliding surface, achieving parameter insensitivity.");
+    cargraph_builder_add_rule(builder, 12.0, 1.0, 0.0, "Non-Linear Damping Dissipation: Damping forces opposing instantaneous velocity dissipate mechanical kinetic energy into environmental thermal sinks.");
+
+    // --- Domain 13: METACOGNITION_INTROSPECTION (Metacognition, Introspection & Self-Monitoring) ---
+    cargraph_builder_add_rule(builder, 13.0, 0.0, 1.0, "Confidence Calibration Invariant: The agent's subjective probability estimates must match true empirical accuracy: E[|conf - acc|] -> 0; overconfidence is an invariant violation.");
+    cargraph_builder_add_rule(builder, 13.0, 0.0, 1.0, "Epistemic Doubt Rewind Trigger: When internal predictive entropy spikes above critical doubt thresholds, the system must rewind execution to the last valid checkpoint.");
+    cargraph_builder_add_rule(builder, 13.0, 1.0, 0.0, "Saliency Ebbinghaus Decay: Working memory activations decay exponentially over time unless reinforced through attentional focus or episodic retrieval.");
+    cargraph_builder_add_rule(builder, 13.0, 1.0, 0.0, "Sleep Replay Consolidation: Offline replay of Hopfield attractor basins transfers short-term episodic traces into permanent low-rank synaptic weights without catastrophic forgetting.");
+    cargraph_builder_add_rule(builder, 13.0, 1.0, 0.0, "Selective Attentional Budgeting: Finite computational working memory requires top-k attractor gating to prevent informational distraction.");
+    cargraph_builder_add_rule(builder, 13.0, 1.0, 0.0, "Self-Consistency Verification: Reasoning chains that generate divergent conclusions from identical ground premises trigger metacognitive doubt arbitration.");
+    cargraph_builder_add_rule(builder, 13.0, 1.0, 0.0, "Qualia Experiential Entropy: Synthetic consciousness telemetry monitors the rate of experiential information change across recurrent hidden state manifolds.");
+    cargraph_builder_add_rule(builder, 13.0, 1.0, 0.0, "Attractor Void Detection: Cognitive exploration routes attention toward regions of state space lacking associative Hopfield memory basins.");
+    cargraph_builder_add_rule(builder, 13.0, 1.0, 0.0, "Metareasoning Idempotence: Introspective monitoring passes evaluate cognitive execution traces without altering underlying ground-truth factual representations.");
+    cargraph_builder_add_rule(builder, 13.0, 1.0, 0.0, "Adaptive Temperature Scaling: Sampling temperature dynamically scales inversely with epistemic confidence, narrowing distributions when certain and widening under exploration.");
+
+    // --- Domain 14: NEUROMORPHIC_SYSTEMS (Neuromorphic Dynamics & Synaptic Plasticity) ---
+    cargraph_builder_add_rule(builder, 14.0, 0.0, 1.0, "Hopfield Lyapunov Energy Minimization: Recurrent neural networks with symmetric weights monotonically minimize Lyapunov energy E = -0.5 * s^T * W * s under asynchronous updates.");
+    cargraph_builder_add_rule(builder, 14.0, 0.0, 1.0, "Dale's Principle: Individual biological and neuromorphic neurons maintain invariant functional polarity, releasing either exclusively excitatory or exclusively inhibitory neurotransmitters.");
+    cargraph_builder_add_rule(builder, 14.0, 1.0, 0.0, "Spike-Timing-Dependent Plasticity (STDP): Synaptic efficacy strengthens when presynaptic spikes precede postsynaptic action potentials, and depresses under reverse temporal ordering.");
+    cargraph_builder_add_rule(builder, 14.0, 1.0, 0.0, "Oja's Bounded Subspace Projection: Normalized Hebbian learning prevents runaway weight growth, converging to the principal eigenvector subspace of the input distribution.");
+    cargraph_builder_add_rule(builder, 14.0, 1.0, 0.0, "Lateral Inhibition Dynamics: Excitatory neurons activate local inhibitory interneurons, sharpening spatial receptive field boundaries and enforcing sparse activation.");
+    cargraph_builder_add_rule(builder, 14.0, 1.0, 0.0, "Refractory Period Invariant: Following action potential emission, neuron membranes enter an absolute refractory phase forbidding immediate re-firing.");
+    cargraph_builder_add_rule(builder, 14.0, 1.0, 0.0, "Cortical Column Resonance: Recurrent vertical laminar microcircuits synchronize oscillatory phase dynamics to bind distributed feature representations.");
+    cargraph_builder_add_rule(builder, 14.0, 1.0, 0.0, "Synaptic Tagging and Capture: Transient early-phase synaptic potentiation is permanently consolidated only if marked tags capture newly synthesized plasticity proteins.");
+    cargraph_builder_add_rule(builder, 14.0, 1.0, 0.0, "Continuous Attractor Manifold Drift: Spatial and topological representations lie on smooth low-dimensional manifold attractors governed by symmetric lateral connectivity.");
+    cargraph_builder_add_rule(builder, 14.0, 1.0, 0.0, "Axonal Propagation Delay: Action potentials propagate along axonal tracts at finite velocities determined by myelin sheath insulation and fiber caliber.");
+
+    // --- Domain 15: GAME_THEORY_COORDINATION (Game Theory & Multi-Agent Coordination) ---
+    cargraph_builder_add_rule(builder, 15.0, 0.0, 1.0, "Mechanism Incentive Compatibility Invariant: A social choice mechanism is dominant-strategy incentive compatible if truthful revelation maximizes expected payoff for every participant regardless of other actions.");
+    cargraph_builder_add_rule(builder, 15.0, 0.0, 1.0, "Subgame Perfect Equilibrium Invariant: In sequential dynamic games, strategy profiles must constitute a Nash equilibrium in every reachable subgame along the decision tree.");
+    cargraph_builder_add_rule(builder, 15.0, 1.0, 0.0, "Shapley Value Surplus Distribution: In cooperative coalitional games, the unique fair allocation distributes total surplus according to each agent's average marginal contribution.");
+    cargraph_builder_add_rule(builder, 15.0, 1.0, 0.0, "Pareto Frontier Dominance: A strategic profile is Pareto superior if it makes at least one agent strictly better off without reducing the payoff of any other agent.");
+    cargraph_builder_add_rule(builder, 15.0, 1.0, 0.0, "Von Neumann Minimax Identity: In two-player zero-sum games, the maximum guaranteed defensive payoff equals the minimum offensive upper bound: max_x min_y x^T A y = min_y max_x x^T A y.");
+    cargraph_builder_add_rule(builder, 15.0, 1.0, 0.0, "Price of Anarchy Bounds: The ratio of worst-case decentralized Nash equilibrium social welfare to the centralized optimal welfare characterizes coordination degradation.");
+    cargraph_builder_add_rule(builder, 15.0, 1.0, 0.0, "Repeated Game Folk Theorem: Any feasible, individually rational payoff profile can be sustained as a subgame perfect equilibrium in infinitely repeated games with sufficiently patient players.");
+    cargraph_builder_add_rule(builder, 15.0, 1.0, 0.0, "Correlated Equilibrium Coordination: Rational agents achieve higher joint welfare when conditioning private actions on a shared public or private correlation device.");
+    cargraph_builder_add_rule(builder, 15.0, 1.0, 0.0, "Costly Signaling Equilibrium: In asymmetric information games, truthful quality signaling is sustainable if and only if signal production cost is strictly higher for low-quality types.");
+    cargraph_builder_add_rule(builder, 15.0, 1.0, 0.0, "Core Coalition Stability: A payoff distribution lies in the coalitional core if and only if no sub-coalition can break away and achieve higher payoff autonomously.");
+
+    // --- Domain 16: SCIENTIFIC_METHOD (Scientific Methodology & Empirical Demarcation) ---
+    cargraph_builder_add_rule(builder, 16.0, 0.0, 1.0, "Popperian Falsifiability Invariant: A proposition is scientifically valid if and only if it specifies concrete empirical observations whose occurrence would definitively refute the hypothesis.");
+    cargraph_builder_add_rule(builder, 16.0, 0.0, 1.0, "Confounder Control & Backdoor Criterion: Causal effect identification mandates conditioning on a set of variables Z that blocks all backdoor confounding paths between treatment X and outcome Y.");
+    cargraph_builder_add_rule(builder, 16.0, 1.0, 0.0, "Empirical Replication Convergence: Independent scientific experiments conducted under identical protocol constraints must yield statistically consistent effect distributions.");
+    cargraph_builder_add_rule(builder, 16.0, 1.0, 0.0, "Buckingham Pi Dimensional Homogeneity: Physical equations must remain invariant under scale transformations of fundamental dimensional units, reducing n variables to n - k dimensionless groups.");
+    cargraph_builder_add_rule(builder, 16.0, 1.0, 0.0, "Double-Blind Experimental Control: Randomizing treatment assignment and blinding both subjects and experimenters eliminates observer expectancy bias and placebo effects.");
+    cargraph_builder_add_rule(builder, 16.0, 1.0, 0.0, "Null-Hypothesis Significance Testing: Rejecting the null hypothesis requires empirical observation under an experimental design whose probability under the null falls below alpha threshold.");
+    cargraph_builder_add_rule(builder, 16.0, 1.0, 0.0, "Consilience of Inductions: Hypotheses supported by converging independent lines of evidence across disjoint scientific disciplines hold exponentially higher epistemic weight.");
+    cargraph_builder_add_rule(builder, 16.0, 1.0, 0.0, "Instrument Calibration Error: Measurement uncertainty decomposes into random statistical variance and systematic instrument offset bias that must be eliminated via standard calibration.");
+    cargraph_builder_add_rule(builder, 16.0, 1.0, 0.0, "Systematic Error Elimination: Experimental designs must identify and eliminate confounding systematic errors before interpreting residual variance as genuine phenomena.");
+    cargraph_builder_add_rule(builder, 16.0, 1.0, 0.0, "Occam-Popper Explanatory Power: Among competing falsifiable hypotheses matching empirical evidence, the model with fewer ad-hoc parameters possesses higher explanatory power.");
+
+    // --- Domain 17: SECURITY_SANDBOXING (Security, Sandboxing & Capability Safety) ---
+    cargraph_builder_add_rule(builder, 17.0, 0.0, 1.0, "Principle of Least Privilege Invariant: Every execution unit and process must operate using only the minimal set of capabilities strictly necessary to perform its declared task.");
+    cargraph_builder_add_rule(builder, 17.0, 0.0, 1.0, "Information Flow Non-Interference: High-security confidential states cannot modulate observable low-security execution traces: H1 =_L H2 implies f(H1) =_L f(H2).");
+    cargraph_builder_add_rule(builder, 17.0, 1.0, 0.0, "Memory Boundary Sandboxing: Dynamic memory reads and writes are strictly restricted to declared buffer segment bounds; any out-of-bounds pointer dereference aborts execution.");
+    cargraph_builder_add_rule(builder, 17.0, 1.0, 0.0, "Cryptographic One-Way Trapdoors: Inverting a cryptographic hash or trapdoor function without the private key requires exponential computational work surpassing classical search bounds.");
+    cargraph_builder_add_rule(builder, 17.0, 1.0, 0.0, "Zero-Knowledge Soundness: A zero-knowledge proof verifies the validity of an assertion without revealing any private information beyond the truth of the statement itself.");
+    cargraph_builder_add_rule(builder, 17.0, 1.0, 0.0, "Capabilities-Based Access Tokens: Unforgeable capability tokens authenticate and authorize resource interactions without ambient authority or global privilege escalation.");
+    cargraph_builder_add_rule(builder, 17.0, 1.0, 0.0, "SWMR VRAM Write-Lock Integrity: VRAM parameter weights are read-only during forward inference passes, requiring atomic hardware write-locks before gradient update application.");
+    cargraph_builder_add_rule(builder, 17.0, 1.0, 0.0, "Address Clamp Sanity: Computed array and pointer indices are unconditionally clamped to valid buffer capacities prior to hardware bus memory emission.");
+    cargraph_builder_add_rule(builder, 17.0, 1.0, 0.0, "Side-Channel Constant-Time Execution: Security-sensitive cryptographic operations must execute with uniform instruction cycles independent of secret operand data values.");
+    cargraph_builder_add_rule(builder, 17.0, 1.0, 0.0, "Defense-in-Depth Redundancy: Security mechanisms are structured in multiple independent concentric layers such that breach of one layer does not compromise the complete system.");
+
+    printf("[Ingest Compiler] Ingested 18 cognitive domains and 162 structured rules (36 strict invariants).\n");
 
     // -------------------------------------------------------------------------
     // 3. Automated SMT/SAT Consistency Verification Pass
     // -------------------------------------------------------------------------
     printf("[Ingest Compiler] Running SMT/SAT Propositional Consistency Verification Pass...\n");
-    let solver = sat_solver_create(112.0);
+    let solver = sat_solver_create(192.0);
 
-    // Assert strict invariants as positive ground axioms across all 11 domains
+    // Assert strict invariants as positive ground axioms across all 18 domains
     sat_assert_axiom(solver, 0.0);
     sat_assert_axiom(solver, 1.0);
     sat_assert_axiom(solver, 2.0);
@@ -195,6 +286,20 @@ fn main(argc: float, argv: ptr) -> float {
     sat_assert_axiom(solver, 73.0);
     sat_assert_axiom(solver, 82.0);
     sat_assert_axiom(solver, 83.0);
+    sat_assert_axiom(solver, 92.0);
+    sat_assert_axiom(solver, 93.0);
+    sat_assert_axiom(solver, 102.0);
+    sat_assert_axiom(solver, 103.0);
+    sat_assert_axiom(solver, 112.0);
+    sat_assert_axiom(solver, 113.0);
+    sat_assert_axiom(solver, 122.0);
+    sat_assert_axiom(solver, 123.0);
+    sat_assert_axiom(solver, 132.0);
+    sat_assert_axiom(solver, 133.0);
+    sat_assert_axiom(solver, 142.0);
+    sat_assert_axiom(solver, 143.0);
+    sat_assert_axiom(solver, 152.0);
+    sat_assert_axiom(solver, 153.0);
 
     // Model valid implication dependencies across domains
     sat_add_implication(solver, 6.0, 7.0);   // Kinetic Energy -> Inelastic Dissipation
@@ -233,6 +338,47 @@ fn main(argc: float, argv: ptr) -> float {
     sat_add_implication(solver, 83.0, 91.0); // SWMR Exclusivity -> Linear Resource Typing
     sat_add_implication(solver, 47.0, 82.0); // Lexical Grounding Hub -> Type Soundness Invariant (Domain 6 -> Domain 10)
 
+    // Domain 11..17 Intra-Domain Implications
+    sat_add_implication(solver, 92.0, 94.0);   // Shannon Capacity -> Mutual Information
+    sat_add_implication(solver, 93.0, 95.0);   // Data Processing -> Rate Distortion
+    sat_add_implication(solver, 94.0, 96.0);   // Mutual Information -> Kraft-McMillan
+    sat_add_implication(solver, 102.0, 104.0); // Lyapunov Stability -> PID Error Regulation
+    sat_add_implication(solver, 103.0, 105.0); // Kalman Controllability -> LQR
+    sat_add_implication(solver, 104.0, 106.0); // PID Regulation -> Phase/Gain Margin Stability
+    sat_add_implication(solver, 112.0, 114.0); // Calibration Invariant -> Saliency Decay
+    sat_add_implication(solver, 113.0, 115.0); // Doubt Rewind Trigger -> Sleep Replay Consolidation
+    sat_add_implication(solver, 114.0, 116.0); // Saliency Decay -> Attentional Budgeting
+    sat_add_implication(solver, 122.0, 124.0); // Hopfield Energy -> STDP Plasticity
+    sat_add_implication(solver, 123.0, 125.0); // Dale's Principle -> Oja Subspace
+    sat_add_implication(solver, 124.0, 126.0); // STDP -> Lateral Inhibition
+    sat_add_implication(solver, 132.0, 134.0); // Incentive Compatibility -> Shapley Value
+    sat_add_implication(solver, 133.0, 135.0); // Subgame Perfection -> Pareto Dominance
+    sat_add_implication(solver, 134.0, 136.0); // Shapley Value -> Minimax Identity
+    sat_add_implication(solver, 142.0, 144.0); // Popperian Falsifiability -> Confounder Control
+    sat_add_implication(solver, 143.0, 145.0); // Backdoor Criterion -> Replication Convergence
+    sat_add_implication(solver, 144.0, 146.0); // Confounder Control -> Buckingham Pi
+    sat_add_implication(solver, 152.0, 154.0); // Least Privilege -> Information Non-Interference
+    sat_add_implication(solver, 153.0, 155.0); // Non-Interference -> Memory Boundary Sandboxing
+    sat_add_implication(solver, 154.0, 156.0); // Sandboxing -> Cryptographic One-Way Trapdoors
+
+    // Cross-Domain Functional Bridges
+    sat_add_implication(solver, 21.0, 92.0);   // Complexity Reduction -> Shannon Channel Capacity (Domain 3 -> Domain 11)
+    sat_add_implication(solver, 62.0, 102.0);  // Bellman Optimality -> Continuous Lyapunov Control (Domain 8 -> Domain 12)
+    sat_add_implication(solver, 72.0, 112.0);  // Bayes Rule -> Confidence Calibration (Domain 9 -> Domain 13)
+    sat_add_implication(solver, 14.0, 122.0);  // Exterior Derivative / Differential Forms -> Hopfield Energy (Domain 2 -> Domain 14)
+    sat_add_implication(solver, 64.0, 132.0);  // Nash Equilibrium -> Mechanism Incentive Compatibility (Domain 8 -> Domain 15)
+    sat_add_implication(solver, 32.0, 142.0);  // Causal Precedence -> Popperian Falsifiability (Domain 5 -> Domain 16)
+    sat_add_implication(solver, 83.0, 152.0);  // SWMR Exclusivity -> Least Privilege Sandboxing (Domain 10 -> Domain 17)
+
+    // Hub-and-Spoke Linguistic Grounding to All New Domains (Domain 6 -> Domains 11..17)
+    sat_add_implication(solver, 47.0, 92.0);   // Language Hub -> Shannon Channel Capacity (Domain 11)
+    sat_add_implication(solver, 47.0, 102.0);  // Language Hub -> Lyapunov Asymptotic Stability (Domain 12)
+    sat_add_implication(solver, 47.0, 112.0);  // Language Hub -> Confidence Calibration (Domain 13)
+    sat_add_implication(solver, 47.0, 122.0);  // Language Hub -> Hopfield Energy Minimization (Domain 14)
+    sat_add_implication(solver, 47.0, 132.0);  // Language Hub -> Incentive Compatibility (Domain 15)
+    sat_add_implication(solver, 47.0, 142.0);  // Language Hub -> Popperian Falsifiability (Domain 16)
+    sat_add_implication(solver, 47.0, 152.0);  // Language Hub -> Least Privilege Invariant (Domain 17)
+
     let is_consistent = sat_solve_consistency(solver);
     if (is_consistent == 0.0) {
         printf("[FATAL] SMT/SAT Verification FAILED! Binary serialization aborted.\n");
@@ -241,7 +387,7 @@ fn main(argc: float, argv: ptr) -> float {
         sat_solver_free(solver);
         return 1.0;
     }
-    printf("[Ingest Compiler] [PASS] SMT/SAT consistency mathematically proved across 92 rules. Graph is SAT.\n");
+    printf("[Ingest Compiler] [PASS] SMT/SAT consistency mathematically proved across 162 rules. Graph is SAT.\n");
 
     // -------------------------------------------------------------------------
     // 4. Binary Emission

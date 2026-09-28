@@ -3544,6 +3544,23 @@ This file tracks technical debt and bugs identified during repository code revie
   6. Added Domain 10 lateral primes in `src/std/burroughs.cl` and dataset routing in `test/geomind/train.cl`.
   7. Authored Target 79 (`test/compiler_suite/test_nses_compiler_domain.car`), whitelisted in `.gitignore`, registered in `test/compiler_suite/run_tests.car`, and verified 100% clean test execution across all 79 regression targets.
 
+---
+
+## [ISSUE-261] [FIXED] Synthesis of Remaining Cognitive Domains (Domains 11..17) & Universal Veto Harmonization
+- **Severity**: High (Full Cognitive Architecture Expansion)
+- **Component**: [`src/std/cargraph.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/cargraph.cl), [`src/std/nses_pipeline.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/nses_pipeline.cl), [`src/std/veto_gate.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/veto_gate.cl), [`src/std/domain_lexicon.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/domain_lexicon.cl), [`tools/cargraph_ingest.car`](file:///C:/Users/rich-/source/repos/CARTAN/tools/cargraph_ingest.car), [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl)
+- **Description**:
+  1. CARTAN NSES currently has 11 active domains (0..10), but lacks the remaining seven cognitive domains required for complete autonomous intelligence: Domain 11 (`INFORMATION_CYBERNETICS`), Domain 12 (`SYSTEMS_CONTROL`), Domain 13 (`METACOGNITION_INTROSPECTION`), Domain 14 (`NEUROMORPHIC_SYSTEMS`), Domain 15 (`GAME_THEORY_COORDINATION`), Domain 16 (`SCIENTIFIC_METHOD`), and Domain 17 (`SECURITY_SANDBOXING`).
+  2. The veto gate (`src/std/veto_gate.cl`) is currently missing dedicated veto rules and contradiction tokens for Domain 2 (`TOPOLOGY_GEOMETRY`) and Domain 3 (`COMPLEXITY_THEORY`), and missing registered forbidden tokens for Domains 1, 4, and 5.
+  3. The knowledge base needs to expand from 11 domains and 92 rules to 18 domains and 162 rules (36 strict invariants), verified via a 192-variable SMT/SAT consistency proof.
+- **Resolution**:
+  1. Expanded `tools/cargraph_ingest.car` with all 7 remaining cognitive domains (Domains 11..17, Rules 92..161, 2 strict invariants + 8 relational rules per domain) and intra-/cross-domain implications, verified via 192-variable SMT/SAT solver with 0 contradictions; generated binary `test/geomind/trainingdata/nses_knowledge.car_graph`.
+  2. Harmonized `src/std/veto_gate.cl` by adding missing Veto Rules 14 and 15 for Domains 2 & 3, adding Veto Rules 16..22 for Domains 11..17, expanding domain capacity to 32, and registering contradiction tokens for all domains (101..1704).
+  3. Populated `src/std/domain_lexicon.cl` with 7 new discourse framing templates (Frames 11..17), specialized terms (IC $\ge 0.90$), and category error enforcement for all 18 domains.
+  4. Expanded lateral prime pool in `src/std/burroughs.cl` across Tiers 1..3 for Domains 11..17, and extended `src/std/dynamic_gamma.cl` domain baseline factors across all 18 domains.
+  5. Wired Stage 1 intent detection routing, Stage 3 seed nodes (92, 102, 112, 122, 132, 142, 152), CSR causal edges, linguistic hub connections (Rule 47 $\to$ all domain roots), and memory fallbacks in `src/std/nses_pipeline.cl`. Added dataset routing for Domains 11..17 in `test/geomind/train.cl`.
+  6. Authored Target 80 (`test/compiler_suite/test_nses_universal_cognitive_domains.car`), whitelisted in `.gitignore`, registered in `test/compiler_suite/run_tests.car`, and verified clean test execution.
+
 
 
 

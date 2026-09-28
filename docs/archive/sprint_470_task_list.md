@@ -1,0 +1,30 @@
+# Sprint 470 Task List: Complete Cognitive Architecture Synthesis (Domains 11..17 & Universal Veto Harmonization)
+
+- [x] **Task 1: Ingest Domains 11..17 in Knowledge Ingestion Compiler (`tools/cargraph_ingest.car`)**
+  - [x] Add Domain partitions 11.0..17.0 (18 total domains).
+  - [x] Ingest Rules 92..161 (70 new rules, 14 new strict invariants, total 162 rules / 36 strict).
+  - [x] Scale SMT/SAT solver capacity to 192 variables, wire inter-domain implications, and verify SAT consistency.
+  - [x] Rebuild and execute `cargraph_ingest.car` to emit updated `test/geomind/trainingdata/nses_knowledge.car_graph`.
+- [x] **Task 2: Universal Veto Gate, Lexicon & Burroughs Primes Integration**
+  - [x] In `src/std/veto_gate.cl`, add veto rules for Domains 2 & 3 and Domains 11..17 (Rules 14..22).
+  - [x] Register contradiction tokens across ALL domains: 0..17 (tokens 101..1704).
+  - [x] In `src/std/domain_lexicon.cl`, add specialized terms, IC weights ($\ge 0.90$), and discourse frames for Domains 11..17.
+  - [x] In `src/std/burroughs.cl`, add lateral primes across tiers 1..3 for Domains 11..17.
+- [x] **Task 3: Pipeline Intent Routing, CSR Bridges & Training Routing**
+  - [x] In `src/std/nses_pipeline.cl`, add Stage 1 intent detection routing for Domains 11..17.
+  - [x] Add Stage 3 seed selection for Domains 11..17.
+  - [x] Wire CSR bridges (Domain 11, 12, 13, 14, 15, 16, 17) and hub-and-spoke linguistic edges (Rule 47 -> all roots).
+  - [x] Add memory tree fallbacks for unbacked node IDs 92..161.
+  - [x] In `test/geomind/train.cl`, route training datasets for Domains 11..17.
+- [x] **Task 4: Author Target 80 & Empirical Regression Verification**
+  - [x] Author Target 80 (`test/compiler_suite/test_nses_universal_cognitive_domains.car`).
+  - [x] Whitelist Target 80 in `.gitignore`.
+  - [x] Register Target 80 in `test/compiler_suite/run_tests.car` and update test count to 80.
+  - [x] Compile and run `build/test_nses_universal_cognitive_domains.exe` individually to verify all assertion phases pass.
+  - [x] Rebuild `build/run_tests.exe` and execute all 80 targets (must pass 80/80 cleanly with exit code 0).
+- [x] **Task 5: Documentation & Session Closeout**
+  - [x] Update `ISSUES.md` (`[ISSUE-261]` -> `[FIXED]`).
+  - [x] Update `CHANGELOG.md` (`[8.428.0]`).
+  - [x] Update `docs/ROADMAP.md`.
+  - [x] Save walkthrough to `docs/archive/sprint_470_walkthrough.md`.
+  - [x] Commit and push to `origin/master`.

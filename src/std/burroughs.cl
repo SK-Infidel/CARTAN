@@ -234,4 +234,39 @@ fn burroughs_pool_populate_defaults(pool: BurroughsPool) {
     burroughs_pool_add(pool, 25.0, 10.0, 1.0, "Curry-Howard isomorphism projects program typing judgments onto intuitionistic logical proofs.");
     burroughs_pool_add(pool, 26.0, 10.0, 2.0, "Static single assignment dominance trees funnel mutable lifetimes into chordal register interference matrices.");
     burroughs_pool_add(pool, 27.0, 10.0, 3.0, "Monomorphized generic expressions fold compile-time template branches into deterministic native machine opcodes.");
+
+    // --- Domain 11: Information Cybernetics Lateral Primes ---
+    burroughs_pool_add(pool, 28.0, 11.0, 1.0, "Mutual information measures the reduction in entropy of one stochastic variable given complete observation of another.");
+    burroughs_pool_add(pool, 29.0, 11.0, 2.0, "Ergodic communication channels reach Shannon capacity asymptotically through optimal prefix code compaction.");
+    burroughs_pool_add(pool, 30.0, 11.0, 3.0, "Negative feedback loops dampen systemic oscillations across interconnected cybernetic state manifolds.");
+
+    // --- Domain 12: Systems Control Lateral Primes ---
+    burroughs_pool_add(pool, 31.0, 12.0, 1.0, "Negative real poles in the Laplace s-plane guarantee asymptotic stability for linear time-invariant dynamical systems.");
+    burroughs_pool_add(pool, 32.0, 12.0, 2.0, "Kalman filter state projections fuse noisy sensor measurements with physical covariance dynamics to compute minimum-variance estimates.");
+    burroughs_pool_add(pool, 33.0, 12.0, 3.0, "Lyapunov energy surfaces contract along state trajectory gradients ensuring bounded-input bounded-output convergence.");
+
+    // --- Domain 13: Metacognition & Introspection Lateral Primes ---
+    burroughs_pool_add(pool, 34.0, 13.0, 1.0, "Epistemic calibration measures the statistical divergence between assigned subjective confidence and empirical objective accuracy.");
+    burroughs_pool_add(pool, 35.0, 13.0, 2.0, "Second-order metacognitive introspection audits inferential reasoning traces to detect confirmation bias and cognitive drift.");
+    burroughs_pool_add(pool, 36.0, 13.0, 3.0, "Recursive self-monitoring invokes cognitive restructuring when accumulated epistemic surprise exceeds anomaly thresholds.");
+
+    // --- Domain 14: Neuromorphic Systems Lateral Primes ---
+    burroughs_pool_add(pool, 37.0, 14.0, 1.0, "Membrane potential integrates leaky post-synaptic currents until exceeding refractory firing thresholds.");
+    burroughs_pool_add(pool, 38.0, 14.0, 2.0, "Spike-timing-dependent plasticity (STDP) strengthens causal pre-before-post synaptic junctions while depressing acausal sequences.");
+    burroughs_pool_add(pool, 39.0, 14.0, 3.0, "Asynchronous event-driven neuromorphic arrays route sparse cortical spikes with zero static clock dissipation.");
+
+    // --- Domain 15: Game Theory & Multi-Agent Coordination Lateral Primes ---
+    burroughs_pool_add(pool, 40.0, 15.0, 1.0, "Correlated equilibria expand achievable payoff spaces beyond independent mixed-strategy Nash equilibria via public signals.");
+    burroughs_pool_add(pool, 41.0, 15.0, 2.0, "Vickrey-Clarke-Groves mechanism design aligns selfish dominant strategies with socially optimal resource allocation.");
+    burroughs_pool_add(pool, 42.0, 15.0, 3.0, "Repeated folk theorem interactions sustain cooperative coalitions through credible trigger punishments over infinite horizons.");
+
+    // --- Domain 16: Scientific Method & Empirical Validation Lateral Primes ---
+    burroughs_pool_add(pool, 43.0, 16.0, 1.0, "Popperian falsifiability establishes empirical demarcation by demanding that hypotheses specify observable refutation conditions.");
+    burroughs_pool_add(pool, 44.0, 16.0, 2.0, "Double-blind randomized controlled trials isolate causal treatment effects from confounding placebo covariates.");
+    burroughs_pool_add(pool, 45.0, 16.0, 3.0, "Empirical replicability requires that independent laboratories regenerate statistically significant findings under matched protocols.");
+
+    // --- Domain 17: Security & Sandboxing Lateral Primes ---
+    burroughs_pool_add(pool, 46.0, 17.0, 1.0, "Capability-based security enforces unforgeable tokens of authority, eliminating ambient authority vulnerabilities.");
+    burroughs_pool_add(pool, 47.0, 17.0, 2.0, "The principle of least privilege confines processes to the minimal subset of privileges required for functional execution.");
+    burroughs_pool_add(pool, 48.0, 17.0, 3.0, "Hardware-enforced memory isolation and paging sandboxes prevent unauthorized cross-boundary address translation.");
 }
