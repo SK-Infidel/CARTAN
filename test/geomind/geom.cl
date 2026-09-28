@@ -72,6 +72,16 @@ fn geom_e8_root_coordinate(root_idx: float, dim: float) -> float {
 fn geomind_inverse_randers_backward_project(drift_vector: ptr, lambda_mass_penalty: float, grad_tensor: ptr, velocity: ptr) -> float {
     if (grad_tensor == 0.0 || velocity == 0.0 || drift_vector == 0.0) { return 0.0; }
     let dim = cartan_vec_len(grad_tensor);
+    var stride = 31.0;
+    if (dim >= 2560.0) {
+        stride = 320.0;
+    } else if (dim >= 1984.0) {
+        stride = 248.0;
+    } else if (dim > 0.0) {
+        let calc = floor(dim / 8.0);
+        if (calc >= 1.0) { stride = calc; }
+    }
+
     var norm_g_sq = 0.0;
     var dot_bv = 0.0;
     var i = 0.0;
@@ -79,7 +89,7 @@ fn geomind_inverse_randers_backward_project(drift_vector: ptr, lambda_mass_penal
         let g_val = cartan_vec_get_f32(grad_tensor, i);
         let v_val = cartan_vec_get_f32(velocity, i);
         let b_val = cartan_vec_get_f32(drift_vector, i);
-        let sub_idx = math_mod_val(floor(i / 320.0), 8.0);
+        let sub_idx = math_mod_val(floor(i / stride), 8.0);
         let g_i = geom_killing_form_dynkin_weight(sub_idx);
         norm_g_sq = norm_g_sq + (g_val * g_val) * g_i;
         dot_bv = dot_bv + (b_val * v_val);
@@ -87,6 +97,78 @@ fn geomind_inverse_randers_backward_project(drift_vector: ptr, lambda_mass_penal
     }
     let alpha = sqrt(norm_g_sq);
     return alpha - (dot_bv * lambda_mass_penalty);
+}
+
+// Sherman-Morrison dual inverse Randers cotangent gradient transform with AGC clipping
+fn geomind_inverse_randers_transform_grad(grad_ptr: ptr, drift_ptr: ptr, metric_ptr: ptr, out_grad_ptr: ptr) -> float {
+    if (grad_ptr == 0.0 || drift_ptr == 0.0 || out_grad_ptr == 0.0) { return 0.0; }
+    let dim = cartan_vec_len(grad_ptr);
+    if (dim <= 0.0) { return 0.0; }
+
+    var stride = 31.0;
+    if (dim >= 2560.0) {
+        stride = 320.0;
+    } else if (dim >= 1984.0) {
+        stride = 248.0;
+    } else if (dim > 0.0) {
+        let calc = floor(dim / 8.0);
+        if (calc >= 1.0) { stride = calc; }
+    }
+
+    // Step 1: Global vector reductions (g . b) and (||b||^2) across the entire tensor
+    var dot_gb = 0.0;
+    var norm_b_sq = 0.0;
+    var i = 0.0;
+    while (i < dim) {
+        let g_i = cartan_vec_get_f32(grad_ptr, i);
+        let b_i = cartan_vec_get_f32(drift_ptr, i);
+        dot_gb = dot_gb + (g_i * b_i);
+        norm_b_sq = norm_b_sq + (b_i * b_i);
+        i = i + 1.0;
+    }
+
+    let factor = dot_gb / (1.0 + norm_b_sq);
+
+    // Ensure output vector capacity and logical length contract
+    if (out_grad_ptr != grad_ptr) {
+        out_grad_ptr[0] = dim;
+    }
+
+    // Step 2: Rank-1 Sherman-Morrison projection and background gauge drift shift
+    var norm_curved_sq = 0.0;
+    i = 0.0;
+    while (i < dim) {
+        let g_i = cartan_vec_get_f32(grad_ptr, i);
+        let b_i = cartan_vec_get_f32(drift_ptr, i);
+        var m_i = 1.0;
+        if (metric_ptr != 0.0) {
+            m_i = cartan_vec_get_f32(metric_ptr, i);
+        } else {
+            let sub_idx = math_mod_val(floor(i / stride), 8.0);
+            m_i = geom_killing_form_dynkin_weight(sub_idx);
+        }
+
+        // g_randers = g - factor * b - 0.10 * (b * m_i)
+        let cur_val = (g_i - factor * b_i) - (0.10 * b_i * m_i);
+        cartan_vec_set_f32(out_grad_ptr, i, cur_val);
+        norm_curved_sq = norm_curved_sq + (cur_val * cur_val) * m_i;
+        i = i + 1.0;
+    }
+
+    // Step 3: Adaptive Geodesic Gradient Clipping (AGC)
+    let norm_curved = sqrt(norm_curved_sq);
+    var clip_factor = 1.0;
+    if (norm_curved > 1.0) {
+        clip_factor = 1.0 / norm_curved;
+        i = 0.0;
+        while (i < dim) {
+            let v = cartan_vec_get_f32(out_grad_ptr, i);
+            cartan_vec_set_f32(out_grad_ptr, i, v * clip_factor);
+            i = i + 1.0;
+        }
+    }
+
+    return norm_curved;
 }
 
 

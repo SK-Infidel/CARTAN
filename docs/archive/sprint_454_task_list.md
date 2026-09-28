@@ -1,0 +1,30 @@
+# Sprint 454 Task List
+
+- [ ] **Task 1: MSE Loss Runtime & Codegen (`[ISSUE-225]`)**
+  - [ ] Implement `cartan_tensor_mse_loss` in `src/cartanc/core_runtime.car`
+  - [ ] Add type checking for `Expr::MSELoss` (disc 44.0/108.0) in `src/cartanc/type_checker.car:tc_visit_expr`
+  - [ ] Lower `Expr::MSELoss` calling `@cartan_tensor_mse_loss` in `src/cartanc/llvm_codegen.car:llvm_visit_expr`
+- [ ] **Task 2: Parallel Transport Runtime & Codegen (`[ISSUE-226]`)**
+  - [ ] Implement `cartan_tensor_parallel_transport` in `src/cartanc/core_runtime.car`
+  - [ ] Add type checking for `Expr::ParallelTransport` (disc 45.0/109.0) in `src/cartanc/type_checker.car:tc_visit_expr`
+  - [ ] Lower `Expr::ParallelTransport` calling `@cartan_tensor_parallel_transport` in `src/cartanc/llvm_codegen.car:llvm_visit_expr`
+- [ ] **Task 3: BPE Tokenization & Span Alignment (`[ISSUE-227]`)**
+  - [ ] Implement `cartan_tokenize_bpe` and `cartan_align_spans` in `src/cartanc/core_runtime.car`
+  - [ ] Lower `Expr::TokenizeBPE` (disc 31.0) and `Expr::AlignSpans` (disc 32.0) in `src/cartanc/llvm_codegen.car:llvm_visit_expr`
+- [ ] **Task 4: Tree Search Execution (`[ISSUE-228]`)**
+  - [ ] Implement `cartan_tree_search` in `src/cartanc/core_runtime.car`
+  - [ ] Lower `Expr::TreeSearch` (disc 33.0) in `src/cartanc/llvm_codegen.car:llvm_visit_expr`
+- [ ] **Task 5: Author Regression Target 64 (`test/compiler_suite/test_geometric_and_search_primitives.car`)**
+  - [ ] Test 1: Genuine MSE Loss calculation ($\hat{y}$ vs $y$)
+  - [ ] Test 2: Riemannian Parallel Transport tangent vector rotation
+  - [ ] Test 3: Tokenize BPE execution
+  - [ ] Test 4: Span alignment mapping
+  - [ ] Test 5: Tree search state traversal
+  - [ ] Register Target 64 in `test/compiler_suite/run_tests.car` and update `.gitignore`
+- [ ] **Task 6: Recompile & Empirical Regression Verification**
+  - [ ] Rebuild self-hosted `cartanc.exe`
+  - [ ] Execute `run_tests.exe` and verify all 64 targets pass with 0 failures
+- [ ] **Task 7: Sprint Closeout & Documentation**
+  - [ ] Update `ISSUES.md` (mark Issues 225-228 resolved)
+  - [ ] Update `CHANGELOG.md` (`[8.412.0]`)
+  - [ ] Save `docs/archive/sprint_454_walkthrough.md`

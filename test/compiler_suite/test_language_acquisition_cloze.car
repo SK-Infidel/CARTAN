@@ -3,6 +3,7 @@
 
 include "src/std/language_acquisition.cl";
 include "test/geomind/cloze_engine.cl";
+include "test/geomind/chat.cl";
 include "src/std/string.cl";
 include "src/std/math.cl";
 
@@ -14,11 +15,15 @@ extern fn cartan_string_eq(s1: string, s2: string) -> float;
 
 fn main() -> float {
     printf("=================================================================================\n");
+    cartan_flush(0.0);
     printf("  CARTAN TEST SUITE: STAGED LANGUAGE ACQUISITION & CLOZE ARCHITECTURE VERIFICATION\n");
+    cartan_flush(0.0);
     printf("=================================================================================\n\n");
+    cartan_flush(0.0);
 
     // [1/5] High-Frequency Noun-Noun Bigrams Taxonomy
     printf("[1/5] Verifying High-Frequency Noun-Noun Bigrams Taxonomy (100 pairs)...\n");
+    cartan_flush(0.0);
     lang_init_taxonomies();
     let p1 = lang_get_noun_pair(1.0);
     cartan_assert(cartan_string_eq(p1, "Health care") == 1.0, "Noun pair 1 must be Health care");
@@ -29,30 +34,34 @@ fn main() -> float {
     cartan_assert(lang_is_registered_phrase("Credit card") == 1.0, "Credit card must be registered");
     let w_noun = lang_calculate_anchor_weight("Social media");
     cartan_assert(w_noun == 1.50, "Noun pair anchor weight must be 1.50");
-    printf("  Noun-Noun taxonomy verified: %s ... %s (Count: 100)\n", p1, p100);
-    printf("[1/5] High-Frequency Noun-Noun Bigrams assertions PASSED.\n\n");
+    printf("  Noun-Noun taxonomy verified: %s ... %s (Count: 100)\n", p1, p100); cartan_flush(0.0);
+    printf("[1/5] High-Frequency Noun-Noun Bigrams assertions PASSED.\n\n"); cartan_flush(0.0);
 
     // [2/5] Binomial Non-Reversible Structural Pairs across 4 Categories
-    printf("[2/5] Verifying Binomial Non-Reversible Structural Pairs (100 pairs across 4 categories)...\n");
+    printf("[2/5] Verifying Binomial Non-Reversible Structural Pairs (100 pairs across 4 categories)...\n"); cartan_flush(0.0);
     let b1 = lang_get_binomial_pair(1.0);
     cartan_assert(cartan_string_eq(b1, "Law and order") == 1.0, "Binomial pair 1 must be Law and order");
-    cartan_assert(cartan_string_eq(lang_get_binomial_category(1.0), "Noun+Noun") == 1.0, "Category must be Noun+Noun");
+    let cat1 = lang_get_binomial_category(1.0);
+    cartan_assert(cartan_string_eq(cat1, "Noun+Noun") == 1.0, "Category must be Noun+Noun");
     let b42 = lang_get_binomial_pair(42.0);
     cartan_assert(cartan_string_eq(b42, "Black and white") == 1.0, "Binomial pair 42 must be Black and white");
-    cartan_assert(cartan_string_eq(lang_get_binomial_category(42.0), "Adjective+Adjective") == 1.0, "Category must be Adjective+Adjective");
+    let cat42 = lang_get_binomial_category(42.0);
+    cartan_assert(cartan_string_eq(cat42, "Adjective+Adjective") == 1.0, "Category must be Adjective+Adjective");
     let b68 = lang_get_binomial_pair(68.0);
     cartan_assert(cartan_string_eq(b68, "Give and take") == 1.0, "Binomial pair 68 must be Give and take");
-    cartan_assert(cartan_string_eq(lang_get_binomial_category(68.0), "Verb+Verb") == 1.0, "Category must be Verb+Verb");
+    let cat68 = lang_get_binomial_category(68.0);
+    cartan_assert(cartan_string_eq(cat68, "Verb+Verb") == 1.0, "Category must be Verb+Verb");
     let b88 = lang_get_binomial_pair(88.0);
     cartan_assert(cartan_string_eq(b88, "Back and forth") == 1.0, "Binomial pair 88 must be Back and forth");
-    cartan_assert(cartan_string_eq(lang_get_binomial_category(88.0), "Adverbial/Contrastive") == 1.0, "Category must be Adverbial/Contrastive");
+    let cat88 = lang_get_binomial_category(88.0);
+    cartan_assert(cartan_string_eq(cat88, "Adverbial/Contrastive") == 1.0, "Category must be Adverbial/Contrastive");
     let w_bin = lang_calculate_anchor_weight("Peace and quiet");
     cartan_assert(w_bin == 1.80, "Binomial anchor weight must be 1.80");
-    printf("  Binomial pairs verified across 4 categories (Count: 100)\n");
-    printf("[2/5] Binomial Non-Reversible Pairs assertions PASSED.\n\n");
+    printf("  Binomial pairs verified across 4 categories (Count: 100)\n"); cartan_flush(0.0);
+    printf("[2/5] Binomial Non-Reversible Pairs assertions PASSED.\n\n"); cartan_flush(0.0);
 
     // [3/5] Functional Discourse Markers & Social Rituals
-    printf("[3/5] Verifying Functional Discourse Markers & Social Rituals (100 triggers)...\n");
+    printf("[3/5] Verifying Functional Discourse Markers & Social Rituals (100 triggers)...\n"); cartan_flush(0.0);
     let d1 = lang_get_discourse_marker(1.0);
     cartan_assert(cartan_string_eq(d1, "Thank you") == 1.0, "Discourse marker 1 must be Thank you");
     cartan_assert(cartan_string_eq(lang_get_discourse_category(1.0), "Social Rituals & Politeness") == 1.0, "Category must be Social Rituals & Politeness");
@@ -70,11 +79,11 @@ fn main() -> float {
     cartan_assert(cartan_string_eq(lang_get_discourse_category(75.0), "Emotional Responses & Empathy") == 1.0, "Category must be Empathy");
     let w_disc = lang_calculate_anchor_weight("By the way");
     cartan_assert(w_disc == 2.00, "Discourse anchor weight must be 2.00");
-    printf("  Discourse markers verified across 5 functional categories (Count: 100)\n");
-    printf("[3/5] Functional Discourse Markers assertions PASSED.\n\n");
+    printf("  Discourse markers verified across 5 functional categories (Count: 100)\n"); cartan_flush(0.0);
+    printf("[3/5] Functional Discourse Markers assertions PASSED.\n\n"); cartan_flush(0.0);
 
     // [4/5] Narrative Progression & Structural Transition Bridges
-    printf("[4/5] Verifying Narrative Progression & Structural Transition Bridges (100 bridges)...\n");
+    printf("[4/5] Verifying Narrative Progression & Structural Transition Bridges (100 bridges)...\n"); cartan_flush(0.0);
     let t1 = lang_get_transition_bridge(1.0);
     cartan_assert(cartan_string_eq(t1, "As previously mentioned") == 1.0, "Bridge 1 must be As previously mentioned");
     let t9 = lang_get_transition_bridge(9.0);
@@ -85,23 +94,23 @@ fn main() -> float {
     cartan_assert(cartan_string_eq(t100, "In light of this") == 1.0, "Bridge 100 must be In light of this");
     let w_bridge = lang_calculate_anchor_weight("Consequently");
     cartan_assert(w_bridge == 2.50, "Bridge anchor weight must be 2.50");
-    printf("  Transition bridges verified (Count: 100)\n");
-    printf("[4/5] Narrative Transition Bridges assertions PASSED.\n\n");
+    printf("  Transition bridges verified (Count: 100)\n"); cartan_flush(0.0);
+    printf("[4/5] Narrative Transition Bridges assertions PASSED.\n\n"); cartan_flush(0.0);
 
     // [5/5] Authentic BPE Cloze Loss & Riemannian Natural Gradient Optimization
-    printf("[5/5] Verifying Authentic BPE Cloze Loss & Riemannian Natural Gradient Optimization...\n");
+    printf("[5/5] Verifying Authentic BPE Cloze Loss & Riemannian Natural Gradient Optimization...\n"); cartan_flush(0.0);
     let loss_bridge = geomind_cloze_eval_bridge("The company was facing insolvency. [BLANK], they were completely broke.", "In other words");
     cartan_assert(loss_bridge > 0.0, "Anchored cloze bridge loss must be positive float");
-    printf("  Evaluated authentic antecedent bridge cloze loss: %s\n", cartan_float_to_string(loss_bridge));
+    printf("  Evaluated authentic antecedent bridge cloze loss: %s\n", cartan_float_to_string(loss_bridge)); cartan_flush(0.0);
 
     let loss_sent = geomind_cloze_eval_finish_sentence("The engine reached peak temperature. Consequently, ", "cooling procedures were initiated.");
     cartan_assert(loss_sent > 0.0, "Finish-the-sentence continuation loss must be positive float");
-    printf("  Evaluated authentic finish-the-sentence loss: %s\n", cartan_float_to_string(loss_sent));
+    printf("  Evaluated authentic finish-the-sentence loss: %s\n", cartan_float_to_string(loss_sent)); cartan_flush(0.0);
 
     let curr_pass = geomind_cloze_run_curriculum_pass();
     cartan_assert(curr_pass == 1.0, "Curriculum pass must return 1.0");
-    printf("[5/5] Authentic Cloze Optimization assertions PASSED.\n\n");
+    printf("[5/5] Authentic Cloze Optimization assertions PASSED.\n\n"); cartan_flush(0.0);
 
-    printf("TEST_LANGUAGE_ACQUISITION_CLOZE_SUCCESS\n\n");
+    printf("TEST_LANGUAGE_ACQUISITION_CLOZE_SUCCESS\n\n"); cartan_flush(0.0);
     return 0.0;
 }

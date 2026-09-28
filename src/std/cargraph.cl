@@ -5,6 +5,7 @@
 include "src/std/math.cl";
 include "src/std/collections.cl";
 include "src/std/fs.cl";
+include "src/std/string.cl";
 
 extern fn cartan_read_binary_file_data(path: string) -> ptr;
 extern fn cartan_get_binary_file_size(path: string) -> float;
@@ -31,9 +32,9 @@ fn cargraph_magic_byte(idx: float) -> float {
     return 0.0;
 }
 
-// 64-byte File Header Definition
+// 128-byte File Header Definition (Strict 64-byte Cacheline Aligned)
 struct CarGraphHeader {
-    version: float;              // 1.0
+    version: float;              // 1.0 or 2.0
     flags: float;                // 0.0 = FP64 Little-Endian
     file_size: float;            // Total bytes
     embedding_dim: float;        // 1536.0
@@ -42,13 +43,25 @@ struct CarGraphHeader {
     num_strict_rules: float;     // Strict unbreachable guardrails
     num_edges: float;            // CSR edges count
     num_fragments: float;        // Burroughs fragment count
-    offset_domains: float;       // Page-aligned (4096B) offset
+    num_entities: float;         // Active entity state count
+    offset_domains: float;       // Page-aligned (4096B) / 64B cacheline offset
     offset_rules: float;         // Rules section offset
     offset_csr_ptrs: float;      // CSR row pointers offset
     offset_csr_edges: float;     // CSR edge list offset
     offset_fragments: float;     // Burroughs fragments offset
+    offset_entities: float;      // Entity states section offset (64B cacheline aligned)
     offset_embeddings: float;    // 64-byte cacheline aligned embeddings
     offset_string_pool: float;   // String pool offset
+}
+
+// 32-byte Entity State Entry (2 entries per 64-byte cacheline)
+struct EntityStateEntry {
+    domain_idx: float;
+    entity_str_offset: float;
+    attr_str_offset: float;
+    val_str_offset: float;
+    confidence: float;
+    flags: float;
 }
 
 // 32-byte Rule Element Metadata
@@ -101,6 +114,7 @@ struct CarGraphFile {
     rules_ptr: ptr;
     csr_ptrs: ptr;
     csr_edges: ptr;
+    entities_ptr: ptr;
     embeddings_ptr: ptr;
     string_pool_ptr: ptr;
 }
@@ -118,6 +132,11 @@ struct CarGraphBuilder {
     rule_strings: ptr;
     rule_embeddings: ptr;
     num_strict: float;
+    entity_domain_indices: ptr;
+    entity_names: ptr;
+    entity_attrs: ptr;
+    entity_vals: ptr;
+    entity_confidences: ptr;
 }
 
 // Helper: 4096-byte page alignment calculation
@@ -186,7 +205,12 @@ fn cargraph_builder_create(embedding_dim: float) -> CarGraphBuilder {
         rule_is_stricts: collections_create_list(),
         rule_strings: cartan_tree_create(),
         rule_embeddings: cartan_tree_create(),
-        num_strict: 0.0
+        num_strict: 0.0,
+        entity_domain_indices: collections_create_list(),
+        entity_names: cartan_tree_create(),
+        entity_attrs: cartan_tree_create(),
+        entity_vals: cartan_tree_create(),
+        entity_confidences: collections_create_list()
     };
 }
 
@@ -213,6 +237,17 @@ fn cargraph_builder_add_rule(b: CarGraphBuilder, domain_idx: float, elem_type: f
     return rule_id;
 }
 
+// Add an entity state record to builder
+fn cargraph_builder_add_entity(b: CarGraphBuilder, domain_idx: float, name: string, attr: string, val: string, conf: float) -> float {
+    let e_idx = collections_list_len(b.entity_domain_indices);
+    collections_list_push(b.entity_domain_indices, domain_idx);
+    cartan_tree_push(b.entity_names, name);
+    cartan_tree_push(b.entity_attrs, attr);
+    cartan_tree_push(b.entity_vals, val);
+    collections_list_push(b.entity_confidences, conf);
+    return e_idx;
+}
+
 // Deallocate in-memory CarGraphBuilder lists and tree buffers
 fn cargraph_builder_free(b: CarGraphBuilder) {
     if (b.domain_ids != 0.0) { collections_free_list(b.domain_ids); }
@@ -224,17 +259,23 @@ fn cargraph_builder_free(b: CarGraphBuilder) {
     if (b.rule_is_stricts != 0.0) { collections_free_list(b.rule_is_stricts); }
     if (b.rule_strings != 0.0) { cartan_tree_free(b.rule_strings); }
     if (b.rule_embeddings != 0.0) { cartan_tree_free(b.rule_embeddings); }
+    if (b.entity_domain_indices != 0.0) { collections_free_list(b.entity_domain_indices); }
+    if (b.entity_names != 0.0) { cartan_tree_free(b.entity_names); }
+    if (b.entity_attrs != 0.0) { cartan_tree_free(b.entity_attrs); }
+    if (b.entity_vals != 0.0) { cartan_tree_free(b.entity_vals); }
+    if (b.entity_confidences != 0.0) { collections_free_list(b.entity_confidences); }
 }
 
 // Serialize in-memory builder data into flat .car_graph binary file
 fn cargraph_serialize_to_file(b: CarGraphBuilder, filepath: string) -> float {
     let num_domains = collections_list_len(b.domain_ids);
     let num_rules = collections_list_len(b.rule_domain_indices);
+    let num_entities = collections_list_len(b.entity_domain_indices);
     let emb_dim = b.embedding_dim;
 
-    // Compute layout offsets with 4096-byte section alignment and 64-byte vector alignment
+    // Compute layout offsets with 4096-byte section alignment (guarantees strict 64-byte cacheline alignment)
     let off_header = 0.0;
-    let hdr_size = 128.0; // 128 bytes reserved for header
+    let hdr_size = 128.0; // 128 bytes reserved for header (2 cachelines)
 
     let off_domains = cargraph_align_page(hdr_size);
     let domains_size = num_domains * 32.0;
@@ -246,8 +287,12 @@ fn cargraph_serialize_to_file(b: CarGraphBuilder, filepath: string) -> float {
     let off_csr_edges = cargraph_align_page(off_csr_ptrs + ((num_rules + 1.0) * 8.0));
     let off_fragments = cargraph_align_page(off_csr_edges + 64.0);
 
+    // Entity states: 32 bytes per entity (2 entries per 64-byte cacheline), page/cacheline aligned
+    let off_entities = cargraph_align_page(off_fragments + 64.0);
+    let entities_size = num_entities * 32.0;
+
     // Embeddings matrix: 64-byte aligned (each vector = emb_dim * 8 bytes)
-    let off_embeddings = cargraph_align_page(off_fragments + 64.0);
+    let off_embeddings = cargraph_align_page(off_entities + entities_size);
     let vec_bytes = emb_dim * 8.0;
     let embeddings_size = num_rules * vec_bytes;
 
@@ -260,6 +305,16 @@ fn cargraph_serialize_to_file(b: CarGraphBuilder, filepath: string) -> float {
         let s = cartan_tree_get(b.rule_strings, i);
         str_pool_len = str_pool_len + cartan_string_length(s) + 1.0;
         i = i + 1.0;
+    }
+    var ent_i = 0.0;
+    while (ent_i < num_entities) {
+        let e_n = cartan_tree_get(b.entity_names, ent_i);
+        let e_a = cartan_tree_get(b.entity_attrs, ent_i);
+        let e_v = cartan_tree_get(b.entity_vals, ent_i);
+        str_pool_len = str_pool_len + cartan_string_length(e_n) + 1.0;
+        str_pool_len = str_pool_len + cartan_string_length(e_a) + 1.0;
+        str_pool_len = str_pool_len + cartan_string_length(e_v) + 1.0;
+        ent_i = ent_i + 1.0;
     }
     let total_file_size = off_string_pool + str_pool_len + 64.0;
 
@@ -274,8 +329,8 @@ fn cargraph_serialize_to_file(b: CarGraphBuilder, filepath: string) -> float {
         m_idx = m_idx + 1.0;
     }
 
-    // Write Header fields
-    cargraph_write_u32(raw, 8.0, 1.0);             // version = 1
+    // Write Header fields (Version 2.0 with strict 64-byte cacheline aligned offsets)
+    cargraph_write_u32(raw, 8.0, 2.0);             // version = 2
     cargraph_write_u32(raw, 12.0, 0.0);            // flags = 0 (FP64 Little-Endian)
     cargraph_write_u64(raw, 16.0, total_file_size);
     cargraph_write_u32(raw, 24.0, emb_dim);
@@ -284,13 +339,17 @@ fn cargraph_serialize_to_file(b: CarGraphBuilder, filepath: string) -> float {
     cargraph_write_u32(raw, 36.0, b.num_strict);
     cargraph_write_u32(raw, 40.0, 0.0);            // num_edges
     cargraph_write_u32(raw, 44.0, 0.0);            // num_fragments
-    cargraph_write_u64(raw, 48.0, off_domains);
-    cargraph_write_u64(raw, 56.0, off_rules);
-    cargraph_write_u64(raw, 64.0, off_csr_ptrs);
-    cargraph_write_u64(raw, 72.0, off_csr_edges);
-    cargraph_write_u64(raw, 80.0, off_fragments);
-    cargraph_write_u64(raw, 88.0, off_embeddings);
-    cargraph_write_u64(raw, 96.0, off_string_pool);
+    cargraph_write_u32(raw, 48.0, num_entities);   // num_entities
+    cargraph_write_u32(raw, 52.0, 0.0);            // reserved
+    cargraph_write_u64(raw, 56.0, off_domains);
+    cargraph_write_u64(raw, 64.0, off_rules);
+    cargraph_write_u64(raw, 72.0, off_csr_ptrs);
+    cargraph_write_u64(raw, 80.0, off_csr_edges);
+    cargraph_write_u64(raw, 88.0, off_fragments);
+    cargraph_write_u64(raw, 96.0, off_entities);
+    cargraph_write_u64(raw, 104.0, off_embeddings);
+    cargraph_write_u64(raw, 112.0, off_string_pool);
+    cargraph_write_u64(raw, 120.0, 0.0);           // reserved2
 
     // 2. Write Domains Section
     var d_i = 0.0;
@@ -350,6 +409,60 @@ fn cargraph_serialize_to_file(b: CarGraphBuilder, filepath: string) -> float {
         r_i = r_i + 1.0;
     }
 
+    // 5. Write Entities Section & String Pool
+    var e_idx = 0.0;
+    while (e_idx < num_entities) {
+        let ent_d = collections_list_get(b.entity_domain_indices, e_idx);
+        let ent_conf = collections_list_get(b.entity_confidences, e_idx);
+        let e_n = cartan_tree_get(b.entity_names, e_idx);
+        let e_a = cartan_tree_get(b.entity_attrs, e_idx);
+        let e_v = cartan_tree_get(b.entity_vals, e_idx);
+
+        let n_len = cartan_string_length(e_n);
+        let a_len = cartan_string_length(e_a);
+        let v_len = cartan_string_length(e_v);
+
+        let n_rel_off = cur_str_off - off_string_pool;
+        var k1 = 0.0;
+        while (k1 < n_len) {
+            cartan_set_byte(raw, cur_str_off + k1, c_cartan_string_char_at(e_n, k1));
+            k1 = k1 + 1.0;
+        }
+        cartan_set_byte(raw, cur_str_off + n_len, 0.0);
+        cur_str_off = cur_str_off + n_len + 1.0;
+
+        let a_rel_off = cur_str_off - off_string_pool;
+        var k2 = 0.0;
+        while (k2 < a_len) {
+            cartan_set_byte(raw, cur_str_off + k2, c_cartan_string_char_at(e_a, k2));
+            k2 = k2 + 1.0;
+        }
+        cartan_set_byte(raw, cur_str_off + a_len, 0.0);
+        cur_str_off = cur_str_off + a_len + 1.0;
+
+        let v_rel_off = cur_str_off - off_string_pool;
+        var k3 = 0.0;
+        while (k3 < v_len) {
+            cartan_set_byte(raw, cur_str_off + k3, c_cartan_string_char_at(e_v, k3));
+            k3 = k3 + 1.0;
+        }
+        cartan_set_byte(raw, cur_str_off + v_len, 0.0);
+        cur_str_off = cur_str_off + v_len + 1.0;
+
+        // Write 32-byte EntityStateEntry
+        let ent_off = off_entities + (e_idx * 32.0);
+        cargraph_write_u32(raw, ent_off + 0.0, ent_d);
+        cargraph_write_u32(raw, ent_off + 4.0, n_rel_off);
+        cargraph_write_u32(raw, ent_off + 8.0, a_rel_off);
+        cargraph_write_u32(raw, ent_off + 12.0, v_rel_off);
+        cargraph_write_u32(raw, ent_off + 16.0, floor(ent_conf * 1000.0));
+        cargraph_write_u32(raw, ent_off + 20.0, 0.0);
+        cargraph_write_u32(raw, ent_off + 24.0, 0.0);
+        cargraph_write_u32(raw, ent_off + 28.0, 0.0);
+
+        e_idx = e_idx + 1.0;
+    }
+
     // Write binary buffer to file
     let write_ok = cartan_write_binary_file(filepath, raw, total_file_size);
     cartan_free_binary_buffer(raw);
@@ -365,14 +478,15 @@ fn cargraph_empty() -> CarGraphFile {
         header: CarGraphHeader {
             version: 0.0, flags: 0.0, file_size: 0.0, embedding_dim: 0.0,
             num_domains: 0.0, num_rules: 0.0, num_strict_rules: 0.0,
-            num_edges: 0.0, num_fragments: 0.0, offset_domains: 0.0,
+            num_edges: 0.0, num_fragments: 0.0, num_entities: 0.0, offset_domains: 0.0,
             offset_rules: 0.0, offset_csr_ptrs: 0.0, offset_csr_edges: 0.0,
-            offset_fragments: 0.0, offset_embeddings: 0.0, offset_string_pool: 0.0
+            offset_fragments: 0.0, offset_entities: 0.0, offset_embeddings: 0.0, offset_string_pool: 0.0
         },
         domains_ptr: 0.0,
         rules_ptr: 0.0,
         csr_ptrs: 0.0,
         csr_edges: 0.0,
+        entities_ptr: 0.0,
         embeddings_ptr: 0.0,
         string_pool_ptr: 0.0
     };
@@ -398,9 +512,9 @@ fn cargraph_load_binary(filepath: string) -> CarGraphFile {
         m_i = m_i + 1.0;
     }
 
-    // 2. Parse Header fields
+    // 2. Parse Header fields (Version 1.0 or 2.0)
     let ver = cargraph_read_u32(buf, 8.0);
-    if (ver != 1.0) {
+    if (ver != 1.0 && ver != 2.0) {
         cartan_free_binary_buffer(buf);
         return invalid_view;
     }
@@ -416,13 +530,36 @@ fn cargraph_load_binary(filepath: string) -> CarGraphFile {
     let n_strict = cargraph_read_u32(buf, 36.0);
     let n_edges = cargraph_read_u32(buf, 40.0);
     let n_frags = cargraph_read_u32(buf, 44.0);
-    let off_domains = cargraph_read_u64(buf, 48.0);
-    let off_rules = cargraph_read_u64(buf, 56.0);
-    let off_csr_ptrs = cargraph_read_u64(buf, 64.0);
-    let off_csr_edges = cargraph_read_u64(buf, 72.0);
-    let off_fragments = cargraph_read_u64(buf, 80.0);
-    let off_embeddings = cargraph_read_u64(buf, 88.0);
-    let off_string_pool = cargraph_read_u64(buf, 96.0);
+
+    var n_entities = 0.0;
+    var off_domains = 0.0;
+    var off_rules = 0.0;
+    var off_csr_ptrs = 0.0;
+    var off_csr_edges = 0.0;
+    var off_fragments = 0.0;
+    var off_entities = 0.0;
+    var off_embeddings = 0.0;
+    var off_string_pool = 0.0;
+
+    if (ver == 1.0) {
+        off_domains = cargraph_read_u64(buf, 48.0);
+        off_rules = cargraph_read_u64(buf, 56.0);
+        off_csr_ptrs = cargraph_read_u64(buf, 64.0);
+        off_csr_edges = cargraph_read_u64(buf, 72.0);
+        off_fragments = cargraph_read_u64(buf, 80.0);
+        off_embeddings = cargraph_read_u64(buf, 88.0);
+        off_string_pool = cargraph_read_u64(buf, 96.0);
+    } else {
+        n_entities = cargraph_read_u32(buf, 48.0);
+        off_domains = cargraph_read_u64(buf, 56.0);
+        off_rules = cargraph_read_u64(buf, 64.0);
+        off_csr_ptrs = cargraph_read_u64(buf, 72.0);
+        off_csr_edges = cargraph_read_u64(buf, 80.0);
+        off_fragments = cargraph_read_u64(buf, 88.0);
+        off_entities = cargraph_read_u64(buf, 96.0);
+        off_embeddings = cargraph_read_u64(buf, 104.0);
+        off_string_pool = cargraph_read_u64(buf, 112.0);
+    }
 
     // 3. Section bounds checking against buffer size
     if (off_domains >= sz || off_rules >= sz || off_embeddings >= sz || off_string_pool >= sz) {
@@ -440,14 +577,21 @@ fn cargraph_load_binary(filepath: string) -> CarGraphFile {
         num_strict_rules: n_strict,
         num_edges: n_edges,
         num_fragments: n_frags,
+        num_entities: n_entities,
         offset_domains: off_domains,
         offset_rules: off_rules,
         offset_csr_ptrs: off_csr_ptrs,
         offset_csr_edges: off_csr_edges,
         offset_fragments: off_fragments,
+        offset_entities: off_entities,
         offset_embeddings: off_embeddings,
         offset_string_pool: off_string_pool
     };
+
+    var ent_ptr: ptr = 0.0;
+    if (off_entities > 0.0 && off_entities < sz) {
+        ent_ptr = cartan_c_ptr_add(buf, off_entities);
+    }
 
     return CarGraphFile {
         is_valid: 1.0,
@@ -458,9 +602,67 @@ fn cargraph_load_binary(filepath: string) -> CarGraphFile {
         rules_ptr: cartan_c_ptr_add(buf, off_rules),
         csr_ptrs: cartan_c_ptr_add(buf, off_csr_ptrs),
         csr_edges: cartan_c_ptr_add(buf, off_csr_edges),
+        entities_ptr: ent_ptr,
         embeddings_ptr: cartan_c_ptr_add(buf, off_embeddings),
         string_pool_ptr: cartan_c_ptr_add(buf, off_string_pool)
     };
+}
+
+// Read Entity State record at index
+fn cargraph_get_entity(cg: CarGraphFile, idx: float) -> EntityStateEntry {
+    if (cg.is_valid == 0.0 || idx < 0.0 || idx >= cg.header.num_entities || cg.entities_ptr == 0.0) {
+        return EntityStateEntry {
+            domain_idx: -1.0, entity_str_offset: 0.0, attr_str_offset: 0.0,
+            val_str_offset: 0.0, confidence: 0.0, flags: 0.0
+        };
+    }
+    let e_off = idx * 32.0;
+    let e_buf = cg.entities_ptr;
+    return EntityStateEntry {
+        domain_idx: cargraph_read_u32(e_buf, e_off + 0.0),
+        entity_str_offset: cargraph_read_u32(e_buf, e_off + 4.0),
+        attr_str_offset: cargraph_read_u32(e_buf, e_off + 8.0),
+        val_str_offset: cargraph_read_u32(e_buf, e_off + 12.0),
+        confidence: cargraph_read_u32(e_buf, e_off + 16.0) / 1000.0,
+        flags: cargraph_read_u32(e_buf, e_off + 20.0)
+    };
+}
+
+// Get entity name string
+fn cargraph_get_entity_name(cg: CarGraphFile, idx: float) -> string {
+    let e = cargraph_get_entity(cg, idx);
+    if (e.domain_idx < 0.0) { return ""; }
+    return cartan_c_ptr_add(cg.string_pool_ptr, e.entity_str_offset);
+}
+
+// Get entity attribute name string
+fn cargraph_get_entity_attr(cg: CarGraphFile, idx: float) -> string {
+    let e = cargraph_get_entity(cg, idx);
+    if (e.domain_idx < 0.0) { return ""; }
+    return cartan_c_ptr_add(cg.string_pool_ptr, e.attr_str_offset);
+}
+
+// Get entity attribute value string
+fn cargraph_get_entity_val(cg: CarGraphFile, idx: float) -> string {
+    let e = cargraph_get_entity(cg, idx);
+    if (e.domain_idx < 0.0) { return ""; }
+    return cartan_c_ptr_add(cg.string_pool_ptr, e.val_str_offset);
+}
+
+// Format world state tag for entity entry: [WORLD-STATE: User.attribute='value']
+fn cargraph_format_world_state(cg: CarGraphFile, idx: float) -> string {
+    let e = cargraph_get_entity(cg, idx);
+    if (e.domain_idx < 0.0) { return ""; }
+    let name = cartan_c_ptr_add(cg.string_pool_ptr, e.entity_str_offset);
+    let attr = cartan_c_ptr_add(cg.string_pool_ptr, e.attr_str_offset);
+    let val = cartan_c_ptr_add(cg.string_pool_ptr, e.val_str_offset);
+    let s1 = cartan_string_concat("[WORLD-STATE: ", name);
+    let s2 = cartan_string_concat(s1, ".");
+    let s3 = cartan_string_concat(s2, attr);
+    let s4 = cartan_string_concat(s3, "='");
+    let s5 = cartan_string_concat(s4, val);
+    let s6 = cartan_string_concat(s5, "']");
+    return s6;
 }
 
 // Read Rule metadata record at index

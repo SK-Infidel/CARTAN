@@ -1,0 +1,27 @@
+# Sprint 451 Task List
+
+- [x] **Task 1: Lexer Keyword Recognition (`[ISSUE-213]`)**
+  - [x] Add missing keyword checks to `check_keyword` in `src/cartanc/lexer.car`.
+- [x] **Task 2: LLVM Codegen Extern Signature Synchronization (`[ISSUE-214]`)**
+  - [x] Update `llvm_codegen.car:485-523` extern declarations to match emitted `double` call signatures.
+- [x] **Task 3: Freestanding Core Runtime Allocators & Lifecycle Hooks (`[ISSUE-214]`)**
+  - [x] Implement `cartan_alloc_sequence`, `cartan_alloc_block`, `cartan_rt_alloc_lattice`, `cartan_rt_alloc_tree` in `src/cartanc/core_runtime.car`.
+  - [x] Implement `cartan_alloc_parameter_adam`, `cartan_alloc_parameter_adam_nd` in `src/cartanc/core_runtime.car`.
+  - [x] Implement `cartan_emit_spike`, `cartan_fluid_precision_start/end`, `cartan_sparsity_start/end`, `cartan_prune_graph`, and `cartan_tensor_quantize_int8` in `src/cartanc/core_runtime.car`.
+- [x] **Task 4: `Expr::Quantize` Lowering & Type Checking (`[ISSUE-215]`)**
+  - [x] Add `Expr::Quantize` handler in `src/cartanc/type_checker.car:tc_visit_expr`.
+  - [x] Add `Expr::Quantize` lowering in `src/cartanc/llvm_codegen.car:llvm_visit_expr`.
+- [x] **Task 5: Standard Library Zero-Mock & Hygiene Cleanup (`[ISSUE-216]`)**
+  - [x] Remove unused `struct ArgParser` from `src/std/env.cl`.
+  - [x] Update `azr_evaluate_binary_reward(candidate_code: string) -> float` in `src/std/evolution.cl`.
+- [x] **Task 6: Author Regression Target 61 (`test_language_primitives.car`)**
+  - [x] Create `test/compiler_suite/test_language_primitives.car` validating native language declarations and builtins.
+  - [x] Register as Target 61 in `test/compiler_suite/run_tests.car`.
+- [x] **Task 7: Rebuild Self-Hosted Compiler & Full Regression Pass**
+  - [x] Rebuild self-hosted `cartanc.exe`.
+  - [x] Rebuild and run `build/run_tests.exe`.
+  - [x] Confirm all 61 targets pass with 0 failures (Exit Code 0).
+- [x] **Task 8: Sprint Review, ISSUES, CHANGELOG & Walkthrough**
+  - [x] Mark issues resolved in `ISSUES.md`.
+  - [x] Add entry in `CHANGELOG.md` (`[8.409.0]`).
+  - [x] Archive `docs/archive/sprint_451_walkthrough.md`.

@@ -322,6 +322,11 @@ fn main() -> float {
             return 1.0;
         }
         let input_file = sys_get_arg(2.0);
+        if (cartan_file_exists(input_file) == 0.0) {
+            printf("Error: Input file '%s' not found.\n", input_file);
+            cartan_flush(0.0);
+            return 1.0;
+        }
         let out_h = cartan_string_replace(input_file, ".car", ".h");
         printf("Generating C/C++ FFI header from Static SymbolTable: ");
         printf(out_h);
@@ -387,8 +392,26 @@ fn main() -> float {
             printf("Error: Missing input file. Usage: cartanc doc <file.car>\n");
             return 1.0;
         }
-        let input_file = sys_get_arg(2.0);
-        let out_md = cartan_string_replace(input_file, ".car", "_api.md");
+        var input_file = sys_get_arg(2.0);
+        if (cartan_file_exists(input_file) == 0.0) {
+            if (cartan_string_contains(input_file, ".car") != 0.0) {
+                let alt_cl = cartan_string_replace(input_file, ".car", ".cl");
+                if (cartan_file_exists(alt_cl) != 0.0) {
+                    input_file = alt_cl;
+                }
+            } else if (cartan_string_contains(input_file, ".cl") != 0.0) {
+                let alt_car = cartan_string_replace(input_file, ".cl", ".car");
+                if (cartan_file_exists(alt_car) != 0.0) {
+                    input_file = alt_car;
+                }
+            }
+        }
+        if (cartan_file_exists(input_file) == 0.0) {
+            printf("Error: Input file '%s' not found.\n", input_file);
+            cartan_flush(0.0);
+            return 1.0;
+        }
+        let out_md = cartan_string_replace(cartan_string_replace(input_file, ".car", "_api.md"), ".cl", "_api.md");
         printf("Parsing CARTAN module docstrings from Static SymbolTable: ");
         printf(input_file);
         printf("\n");
@@ -422,6 +445,11 @@ fn main() -> float {
             return 1.0;
         }
         var input_file = sys_get_arg(2.0);
+        if (cartan_file_exists(input_file) == 0.0) {
+            printf("Error: Input file '%s' not found.\n", input_file);
+            cartan_flush(0.0);
+            return 1.0;
+        }
         var output_file = "out.exe";
         if (argc >= 5.0) {
             if (cartan_string_starts_with(sys_get_arg(3.0), "-o") != 0.0) {

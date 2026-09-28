@@ -39,6 +39,7 @@ struct NSES_Pipeline {
     memory_tree: ptr;
     seed_list: ptr;
     act_list: ptr;
+    entity_tree: ptr;
     is_ready: float;
     last_turn_latency_ms: float;
 }
@@ -95,6 +96,16 @@ fn nses_pipeline_create(graph_path: string) -> NSES_Pipeline {
     let s_list = collections_create_list();
     let a_list = collections_create_list();
 
+    let e_tree = cartan_tree_create();
+    if (cg.is_valid != 0.0 && cg.header.num_entities > 0.0) {
+        var e_i = 0.0;
+        while (e_i < cg.header.num_entities) {
+            let ws_tag = cargraph_format_world_state(cg, e_i);
+            cartan_tree_push(e_tree, ws_tag);
+            e_i = e_i + 1.0;
+        }
+    }
+
     return NSES_Pipeline {
         graph_file: cg,
         csr: g,
@@ -107,6 +118,7 @@ fn nses_pipeline_create(graph_path: string) -> NSES_Pipeline {
         memory_tree: m_tree,
         seed_list: s_list,
         act_list: a_list,
+        entity_tree: e_tree,
         is_ready: 1.0,
         last_turn_latency_ms: 0.0
     };
@@ -205,7 +217,7 @@ fn nses_pipeline_execute_turn(
     // -------------------------------------------------------------------------
     // Stage 6: Structured 4-Block Prompt Scaffold Assembly
     // -------------------------------------------------------------------------
-    let prompt_text = prompt_assemble_scaffold(pipe.prompt_buffer, pipe.guardrails_tree, pipe.memory_tree, lateral_frag, query);
+    let prompt_text = prompt_assemble_scaffold_v2(pipe.prompt_buffer, pipe.guardrails_tree, pipe.memory_tree, pipe.entity_tree, lateral_frag, query);
 
     // -------------------------------------------------------------------------
     // Stage 7: Absolute Post-Pass Deterministic Veto Gate

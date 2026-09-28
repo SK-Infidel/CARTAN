@@ -1,25 +1,20 @@
 // test/compiler_suite/test_multimodal_grounding.car
 // Verification Suite: Multimodal Cross-Modal Grounding into Shared E8 Manifold Coordinates
 
-include "../../src/std/vision.cl";
-include "../../src/std/audio.cl";
-include "../../src/std/math.cl";
-include "../../src/std/collections.cl";
-include "../../src/std/string.cl";
+include "src/std/vision.cl";
+include "src/std/audio.cl";
+include "src/std/math.cl";
+include "src/std/collections.cl";
+include "src/std/string.cl";
+include "src/std/resonator.cl";
+include "src/std/sleep.cl";
+include "test/geomind/train.cl";
+include "test/geomind/chat.cl";
 
 extern fn printf(format: string) -> i32;
 extern fn cartan_flush(v: float) -> float;
 extern fn cartan_assert(cond: float, msg: string) -> float;
 extern fn cartan_float_to_string(v: float) -> string;
-
-extern fn cartan_hopfield_clear() -> float;
-extern fn cartan_hopfield_attractor_count() -> float;
-extern fn cartan_hopfield_store_vector(vec: ptr, dim: float) -> float;
-extern fn cartan_hopfield_store_hidden(h: ptr) -> float;
-extern fn cartan_hopfield_relax(h: ptr, beta: float, steps: float) -> float;
-extern fn cartan_hopfield_energy(h: ptr) -> float;
-
-extern fn cartan_multimodal_ground_hidden(h: ptr, vision: ptr, audio: ptr) -> float;
 
 fn main() -> float {
     printf("=================================================================================\n");

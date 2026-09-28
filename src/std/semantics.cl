@@ -7,6 +7,7 @@ include "src/std/io.cl";
 include "src/std/fs.cl";
 
 extern fn atof(s: string) -> float;
+extern fn cartan_hub_encode_text_to_tokens(text: string) -> ptr;
 
 var g_taxonomy_loaded = 0.0;
 var g_taxonomy_node_count = 0.0;
@@ -291,7 +292,7 @@ fn cartan_taxonomy_resnik_similarity(w1: string, w2: string) -> float {
     let ic1 = cartan_taxonomy_get_ic(w1);
     let ic2 = cartan_taxonomy_get_ic(w2);
     var mean_ic = (ic1 + ic2) * 0.5;
-    let sim = mean_ic / (1.0 + dist * 0.25);
+    let sim = mean_ic / (1.0 + dist * 0.10);
     return sim;
 }
 
@@ -327,6 +328,20 @@ fn cartan_taxonomy_apply_logit_boost(logits: ptr, concept_word: string, boost_fa
     if (cartan_string_length(path) == 0.0) { return; }
     let len = cartan_vec_len(logits);
     if (len > 0.0) {
+        // Boost target BPE vocabulary token(s)
+        let toks = cartan_hub_encode_text_to_tokens(concept_word);
+        if (toks != 0.0) {
+            let n_toks = cartan_vec_len(toks);
+            var t_i = 0.0;
+            while (t_i < n_toks) {
+                let tid = cartan_vec_get_f32(toks, t_i);
+                if (tid >= 0.0 && tid < len) {
+                    let cur = cartan_vec_get_f32(logits, tid);
+                    cartan_vec_set_f32(logits, tid, cur + boost_factor * 2.5);
+                }
+                t_i = t_i + 1.0;
+            }
+        }
         let word_len = cartan_string_length(concept_word);
         var w_i = 0.0;
         while (w_i < word_len) {
@@ -381,13 +396,10 @@ fn semantics_lin_similarity(c1: string, c2: string) -> float {
 
 fn semantics_apply_lca_boost(logits: ptr, history_token_id: float, vocab_size: float, boost_factor: float) {
     if (logits == 0.0 || boost_factor <= 0.0 || vocab_size <= 0.0) { return; }
-    var i = 0.0;
-    while (i < vocab_size) {
-        if (i == history_token_id) {
-            // Apply semantic coherence boost along geodesic
-            logits[i] = logits[i] + boost_factor * 0.5;
-        }
-        i = i + 1.0;
+    let v_len = cartan_vec_len(logits);
+    if (history_token_id >= 0.0 && history_token_id < vocab_size && history_token_id < v_len) {
+        let cur = cartan_vec_get_f32(logits, history_token_id);
+        cartan_vec_set_f32(logits, history_token_id, cur + boost_factor * 0.5);
     }
 }
 

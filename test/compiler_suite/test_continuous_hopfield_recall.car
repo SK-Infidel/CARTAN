@@ -11,7 +11,9 @@ include "src/std/math.cl";
 include "src/std/collections.cl";
 include "src/std/tensor.cl";
 include "src/std/resonator.cl";
+include "src/std/sleep.cl";
 include "test/geomind/streams.cl";
+include "test/geomind/train.cl";
 include "test/geomind/chat.cl";
 
 extern fn cartan_assert(cond: float, msg: string) -> float;

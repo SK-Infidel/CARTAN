@@ -224,11 +224,92 @@ fn sleep_run_axiomatic_consolidation(nses_graph_path: string, basins_file: strin
 }
 
 fn cartan_sleep_consolidate_cycle(filepath: string, lr: float, thresh: float) -> float {
-    return sleep_run_consolidation_cycle(filepath, 2560.0, lr, thresh);
+    return sleep_run_consolidation_cycle(filepath, 248.0, lr, thresh);
 }
 
 fn cartan_sleep_consolidate_cycle_memory(filepath: string, lr: float, thresh: float) -> float {
-    return sleep_run_consolidation_cycle_memory(filepath, 2560.0, lr, thresh);
+    return sleep_run_consolidation_cycle_memory(filepath, 248.0, lr, thresh);
+}
+
+// Detects angular voids on the unit hypersphere between episodic Hopfield attractor basins
+// Synthesizes discovery bridge vectors using true geodesic SLERP interpolation on S^(dim-1)
+fn sleep_detect_attractor_voids(basins_file: string, dim: float) -> float {
+    cartan_hopfield_init_if_needed();
+    var count = cartan_hopfield_attractor_count();
+    if (count < 2.0 && basins_file != 0.0 && cartan_string_length(basins_file) > 0.0 && cartan_file_exists(basins_file) == 1.0) {
+        count = cartan_hopfield_load_basins(basins_file);
+    }
+    if (count < 2.0) {
+        return 0.0;
+    }
+
+    var eff_dim = dim;
+    if (eff_dim <= 0.0) { eff_dim = 248.0; }
+
+    var limit = count;
+    if (limit > 32.0) { limit = 32.0; }
+
+    var synthesized_count = 0.0;
+    var i = 0.0;
+    while (i < limit && synthesized_count < 4.0) {
+        let u = cartan_hopfield_get_basin(i);
+        if (u != 0.0) {
+            let u_len = cartan_vec_len(u);
+            if (u_len > 0.0) { eff_dim = u_len; }
+            var j = i + 1.0;
+            while (j < limit && synthesized_count < 4.0) {
+                let v = cartan_hopfield_get_basin(j);
+                if (v != 0.0) {
+                    let rho = sleep_compute_resonance(u, v, eff_dim);
+                    // Significant angular void: between ~70 deg and ~150 deg (-0.85 <= rho <= 0.35)
+                    if (rho >= -0.85 && rho <= 0.35) {
+                        let cl_rho = math_clamp(rho, -0.9999, 0.9999);
+                        let theta = math_acos(cl_rho);
+                        let sin_theta = math_sin(theta);
+                        if (sin_theta > 0.001) {
+                            let coeff = math_sin(0.5 * theta) / sin_theta;
+                            let bridge = cartan_tensor_alloc(eff_dim);
+                            var norm_sq = 0.0;
+                            var d = 0.0;
+                            while (d < eff_dim) {
+                                let u_val = cartan_vec_get_f32(u, d);
+                                let v_val = cartan_vec_get_f32(v, d);
+                                let w_val = (u_val + v_val) * coeff;
+                                cartan_vec_set_f32(bridge, d, w_val);
+                                norm_sq = norm_sq + (w_val * w_val);
+                                d = d + 1.0;
+                            }
+                            if (norm_sq > 0.000001) {
+                                let inv_norm = 1.0 / sqrt(norm_sq);
+                                d = 0.0;
+                                while (d < eff_dim) {
+                                    let val = cartan_vec_get_f32(bridge, d);
+                                    cartan_vec_set_f32(bridge, d, val * inv_norm);
+                                    d = d + 1.0;
+                                }
+                                // Relax newly synthesized discovery attractor into nearest Hopfield valley
+                                cartan_hopfield_relax(bridge, 2.0, 2.0);
+                                cartan_hopfield_store_vector(bridge, eff_dim);
+                                synthesized_count = synthesized_count + 1.0;
+                            }
+                            cartan_vec_free(bridge);
+                        }
+                    }
+                }
+                j = j + 1.0;
+            }
+        }
+        i = i + 1.0;
+    }
+
+    if (synthesized_count > 0.0 && basins_file != 0.0 && cartan_string_length(basins_file) > 0.0) {
+        cartan_hopfield_save_basins(basins_file);
+    }
+    return synthesized_count;
+}
+
+fn cartan_sleep_detect_voids(filepath: string, dim: float) -> float {
+    return sleep_detect_attractor_voids(filepath, dim);
 }
 
 

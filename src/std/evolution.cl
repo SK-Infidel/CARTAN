@@ -12,6 +12,6 @@ fn evolution_suite_status() -> float {
     return 1.0;
 }
 
-fn azr_evaluate_binary_reward(dummy: float) -> float {
-    return azr_framework_eval_binary_reward("fn test() -> float { return 1.0; }");
+fn azr_evaluate_binary_reward(candidate_code: string) -> float {
+    return azr_framework_eval_binary_reward(candidate_code);
 }

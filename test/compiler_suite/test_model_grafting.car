@@ -12,14 +12,15 @@ include "src/std/collections.cl";
 include "src/std/tensor.cl";
 include "src/std/fusion.cl";
 include "src/std/hub.cl";
+include "src/std/sleep.cl";
 include "test/geomind/streams.cl";
+include "test/geomind/train.cl";
+include "test/geomind/chat.cl";
 
 extern fn cartan_assert(cond: float, msg: string) -> float;
 extern fn cartan_float_to_string(v: float) -> string;
 extern fn cartan_string_eq(s1: string, s2: string) -> float;
 extern fn cartan_file_exists(path: string) -> float;
-extern fn e8_attention_forward_step(h: ptr, temp: float) -> ptr;
-extern fn cartan_multimodal_ground_hidden(hidden: ptr, vision: ptr, audio: ptr) -> float;
 
 fn main() -> float {
     printf("=================================================================================\n");

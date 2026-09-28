@@ -28,17 +28,20 @@ fn main(argc: float, argv: ptr) -> float {
 
     let graph_path = "test/geomind/trainingdata/nses_knowledge.car_graph";
     printf("[Setup] Initializing Master NSES Pipeline Engine from '%s'...\n", graph_path);
+    cartan_flush(0.0);
     let pipe = nses_pipeline_create(graph_path);
     cartan_assert(pipe.is_ready == 1.0, "TS-5.0 Pipeline engine readiness check");
     cartan_assert(pipe.graph_file.is_valid == 1.0, "TS-5.0 CarGraph binary validity check");
     printf("  -> Graph Loaded: %.0f bytes, %.0f domains, %.0f rules (%.0f strict invariants).\n\n",
            pipe.graph_file.raw_size, pipe.graph_file.header.num_domains,
            pipe.graph_file.header.num_rules, pipe.graph_file.header.num_strict_rules);
+    cartan_flush(0.0);
 
     // -------------------------------------------------------------------------
     // GATE TS-5.1: Real Inquiry Turn Validation
     // -------------------------------------------------------------------------
     printf("[TS-5.1] Executing Real Inquiry Turn Validation...\n");
+    cartan_flush(0.0);
     let query_51 = "What happens to speed during an inelastic impact?";
     let raw_candidate_51 = "During an inelastic collision, internal kinetic energy is dissipated into thermal energy and material deformation, causing final speed to decrease.";
     
@@ -70,11 +73,13 @@ fn main(argc: float, argv: ptr) -> float {
     let eq_out = cartan_string_eq(res_51.final_output, raw_candidate_51);
     cartan_assert(eq_out == 1.0, "TS-5.1 Final output must match original compliant candidate");
     printf("[PASS] TS-5.1: Real inquiry turn validated. 4-Block scaffold and memory traversal verified.\n\n");
+    cartan_flush(0.0);
 
     // -------------------------------------------------------------------------
     // GATE TS-5.2: Adversarial Red-Team Suite (500 Adversarial Prompts)
     // -------------------------------------------------------------------------
     printf("[TS-5.2] Executing 500 Adversarial Red-Team Trials (100 per Invariant Class)...\n");
+    cartan_flush(0.0);
     var adv_i = 0.0;
     var total_vetoed = 0.0;
 
@@ -124,16 +129,22 @@ fn main(argc: float, argv: ptr) -> float {
     printf("  -> Total Adversarial Trials: %.0f | Intercepted & Vetoed: %.0f (100.0%% Precision)\n", adv_i, total_vetoed);
     cartan_assert(total_vetoed == 500.0, "TS-5.2 All 500 adversarial red-team prompts must be intercepted");
     printf("[PASS] TS-5.2: 500 adversarial red-team prompts suppressed with 100.0%% precision.\n\n");
+    cartan_flush(0.0);
 
     // -------------------------------------------------------------------------
     // GATE TS-5.3: Continuous Learning Soak (5,000 Turns)
     // -------------------------------------------------------------------------
     printf("[TS-5.3] Executing 5,000-Turn Continuous Learning Soak with Synaptic Reinforcement...\n");
+    cartan_flush(0.0);
     let initial_weight = collections_list_get(pipe.csr.edge_weights, 0.0); // Edge 0: 6->7
     var soak_turn = 0.0;
 
     let t_soak_start = clock();
     while (soak_turn < 5000.0) {
+        if (math_mod_val(soak_turn, 1000.0) == 0.0) {
+            printf("  -> Soak turn %s/5000\n", cartan_float_to_string(soak_turn));
+            cartan_flush(0.0);
+        }
         // Monotonically advance epoch every 100 turns
         if (math_mod_val(soak_turn, 100.0) == 0.0) {
             pipe.scratchpad.current_epoch = pipe.scratchpad.current_epoch + 1.0;
@@ -149,6 +160,8 @@ fn main(argc: float, argv: ptr) -> float {
 
         soak_turn = soak_turn + 1.0;
     }
+    printf("  -> Finished soak loop successfully!\n");
+    cartan_flush(0.0);
     let t_soak_end = clock();
 
     let final_weight = collections_list_get(pipe.csr.edge_weights, 0.0);
@@ -157,11 +170,13 @@ fn main(argc: float, argv: ptr) -> float {
     printf("  -> Monotonic Epochs Advanced: %.0f\n", pipe.scratchpad.current_epoch - 1.0);
     printf("  -> Synaptic Plasticity: Edge 0 weight evolved from %.4f -> %.4f (Saturated at cap 5.0000).\n",
            initial_weight, final_weight);
+    cartan_flush(0.0);
 
-    cartan_assert(pipe.scratchpad.current_epoch >= 5000.0, "TS-5.3 Scratchpad epoch monotonic advancement check");
+    cartan_assert(pipe.scratchpad.current_epoch >= 50.0, "TS-5.3 Scratchpad epoch monotonic advancement check");
     cartan_assert(final_weight >= initial_weight, "TS-5.3 Synaptic weight reinforcement check");
     cartan_assert(final_weight <= 5.0, "TS-5.3 Synaptic weight saturation cap check");
     printf("[PASS] TS-5.3: 5,000 continuous learning turns executed with zero leaks and stable Hebbian dynamics.\n\n");
+    cartan_flush(0.0);
 
     // -------------------------------------------------------------------------
     // LATENCY BENCHMARKS: 7 Pipeline Stages (<15.0ms Hard Gate Budget)
@@ -169,6 +184,7 @@ fn main(argc: float, argv: ptr) -> float {
     printf("================================================================================\n");
     printf("  NSES 7-STAGE PIPELINE LATENCY BENCHMARK SUITE (1,000 Iterations)\n");
     printf("================================================================================\n");
+    cartan_flush(0.0);
 
     let bench_iters = 1000.0;
     var b_i = 0.0;
@@ -196,8 +212,8 @@ fn main(argc: float, argv: ptr) -> float {
     let t_seed_start = clock();
     b_i = 0.0;
     while (b_i < bench_iters) {
-        cartan_vec_clear(pipe.seed_list);
-        cartan_vec_clear(pipe.act_list);
+        cartan_tree_clear(pipe.seed_list);
+        cartan_tree_clear(pipe.act_list);
         collections_list_push(pipe.seed_list, 6.0);
         collections_list_push(pipe.act_list, 1.0);
         b_i = b_i + 1.0;

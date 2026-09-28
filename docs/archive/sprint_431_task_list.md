@@ -1,0 +1,26 @@
+# Sprint 431 Task List: Per-Dataset Target Loss Freezing & Universal CLI Options
+
+- [ ] **Task 1: Update `test/geomind/train.cl`**
+  - [ ] Declare `var g_is_training_pass: float = 0.0;`
+  - [ ] Adjust `geomind_train_chunk_gpu_launch_pass` to evaluate `g_is_training_pass` for temperature scaling
+  - [ ] Adjust `geomind_train_chunk_gpu_finish_pass` to populate `g_last_chunk_*` metrics when `lr > 0.0 || g_is_training_pass == 1.0`
+  - [ ] In `geomind_train_streaming_steady_state`: evaluate if active domain `d_idx` has reached target loss (`loss <= t_loss && loss > 0.0`), set `is_domain_frozen = 1.0` and `step_lr = 0.0`
+  - [ ] Pass `step_lr` to `geomind_train_chunk_gpu_launch_pass` and `geomind_train_chunk_gpu_finish_pass`
+  - [ ] Preserve recurrent context `g_buf_domain_h` even when backprop is frozen
+  - [ ] Output `[TARGET REACHED: BACKPROP FROZEN]` in terminal telemetry and file logs
+  - [ ] Check convergence across all corpus domains before exiting session
+- [ ] **Task 2: Standardize `test/geomind/main.car`**
+  - [ ] Remove duplicate early dispatch block lines 395-424 that bypassed focus parameters
+  - [ ] Clarify `-target-loss`, `-tl`, `-loss`, `-training-loss` in `--help`
+  - [ ] Ensure Cloze, CE, and SFT handlers uniformly invoke `apply_focus_cli_params` and target loss parsing
+- [ ] **Task 3: Author Empirical Verification Harness**
+  - [ ] Create `test/geomind/nses/test_sprint18_per_dataset_target_freeze.car` covering Gates TS-18.1 to TS-18.4
+  - [ ] Compile with `cartanc.exe` and execute to verify 100% pass rate
+- [ ] **Task 4: Build & Deploy Binary**
+  - [ ] Build `bin/geomind.exe` with Zig `-O3 LTO Vectorized Pass Pipeline`
+  - [ ] Run `.\bin\geomind.exe --verify`
+  - [ ] Synchronize `bin/geomind.exe` to `build/geomind.exe`, `geomind.exe`, and `test/geomind/geomind.exe`
+- [ ] **Task 5: Documentation & Agile Closeout**
+  - [ ] Log `[ISSUE-179] [FIXED]` in `ISSUES.md`
+  - [ ] Update `CHANGELOG.md` to `[8.389.0]`
+  - [ ] Archive `sprint_431_walkthrough.md`

@@ -3027,6 +3027,180 @@ This file tracks technical debt and bugs identified during repository code revie
 - **Description**: `cartan_hopfield_store_vector` novelty check (`max_res >= 0.98`) prevented inserting duplicate attractors required to test offline sleep consolidation pruning. Additionally, `cartan_hopfield_load_basins` failed to assign the loaded tree to active memory bank globals.
 - **Resolution**: Implemented `cartan_hopfield_store_vector_raw` and `cartan_hopfield_store_hidden_raw` in `src/std/resonator.cl` to bypass online novelty checks for compaction staging. Fixed `cartan_hopfield_load_basins` to assign `g_hopfield_key_bank` and `g_hopfield_val_bank`. Updated `test_sleep_consolidation.car` to use raw staging. Verified all 5 verification gates pass with exit code 0.
 
+---
+
+## [ISSUE-211] [RESOLVED] Built-In Cognitive Language Block Hooks & Tensor Helper Builtins Missing in Freestanding `core_runtime.car`
+- **Severity**: High (Language Completeness / Linker Defect)
+- **Component**: [`src/cartanc/core_runtime.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/core_runtime.car), [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car#L500-L520), [`src/cartanc/lexer.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/lexer.car#L87), [`src/std/reasoning.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/reasoning.cl)
+- **Status**: Resolved in Sprint 450.
+- **Description**: In `src/cartanc/llvm_codegen.car`, built-in language extern declarations were added for cognitive blocks (`override`, `chain`, `route`, `grok`, `doubt`, `multimodal`), tensor helpers (`cartan_tensor_ones_like`, `cartan_tensor_zeros_like`, `cartan_tensor_transpose`), and string pattern matching (`cartan_pattern_match`). However, none of these functions were implemented in the freestanding `src/cartanc/core_runtime.car`. Any standalone user program using these native language features failed at link time with undefined external symbols. Furthermore, `override` was missing from `check_keyword` in `lexer.car`, and ad-hoc duplicate definitions in `reasoning.cl` caused LLVM redefinition errors across 7 test targets.
+- **Resolution**:
+  1. Implemented all cognitive control block lifecycle hooks (`multimodal_sync_start/end`, `vmap_begin/end`, `doubt_begin/end`, `chain_begin/end`, `route_begin/end`, `grok_begin/end`, `override_begin/end`) and query state functions (`cartan_doubt_is_active`, `cartan_doubt_should_rewind`, `cartan_doubt_trigger_rewind`, `cartan_doubt_clear_rewind`) in `src/cartanc/core_runtime.car`.
+  2. Implemented `cartan_tensor_ones_like`, `cartan_tensor_zeros_like`, and 2D/1D `cartan_tensor_transpose` in `src/cartanc/core_runtime.car`.
+  3. Implemented genuine wildcard/prompt pattern matching in `cartan_pattern_match` in `src/cartanc/core_runtime.car`.
+  4. Added `override` keyword to `check_keyword` in `src/cartanc/lexer.car`.
+  5. Removed duplicate definitions from `src/std/reasoning.cl` to eliminate symbol collision.
+  6. Added regression test `test/compiler_suite/test_core_builtins.car` as Target 60. Verified all 60 targets pass with 0 failures (Exit Code 0).
+
+---
+
+## [ISSUE-212] [RESOLVED] Compiler Diagnostic Warning on `_CRT_SECURE_NO_WARNINGS` Redefinition
+- **Severity**: Low (Build Hygiene)
+- **Component**: [`src/std/cartan_native_io.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/cartan_native_io.c#L1)
+- **Status**: Resolved in Sprint 450.
+- **Description**: `cartan_native_io.c:1` unconditionally defined `#define _CRT_SECURE_NO_WARNINGS`, while Zig/Clang passed `-D_CRT_SECURE_NO_WARNINGS 1` on the command line, generating a compiler diagnostic warning on every build of native executables.
+- **Resolution**: Wrapped `#define _CRT_SECURE_NO_WARNINGS` with `#ifndef _CRT_SECURE_NO_WARNINGS` in `src/std/cartan_native_io.c`. Verified 100% clean builds with zero compiler diagnostic warnings.
+
+---
+
+## [ISSUE-213] [RESOLVED] Disconnected Lexer Keywords for Advanced Language Declarations
+- **Severity**: High (Language Syntax & Parser Integration Defect)
+- **Component**: [`src/cartanc/lexer.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/lexer.car#L42-L89), [`src/cartanc/ast.ch`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/ast.ch#L7-L32)
+- **Status**: Resolved in Sprint 451.
+- **Description**: `TokenType` defines enum variants for language declarations and keywords (`sequence`, `block`, `lattice`, `layout`, `manifold`, `topology`, `quantize`, `spike`, `neuron`, `satisfy`, `otherwise`, `backtrack`, `supervisor`, `mesh`, `jit`, `lazy`, `unified`, `latent`, `fluid`, `sparsity`, `emit`, `rule`, `knowledge_base`, `fuzzy`, `evolve`, `paged_attention`), but `check_keyword` in `lexer.car` did not match them. Lexing these tokens emitted `TokenType::Identifier`, causing `parser.car` declaration rules (`sequence_declaration`, etc.) to fail with syntax errors.
+- **Resolution**: Added explicit keyword recognition for all 30 missing keywords in `check_keyword` in `src/cartanc/lexer.car` while preserving `attention` as a module namespace identifier to ensure full backwards compatibility with namespaced calls like `attention::scaled_dot_product_attention`.
+
+---
+
+## [ISSUE-214] [RESOLVED] Missing Built-In Language Allocators & Signature Mismatch in Freestanding `core_runtime.car`
+- **Severity**: High (Runtime Completeness / Linker Defect)
+- **Component**: [`src/cartanc/core_runtime.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/core_runtime.car), [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car#L485-L523)
+- **Status**: Resolved in Sprint 451.
+- **Description**: In `src/cartanc/llvm_codegen.car`, language constructs emit calls to native functions that were never implemented in the freestanding `src/cartanc/core_runtime.car`: `cartan_alloc_sequence`, `cartan_alloc_block`, `cartan_rt_alloc_lattice`, `cartan_rt_alloc_tree`, `cartan_alloc_parameter_adam`, `cartan_alloc_parameter_adam_nd`, `cartan_emit_spike`, `cartan_fluid_precision_start/end`, `cartan_sparsity_start/end`, `cartan_prune_graph`, and `cartan_tensor_quantize_int8`. Additionally, lines 487–490 declared several of these functions with `float` while code emission called them with `double`, creating an LLVM signature mismatch.
+- **Resolution**:
+  1. Synchronized all extern function prototypes in `llvm_codegen.car` to `double` parameter types matching LLVM call emissions.
+  2. Fixed string concatenation bugs in `SequenceDecl`, `BlockDecl`, and `LatticeDecl` codegen where raw floats were passed to `cartan_string_concat`, by evaluating size expressions via `llvm_visit_expr` and formatting registers via `as_float`.
+  3. Fixed AST discriminant collision in `llvm_codegen.car` where `disc == 12.0` (`TreeDecl`) was erroneously intercepted as `TensorDecl`.
+  4. Implemented all allocators, hooks, and lifecycle primitives in `src/cartanc/core_runtime.car`.
+
+---
+
+## [ISSUE-215] [RESOLVED] Unhandled AST Expression `Expr::Quantize` in Type Checker and Codegen
+- **Severity**: Medium (Compiler AST Pass Gap)
+- **Component**: [`src/cartanc/type_checker.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/type_checker.car#L454), [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car#L3124-L3131), [`src/cartanc/core_runtime.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/core_runtime.car#L1250-L1277)
+- **Status**: Resolved in Sprint 451.
+- **Description**: `parser.car:1730` parses `quantize(target, INT8)` into `Expr::Quantize(target, dtype)`. However, neither `type_checker.car` nor `llvm_codegen.car` handled `Expr::Quantize`. In `llvm_visit_expr`, the node unhandledly fell through to `"0.0"`.
+- **Resolution**:
+  1. Implemented type-checking handler for `Expr::Quantize` in `src/cartanc/type_checker.car:tc_visit_expr` returning `CartanType::Tensor`.
+  2. Implemented LLVM IR codegen lowering for `Expr::Quantize` in `src/cartanc/llvm_codegen.car:llvm_visit_expr` calling `@cartan_tensor_quantize_int8(ptr target)`.
+  3. Implemented symmetric zero-mock INT8 tensor quantization in `src/cartanc/core_runtime.car:cartan_tensor_quantize_int8`.
+
+---
+
+## [ISSUE-216] [RESOLVED] Dummy Parameter and Hardcoded Code Artifacts in Standard Libraries
+- **Severity**: Low (Zero-Mock Rule Compliance & Code Hygiene)
+- **Component**: [`src/std/env.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/env.cl#L12-L14), [`src/std/evolution.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/evolution.cl#L15-L17), [`test/compiler_suite/test_evolution_master.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/compiler_suite/test_evolution_master.car#L58)
+- **Status**: Resolved in Sprint 451.
+- **Description**: `src/std/env.cl` contained an unused placeholder `struct ArgParser { dummy: float; }`. `src/std/evolution.cl` defined `fn azr_evaluate_binary_reward(dummy: float)` with a `dummy` parameter name and passed a hardcoded test string `"fn test() -> float { return 1.0; }"` rather than accepting real candidate code.
+- **Resolution**:
+  1. Removed dead dummy struct `ArgParser` in `src/std/env.cl`.
+  2. Refactored `azr_evaluate_binary_reward(candidate_code: string) -> float` in `src/std/evolution.cl` to accept authentic candidate code and evaluate genuine compiler rewards via `azr_framework_eval_binary_reward(candidate_code)`.
+  3. Updated test invocation in `test/compiler_suite/test_evolution_master.car` to pass authentic candidate code string.
+
+---
+
+## [ISSUE-217] [RESOLVED] Missing Freestanding `@cartan_internal_import_onnx` in Core Runtime
+- **Severity**: High (Linker Defect)
+- **Component**: [`src/cartanc/core_runtime.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/core_runtime.car), [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car#L537)
+- **Status**: Resolved (Sprint 452).
+- **Resolution**: Implemented authentic `cartan_internal_import_onnx(uri: string) -> ptr` in `core_runtime.car` that allocates a model container with URI and tensor graph tables, registered return type in `llvm_codegen.car`, and verified via Target 62.
+
+---
+
+## [ISSUE-218] [RESOLVED] Unhandled AST Expression `Expr::Transform` (`vmap`, `grad`)
+- **Severity**: High (Compiler AST Pass Gap / Runtime Defect)
+- **Component**: [`src/cartanc/type_checker.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/type_checker.car), [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car), [`src/cartanc/core_runtime.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/core_runtime.car)
+- **Status**: Resolved (Sprint 452).
+- **Resolution**: Added `grad` to keyword checks, fixed parser token extraction, implemented `cartan_rt_transform` in `core_runtime.car`, added type checking in `type_checker.car`, added LLVM lowering in `llvm_codegen.car`, added contextual keyword identifier fallback in `parser.car`, and verified via Target 62.
+
+---
+
+## [ISSUE-219] [RESOLVED] Unhandled AST Expression `Expr::WeightDecay` in Type Checker and Codegen
+- **Severity**: Medium (Compiler AST Pass Gap / Runtime Defect)
+- **Component**: [`src/cartanc/type_checker.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/type_checker.car), [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car), [`src/cartanc/core_runtime.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/core_runtime.car)
+- **Status**: Resolved (Sprint 452).
+- **Resolution**: Added `weight_decay` to keyword checks and contextual identifier fallback, implemented authentic `cartan_tensor_apply_weight_decay` in `core_runtime.car`, added type checking and LLVM lowering extracting float literal payloads via `expr[2]`, and verified via Target 62.
+
+---
+
+## [ISSUE-220] [RESOLVED] Stubbed `satisfy` Parsing & Missing AST Declaration Signature
+- **Severity**: High (Language Specification & Compiler Gap)
+- **Component**: [`src/cartanc/ast.ch`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/ast.ch#L173), [`src/cartanc/parser.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/parser.car#L1289), [`src/cartanc/type_checker.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/type_checker.car)
+- **Status**: Resolved (Sprint 452).
+- **Resolution**: Updated `ast.ch` to `Satisfy(ptr, ptr, ptr)`, corrected `parser.car` declaration dispatcher to return `Stmt::Satisfy(condition, body, otherwise_node)`, added scope/statement traversal in `type_checker.car`, updated LLVM codegen block exit paths to branch to `end_label` after `otherwise`, and verified via Target 62.
+
+---
+
+## [ISSUE-221] [RESOLVED] Unimplemented Native `for` Loop (`ForStmt`) across Compiler Pipeline
+- **Severity**: High (Language Feature Completeness)
+- **Component**: [`src/cartanc/parser.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/parser.car), [`src/cartanc/type_checker.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/type_checker.car), [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car)
+- **Status**: Resolved (Sprint 453).
+- **Resolution**: Implemented `for <var> in <iterable> { <body> }` parsing in `parser.car`, added scope-aware type checking for `ForStmt` (disc 19.0) in `type_checker.car`, implemented LLVM IR loop structures using `@cartan_vec_len` and `@cartan_vec_get_f32` in `llvm_codegen.car`, and verified via Target 63.
+
+---
+
+## [ISSUE-222] [RESOLVED] Unhandled AST Expressions `Expr::ProjectVocab` & `Expr::PromptLiteral`
+- **Severity**: Medium (Compiler Expression Gap)
+- **Component**: [`src/cartanc/type_checker.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/type_checker.car), [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car), [`src/cartanc/lexer.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/lexer.car)
+- **Status**: Resolved (Sprint 453).
+- **Resolution**: Added lexer support for `p"..."` prompt literals in `lexer.car`, added type checking for `ProjectVocab` (disc 48.0/112.0) and `PromptLiteral` (disc 4.0/68.0) in `type_checker.car`, lowered `ProjectVocab` to call `@cartan_project_vocab` and `PromptLiteral` to global string constants in `llvm_codegen.car`, and verified via Target 63.
+
+---
+
+## [ISSUE-223] [RESOLVED] Argument Mismatch & Unhandled Codegen for `Expr::PagedAttention` & `Expr::Lazy`
+- **Severity**: Medium (Compiler Expression Gap)
+- **Component**: [`src/cartanc/parser.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/parser.car#L2001), [`src/cartanc/type_checker.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/type_checker.car), [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car), [`src/cartanc/core_runtime.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/core_runtime.car)
+- **Status**: Resolved (Sprint 453).
+- **Resolution**: Aligned `PagedAttention` to 4 arguments with optional `block_table`, implemented authentic `cartan_rt_paged_attention` in `core_runtime.car`, added type checking and LLVM lowering for `PagedAttention` (disc 47.0/111.0) and `Lazy` (disc 46.0/110.0), and verified via Target 63.
+
+---
+
+## [ISSUE-224] [RESOLVED] Stubbed Exception Handling (`Throw` Statement & Discarded `Catch` Blocks)
+- **Severity**: Medium (Control Flow Integrity)
+- **Component**: [`src/cartanc/parser.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/parser.car), [`src/cartanc/type_checker.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/type_checker.car), [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car)
+- **Status**: Resolved (Sprint 453).
+- **Resolution**: Implemented `throw <expr>;` parsing in `parser.car`, added type checking for `Stmt::Throw` (disc 21.0) in `type_checker.car`, lowered `Throw` with formatted exception diagnostics and clean return exits in `llvm_codegen.car`, and verified scoped try/catch behavior via Target 63.
+
+---
+
+## [ISSUE-225] [OPEN] Unimplemented `Expr::MSELoss` across Runtime, Type Checker & Codegen
+- **Severity**: High (Mathematical Completeness & Training Pipeline)
+- **Component**: [`src/cartanc/parser.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/parser.car#L1620), [`src/cartanc/type_checker.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/type_checker.car), [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car), [`src/cartanc/core_runtime.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/core_runtime.car)
+- **Status**: Open (Targeted for Sprint 454).
+- **Description**: `parser.car:1620` parses `mse_loss(pred, target)` into `Expr::MSELoss(arg0, arg1)`. However, `core_runtime.car` lacks `cartan_tensor_mse_loss`, `type_checker.car` does not validate it, and `llvm_codegen.car` drops it, returning `"0.0"`.
+- **Proposed Fix**: Implement authentic $\frac{1}{N}\sum (\hat{y}_i - y_i)^2$ in `core_runtime.car`, add type checking returning `CartanType::Float`, and lower in `llvm_codegen.car`.
+
+---
+
+## [ISSUE-226] [OPEN] Unimplemented `Expr::ParallelTransport` across Runtime, Type Checker & Codegen
+- **Severity**: High (Geometric Completeness)
+- **Component**: [`src/cartanc/parser.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/parser.car#L1683), [`src/cartanc/type_checker.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/type_checker.car), [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car), [`src/cartanc/core_runtime.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/core_runtime.car)
+- **Status**: Open (Targeted for Sprint 454).
+- **Description**: `parser.car:1683` parses `parallel_transport(v, from, to)` into `Expr::ParallelTransport(v, from, to)`. `core_runtime.car` lacks `cartan_tensor_parallel_transport`, `type_checker.car` lacks validation, and `llvm_codegen.car` lacks lowering.
+- **Proposed Fix**: Implement authentic Riemannian parallel transport rotating tangent vectors along geodesic paths in `core_runtime.car`, add type checking returning `CartanType::Tensor`, and lower to `@cartan_tensor_parallel_transport` in `llvm_codegen.car`.
+
+---
+
+## [ISSUE-227] [OPEN] Missing `TokenizeBPE` & `AlignSpans` Runtime Implementations & Lowering Handlers
+- **Severity**: Medium (Frontend Intelligence Primitives)
+- **Component**: [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car#L537), [`src/cartanc/core_runtime.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/core_runtime.car), [`src/cartanc/type_checker.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/type_checker.car)
+- **Status**: Open (Targeted for Sprint 454).
+- **Description**: `llvm_codegen.car` declares extern prototypes `@cartan_tokenize_bpe` and `@cartan_align_spans`, but neither is implemented in `core_runtime.car`, and neither expression discriminant is lowered in `llvm_visit_expr`.
+- **Proposed Fix**: Implement authentic BPE byte pair encoding and span alignment in `core_runtime.car` and wire lowering handlers in `llvm_codegen.car`.
+
+---
+
+## [ISSUE-228] [OPEN] Unhandled `TreeSearch` (`search(MCTS/A*)`) Expression Lowering
+- **Severity**: Medium (Reasoning Engine Integration)
+- **Component**: [`src/cartanc/parser.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/parser.car#L2006), [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car), [`src/cartanc/core_runtime.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/core_runtime.car)
+- **Status**: Open (Targeted for Sprint 454).
+- **Description**: `parser.car:2006` parses `search(tree, algorithm, state)` into `Expr::TreeSearch(tree, algorithm, state)`. `core_runtime.car` lacks `cartan_tree_search` and `llvm_codegen.car` returns `"0.0"`.
+- **Proposed Fix**: Implement tree search traversal in `core_runtime.car` and lower in `llvm_codegen.car`.
+
+
+
+
+
 
 
 

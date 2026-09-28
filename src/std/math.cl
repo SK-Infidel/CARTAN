@@ -23,6 +23,7 @@ extern fn ceil(x: float) -> float;
 extern fn fmod(x: float, y: float) -> float;
 extern fn copysign(x: float, y: float) -> float;
 
+fn math_abs(x: float) -> float { return fabs(x); }
 fn math_abs_val(x: float) -> float { return fabs(x); }
 fn math_sqrt(x: float) -> float { return sqrt(x); }
 fn math_pow(base: float, exp_val: float) -> float { return pow(base, exp_val); }

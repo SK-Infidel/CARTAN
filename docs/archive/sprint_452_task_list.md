@@ -1,0 +1,31 @@
+# Sprint 452 Task List
+
+- [x] **Task 1: Core Runtime Implementations (`src/cartanc/core_runtime.car`)**
+  - [x] Implement `cartan_internal_import_onnx(uri: string) -> ptr`
+  - [x] Implement `cartan_rt_transform(op: string, target: ptr) -> ptr`
+  - [x] Implement `cartan_tensor_apply_weight_decay(t: ptr, amount: float) -> ptr`
+- [x] **Task 2: AST & Parser Alignment (`src/cartanc/ast.ch`, `src/cartanc/parser.car`)**
+  - [x] Update `ast.ch:173` to `Satisfy(ptr, ptr, ptr)`
+  - [x] Update `parser.car:197` and `parser.car:1289` to return `Stmt::Satisfy(condition, body, otherwise_node)`
+  - [x] Add contextual identifier token fallback in `parser.car:consume` and `primary`
+- [x] **Task 3: Type Checker Semantic Handlers (`src/cartanc/type_checker.car`)**
+  - [x] Add `Stmt::Satisfy` and `Stmt::Backtrack` in `tc_visit_stmt`
+  - [x] Add `Expr::Transform` and `Expr::WeightDecay` in `tc_visit_expr`
+- [x] **Task 4: LLVM Codegen Lowering (`src/cartanc/llvm_codegen.car`)**
+  - [x] Register return types in `llvm_codegen_init`
+  - [x] Add extern prototype for `cartan_tensor_apply_weight_decay`
+  - [x] Lower `Expr::Transform` to `@cartan_rt_transform`
+  - [x] Lower `Expr::WeightDecay` to `@cartan_tensor_apply_weight_decay` with exact float bitpattern unpacking
+  - [x] Update `satisfy` codegen exit paths branching to `end_label` after `otherwise`
+- [x] **Task 5: Author Regression Target 62 (`test/compiler_suite/test_transforms_and_logic.car`)**
+  - [x] Verify `vmap` and `grad`
+  - [x] Verify `weight_decay`
+  - [x] Verify `satisfy` and `backtrack` declarative goal search
+  - [x] Register as Target 62 in `test/compiler_suite/run_tests.car` and update `.gitignore`
+- [x] **Task 6: Recompile & Empirical Regression Verification**
+  - [x] Rebuild self-hosted `cartanc.exe`
+  - [x] Execute `run_tests.exe` and verify all 62 targets pass with 0 failures
+- [x] **Task 7: Sprint Closeout & Documentation**
+  - [x] Update `ISSUES.md` (mark Issues 217-220 resolved)
+  - [x] Update `CHANGELOG.md` (`[8.410.0]`)
+  - [x] Save `docs/archive/sprint_452_walkthrough.md`

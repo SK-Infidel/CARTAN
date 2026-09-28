@@ -55,3 +55,13 @@ fn cartan_rt_autograd_forward_grad(input_val: float, func: ptr) -> float {
     return (f_plus - f_minus) / (2.0 * h);
 }
 
+// Module-prefixed aliases for calculus:: calls
+fn calculus_rk4_step(y: float, dt: float) -> float { return rk4_step(y, dt); }
+fn calculus_rkf45_adaptive_step(y: float, dt: float, tol: float) -> float { return rkf45_adaptive_step(y, dt, tol); }
+fn calculus_verlet_position_step(x: float, v: float, a: float, dt: float) -> float { return verlet_position_step(x, v, a, dt); }
+fn calculus_verlet_velocity_step(v: float, a_curr: float, a_next: float, dt: float) -> float { return verlet_velocity_step(v, a_curr, a_next, dt); }
+fn calculus_simpson_integrate(a: float, b: float, n: float) -> float { return simpson_integrate(a, b, n); }
+fn calculus_trapezoidal_integrate(a: float, b: float) -> float { return trapezoidal_integrate(a, b); }
+fn calculus_finite_difference_derivative(y1: float, y2: float, dx: float) -> float { return finite_difference_derivative(y1, y2, dx); }
+fn calculus_central_difference_derivative(y_prev: float, y_next: float, dx: float) -> float { return central_difference_derivative(y_prev, y_next, dx); }
+

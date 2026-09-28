@@ -10,15 +10,13 @@
 include "src/std/math.cl";
 include "src/std/collections.cl";
 include "src/std/tensor.cl";
+include "test/geomind/geometry.cl";
 include "test/geomind/streams.cl";
 include "test/geomind/moe.cl";
+include "test/geomind/e8_attention_engine.cl";
 
 extern fn cartan_assert(cond: float, msg: string) -> float;
 extern fn cartan_float_to_string(v: float) -> string;
-extern fn cartan_tensor_compute_momentum(cur_h: ptr, prev_h: ptr) -> ptr;
-extern fn cartan_sasaki_brainstem_route_vec(pos: ptr, mom: ptr, temp: float) -> ptr;
-extern fn cartan_apply_8_lie_streams_routed_vec(hidden_ptr: ptr, weights_ptr: ptr) -> float;
-extern fn e8_attention_forward_step_with_momentum(h: ptr, mom: ptr, temp: float) -> ptr;
 
 fn main() -> float {
     printf("=================================================================================\n");

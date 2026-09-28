@@ -5,11 +5,14 @@
 include "src/std/semantics.cl";
 include "src/std/collections.cl";
 include "src/std/string.cl";
+include "src/std/tensor.cl";
+include "src/std/resonator.cl";
+include "src/std/sleep.cl";
+include "test/geomind/streams.cl";
+include "test/geomind/train.cl";
+include "test/geomind/chat.cl";
 
 extern fn cartan_assert(cond: float, msg: string) -> float;
-extern fn cartan_hub_encode_text_to_tokens(text: string) -> ptr;
-extern fn cartan_tensor_compute_hidden_state_from_tokens(toks: ptr) -> ptr;
-extern fn cartan_tensor_compute_lm_head_logits(h: ptr, temp: float) -> ptr;
 
 fn main() -> float {
     printf("=================================================================================\n");

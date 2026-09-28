@@ -63,7 +63,10 @@ fn cargraph_consolidate_pass(
         }
 
         // 2. Merge dynamic delta edges from DynamicDeltaArena for node u
-        var cur_chunk = collections_list_get(arena.delta_head_offsets, u);
+        var cur_chunk = -1.0;
+        if (arena.delta_head_offsets != 0.0 && u < collections_list_len(arena.delta_head_offsets)) {
+            cur_chunk = collections_list_get(arena.delta_head_offsets, u);
+        }
         while (cur_chunk >= 0.0 && cur_chunk < arena.capacity_bytes) {
             let buf = arena.arena_buffer;
             let cnt = cartan_byte_at(buf, cur_chunk + 63.0);
@@ -93,10 +96,15 @@ fn cargraph_consolidate_pass(
             let p_lo = cartan_byte_at(buf, cur_chunk + 60.0);
             let p_mid = cartan_byte_at(buf, cur_chunk + 61.0);
             let p_hi = cartan_byte_at(buf, cur_chunk + 62.0);
-            if (p_lo == 255.0 && p_mid == 255.0 && p_hi == 255.0) {
+            if ((p_lo == 255.0 && p_mid == 255.0 && p_hi == 255.0) || (p_lo == 0.0 && p_mid == 0.0 && p_hi == 0.0)) {
                 cur_chunk = -1.0;
             } else {
-                cur_chunk = p_lo + (p_mid * 256.0) + (p_hi * 65536.0);
+                let prev_off = p_lo + (p_mid * 256.0) + (p_hi * 65536.0);
+                if (prev_off == cur_chunk || prev_off >= arena.capacity_bytes) {
+                    cur_chunk = -1.0;
+                } else {
+                    cur_chunk = prev_off;
+                }
             }
         }
 
@@ -167,7 +175,57 @@ fn cargraph_sleep_consolidate_memory(
     return compacted_csr;
 }
 
+// Evaluates whether either the resident CsrGraph or DynamicDeltaArena contains prunable synapses below threshold
+fn cargraph_has_prunable_synapses(csr: CsrGraph, arena: DynamicDeltaArena, threshold: float) -> float {
+    var thresh = threshold;
+    if (thresh <= 0.0) { thresh = 1.001; }
 
+    // 1. Check resident CSR edges
+    if (csr.edge_weights != 0.0) {
+        let num_edges = collections_list_len(csr.edge_weights);
+        var e = 0.0;
+        while (e < num_edges) {
+            let w = collections_list_get(csr.edge_weights, e);
+            if (w < thresh) {
+                return 1.0;
+            }
+            e = e + 1.0;
+        }
+    }
+
+    // 2. Check dynamic arena edges
+    if (arena.used_bytes > 0.0 && arena.arena_buffer != 0.0 && arena.delta_head_offsets != 0.0) {
+        let n_nodes = collections_list_len(arena.delta_head_offsets);
+        var u = 0.0;
+        while (u < n_nodes) {
+            var cur_chunk = collections_list_get(arena.delta_head_offsets, u);
+            while (cur_chunk >= 0.0 && cur_chunk < arena.capacity_bytes) {
+                let buf = arena.arena_buffer;
+                let cnt = cartan_byte_at(buf, cur_chunk + 63.0);
+                var slot = 0.0;
+                while (slot < cnt && slot < 4.0) {
+                    let w_byte = cartan_byte_at(buf, cur_chunk + 28.0 + (slot * 4.0));
+                    let w = w_byte / 100.0;
+                    if (w < thresh) {
+                        return 1.0;
+                    }
+                    slot = slot + 1.0;
+                }
+                let p_lo = cartan_byte_at(buf, cur_chunk + 60.0);
+                let p_mid = cartan_byte_at(buf, cur_chunk + 61.0);
+                let p_hi = cartan_byte_at(buf, cur_chunk + 62.0);
+                let prev_off = p_lo + (p_mid * 256.0) + (p_hi * 65536.0);
+                if (prev_off == 16777215.0 || prev_off == cur_chunk) {
+                    break;
+                }
+                cur_chunk = prev_off;
+            }
+            u = u + 1.0;
+        }
+    }
+
+    return 0.0;
+}
 
 // Extracts in-memory CsrGraph representation from a loaded binary CarGraphFile
 fn cargraph_extract_csr(cg: CarGraphFile) -> CsrGraph {
@@ -197,10 +255,11 @@ fn cargraph_extract_csr(cg: CarGraphFile) -> CsrGraph {
     return g;
 }
 
-// Serializes in-memory CarGraphBuilder data and compacted CsrGraph into binary file
+// Serializes in-memory CarGraphBuilder data and compacted CsrGraph into binary file (.car_graph v2)
 fn cargraph_serialize_to_file_with_csr(b: CarGraphBuilder, csr: CsrGraph, filepath: string) -> float {
     let num_domains = collections_list_len(b.domain_ids);
     let num_rules = collections_list_len(b.rule_domain_indices);
+    let num_entities = collections_list_len(b.entity_domain_indices);
     let emb_dim = b.embedding_dim;
     var num_edges = 0.0;
     if (csr.edge_targets != 0.0) {
@@ -220,7 +279,10 @@ fn cargraph_serialize_to_file_with_csr(b: CarGraphBuilder, csr: CsrGraph, filepa
     let off_csr_edges = cargraph_align_page(off_csr_ptrs + ((num_rules + 1.0) * 8.0));
     let off_fragments = cargraph_align_page(off_csr_edges + (num_edges * 16.0) + 64.0);
 
-    let off_embeddings = cargraph_align_page(off_fragments + 64.0);
+    let off_entities = cargraph_align_page(off_fragments + 64.0);
+    let entities_size = num_entities * 32.0;
+
+    let off_embeddings = cargraph_align_page(off_entities + entities_size);
     let vec_bytes = emb_dim * 8.0;
     let embeddings_size = num_rules * vec_bytes;
 
@@ -233,6 +295,16 @@ fn cargraph_serialize_to_file_with_csr(b: CarGraphBuilder, csr: CsrGraph, filepa
         str_pool_len = str_pool_len + cartan_string_length(s) + 1.0;
         i = i + 1.0;
     }
+    var ent_i = 0.0;
+    while (ent_i < num_entities) {
+        let e_n = cartan_tree_get(b.entity_names, ent_i);
+        let e_a = cartan_tree_get(b.entity_attrs, ent_i);
+        let e_v = cartan_tree_get(b.entity_vals, ent_i);
+        str_pool_len = str_pool_len + cartan_string_length(e_n) + 1.0;
+        str_pool_len = str_pool_len + cartan_string_length(e_a) + 1.0;
+        str_pool_len = str_pool_len + cartan_string_length(e_v) + 1.0;
+        ent_i = ent_i + 1.0;
+    }
     let total_file_size = off_string_pool + str_pool_len + 64.0;
 
     let raw = cartan_alloc_binary_buffer(total_file_size);
@@ -244,7 +316,8 @@ fn cargraph_serialize_to_file_with_csr(b: CarGraphBuilder, csr: CsrGraph, filepa
         m_idx = m_idx + 1.0;
     }
 
-    cargraph_write_u32(raw, 8.0, 1.0);
+    // Write Header v2.0
+    cargraph_write_u32(raw, 8.0, 2.0);
     cargraph_write_u32(raw, 12.0, 0.0);
     cargraph_write_u64(raw, 16.0, total_file_size);
     cargraph_write_u32(raw, 24.0, emb_dim);
@@ -252,15 +325,20 @@ fn cargraph_serialize_to_file_with_csr(b: CarGraphBuilder, csr: CsrGraph, filepa
     cargraph_write_u32(raw, 32.0, num_rules);
     cargraph_write_u32(raw, 36.0, b.num_strict);
     cargraph_write_u32(raw, 40.0, num_edges);
-    cargraph_write_u32(raw, 44.0, 0.0);
-    cargraph_write_u64(raw, 48.0, off_domains);
-    cargraph_write_u64(raw, 56.0, off_rules);
-    cargraph_write_u64(raw, 64.0, off_csr_ptrs);
-    cargraph_write_u64(raw, 72.0, off_csr_edges);
-    cargraph_write_u64(raw, 80.0, off_fragments);
-    cargraph_write_u64(raw, 88.0, off_embeddings);
-    cargraph_write_u64(raw, 96.0, off_string_pool);
+    cargraph_write_u32(raw, 44.0, 0.0);            // num_fragments
+    cargraph_write_u32(raw, 48.0, num_entities);   // num_entities
+    cargraph_write_u32(raw, 52.0, 0.0);            // reserved
+    cargraph_write_u64(raw, 56.0, off_domains);
+    cargraph_write_u64(raw, 64.0, off_rules);
+    cargraph_write_u64(raw, 72.0, off_csr_ptrs);
+    cargraph_write_u64(raw, 80.0, off_csr_edges);
+    cargraph_write_u64(raw, 88.0, off_fragments);
+    cargraph_write_u64(raw, 96.0, off_entities);
+    cargraph_write_u64(raw, 104.0, off_embeddings);
+    cargraph_write_u64(raw, 112.0, off_string_pool);
+    cargraph_write_u64(raw, 120.0, 0.0);           // reserved2
 
+    // Domains
     var d_i = 0.0;
     while (d_i < num_domains) {
         let d_id = collections_list_get(b.domain_ids, d_i);
@@ -277,6 +355,7 @@ fn cargraph_serialize_to_file_with_csr(b: CarGraphBuilder, csr: CsrGraph, filepa
         d_i = d_i + 1.0;
     }
 
+    // Rules
     var cur_str_off = off_string_pool;
     var r_i = 0.0;
     while (r_i < num_rules) {
@@ -314,6 +393,60 @@ fn cargraph_serialize_to_file_with_csr(b: CarGraphBuilder, csr: CsrGraph, filepa
         r_i = r_i + 1.0;
     }
 
+    // Entities
+    var e_idx = 0.0;
+    while (e_idx < num_entities) {
+        let ent_d = collections_list_get(b.entity_domain_indices, e_idx);
+        let ent_conf = collections_list_get(b.entity_confidences, e_idx);
+        let e_n = cartan_tree_get(b.entity_names, e_idx);
+        let e_a = cartan_tree_get(b.entity_attrs, e_idx);
+        let e_v = cartan_tree_get(b.entity_vals, e_idx);
+
+        let n_len = cartan_string_length(e_n);
+        let a_len = cartan_string_length(e_a);
+        let v_len = cartan_string_length(e_v);
+
+        let n_rel_off = cur_str_off - off_string_pool;
+        var k1 = 0.0;
+        while (k1 < n_len) {
+            cartan_set_byte(raw, cur_str_off + k1, c_cartan_string_char_at(e_n, k1));
+            k1 = k1 + 1.0;
+        }
+        cartan_set_byte(raw, cur_str_off + n_len, 0.0);
+        cur_str_off = cur_str_off + n_len + 1.0;
+
+        let a_rel_off = cur_str_off - off_string_pool;
+        var k2 = 0.0;
+        while (k2 < a_len) {
+            cartan_set_byte(raw, cur_str_off + k2, c_cartan_string_char_at(e_a, k2));
+            k2 = k2 + 1.0;
+        }
+        cartan_set_byte(raw, cur_str_off + a_len, 0.0);
+        cur_str_off = cur_str_off + a_len + 1.0;
+
+        let v_rel_off = cur_str_off - off_string_pool;
+        var k3 = 0.0;
+        while (k3 < v_len) {
+            cartan_set_byte(raw, cur_str_off + k3, c_cartan_string_char_at(e_v, k3));
+            k3 = k3 + 1.0;
+        }
+        cartan_set_byte(raw, cur_str_off + v_len, 0.0);
+        cur_str_off = cur_str_off + v_len + 1.0;
+
+        let ent_off = off_entities + (e_idx * 32.0);
+        cargraph_write_u32(raw, ent_off + 0.0, ent_d);
+        cargraph_write_u32(raw, ent_off + 4.0, n_rel_off);
+        cargraph_write_u32(raw, ent_off + 8.0, a_rel_off);
+        cargraph_write_u32(raw, ent_off + 12.0, v_rel_off);
+        cargraph_write_u32(raw, ent_off + 16.0, floor(ent_conf * 1000.0));
+        cargraph_write_u32(raw, ent_off + 20.0, 0.0);
+        cargraph_write_u32(raw, ent_off + 24.0, 0.0);
+        cargraph_write_u32(raw, ent_off + 28.0, 0.0);
+
+        e_idx = e_idx + 1.0;
+    }
+
+    // CSR Pointers
     if (csr.row_ptrs != 0.0) {
         var u = 0.0;
         let n_rptrs = collections_list_len(csr.row_ptrs);
@@ -324,6 +457,7 @@ fn cargraph_serialize_to_file_with_csr(b: CarGraphBuilder, csr: CsrGraph, filepa
         }
     }
 
+    // CSR Edges
     if (num_edges > 0.0) {
         var e = 0.0;
         while (e < num_edges) {
@@ -414,6 +548,18 @@ fn cargraph_sleep_consolidate_file(
         let r_emb = cargraph_get_rule_embedding(cg, r);
         cargraph_builder_add_rule(b_new, r_meta.domain_idx, r_meta.element_type, r_meta.is_strict, r_text, r_emb);
         r = r + 1.0;
+    }
+
+    // Copy entity states from cg to preserve world-state during sleep consolidation
+    var e_i = 0.0;
+    while (e_i < cg.header.num_entities) {
+        let ent = cargraph_get_entity(cg, e_i);
+        let e_name = cargraph_get_entity_name(cg, e_i);
+        let e_attr = cargraph_get_entity_attr(cg, e_i);
+        let e_val = cargraph_get_entity_val(cg, e_i);
+        let e_conf = ent.confidence_int / 1000.0;
+        cargraph_builder_add_entity(b_new, ent.domain_idx, e_name, e_attr, e_val, e_conf);
+        e_i = e_i + 1.0;
     }
 
     // Serialize with consolidated CSR topology to temporary file

@@ -4,6 +4,7 @@
 extern fn malloc(size: float) -> ptr;
 extern fn free(p: ptr);
 extern fn cartan_vec_create() -> ptr;
+extern fn cartan_tensor_alloc(size: float) -> ptr;
 extern fn cartan_vec_push_f32(v: ptr, val: float) -> float;
 extern fn cartan_vec_get_f32(v: ptr, idx: float) -> float;
 extern fn cartan_vec_set_f32(v: ptr, idx: float, val: float) -> float;

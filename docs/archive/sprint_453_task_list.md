@@ -1,0 +1,32 @@
+# Sprint 453 Task List
+
+- [x] **Task 1: Native `for` Loop Implementation (`[ISSUE-221]`)**
+  - [x] Add `for <var> in <iterable> { <body> }` parser in `src/cartanc/parser.car:statement`
+  - [x] Add scope-aware type checking for `ForStmt` (disc 19.0) in `src/cartanc/type_checker.car:tc_visit_stmt`
+  - [x] Implement LLVM IR loop structures for `ForStmt` in `src/cartanc/llvm_codegen.car:llvm_visit_stmt`
+- [x] **Task 2: Expression Lowering for `ProjectVocab` & `PromptLiteral` (`[ISSUE-222]`)**
+  - [x] Add `Expr::ProjectVocab` and `Expr::PromptLiteral` handlers in `src/cartanc/type_checker.car:tc_visit_expr`
+  - [x] Lower `Expr::ProjectVocab` calling `@cartan_project_vocab` in `src/cartanc/llvm_codegen.car:llvm_visit_expr`
+  - [x] Lower `Expr::PromptLiteral` to global string pointer in `src/cartanc/llvm_codegen.car:llvm_visit_expr`
+- [x] **Task 3: Paged Attention & Lazy Thunk Support (`[ISSUE-223]`)**
+  - [x] Align 4-argument `PagedAttention` in `src/cartanc/parser.car` matching `ast.ch:111`
+  - [x] Implement `cartan_rt_paged_attention` in `src/cartanc/core_runtime.car`
+  - [x] Add type checking and LLVM lowering for `PagedAttention` and `Lazy`
+- [x] **Task 4: Exception Handling Support (`[ISSUE-224]`)**
+  - [x] Parse `throw <expr>;` in `src/cartanc/parser.car:statement`
+  - [x] Add type checking for `Stmt::Throw` in `src/cartanc/type_checker.car:tc_visit_stmt`
+  - [x] Lower `Stmt::Throw` and wire catch block jumping in `src/cartanc/llvm_codegen.car:llvm_visit_stmt`
+- [x] **Task 5: Author Regression Target 63 (`test/compiler_suite/test_loops_and_primitives.car`)**
+  - [x] Test 1: Native `for` loop iteration over vectors
+  - [x] Test 2: `project_vocab` expression execution
+  - [x] Test 3: Prompt literal `p"..."` evaluation
+  - [x] Test 4: `paged_attention` execution
+  - [x] Test 5: `throw` exception raising
+  - [x] Register Target 63 in `test/compiler_suite/run_tests.car` and update `.gitignore`
+- [x] **Task 6: Recompile & Empirical Regression Verification**
+  - [x] Rebuild self-hosted `cartanc.exe`
+  - [x] Execute `run_tests.exe` and verify all 63 targets pass with 0 failures
+- [x] **Task 7: Sprint Closeout & Documentation**
+  - [x] Update `ISSUES.md` (mark Issues 221-224 resolved)
+  - [x] Update `CHANGELOG.md` (`[8.411.0]`)
+  - [x] Save `docs/archive/sprint_453_walkthrough.md`

@@ -1,0 +1,24 @@
+# Sprint 433 Task List: Autonomous Stage 2 CE to Stage 3 SFT Transition (`-auto-sft`)
+
+- [x] **Task 1: Add `-auto-sft` CLI Parsing and Documentation (`test/geomind/main.car`)**
+  - [x] Implement `has_cli_auto_sft(arg_count: float) -> float`
+  - [x] Implement `get_cli_auto_sft_target_loss(arg_count: float, default_val: float) -> float`
+  - [x] Update `print_help_dialogue()` with `-auto-sft [loss]` documentation
+- [x] **Task 2: Stage Target Convergence Tracking & Recurrent VRAM State Isolation (`test/geomind/train.cl`)**
+  - [x] Expose `g_last_train_target_loss_reached: float` global variable
+  - [x] Set `g_last_train_target_loss_reached = 1.0` on target loss reached / sustained convergence
+  - [x] Reset `g_buf_domain_h` (all 64 slots) at stage initialization in `geomind_train_streaming_steady_state()`
+- [x] **Task 3: Implement Autonomous Stage Transition Pipeline in `test/geomind/main.car`**
+  - [x] In `is_ce_mode` / `is_pre_mode` block, inspect `has_cli_auto_sft` and `g_last_train_target_loss_reached`
+  - [x] Display pipeline transition banner with target CE loss and target SFT loss
+  - [x] Reset SFT manifest if `-reset-manifest` was supplied
+  - [x] Trigger Stage 3 execution: `geomind_train_streaming_steady_state(3.0, "", sft_target_loss, ...)`
+- [x] **Task 4: Author Regression Test Suite & Rebuild Production Binary**
+  - [x] Author `test/geomind/nses/test_sprint20_auto_sft_transition.car` covering Gates TS-20.1 through TS-20.4
+  - [x] Compile and verify regression suite with `cartanc.exe`
+  - [x] Rebuild native `bin/geomind.exe` with Zig `-O3 LTO Vectorized Pass Pipeline` and test `--verify`
+  - [x] Synchronize `bin/geomind.exe` across all 4 locations
+- [x] **Task 5: Documentation & Closeout**
+  - [x] Log `[ISSUE-181] [FIXED]` in `ISSUES.md`
+  - [x] Update `CHANGELOG.md` to `[8.391.0]`
+  - [x] Archive `sprint_433_walkthrough.md`

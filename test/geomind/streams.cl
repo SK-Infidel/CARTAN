@@ -172,11 +172,15 @@ fn geomind_multistream_forward(x: ptr, stream_idx: float) -> ptr {
     if (stream_idx == 6.0) { return stream_heat_kernel_process(x, dim); }
     if (stream_idx == 7.0) { return stream_triality_process(x, dim); }
     
-    // Multi-stream blending: blend Cosformer (0) + SSM (1) + Spectral (2) + Poincare (3)
+    // Multi-stream blending across ALL 8 maximal Lie subgroups:
     let s0 = stream_cosformer_process(x, dim);
     let s1 = stream_ssm_process(x, dim);
     let s2 = stream_spectral_process(x, dim);
     let s3 = stream_poincare_process(x, dim);
+    let s4 = stream_homology_process(x, dim);
+    let s5 = stream_eikonal_process(x, dim);
+    let s6 = stream_heat_kernel_process(x, dim);
+    let s7 = stream_triality_process(x, dim);
     let blended = cartan_vec_create();
     var i = 0.0;
     while (i < dim) {
@@ -184,38 +188,56 @@ fn geomind_multistream_forward(x: ptr, stream_idx: float) -> ptr {
         let v1 = cartan_vec_get_f32(s1, i);
         let v2 = cartan_vec_get_f32(s2, i);
         let v3 = cartan_vec_get_f32(s3, i);
-        let val = (v0 + v1 + v2 + v3) * 0.25;
+        let v4 = cartan_vec_get_f32(s4, i);
+        let v5 = cartan_vec_get_f32(s5, i);
+        let v6 = cartan_vec_get_f32(s6, i);
+        let v7 = cartan_vec_get_f32(s7, i);
+        let val = (v0 + v1 + v2 + v3 + v4 + v5 + v6 + v7) * 0.125;
         cartan_vec_push_f32(blended, val);
         i = i + 1.0;
     }
+    cartan_vec_free(s0);
+    cartan_vec_free(s1);
+    cartan_vec_free(s2);
+    cartan_vec_free(s3);
+    cartan_vec_free(s4);
+    cartan_vec_free(s5);
+    cartan_vec_free(s6);
+    cartan_vec_free(s7);
     return blended;
 }
 
-// Unified 8-Submanifold 2560-Dimensional Cortical Manifold Transformation
-// Decomposes x into 8 distinct 320-D submanifolds:
-// Dims 0..319:    Stream 0: SO(16) Cosformer Linear Attention
-// Dims 320..639:  Stream 1: E7 x SU(2) Selective State-Space Recurrence
-// Dims 640..959:  Stream 2: E6 x SU(3) Auditory / Spectral DFT Harmonic Filter
-// Dims 960..1279: Stream 3: SU(9) Hyperbolic Poincare Conformal Metric
-// Dims 1280..1599: Stream 4: F4 x G2 Simplicial Loop Homology Density
-// Dims 1600..1919: Stream 5: SO(10) x SU(4) Visual Eikonal Geodesic Ray-Tracing
-// Dims 1920..2239: Stream 6: SU(5) x SU(5) Heat Kernel Laplacian Diffusion
-// Dims 2240..2559: Stream 7: SU(3)^3 Triality Symplectic Cyclic Rotation
+// Unified 8-Submanifold Cortical Manifold Transformation
+// Decomposes x into 8 distinct submanifolds (stride = 248 for 1984D, 320 for 2560D):
+// Dims 0..stride-1:       Stream 0: SO(16) Cosformer Linear Attention
+// Dims stride..2*stride-1:   Stream 1: E7 x SU(2) Selective State-Space Recurrence
+// Dims 2*stride..3*stride-1: Stream 2: E6 x SU(3) Auditory / Spectral DFT Harmonic Filter
+// Dims 3*stride..4*stride-1: Stream 3: SU(9) Hyperbolic Poincare Conformal Metric
+// Dims 4*stride..5*stride-1: Stream 4: F4 x G2 Simplicial Loop Homology Density
+// Dims 5*stride..6*stride-1: Stream 5: SO(10) x SU(4) Visual Eikonal Geodesic Ray-Tracing
+// Dims 6*stride..7*stride-1: Stream 6: SU(5) x SU(5) Heat Kernel Laplacian Diffusion
+// Dims 7*stride..8*stride-1: Stream 7: SU(3)^3 Triality Symplectic Cyclic Rotation
 fn geomind_streams_manifold_forward(x: ptr, mix: float) -> ptr {
     if (x == 0.0) { return x; }
     let len = cartan_vec_len(x);
-    if (len < 2560.0) {
+    if (len < 1984.0) {
         return geomind_multistream_forward(x, -1.0);
     }
     var m = 0.15;
     if (mix > 0.0) { m = mix; }
 
+    var stride = 248.0;
+    if (len >= 2560.0) {
+        stride = 320.0;
+    }
+
     let out = cartan_vec_create();
 
-    // Stream 0: SO(16) Cosformer (0..319)
+    // Stream 0: SO(16) Cosformer (0..stride-1)
     let kw0 = geom_killing_form_dynkin_weight(0.0);
     var i = 0.0;
-    while (i < 320.0) {
+    let end0 = 1.0 * stride;
+    while (i < end0) {
         let v = cartan_vec_get_f32(x, i);
         let cos_mod = cos(i * 0.05 * kw0) * 0.25 + 0.75;
         let trans = v * cos_mod;
@@ -223,10 +245,11 @@ fn geomind_streams_manifold_forward(x: ptr, mix: float) -> ptr {
         i = i + 1.0;
     }
 
-    // Stream 1: E7 x SU(2) SSM (320..639)
+    // Stream 1: E7 x SU(2) SSM (stride..2*stride-1)
     let kw1 = geom_killing_form_dynkin_weight(1.0);
     var ssm_state = 0.0;
-    while (i < 640.0) {
+    let end1 = 2.0 * stride;
+    while (i < end1) {
         let v = cartan_vec_get_f32(x, i);
         let ssm_mod = sin(i * 0.0314 * kw1) * 0.20 + 0.80;
         ssm_state = ssm_state * 0.85 + v * 0.15;
@@ -235,9 +258,10 @@ fn geomind_streams_manifold_forward(x: ptr, mix: float) -> ptr {
         i = i + 1.0;
     }
 
-    // Stream 2: E6 x SU(3) Spectral (640..959)
+    // Stream 2: E6 x SU(3) Spectral (2*stride..3*stride-1)
     let kw2 = geom_killing_form_dynkin_weight(2.0);
-    while (i < 960.0) {
+    let end2 = 3.0 * stride;
+    while (i < end2) {
         let v = cartan_vec_get_f32(x, i);
         let harmonic = sin((i + 1.0) * 0.1 * kw2) * 0.7071;
         let spec_out = v * harmonic + v * 0.5;
@@ -245,11 +269,12 @@ fn geomind_streams_manifold_forward(x: ptr, mix: float) -> ptr {
         i = i + 1.0;
     }
 
-    // Stream 3: SU(9) Poincare (960..1279)
+    // Stream 3: SU(9) Poincare (3*stride..4*stride-1)
     let kw3 = geom_killing_form_dynkin_weight(3.0);
     var norm_sq = 0.0;
-    var k = 960.0;
-    while (k < 1280.0) {
+    var k = 3.0 * stride;
+    let end3 = 4.0 * stride;
+    while (k < end3) {
         let val = cartan_vec_get_f32(x, k);
         norm_sq = norm_sq + (val * val) * kw3;
         k = k + 1.0;
@@ -257,16 +282,17 @@ fn geomind_streams_manifold_forward(x: ptr, mix: float) -> ptr {
     var u_sq = norm_sq * 0.001;
     if (u_sq > 0.90) { u_sq = 0.90; }
     let hyp_scale = 2.0 / (1.0 - u_sq);
-    while (i < 1280.0) {
+    while (i < end3) {
         let v = cartan_vec_get_f32(x, i);
         let poincare_out = tanh(v * 0.5) * (0.8 + 0.2 * hyp_scale);
         cartan_vec_push_f32(out, (1.0 - m) * v + m * poincare_out);
         i = i + 1.0;
     }
 
-    // Stream 4: F4 x G2 Homology (1280..1599)
+    // Stream 4: F4 x G2 Homology (4*stride..5*stride-1)
     let kw4 = geom_killing_form_dynkin_weight(4.0);
-    while (i < 1600.0) {
+    let end4 = 5.0 * stride;
+    while (i < end4) {
         let v = cartan_vec_get_f32(x, i);
         let loop_density = v * v * v * 0.02 * kw4;
         let hom_out = v * 0.9 + loop_density + sin(v * 2.0) * 0.1;
@@ -274,11 +300,12 @@ fn geomind_streams_manifold_forward(x: ptr, mix: float) -> ptr {
         i = i + 1.0;
     }
 
-    // Stream 5: SO(10) x SU(4) Eikonal (1600..1919)
+    // Stream 5: SO(10) x SU(4) Eikonal (5*stride..6*stride-1)
     let kw5 = geom_killing_form_dynkin_weight(5.0);
     var speed_sq = 0.0;
-    k = 1600.0;
-    while (k < 1920.0) {
+    k = 5.0 * stride;
+    let end5 = 6.0 * stride;
+    while (k < end5) {
         let val = cartan_vec_get_f32(x, k);
         speed_sq = speed_sq + (val * val) * kw5;
         k = k + 1.0;
@@ -286,16 +313,17 @@ fn geomind_streams_manifold_forward(x: ptr, mix: float) -> ptr {
     var a = speed_sq * 0.01 + 0.1;
     if (a < 0.001) { a = 0.001; }
     let travel = sqrt(a);
-    while (i < 1920.0) {
+    while (i < end5) {
         let v = cartan_vec_get_f32(x, i);
         let eik_out = travel * 0.8 + v * 0.2;
         cartan_vec_push_f32(out, (1.0 - m) * v + m * eik_out);
         i = i + 1.0;
     }
 
-    // Stream 6: SU(5) x SU(5) Heat Kernel (1920..2239)
+    // Stream 6: SU(5) x SU(5) Heat Kernel (6*stride..7*stride-1)
     let kw6 = geom_killing_form_dynkin_weight(6.0);
-    while (i < 2240.0) {
+    let end6 = 7.0 * stride;
+    while (i < end6) {
         let v = cartan_vec_get_f32(x, i);
         let laplacian = v * 0.5 * kw6;
         let diff_out = v - (laplacian * 0.1) + (laplacian * laplacian * 0.005);
@@ -303,8 +331,9 @@ fn geomind_streams_manifold_forward(x: ptr, mix: float) -> ptr {
         i = i + 1.0;
     }
 
-    // Stream 7: SU(3)^3 Triality (2240..2559)
-    while (i < 2560.0) {
+    // Stream 7: SU(3)^3 Triality (7*stride..8*stride-1)
+    let end7 = 8.0 * stride;
+    while (i < end7) {
         let t1 = cartan_vec_get_f32(x, i);
         let t2 = t1 * 0.8660254;
         let t3 = t2 * -0.5;
@@ -326,10 +355,15 @@ fn geomind_streams_layer_step(x: ptr, layer_idx: float) -> ptr {
 fn geomind_streams_manifold_forward_routed(x: ptr, weights: ptr) -> ptr {
     if (x == 0.0) { return x; }
     let len = x[0];
-    if (len < 2560.0) {
+    if (len < 1984.0) {
         return geomind_multistream_forward(x, -1.0);
     }
-    // Stream 0: SO(16) Cosformer (0..319)
+    var stride = 248.0;
+    if (len >= 2560.0) {
+        stride = 320.0;
+    }
+
+    // Stream 0: SO(16) Cosformer (0..stride-1)
     let kw0 = geom_killing_form_dynkin_weight(0.0);
     var w0 = 0.125;
     if (weights != 0.0 && weights[0] >= 8.0) { w0 = weights[2.0]; }
@@ -337,7 +371,8 @@ fn geomind_streams_manifold_forward_routed(x: ptr, weights: ptr) -> ptr {
     if (m0 < 0.02) { m0 = 0.02; }
     if (m0 > 0.65) { m0 = 0.65; }
     var i = 0.0;
-    while (i < 320.0) {
+    let end0 = 1.0 * stride;
+    while (i < end0) {
         let v = x[2.0 + i];
         let cos_mod = cos(i * 0.05 * kw0) * 0.25 + 0.75;
         let trans = v * cos_mod;
@@ -345,7 +380,7 @@ fn geomind_streams_manifold_forward_routed(x: ptr, weights: ptr) -> ptr {
         i = i + 1.0;
     }
 
-    // Stream 1: E7 x SU(2) SSM (320..639)
+    // Stream 1: E7 x SU(2) SSM (stride..2*stride-1)
     let kw1 = geom_killing_form_dynkin_weight(1.0);
     var w1 = 0.125;
     if (weights != 0.0 && weights[0] >= 8.0) { w1 = weights[2.0 + 1.0]; }
@@ -353,7 +388,8 @@ fn geomind_streams_manifold_forward_routed(x: ptr, weights: ptr) -> ptr {
     if (m1 < 0.02) { m1 = 0.02; }
     if (m1 > 0.65) { m1 = 0.65; }
     var ssm_state = 0.0;
-    while (i < 640.0) {
+    let end1 = 2.0 * stride;
+    while (i < end1) {
         let v = x[2.0 + i];
         let ssm_mod = sin(i * 0.0314 * kw1) * 0.20 + 0.80;
         ssm_state = ssm_state * 0.85 + v * 0.15;
@@ -362,14 +398,15 @@ fn geomind_streams_manifold_forward_routed(x: ptr, weights: ptr) -> ptr {
         i = i + 1.0;
     }
 
-    // Stream 2: E6 x SU(3) Spectral (640..959)
+    // Stream 2: E6 x SU(3) Spectral (2*stride..3*stride-1)
     let kw2 = geom_killing_form_dynkin_weight(2.0);
     var w2 = 0.125;
     if (weights != 0.0 && weights[0] >= 8.0) { w2 = weights[2.0 + 2.0]; }
     var m2 = 0.10 * (8.0 * w2);
     if (m2 < 0.02) { m2 = 0.02; }
     if (m2 > 0.65) { m2 = 0.65; }
-    while (i < 960.0) {
+    let end2 = 3.0 * stride;
+    while (i < end2) {
         let v = x[2.0 + i];
         let harmonic = sin((i + 1.0) * 0.1 * kw2) * 0.7071;
         let spec_out = v * harmonic + v * 0.5;
@@ -377,7 +414,7 @@ fn geomind_streams_manifold_forward_routed(x: ptr, weights: ptr) -> ptr {
         i = i + 1.0;
     }
 
-    // Stream 3: SU(9) Poincare (960..1279)
+    // Stream 3: SU(9) Poincare (3*stride..4*stride-1)
     let kw3 = geom_killing_form_dynkin_weight(3.0);
     var w3 = 0.125;
     if (weights != 0.0 && weights[0] >= 8.0) { w3 = weights[2.0 + 3.0]; }
@@ -385,8 +422,9 @@ fn geomind_streams_manifold_forward_routed(x: ptr, weights: ptr) -> ptr {
     if (m3 < 0.02) { m3 = 0.02; }
     if (m3 > 0.65) { m3 = 0.65; }
     var norm_sq = 0.0;
-    var k = 960.0;
-    while (k < 1280.0) {
+    var k = 3.0 * stride;
+    let end3 = 4.0 * stride;
+    while (k < end3) {
         let val = x[2.0 + k];
         norm_sq = norm_sq + (val * val) * kw3;
         k = k + 1.0;
@@ -394,21 +432,22 @@ fn geomind_streams_manifold_forward_routed(x: ptr, weights: ptr) -> ptr {
     var u_sq = norm_sq * 0.001;
     if (u_sq > 0.90) { u_sq = 0.90; }
     let hyp_scale = 2.0 / (1.0 - u_sq);
-    while (i < 1280.0) {
+    while (i < end3) {
         let v = x[2.0 + i];
         let poincare_out = tanh(v * 0.5) * (0.8 + 0.2 * hyp_scale);
         x[2.0 + i] = (1.0 - m3) * v + m3 * poincare_out;
         i = i + 1.0;
     }
 
-    // Stream 4: F4 x G2 Homology (1280..1599)
+    // Stream 4: F4 x G2 Homology (4*stride..5*stride-1)
     let kw4 = geom_killing_form_dynkin_weight(4.0);
     var w4 = 0.125;
     if (weights != 0.0 && weights[0] >= 8.0) { w4 = weights[2.0 + 4.0]; }
     var m4 = 0.10 * (8.0 * w4);
     if (m4 < 0.02) { m4 = 0.02; }
     if (m4 > 0.65) { m4 = 0.65; }
-    while (i < 1600.0) {
+    let end4 = 5.0 * stride;
+    while (i < end4) {
         let v = x[2.0 + i];
         let loop_density = v * v * v * 0.02 * kw4;
         let hom_out = v * 0.9 + loop_density + sin(v * 2.0) * 0.1;
@@ -416,16 +455,12 @@ fn geomind_streams_manifold_forward_routed(x: ptr, weights: ptr) -> ptr {
         i = i + 1.0;
     }
 
-    // Stream 5: SO(10) x SU(4) Eikonal (1600..1919)
+    // Stream 5: SO(10) x SU(4) Eikonal (5*stride..6*stride-1)
     let kw5 = geom_killing_form_dynkin_weight(5.0);
-    var w5 = 0.125;
-    if (weights != 0.0 && weights[0] >= 8.0) { w5 = weights[2.0 + 5.0]; }
-    var m5 = 0.10 * (8.0 * w5);
-    if (m5 < 0.02) { m5 = 0.02; }
-    if (m5 > 0.65) { m5 = 0.65; }
     var speed_sq = 0.0;
-    k = 1600.0;
-    while (k < 1920.0) {
+    k = 5.0 * stride;
+    let end5 = 6.0 * stride;
+    while (k < end5) {
         let val = x[2.0 + k];
         speed_sq = speed_sq + (val * val) * kw5;
         k = k + 1.0;
@@ -433,21 +468,27 @@ fn geomind_streams_manifold_forward_routed(x: ptr, weights: ptr) -> ptr {
     var a = speed_sq * 0.01 + 0.1;
     if (a < 0.001) { a = 0.001; }
     let travel = sqrt(a);
-    while (i < 1920.0) {
+    var w5 = 0.125;
+    if (weights != 0.0 && weights[0] >= 8.0) { w5 = weights[2.0 + 5.0]; }
+    var m5 = 0.10 * (8.0 * w5);
+    if (m5 < 0.02) { m5 = 0.02; }
+    if (m5 > 0.65) { m5 = 0.65; }
+    while (i < end5) {
         let v = x[2.0 + i];
         let eik_out = travel * 0.8 + v * 0.2;
         x[2.0 + i] = (1.0 - m5) * v + m5 * eik_out;
         i = i + 1.0;
     }
 
-    // Stream 6: SU(5) x SU(5) Heat Kernel (1920..2239)
+    // Stream 6: SU(5) x SU(5) Heat Kernel (6*stride..7*stride-1)
     let kw6 = geom_killing_form_dynkin_weight(6.0);
     var w6 = 0.125;
     if (weights != 0.0 && weights[0] >= 8.0) { w6 = weights[2.0 + 6.0]; }
     var m6 = 0.10 * (8.0 * w6);
     if (m6 < 0.02) { m6 = 0.02; }
     if (m6 > 0.65) { m6 = 0.65; }
-    while (i < 2240.0) {
+    let end6 = 7.0 * stride;
+    while (i < end6) {
         let v = x[2.0 + i];
         let laplacian = v * 0.5 * kw6;
         let diff_out = v - (laplacian * 0.1) + (laplacian * laplacian * 0.005);
@@ -455,13 +496,14 @@ fn geomind_streams_manifold_forward_routed(x: ptr, weights: ptr) -> ptr {
         i = i + 1.0;
     }
 
-    // Stream 7: SU(3)^3 Triality (2240..2559)
+    // Stream 7: SU(3)^3 Triality (7*stride..8*stride-1)
     var w7 = 0.125;
     if (weights != 0.0 && weights[0] >= 8.0) { w7 = weights[2.0 + 7.0]; }
     var m7 = 0.10 * (8.0 * w7);
     if (m7 < 0.02) { m7 = 0.02; }
     if (m7 > 0.65) { m7 = 0.65; }
-    while (i < 2560.0) {
+    let end7 = 8.0 * stride;
+    while (i < end7) {
         let t1 = x[2.0 + i];
         let t2 = t1 * 0.8660254;
         let t3 = t2 * -0.5;
@@ -471,6 +513,119 @@ fn geomind_streams_manifold_forward_routed(x: ptr, weights: ptr) -> ptr {
     }
 
     return x;
+}
+
+// Full 1984D 8-Subgroup Multi-Decomposition Splitter (248D -> 1984D = 8 x 248D)
+fn geomind_e8_decomp_splitter(x_248: ptr) -> ptr {
+    if (x_248 == 0.0) { return cartan_vec_create(); }
+    let dim = cartan_vec_len(x_248);
+    let s0 = stream_cosformer_process(x_248, dim);
+    let s1 = stream_ssm_process(x_248, dim);
+    let s2 = stream_spectral_process(x_248, dim);
+    let s3 = stream_poincare_process(x_248, dim);
+    let s4 = stream_homology_process(x_248, dim);
+    let s5 = stream_eikonal_process(x_248, dim);
+    let s6 = stream_heat_kernel_process(x_248, dim);
+    let s7 = stream_triality_process(x_248, dim);
+
+    let out_1984 = cartan_vec_create();
+    var s = 0.0;
+    while (s < 8.0) {
+        var src = s0;
+        if (s == 1.0) { src = s1; }
+        if (s == 2.0) { src = s2; }
+        if (s == 3.0) { src = s3; }
+        if (s == 4.0) { src = s4; }
+        if (s == 5.0) { src = s5; }
+        if (s == 6.0) { src = s6; }
+        if (s == 7.0) { src = s7; }
+
+        var i = 0.0;
+        while (i < dim) {
+            cartan_vec_push_f32(out_1984, cartan_vec_get_f32(src, i));
+            i = i + 1.0;
+        }
+        s = s + 1.0;
+    }
+
+    cartan_vec_free(s0);
+    cartan_vec_free(s1);
+    cartan_vec_free(s2);
+    cartan_vec_free(s3);
+    cartan_vec_free(s4);
+    cartan_vec_free(s5);
+    cartan_vec_free(s6);
+    cartan_vec_free(s7);
+    return out_1984;
+}
+
+// Cross-Stream E8StreamHerald In-Place Gauge Exchange
+// Coupler between the 8 maximal Lie subgroups on the 8-cycle graph
+fn geomind_e8_stream_herald_inplace(x: ptr) {
+    if (x == 0.0) { return; }
+    let len = cartan_vec_len(x);
+    if (len < 1984.0) { return; }
+    var stride = 248.0;
+    if (len >= 2560.0) {
+        stride = 320.0;
+    }
+
+    var d = 0.0;
+    while (d < stride) {
+        var s = 0.0;
+        while (s < 8.0) {
+            let next_s = math_mod_val(s + 1.0, 8.0);
+            let prev_s = math_mod_val(s + 7.0, 8.0);
+            let dual_s = 7.0 - s;
+
+            let cur_val = cartan_vec_get_f32(x, s * stride + d);
+            let next_val = cartan_vec_get_f32(x, next_s * stride + d);
+            let prev_val = cartan_vec_get_f32(x, prev_s * stride + d);
+            let dual_val = cartan_vec_get_f32(x, dual_s * stride + d);
+
+            let gauge_diff = (next_val + prev_val - 2.0 * cur_val) * 0.04 + (dual_val - cur_val) * 0.02;
+            cartan_vec_set_f32(x, s * stride + d, cur_val + gauge_diff);
+            s = s + 1.0;
+        }
+        d = d + 1.0;
+    }
+}
+
+// Freudenthal Readout Projection (1984D / 2560D -> 248D unit vector on S^247)
+fn geomind_e8_freudenthal_readout(x: ptr) -> ptr {
+    if (x == 0.0) { return cartan_vec_create(); }
+    let len = cartan_vec_len(x);
+    var stride = 248.0;
+    if (len >= 2560.0) {
+        stride = 320.0;
+    }
+    let out = cartan_vec_create();
+    var sum_sq = 0.0;
+    var d = 0.0;
+    while (d < 248.0) {
+        var acc = 0.0;
+        var s = 0.0;
+        while (s < 8.0) {
+            let kw = geom_killing_form_dynkin_weight(s);
+            let val = cartan_vec_get_f32(x, s * stride + d);
+            acc = acc + val * kw;
+            s = s + 1.0;
+        }
+        let v = acc * 0.125;
+        cartan_vec_push_f32(out, v);
+        sum_sq = sum_sq + (v * v);
+        d = d + 1.0;
+    }
+    if (sum_sq > 0.000001) {
+        let inv_norm = 1.0 / sqrt(sum_sq);
+        d = 0.0;
+        while (d < 248.0) {
+            let v = cartan_vec_get_f32(out, d);
+            cartan_vec_set_f32(out, d, v * inv_norm);
+            d = d + 1.0;
+        }
+    }
+    return out;
 }
 
 fn geomind_streams_layer_step_routed(x: ptr, weights: ptr) -> ptr {
@@ -492,6 +647,18 @@ fn geomind_streams_graft_multimodal(vision_w: ptr, audio_w: ptr) -> float {
 fn cartan_apply_8_lie_streams_routed_vec(hidden_ptr: ptr, weights_ptr: ptr) -> float {
     if (hidden_ptr == 0.0) { return 0.0; }
     let res = geomind_streams_manifold_forward_routed(hidden_ptr, weights_ptr);
+    var i = 0.0;
+    let len = cartan_vec_len(res);
+    while (i < len) {
+        cartan_vec_set_f32(hidden_ptr, i, cartan_vec_get_f32(res, i));
+        i = i + 1.0;
+    }
+    return 1.0;
+}
+
+fn cartan_apply_8_lie_streams_vec(hidden_ptr: ptr, mix: float) -> float {
+    if (hidden_ptr == 0.0) { return 0.0; }
+    let res = geomind_streams_manifold_forward(hidden_ptr, mix);
     var i = 0.0;
     let len = cartan_vec_len(res);
     while (i < len) {

@@ -31,6 +31,10 @@ scratch/
 *.ll
 *.bak
 test*.car
+!test/compiler_suite/test_core_builtins.car
+!test/compiler_suite/test_language_primitives.car
+!test/compiler_suite/test_transforms_and_logic.car
+!test/compiler_suite/test_loops_and_primitives.car
 !test/geomind/nses/**
 test/geomind/nses/*.exe
 test/geomind/nses/*.pdb

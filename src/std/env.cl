@@ -9,9 +9,6 @@ extern fn atof(s: string) -> float;
 extern fn floor(x: float) -> float;
 extern fn cartan_string_substring(s: string, start: float, end_idx: float) -> string;
 
-struct ArgParser {
-    dummy: float;
-}
 
 fn cartan_has_arg(key: string) -> float {
     let argc = sys_get_arg_count();

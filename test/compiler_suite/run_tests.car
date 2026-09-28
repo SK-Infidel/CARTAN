@@ -56,67 +56,67 @@ fn main(argc: float, argv: ptr) -> float {
     }
 
     // [5/6] Positive test: test_slices_tuples
-    let t5_cmd = "cartanc.exe build test/compiler_suite/test_slices_tuples.car -o test_slices_tuples.exe";
+    let t5_cmd = "cartanc.exe build test/compiler_suite/test_slices_tuples.car -o build/test_slices_tuples.exe";
     printf("[5/6] [// run-pass] Building Slices & Tuples Test: %s\n", t5_cmd);
     cartan_flush(0.0);
     run_step(t5_cmd);
 
     // [6/7] Positive test: test_dlpack_slicing
-    let t6_cmd = "cartanc.exe build test/compiler_suite/test_dlpack_slicing.car -o test_dlpack_slicing.exe";
+    let t6_cmd = "cartanc.exe build test/compiler_suite/test_dlpack_slicing.car -o build/test_dlpack_slicing.exe";
     printf("[6/7] [// run-pass] Building DLPack & ND Slicing Test: %s\n", t6_cmd);
     cartan_flush(0.0);
     run_step(t6_cmd);
 
     // [7/8] Positive test: test_security_sandboxing
-    let t7_cmd = "cartanc.exe build test/compiler_suite/test_security_sandboxing.car -o test_security_sandboxing.exe";
+    let t7_cmd = "cartanc.exe build test/compiler_suite/test_security_sandboxing.car -o build/test_security_sandboxing.exe";
     printf("[7/8] [// run-pass] Building Security & VRAM Sandboxing Test: %s\n", t7_cmd);
     cartan_flush(0.0);
     run_step(t7_cmd);
 
     // [8/9] Positive test: test_static_assert
-    let t8_cmd = "cartanc.exe build test/compiler_suite/test_static_assert.car -o test_static_assert.exe";
+    let t8_cmd = "cartanc.exe build test/compiler_suite/test_static_assert.car -o build/test_static_assert.exe";
     printf("[8/9] [// run-pass] Building Toolchain & static_assert Test: %s\n", t8_cmd);
     cartan_flush(0.0);
     run_step(t8_cmd);
 
     // [9/10] Positive test: test_comptime_autograd
-    let t9_cmd = "cartanc.exe build test/compiler_suite/test_comptime_autograd.car -o test_comptime_autograd.exe";
+    let t9_cmd = "cartanc.exe build test/compiler_suite/test_comptime_autograd.car -o build/test_comptime_autograd.exe";
     printf("[9/10] [// run-pass] Building Comptime & Static Autograd Test: %s\n", t9_cmd);
     cartan_flush(0.0);
     run_step(t9_cmd);
 
     // [10/11] Positive test: test_stdlib
-    let t10_cmd = "cartanc.exe build test/compiler_suite/test_stdlib.car -o test_stdlib.exe";
+    let t10_cmd = "cartanc.exe build test/compiler_suite/test_stdlib.car -o build/test_stdlib.exe";
     printf("[10/11] [// run-pass] Building Standard Libraries & Assertions Test: %s\n", t10_cmd);
     cartan_flush(0.0);
     run_step(t10_cmd);
 
     // [11/12] Positive test: test_variadic_ret
-    let t11_cmd = "cartanc.exe build test/compiler_suite/test_variadic_ret.car -o test_variadic_ret.exe";
+    let t11_cmd = "cartanc.exe build test/compiler_suite/test_variadic_ret.car -o build/test_variadic_ret.exe";
     printf("[11/12] [// run-pass] Building Function Return Resolution & Variadic Float Test: %s\n", t11_cmd);
     cartan_flush(0.0);
     run_step(t11_cmd);
 
     // [12/13] Positive test: test_tensor_opt
-    let t12_cmd = "cartanc.exe build test/compiler_suite/test_tensor_opt.car -o test_tensor_opt.exe";
+    let t12_cmd = "cartanc.exe build test/compiler_suite/test_tensor_opt.car -o build/test_tensor_opt.exe";
     printf("[12/13] [// run-pass] Building Tensor Reductions & Activations Test: %s\n", t12_cmd);
     cartan_flush(0.0);
     run_step(t12_cmd);
 
     // [13/13] Positive test: test_optimizer
-    let t13_cmd = "cartanc.exe build test/compiler_suite/test_optimizer.car -o test_optimizer.exe";
+    let t13_cmd = "cartanc.exe build test/compiler_suite/test_optimizer.car -o build/test_optimizer.exe";
     printf("[13/14] [// run-pass] Building AST Constant Folding & Optimizer Test: %s\n", t13_cmd);
     cartan_flush(0.0);
     run_step(t13_cmd);
 
     // [14/15] Positive test: test_std_abstraction
-    let t14_cmd = "cartanc.exe build test/compiler_suite/test_std_abstraction.car -o test_std_abstraction.exe";
+    let t14_cmd = "cartanc.exe build test/compiler_suite/test_std_abstraction.car -o build/test_std_abstraction.exe";
     printf("[14/15] [// run-pass] Building Standard Library C-FFI Abstractions Test: %s\n", t14_cmd);
     cartan_flush(0.0);
     run_step(t14_cmd);
 
     // [15/16] Positive test: test_net_abstraction
-    let t15_cmd = "cartanc.exe build test/compiler_suite/test_net_abstraction.car -o test_net_abstraction.exe";
+    let t15_cmd = "cartanc.exe build test/compiler_suite/test_net_abstraction.car -o build/test_net_abstraction.exe";
     printf("[15/16] [// run-pass] Building Standard Network Library Abstractions Test: %s\n", t15_cmd);
     cartan_flush(0.0);
     run_step(t15_cmd);
@@ -128,13 +128,13 @@ fn main(argc: float, argv: ptr) -> float {
     run_step(t16_cmd);
 
     // [17/18] Positive test: test_generics
-    let t17_cmd = "cartanc.exe build test/compiler_suite/test_generics.car -o test_generics.exe";
+    let t17_cmd = "cartanc.exe build test/compiler_suite/test_generics.car -o build/test_generics.exe";
     printf("[17/18] [// run-pass] Building Generic Collections & Monomorphization Test: %s\n", t17_cmd);
     cartan_flush(0.0);
     run_step(t17_cmd);
 
     // [18/19] Positive test: test_async_coroutines
-    let t18_cmd = "cartanc.exe build test/compiler_suite/test_async_coroutines.car -o test_async_coroutines.exe";
+    let t18_cmd = "cartanc.exe build test/compiler_suite/test_async_coroutines.car -o build/test_async_coroutines.exe";
     printf("[18/19] [// run-pass] Building Async Coroutines & Event Loop Test: %s\n", t18_cmd);
     cartan_flush(0.0);
     run_step(t18_cmd);
@@ -146,25 +146,25 @@ fn main(argc: float, argv: ptr) -> float {
     run_step(t19_cmd);
 
     // [20/21] Positive test: test_http_xml
-    let t20_cmd = "cartanc.exe build test/compiler_suite/test_http_xml.car -o test_http_xml.exe";
+    let t20_cmd = "cartanc.exe build test/compiler_suite/test_http_xml.car -o build/test_http_xml.exe";
     printf("[20/21] [// run-pass] Building HTTP & XML Standard Libraries Test: %s\n", t20_cmd);
     cartan_flush(0.0);
     run_step(t20_cmd);
 
     // [21/22] Positive test: test_physics_math
-    let t21_cmd = "cartanc.exe build test/compiler_suite/test_physics_math.car -o test_physics_math.exe";
+    let t21_cmd = "cartanc.exe build test/compiler_suite/test_physics_math.car -o build/test_physics_math.exe";
     printf("[21/22] [// run-pass] Building Geometry, Calculus & Physics Test: %s\n", t21_cmd);
     cartan_flush(0.0);
     run_step(t21_cmd);
 
     // [22/23] Positive test: test_math_string_full
-    let t22_cmd = "cartanc.exe build test/compiler_suite/test_math_string_full.car -o test_math_string_full.exe";
+    let t22_cmd = "cartanc.exe build test/compiler_suite/test_math_string_full.car -o build/test_math_string_full.exe";
     printf("[22/23] [// run-pass] Building Full Math Trigonometry & String Module Test: %s\n", t22_cmd);
     cartan_flush(0.0);
     run_step(t22_cmd);
 
     // [23/24] Positive test: test_physics_geom_advanced
-    let t23_cmd = "cartanc.exe build test/compiler_suite/test_physics_geom_advanced.car -o test_physics_geom_advanced.exe";
+    let t23_cmd = "cartanc.exe build test/compiler_suite/test_physics_geom_advanced.car -o build/test_physics_geom_advanced.exe";
     printf("[23/24] [// run-pass] Building Advanced 3D Geometry, Adaptive Calculus & N-Body Physics Test: %s\n", t23_cmd);
     cartan_flush(0.0);
     run_step(t23_cmd);
@@ -379,11 +379,35 @@ fn main(argc: float, argv: ptr) -> float {
     cartan_flush(0.0);
     run_step(t58_cmd);
 
-    // [59/59] Positive test: test_finsler_randers
+    // [59/60] Positive test: test_finsler_randers
     let t59_cmd = "cartanc.exe build test/compiler_suite/test_finsler_randers.car -o build/test_finsler_randers.exe && build\\test_finsler_randers.exe";
-    printf("[59/59] [// run-pass] Building and Executing Finsler-Randers Sherman-Morrison Projection & Dynamic Strides Test: %s\n", t59_cmd);
+    printf("[59/60] [// run-pass] Building and Executing Finsler-Randers Sherman-Morrison Projection & Dynamic Strides Test: %s\n", t59_cmd);
     cartan_flush(0.0);
     run_step(t59_cmd);
+
+    // [60/61] Positive test: test_core_builtins
+    let t60_cmd = "cartanc.exe build test/compiler_suite/test_core_builtins.car -o build/test_core_builtins.exe && build\\test_core_builtins.exe";
+    printf("[60/61] [// run-pass] Building and Executing Freestanding Core Runtime Builtins & Cognitive Blocks: %s\n", t60_cmd);
+    cartan_flush(0.0);
+    run_step(t60_cmd);
+
+    // [61/63] Positive test: test_language_primitives
+    let t61_cmd = "cartanc.exe build test/compiler_suite/test_language_primitives.car -o build/test_language_primitives.exe && build\\test_language_primitives.exe";
+    printf("[61/63] [// run-pass] Building and Executing Native Language Primitives & Quantization: %s\n", t61_cmd);
+    cartan_flush(0.0);
+    run_step(t61_cmd);
+
+    // [62/63] Positive test: test_transforms_and_logic
+    let t62_cmd = "cartanc.exe build test/compiler_suite/test_transforms_and_logic.car -o build/test_transforms_and_logic.exe && build\\test_transforms_and_logic.exe";
+    printf("[62/63] [// run-pass] Building and Executing Transforms, Weight Decay, Satisfy/Backtrack, and ONNX: %s\n", t62_cmd);
+    cartan_flush(0.0);
+    run_step(t62_cmd);
+
+    // [63/63] Positive test: test_loops_and_primitives
+    let t63_cmd = "cartanc.exe build test/compiler_suite/test_loops_and_primitives.car -o build/test_loops_and_primitives.exe && build\\test_loops_and_primitives.exe";
+    printf("[63/63] [// run-pass] Building and Executing Loops, Project Vocab, Prompt Literals, & Paged Attention: %s\n", t63_cmd);
+    cartan_flush(0.0);
+    run_step(t63_cmd);
 
     if (g_failed_count > 0.0) {
         printf("\n====================================================\n", "");
@@ -391,7 +415,7 @@ fn main(argc: float, argv: ptr) -> float {
         printf("====================================================\n", "");
         return 1.0;
     }
-    printf("\nAll 59 compiler snapshot test targets executed successfully (0 failures)!\n", "");
+    printf("\nAll 63 compiler snapshot test targets executed successfully (0 failures)!\n", "");
     return 0.0;
 }
 

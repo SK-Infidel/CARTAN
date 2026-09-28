@@ -1,0 +1,22 @@
+# Sprint 432 Task List: Line-Synchronized Cloze-Anchored Curriculum & Pipeline Reset
+
+- [x] **Task 1: Expand GPU Domain Slot Capacity (`test/geomind/train.cl`)**
+  - [x] Increase `g_buf_domain_h` allocation from 16 to 64 slots (`gpu_alloc(64.0 * 2560.0 * 4.0);`)
+  - [x] Update zero initialization loop in `train_mount_gpu()` to clear all 64 slots (`while (zd < 64.0)`)
+- [x] **Task 2: Author Cloze Companion Generation Tool (`tools/generate_paired_cloze_corpus.py`)**
+  - [x] Implement text extraction for Gemma conversation JSONLs (`reddit_casual`, `reddit_qa`, `oasst1`, `alpaca`)
+  - [x] Implement semantic transition & clause boundary cloze splitting
+  - [x] Generate line-by-line matching `.jsonl` cloze files for all 10 datasets into `test/geomind/trainingdata/cloze_pairs/`
+  - [x] Verify 100% line count equivalence between every cloze file and text file
+- [x] **Task 3: Configure Paired `corpus.json` & Reset State**
+  - [x] Sequence 20 alternating datasets: `[Cloze_1, Text_1, Cloze_2, Text_2, ...]`
+  - [x] Reset offsets to 0.0, epoch to 1.0, current dataset to 0.0, LR to 0.001, and domain losses to 0.0
+- [x] **Task 4: Author Empirical Regression Test & Rebuild Binary**
+  - [x] Create `test/geomind/nses/test_sprint19_cloze_anchored_corpus.car`
+  - [x] Compile and verify 100% pass across all gates
+  - [x] Rebuild native `bin/geomind.exe` with Zig `-O3 LTO Vectorized Pass Pipeline` and test `--verify`
+  - [x] Synchronize `bin/geomind.exe` to `build/geomind.exe`, `geomind.exe`, and `test/geomind/geomind.exe`
+- [x] **Task 5: Documentation & Closeout**
+  - [x] Log `[ISSUE-180] [FIXED]` in `ISSUES.md`
+  - [x] Update `CHANGELOG.md` to `[8.390.0]`
+  - [x] Archive `sprint_432_walkthrough.md`

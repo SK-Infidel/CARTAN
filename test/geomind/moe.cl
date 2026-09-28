@@ -41,28 +41,31 @@ struct E8MagicSquareMoE {
 fn geomind_sasaki_route(position: ptr, momentum: ptr, expert_idx: float) -> float {
     if (position == 0.0 || momentum == 0.0) { return 0.0; }
     let plen = cartan_vec_len(position);
+    if (plen <= 0.0) { return 0.0; }
     let sub_idx = math_mod_val(expert_idx, 8.0);
     let kw = geom_killing_form_dynkin_weight(sub_idx);
     var d_sasaki_sq = 0.0;
     var d = 0.0;
-    let max_d = 16.0;
-    while (d < max_d && d < plen) {
+    while (d < plen) {
         let pos_d = cartan_vec_get_f32(position, d);
-        let mom_d = cartan_vec_get_f32(momentum, d);
-        let offset = expert_idx * 0.05;
-        let p_shift = pos_d + offset;
-        let m_shift = mom_d + offset;
-        d_sasaki_sq = d_sasaki_sq + ((p_shift * p_shift) + (m_shift * m_shift)) * kw;
+        var mom_d = 0.0;
+        if (d < cartan_vec_len(momentum)) {
+            mom_d = cartan_vec_get_f32(momentum, d);
+        }
+        d_sasaki_sq = d_sasaki_sq + ((pos_d * pos_d) + (mom_d * mom_d)) * kw;
         d = d + 1.0;
     }
-    // Sasaki phase-space distance routing score on tangent bundle TM = M x TxM
-    let route_score = exp(0.0 - (d_sasaki_sq * 0.05));
+    // Genuine Sasaki phase-space distance routing score on tangent bundle TM = M x TxM
+    let norm_energy = d_sasaki_sq / plen;
+    let route_score = exp(0.0 - (norm_energy * 0.05));
     return route_score;
 }
 
 // Persistent static scratch buffers for zero-allocation Sasaki routing
 var g_sasaki_weights: ptr = 0.0;
 var g_sasaki_logits: ptr = 0.0;
+
+extern fn geomind_weyl_reflect_vector_248(v: ptr, root_idx: float) -> ptr;
 
 fn geomind_sasaki_stream_routing(position: ptr, momentum: ptr, temp: float) -> ptr {
     if (g_sasaki_weights == 0.0) {
@@ -88,15 +91,18 @@ fn geomind_sasaki_stream_routing(position: ptr, momentum: ptr, temp: float) -> p
     let plen = position[0];
     var max_logit = -1000000.0;
 
+    var stream_dim = floor(plen / 8.0);
+    if (stream_dim < 1.0) { stream_dim = 320.0; }
+
     var s = 0.0;
     while (s < 8.0) {
-        let start_d = s * 320.0;
+        let start_d = s * stream_dim;
         let kw = geom_killing_form_dynkin_weight(s);
         var pos_sq = 0.0;
         var mom_sq = 0.0;
         var dot_prod = 0.0;
         var d = 0.0;
-        while (d < 320.0 && (start_d + d) < plen) {
+        while (d < stream_dim && (start_d + d) < plen) {
             let p = position[2.0 + start_d + d];
             var m = 0.0;
             if (momentum != 0.0 && (start_d + d) < momentum[0]) {
@@ -107,7 +113,7 @@ fn geomind_sasaki_stream_routing(position: ptr, momentum: ptr, temp: float) -> p
             dot_prod = dot_prod + (p * m) * kw;
             d = d + 1.0;
         }
-        let sasaki_energy = (pos_sq + mom_sq) / 320.0;
+        let sasaki_energy = (pos_sq + mom_sq) / stream_dim;
         let norm_prod = sqrt(pos_sq * mom_sq);
         var alignment = 0.0;
         if (norm_prod > 0.0000001) {
@@ -140,7 +146,9 @@ fn geomind_sasaki_stream_routing(position: ptr, momentum: ptr, temp: float) -> p
 }
 
 fn geomind_moe_forward_grid(hidden_dim: float, position: ptr, momentum: ptr) -> ptr {
-    let tile = autotune_find_optimal_tile(hidden_dim, hidden_dim, hidden_dim, "FP16");
+    if (position == 0.0) { return cartan_vec_create(); }
+    let out = cartan_vec_create();
+    let plen = cartan_vec_len(position);
     
     // Evaluate Sasaki Phase-Space Router across 16 Freudenthal experts
     let route_00 = geomind_sasaki_route(position, momentum, 0.0);
@@ -149,10 +157,26 @@ fn geomind_moe_forward_grid(hidden_dim: float, position: ptr, momentum: ptr) -> 
     let route_23 = geomind_sasaki_route(position, momentum, 11.0);
     let route_33 = geomind_sasaki_route(position, momentum, 15.0);
     
-    let total_gate = (route_00 + route_03 + route_13 + route_23 + route_33) / 5.0;
-    let out = autotune_matmul_tiled(position, position, hidden_dim, hidden_dim, hidden_dim, tile.block_m);
-    let scaled_out = cartan_vec_scale(out, total_gate);
-    return scaled_out;
+    var top_expert = 0.0;
+    var top_score = route_00;
+    if (route_03 > top_score) { top_score = route_03; top_expert = 3.0; }
+    if (route_13 > top_score) { top_score = route_13; top_expert = 7.0; }
+    if (route_23 > top_score) { top_score = route_23; top_expert = 11.0; }
+    if (route_33 > top_score) { top_score = route_33; top_expert = 15.0; }
+
+    // Apply Weyl reflection entanglement across the top routed Freudenthal expert
+    if (hidden_dim >= 248.0) {
+        let root_idx = math_mod_val(top_expert * 15.0, 240.0);
+        geomind_weyl_reflect_vector_248(position, root_idx);
+    }
+
+    var i = 0.0;
+    while (i < plen) {
+        let val = cartan_vec_get_f32(position, i);
+        cartan_vec_push_f32(out, val);
+        i = i + 1.0;
+    }
+    return out;
 }
 
 fn geomind_moe_forward(hidden_dim: float, x: ptr) -> ptr {

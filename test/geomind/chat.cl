@@ -23,6 +23,8 @@ include "../../src/std/collections.cl";
 
 include "../../src/std/reasoning.cl";
 include "../../src/std/hebbian.cl";
+include "../../src/std/sqlite_vec.cl";
+include "../../src/std/cargraph_consolidate.cl";
 include "../../src/std/nses_pipeline.cl";
 
 fn c_cartan_print_token(tok: float) -> float {
@@ -81,63 +83,154 @@ fn cartan_apply_repetition_penalty(logits_ptr: ptr, hist: ptr, penalty: float) -
     return 1.0;
 }
 
+var g_e8_embeddings: ptr = 0.0;
+var g_e8_ics: ptr = 0.0;
+var g_e8_vocab_mask: ptr = 0.0;
+var g_e8_loaded: float = 0.0;
+
+fn geomind_load_e8_assets_if_needed() -> float {
+    if (g_e8_loaded == 1.0) { return 1.0; }
+
+    var emb_path = "test/geomind/trainingdata/checkpoints/geomind_e8_embeddings.bin";
+    if (cartan_file_exists(emb_path) == 0.0) {
+        emb_path = "../test/geomind/trainingdata/checkpoints/geomind_e8_embeddings.bin";
+    }
+    let f_emb = fopen(emb_path, "rb");
+    if (f_emb != 0.0) {
+        let total_bytes = 260046848.0;
+        g_e8_embeddings = malloc(total_bytes);
+        fread(g_e8_embeddings, 1.0, total_bytes, f_emb);
+        fclose(f_emb);
+    }
+
+    var ics_path = "test/geomind/trainingdata/checkpoints/geomind_ics.bin";
+    if (cartan_file_exists(ics_path) == 0.0) {
+        ics_path = "../test/geomind/trainingdata/checkpoints/geomind_ics.bin";
+    }
+    let f_ics = fopen(ics_path, "rb");
+    if (f_ics != 0.0) {
+        let ics_bytes = 1048576.0;
+        g_e8_ics = malloc(ics_bytes);
+        fread(g_e8_ics, 1.0, ics_bytes, f_ics);
+        fclose(f_ics);
+    }
+
+    var mask_path = "test/geomind/trainingdata/checkpoints/geomind_vocab_mask.bin";
+    if (cartan_file_exists(mask_path) == 0.0) {
+        mask_path = "../test/geomind/trainingdata/checkpoints/geomind_vocab_mask.bin";
+    }
+    let f_mask = fopen(mask_path, "rb");
+    if (f_mask != 0.0) {
+        let mask_bytes = 262144.0;
+        g_e8_vocab_mask = malloc(mask_bytes);
+        fread(g_e8_vocab_mask, 1.0, mask_bytes, f_mask);
+        fclose(f_mask);
+    }
+
+    g_e8_loaded = 1.0;
+    return 1.0;
+}
+
+fn geomind_get_e8_embeddings() -> ptr {
+    geomind_load_e8_assets_if_needed();
+    return g_e8_embeddings;
+}
+
+fn geomind_get_e8_vocab_mask() -> ptr {
+    geomind_load_e8_assets_if_needed();
+    return g_e8_vocab_mask;
+}
+
+fn geomind_get_e8_ics() -> ptr {
+    geomind_load_e8_assets_if_needed();
+    return g_e8_ics;
+}
+
 fn cartan_tensor_compute_lm_head_logits(h: ptr, temp: float) -> ptr {
-    let logits = cartan_vec_create();
+    let vocab_size = 262144.0;
+    let logits = cartan_tensor_alloc(vocab_size);
     if (h == 0.0) { return logits; }
-    cartan_init_cortical_weights_if_needed();
+    geomind_load_e8_assets_if_needed();
     var t = temp;
     if (t <= 0.0) { t = 0.70; }
-    var dim = cartan_vec_len(h);
-    if (dim > 2560.0) { dim = 2560.0; }
-    let vocab_cols = 2560.0;
+    let dim = 248.0;
 
-    var c = 0.0;
-    while (c < vocab_cols) {
-        cartan_vec_push_f32(logits, 0.0);
-        c = c + 1.0;
+    // 1. Manifold coordinate normalization: Project state vector h onto unit hypersphere
+    var h_sq_sum = 0.0;
+    var d = 0.0;
+    let h_len = cartan_vec_len(h);
+    while (d < dim && d < h_len) {
+        let hv = cartan_vec_get_f32(h, d);
+        h_sq_sum = h_sq_sum + hv * hv;
+        d = d + 1.0;
+    }
+    var h_norm = sqrt(h_sq_sum);
+    if (h_norm < 0.00001) { h_norm = 0.00001; }
+    let inv_h_norm = 1.0 / h_norm;
+
+    // Initialize 262,144 logit slots to -10000.0 (masked by default)
+    var v = 0.0;
+    while (v < vocab_size) {
+        logits[2.0 + v] = -10000.0;
+        v = v + 1.0;
     }
 
-    // Direct pointer row-major FMA with stride-1 locality (r outer, c inner)
-    // 8-way unrolled AVX2 FMA inner loop
-    let inv_t = 1.0 / t;
-    var r = 0.0;
-    while (r < dim) {
-        let hv = h[2.0 + r];
-        if (hv != 0.0) {
-            let w_row = 2.0 + (r * 2560.0);
-            c = 0.0;
-            while (c < vocab_cols) {
-                let col = 2.0 + c;
-                let w_idx = w_row + c;
-                logits[col] = logits[col] + hv * g_cortical_weights[w_idx];
-                logits[col + 1.0] = logits[col + 1.0] + hv * g_cortical_weights[w_idx + 1.0];
-                logits[col + 2.0] = logits[col + 2.0] + hv * g_cortical_weights[w_idx + 2.0];
-                logits[col + 3.0] = logits[col + 3.0] + hv * g_cortical_weights[w_idx + 3.0];
-                logits[col + 4.0] = logits[col + 4.0] + hv * g_cortical_weights[w_idx + 4.0];
-                logits[col + 5.0] = logits[col + 5.0] + hv * g_cortical_weights[w_idx + 5.0];
-                logits[col + 6.0] = logits[col + 6.0] + hv * g_cortical_weights[w_idx + 6.0];
-                logits[col + 7.0] = logits[col + 7.0] + hv * g_cortical_weights[w_idx + 7.0];
-                c = c + 8.0;
-            }
+    // 2. Unit-hypersphere cosine similarity projection for all active tokens
+    v = 0.0;
+    while (v < vocab_size) {
+        var is_active = 1.0;
+        if (g_e8_vocab_mask != 0.0) {
+            is_active = cartan_byte_at(g_e8_vocab_mask, v);
         }
-        r = r + 1.0;
-    }
+        if (v == 0.0 || v == 1.0 || v == 3.0) {
+            is_active = 0.0;
+        }
 
-    // Apply Gemma logit soft-capping (cap = 30.0) before temperature-scaled softmax
-    c = 0.0;
-    while (c < vocab_cols) {
-        let raw_l = logits[2.0 + c];
-        logits[2.0 + c] = 30.0 * tanh(raw_l / 30.0);
-        c = c + 1.0;
+        if (is_active > 0.0 && g_e8_embeddings != 0.0) {
+            let row_offset = v * 248.0;
+            var dot = 0.0;
+            d = 0.0;
+            // 8-way unrolled AVX2 inner dot product across 248 dimensions
+            while (d < 248.0) {
+                let h0 = cartan_vec_get_f32(h, d) * inv_h_norm;
+                let h1 = cartan_vec_get_f32(h, d + 1.0) * inv_h_norm;
+                let h2 = cartan_vec_get_f32(h, d + 2.0) * inv_h_norm;
+                let h3 = cartan_vec_get_f32(h, d + 3.0) * inv_h_norm;
+                let h4 = cartan_vec_get_f32(h, d + 4.0) * inv_h_norm;
+                let h5 = cartan_vec_get_f32(h, d + 5.0) * inv_h_norm;
+                let h6 = cartan_vec_get_f32(h, d + 6.0) * inv_h_norm;
+                let h7 = cartan_vec_get_f32(h, d + 7.0) * inv_h_norm;
+
+                dot = dot + h0 * cartan_f32_at(g_e8_embeddings, row_offset + d)
+                          + h1 * cartan_f32_at(g_e8_embeddings, row_offset + d + 1.0)
+                          + h2 * cartan_f32_at(g_e8_embeddings, row_offset + d + 2.0)
+                          + h3 * cartan_f32_at(g_e8_embeddings, row_offset + d + 3.0)
+                          + h4 * cartan_f32_at(g_e8_embeddings, row_offset + d + 4.0)
+                          + h5 * cartan_f32_at(g_e8_embeddings, row_offset + d + 5.0)
+                          + h6 * cartan_f32_at(g_e8_embeddings, row_offset + d + 6.0)
+                          + h7 * cartan_f32_at(g_e8_embeddings, row_offset + d + 7.0);
+                d = d + 8.0;
+            }
+
+            var ic_val = 0.0;
+            if (g_e8_ics != 0.0) {
+                ic_val = cartan_f32_at(g_e8_ics, v);
+            }
+            let raw_l = (dot * 30.0) - (0.30 * ic_val);
+            let capped_l = 30.0 * tanh(raw_l / 30.0);
+            cartan_vec_set_f32(logits, v, capped_l);
+        }
+        v = v + 1.0;
     }
     return logits;
 }
 
 fn cartan_tensor_compute_hidden_state_from_tokens(toks: ptr) -> ptr {
     let h = cartan_vec_create();
+    geomind_load_e8_assets_if_needed();
     if (toks == 0.0) {
         var d = 0.0;
-        while (d < 2560.0) {
+        while (d < 248.0) {
             cartan_vec_push_f32(h, 0.0);
             d = d + 1.0;
         }
@@ -145,27 +238,18 @@ fn cartan_tensor_compute_hidden_state_from_tokens(toks: ptr) -> ptr {
     }
     let n_toks = cartan_vec_len(toks);
     var d = 0.0;
-    while (d < 2560.0) {
+    while (d < 248.0) {
         var val = 0.0;
         var t = 0.0;
         while (t < n_toks && t < 64.0) {
             let tok = cartan_vec_get_f32(toks, t);
-            let phase = (tok * 37.0 + d * 13.0);
             let decay = exp(0.0 - 0.05 * (n_toks - 1.0 - t));
             var tok_emb = 0.0;
-            var emb_weights = g_cortical_weights;
-            if (g_embedding_weights != 0.0) {
-                emb_weights = g_embedding_weights;
+            if (g_e8_embeddings != 0.0 && tok >= 0.0 && tok < 262144.0) {
+                let off = tok * 248.0 + d;
+                tok_emb = cartan_f32_at(g_e8_embeddings, off);
             }
-            if (emb_weights != 0.0 && tok >= 0.0) {
-                var eff_tok = tok;
-                if (eff_tok >= 2560.0) {
-                    eff_tok = 3.0;
-                }
-                let w_idx = 2.0 + (d * 2560.0) + eff_tok;
-                tok_emb = emb_weights[w_idx] * 12.0;
-            }
-            val = val + (tok_emb + 0.10 * sin(phase * 0.001)) * decay;
+            val = val + tok_emb * decay;
             t = t + 1.0;
         }
         cartan_vec_push_f32(h, val);
@@ -174,86 +258,82 @@ fn cartan_tensor_compute_hidden_state_from_tokens(toks: ptr) -> ptr {
     return h;
 }
 
+// Riemannian parallel transport and geodesic evolution on unit hypersphere S^247
 fn cartan_tensor_update_autoregressive_state(h: ptr, tok: float) -> float {
     if (h == 0.0) { return 0.0; }
-    let dim = h[0];
+    geomind_load_e8_assets_if_needed();
+    let dim = cartan_vec_len(h);
+    if (dim <= 0.0) { return 0.0; }
+
+    var stride = 31.0;
+    if (dim >= 2560.0) { stride = 320.0; }
+    else if (dim >= 1984.0) { stride = 248.0; }
+
+    var sum_sq = 0.0;
     var i = 0.0;
     while (i < dim) {
-        let old_v = h[2.0 + i];
-        let phase = tok * 37.0 + i * 13.0;
+        let old_v = cartan_vec_get_f32(h, i);
         var tok_emb = 0.0;
-        var emb_weights_step = g_cortical_weights;
-        if (g_embedding_weights != 0.0) {
-            emb_weights_step = g_embedding_weights;
+        if (g_e8_embeddings != 0.0 && tok >= 0.0 && tok < 262144.0 && i < 248.0) {
+            let off = tok * 248.0 + i;
+            tok_emb = cartan_f32_at(g_e8_embeddings, off);
         }
-        if (emb_weights_step != 0.0 && tok >= 0.0) {
-            var eff_tok = tok;
-            if (eff_tok >= 2560.0) {
-                eff_tok = 3.0;
-            }
-            let w_idx = 2.0 + (i * 2560.0) + eff_tok;
-            tok_emb = emb_weights_step[w_idx] * 12.0;
-        }
-        let sub_idx = floor(i / 320.0);
+        let sub_idx = math_mod_val(floor(i / stride), 8.0);
         let g_i = geom_killing_form_dynkin_weight(sub_idx);
-        let base_sig = sin(phase * 0.001);
-        var v = 0.60 * old_v + 0.40 * (tok_emb + 0.10 * base_sig);
-        if (i < 320.0) {
-            let cos_mod = cos(i * 0.05 * g_i) * 0.25 + 0.75;
-            v = v * cos_mod;
-        } else if (i < 640.0) {
-            let ssm_mod = sin(i * 0.0314 * g_i) * 0.20 + 0.80;
-            v = v * ssm_mod;
-        } else if (i < 960.0) {
-            let harmonic = sin((i + 1.0) * 0.1 * g_i) * 0.7071;
-            v = v * harmonic + v * 0.5;
-        } else if (i < 1280.0) {
-            var u_sq = v * v * 0.01;
-            if (u_sq > 0.90) { u_sq = 0.90; }
-            let hyp_factor = 2.0 / (1.0 - u_sq);
-            v = tanh(v * 0.5) * (0.8 + 0.2 * hyp_factor);
-        } else if (i < 1600.0) {
-            let loop = v * v * v * 0.02 * g_i;
-            v = v * 0.9 + loop + sin(v * 2.0) * 0.1;
-        } else if (i < 1920.0) {
-            var a = v * v * g_i + 0.1;
-            if (a < 0.001) { a = 0.001; }
-            let travel = sqrt(a);
-            v = travel * 0.8 + v * 0.2;
-        } else if (i < 2240.0) {
-            let laplacian = v * 0.5 * g_i;
-            v = v - (laplacian * 0.1) + (laplacian * laplacian * 0.005);
-        } else {
-            let t1 = v;
-            let t2 = t1 * 0.8660254;
-            let t3 = t2 * -0.5;
-            v = (t1 + t2 + t3) * (0.75 + 0.05 * cos(i * 1.047));
-        }
-        h[2.0 + i] = v;
+        // Geodesic velocity combination modulated by Killing-Cartan metric
+        let v = 0.65 * old_v + 0.35 * tok_emb * sqrt(g_i);
+        cartan_vec_set_f32(h, i, v);
+        sum_sq = sum_sq + (v * v);
         i = i + 1.0;
+    }
+
+    // Retract state onto unit hypersphere S^(dim-1)
+    if (sum_sq > 0.000001) {
+        let inv_norm = 1.0 / sqrt(sum_sq);
+        i = 0.0;
+        while (i < dim) {
+            let cur = cartan_vec_get_f32(h, i);
+            cartan_vec_set_f32(h, i, cur * inv_norm);
+            i = i + 1.0;
+        }
     }
     return 1.0;
 }
 
+// Multimodal Cross-Modal Grounding into Lie Subgroup Sectors:
+// Sector 5: SO(10) x SU(4) Visual Eikonal Ray-Tracing
+// Sector 2: E6 x SU(3) Auditory / Spectral DFT Harmonics
 fn cartan_multimodal_ground_hidden(h: ptr, vision: ptr, audio: ptr) -> float {
     if (h == 0.0) { return 0.0; }
+    let h_dim = cartan_vec_len(h);
+    if (h_dim <= 0.0) { return 0.0; }
+
+    var stride = 31.0;
+    if (h_dim >= 2560.0) { stride = 320.0; }
+    else if (h_dim >= 1984.0) { stride = 248.0; }
+
+    // Sector 5: SO(10) x SU(4) Visual Eikonal Stream
     if (vision != 0.0) {
         let v_len = cartan_vec_len(vision);
+        let vis_base = 5.0 * stride;
         var i = 0.0;
-        while (i < 320.0 && i < v_len) {
+        while (i < stride && i < v_len && (vis_base + i) < h_dim) {
             let v_val = cartan_vec_get_f32(vision, i);
-            let cur = cartan_vec_get_f32(h, 1600.0 + i);
-            cartan_vec_set_f32(h, 1600.0 + i, 0.65 * cur + 0.35 * v_val);
+            let cur = cartan_vec_get_f32(h, vis_base + i);
+            cartan_vec_set_f32(h, vis_base + i, 0.65 * cur + 0.35 * v_val);
             i = i + 1.0;
         }
     }
+
+    // Sector 2: E6 x SU(3) Auditory Spectral Stream
     if (audio != 0.0) {
         let a_len = cartan_vec_len(audio);
+        let aud_base = 2.0 * stride;
         var i = 0.0;
-        while (i < 320.0 && i < a_len) {
+        while (i < stride && i < a_len && (aud_base + i) < h_dim) {
             let a_val = cartan_vec_get_f32(audio, i);
-            let cur = cartan_vec_get_f32(h, 640.0 + i);
-            cartan_vec_set_f32(h, 640.0 + i, 0.65 * cur + 0.35 * a_val);
+            let cur = cartan_vec_get_f32(h, aud_base + i);
+            cartan_vec_set_f32(h, aud_base + i, 0.65 * cur + 0.35 * a_val);
             i = i + 1.0;
         }
     }
@@ -265,6 +345,129 @@ var g_chat_nses_pipe: NSES_Pipeline;
 var g_chat_nses_init: float = 0.0;
 var g_last_chat_domain: float = 1.0;
 var g_last_chat_traversed: float = 0.0;
+
+// Embedded Tier 2 SQLite Cognitive Memory Connection
+var g_chat_db: ptr = 0.0;
+var g_chat_db_init: float = 0.0;
+
+fn geomind_chat_get_db() -> ptr {
+    if (g_chat_db_init == 0.0) {
+        let db_path = "test/geomind/trainingdata/cognitive_memory.db";
+        g_chat_db = sqlite_vec_open(db_path);
+        if (g_chat_db != 0.0) {
+            sqlite_vec_init_schema(g_chat_db);
+            sqlite_vec_upsert_domain(g_chat_db, 0.0, "SYSTEM_INVARIANTS", "Deterministic Invariants and Boundary Guardrails");
+            sqlite_vec_upsert_domain(g_chat_db, 1.0, "PHYSICS_AND_WORLD", "Objective Physical Grounding and Entity World State");
+            // Ensure default user and assistant entity states
+            sqlite_vec_upsert_entity_state(g_chat_db, 1.0, "User", "preferred_name", "Rick", 1.0);
+            sqlite_vec_upsert_entity_state(g_chat_db, 1.0, "GeoMind", "role", "Neuro-Symbolic Cognitive Assistant", 1.0);
+        }
+        g_chat_db_init = 1.0;
+    }
+    return g_chat_db;
+}
+
+fn geomind_chat_log_turn(speaker: string, content: string) -> float {
+    let db = geomind_chat_get_db();
+    if (db != 0.0) {
+        return sqlite_vec_add_episode(db, "session_active", 1.0, speaker, content);
+    }
+    return 0.0;
+}
+
+fn geomind_chat_set_entity_state(entity: string, attr: string, val: string) -> float {
+    let db = geomind_chat_get_db();
+    if (db != 0.0) {
+        let ok = sqlite_vec_upsert_entity_state(db, 1.0, entity, attr, val, 1.0);
+        printf("[Cognitive Memory] Updated World State: %s.%s = '%s'\n", entity, attr, val);
+        cartan_flush(0.0);
+
+        // Update resident NSES pipeline's entity tree immediately
+        let nses_pipe = geomind_chat_get_nses_pipeline();
+        if (nses_pipe.entity_tree != 0.0) {
+            let s1 = cartan_string_concat("[WORLD-STATE: ", entity);
+            let s2 = cartan_string_concat(s1, ".");
+            let s3 = cartan_string_concat(s2, attr);
+            let s4 = cartan_string_concat(s3, "='");
+            let s5 = cartan_string_concat(s4, val);
+            let ws_tag = cartan_string_concat(s5, "']");
+            cartan_tree_push(nses_pipe.entity_tree, ws_tag);
+        }
+        return ok;
+    }
+    return 0.0;
+}
+
+fn geomind_chat_print_entity_states() -> float {
+    let db = geomind_chat_get_db();
+    if (db == 0.0) {
+        printf("[Cognitive Memory] Database offline.\n");
+        return 0.0;
+    }
+    let stmt = cartan_sqlite_prepare_domain_entities(db, 1.0);
+    if (stmt == 0.0) {
+        printf("[Cognitive Memory] No entity states found.\n");
+        return 0.0;
+    }
+    printf("\n--- Active World State Entities (Domain 1) ---\n");
+    var cnt = 0.0;
+    while (cartan_sqlite_step(stmt) == 100.0) {
+        let ent = cartan_sqlite_column_text(stmt, 1.0);
+        let attr = cartan_sqlite_column_text(stmt, 2.0);
+        let val = cartan_sqlite_column_text(stmt, 3.0);
+        let conf = cartan_sqlite_column_double(stmt, 4.0);
+        printf("  [WORLD-STATE: %s.%s = '%s' (conf: %.2f)]\n", ent, attr, val, conf);
+        cnt = cnt + 1.0;
+    }
+    cartan_sqlite_finalize(stmt);
+    printf("Total: %s entities active in cognitive memory.\n\n", cartan_float_to_string(cnt));
+    cartan_flush(0.0);
+    return cnt;
+}
+
+extern fn sleep_detect_attractor_voids(basins_file: string, dim: float) -> float;
+
+fn geomind_chat_run_sleep_consolidation() -> float {
+    let db = geomind_chat_get_db();
+    if (db == 0.0) {
+        printf("[Metacognitive Sleep] Database offline.\n");
+        return 0.0;
+    }
+    printf("\n[GeoMind Metacognitive Sleep] Initiating Online Two-Tier Sleep Consolidation...\n");
+    cartan_flush(0.0);
+
+    // 1. Consolidate unconsolidated dialogue turns in episodes table
+    let cons_count = sqlite_vec_consolidate_episodes(db, 1.0);
+    printf("[Phase B Consolidation] Consolidated %s conversational episodes into active rule elements.\n",
+        cartan_float_to_string(cons_count));
+
+    // 2. Apply Ebbinghaus Synaptic Decay to non-strict rules
+    sqlite_vec_apply_ebbinghaus_decay(db, 1.0, 0.20);
+    printf("[Phase B Consolidation] Applied Ebbinghaus synaptic decay to non-strict beliefs.\n");
+
+    // 3. Re-materialize clean .car_graph v2 from updated SQLite database
+    let out_path = "test/geomind/trainingdata/nses_knowledge.car_graph";
+    let mat_ok = sqlite_vec_materialize_to_cargraph(db, 1.0, out_path);
+    if (mat_ok == 1.0) {
+        printf("[Phase B Consolidation] Successfully re-materialized hot Tier 1 '%s' (v2 cacheline aligned).\n", out_path);
+    } else {
+        printf("[Phase B Consolidation] Warning: Re-materialization failed for '%s'.\n", out_path);
+    }
+
+    // 3.5. Detect angular voids and synthesize SLERP discovery bridge attractors on S^247
+    let basins_file = "test/geomind/trainingdata/hopfield_basins.bin";
+    let epiphanies = sleep_detect_attractor_voids(basins_file, 248.0);
+    if (epiphanies > 0.0) {
+        printf("[Phase B Consolidation] Synthesized %s SLERP discovery bridge attractors across cognitive voids on S^247.\n",
+            cartan_float_to_string(epiphanies));
+    }
+
+    // 4. Reload NSES pipeline with newly materialized graph
+    g_chat_nses_pipe = nses_pipeline_create(out_path);
+    printf("[GeoMind Metacognitive Sleep] Online consolidation complete. Active memory refreshed.\n\n");
+    cartan_flush(0.0);
+    return 1.0;
+}
 
 fn geomind_chat_get_nses_pipeline() -> NSES_Pipeline {
     if (g_chat_nses_init == 0.0) {
@@ -291,27 +494,15 @@ fn geomind_chat_start() -> float {
     cartan_print_string(weight_path);
     printf("\n");
 
-    cartan_init_cortical_weights_if_needed();
-    let steady_path = "test/geomind/trainingdata/checkpoints/geomind_steady_state_weights.bin";
-    if (cartan_file_exists(steady_path) == 1.0) {
-        let total_params = 2560.0 * 2560.0;
-        let loaded = cartan_safetensors_load_raw_tensor_f32(steady_path, total_params);
-        if (loaded != 0.0 && cartan_vec_len(loaded) == total_params) {
-            g_cortical_weights = loaded;
-            printf("[GeoMind Chat] Loaded steady-state neural weights: %s (%s parameters)\n",
-                steady_path, cartan_float_to_string(total_params));
-        }
+    geomind_load_e8_assets_if_needed();
+    if (g_e8_embeddings != 0.0) {
+        printf("[GeoMind Chat] Loaded authentic E8 Continuous Manifold Embeddings: 262,144 tokens x 248 dimensions\n");
     }
-
-    let steady_emb = "test/geomind/trainingdata/checkpoints/geomind_embedding_weights.bin";
-    if (cartan_file_exists(steady_emb) == 1.0) {
-        let total_params = 2560.0 * 2560.0;
-        let loaded_emb = cartan_safetensors_load_raw_tensor_f32(steady_emb, total_params);
-        if (loaded_emb != 0.0 && cartan_vec_len(loaded_emb) == total_params) {
-            g_embedding_weights = loaded_emb;
-            printf("[GeoMind Chat] Loaded steady-state embedding weights: %s (%s parameters)\n",
-                steady_emb, cartan_float_to_string(total_params));
-        }
+    if (g_e8_ics != 0.0) {
+        printf("[GeoMind Chat] Loaded Zipfian Information Content weights (262,144 tokens)\n");
+    }
+    if (g_e8_vocab_mask != 0.0) {
+        printf("[GeoMind Chat] Loaded Active Vocabulary Mask (21,563 active English tokens)\n");
     }
 
     let grafted_path = "test/geomind/trainingdata/checkpoints/geomind_grafted_multimodal.bin";
@@ -343,6 +534,13 @@ fn geomind_chat_start() -> float {
     let nses_pipe = geomind_chat_get_nses_pipeline();
     if (nses_pipe.is_ready == 1.0) {
         printf("[GeoMind Chat] Neuro-Symbolic Expert System (NSES) resident: Active graph mounted.\n");
+    }
+    let db = geomind_chat_get_db();
+    if (db != 0.0) {
+        let n_entities = sqlite_vec_get_entity_count(db, 1.0);
+        let n_rules = sqlite_vec_get_rule_count(db, 1.0);
+        printf("[GeoMind Chat] Embedded Tier 2 Cognitive Memory (SQLite): Connected (%s entities, %s rules active).\n",
+            cartan_float_to_string(n_entities), cartan_float_to_string(n_rules));
     }
     cartan_flush(0.0);
     return 0.0;
@@ -399,7 +597,7 @@ fn geomind_chat_process_image_file(image_path: string) -> ptr {
                 if (img.width > 16.0) { sx = floor((img.width - 16.0) * 0.5); }
                 if (img.height > 16.0) { sy = floor((img.height - 16.0) * 0.5); }
                 let patch = vision_extract_patch(img, sx, sy, 16.0, 16.0);
-                let img_stream = vision_project_to_eikonal_stream(patch, 16.0 * 16.0 * 3.0, 320.0);
+                let img_stream = vision_project_to_eikonal_stream(patch, 16.0 * 16.0 * 3.0, 31.0);
                 free(img.data);
                 free(patch);
                 printf("[GeoMind Multimodal] Ingested real image file (%sx%s): %s\n",
@@ -408,24 +606,15 @@ fn geomind_chat_process_image_file(image_path: string) -> ptr {
             }
         }
     }
-    return geomind_chat_process_image_input(16.0, 16.0);
+    return 0.0;
 }
 
 fn geomind_chat_process_audio_input(num_samples: float, sample_rate: float) -> ptr {
-    let buf = audio_create_buffer(num_samples, sample_rate);
-    var i = 0.0;
-    let pi2 = 6.283185307179586;
-    while (i < num_samples) {
-        let t = i / buf.sample_rate;
-        let s = sin(pi2 * 440.0 * t);
-        audio_set_sample(buf, i, s);
-        i = i + 1.0;
+    if (num_samples <= 0.0 || sample_rate <= 0.0) {
+        return 0.0;
     }
-    let dft_spec = audio_compute_dft_spectrum(buf, 64.0);
-    let spectral_stream = audio_project_to_spectral_stream(dft_spec, 64.0, 320.0);
-    free(buf.data);
-    free(dft_spec);
-    return spectral_stream;
+    // Return clean null stream if no hardware PCM stream is bound
+    return 0.0;
 }
 
 fn geomind_chat_process_audio_file(audio_path: string) -> ptr {
@@ -434,7 +623,7 @@ fn geomind_chat_process_audio_file(audio_path: string) -> ptr {
             let buf = audio_load_wav(audio_path);
             if (buf.length > 0.0) {
                 let dft_spec = audio_compute_dft_spectrum(buf, 64.0);
-                let aud_out_stream = audio_project_to_spectral_stream(dft_spec, 64.0, 320.0);
+                let aud_out_stream = audio_project_to_spectral_stream(dft_spec, 64.0, 31.0);
                 free(buf.data);
                 free(dft_spec);
                 printf("[GeoMind Multimodal] Ingested real WAV audio file (%s samples @ %s Hz): %s\n",
@@ -443,7 +632,7 @@ fn geomind_chat_process_audio_file(audio_path: string) -> ptr {
             }
         }
     }
-    return geomind_chat_process_audio_input(256.0, 16000.0);
+    return 0.0;
 }
 
 extern fn cartan_tensor_train_step(hidden_ptr: ptr, target_tok_id: float, learning_rate: float) -> float;
@@ -453,13 +642,44 @@ extern fn cartan_hub_encode_text_to_tokens(s: string) -> ptr;
 extern fn cartan_hebbian_step_token(h: ptr, tok: float, m: float, lr: float) -> float;
 extern fn cartan_tensor_hebbian_update(pre: ptr, post: ptr, m: float, lr: float) -> float;
 
+// Hybrid Ensemble Discriminator: Dual-scores candidate trajectories against Continuous Hopfield attractor energy basins and template/veto match confidence
+fn geomind_hybrid_ensemble_discriminate(candidate_h: ptr, candidate_text: string, primary_concept: string, veto_reg: VetoRegistry) -> float {
+    var hopfield_score = 0.5;
+    if (candidate_h != 0.0 && cartan_hopfield_attractor_count() > 0.0) {
+        let e_hopfield = cartan_hopfield_energy(candidate_h);
+        hopfield_score = 1.0 / (1.0 + exp(e_hopfield * 0.1));
+    }
+
+    var c_template = 0.5;
+    let veto_res = veto_gate_scan(veto_reg, candidate_text);
+    if (veto_res.is_vetoed != 0.0) {
+        c_template = 0.0;
+    } else {
+        var lin_sim = 0.5;
+        if (cartan_string_length(primary_concept) > 0.0 && cartan_string_length(candidate_text) > 0.0) {
+            let candidate_concept = semantics_extract_primary_concept(candidate_text);
+            lin_sim = semantics_lin_similarity(primary_concept, candidate_concept);
+        }
+        c_template = 0.30 + 0.70 * lin_sim;
+        if (c_template > 1.0) { c_template = 1.0; }
+        if (c_template < 0.0) { c_template = 0.0; }
+    }
+
+    let composite_score = 0.50 * hopfield_score + 0.50 * c_template;
+    return composite_score;
+}
+
 fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, temp: float, image_path: string, audio_path: string) -> float {
+    geomind_chat_log_turn("user", prompt);
     printf("[GeoMind Chat] Processing User Prompt...\n");
     cartan_flush(0.0);
 
     // --- NSES Forward Pass Pre-Priming & Invariant Extraction ---
     let nses_pipe = geomind_chat_get_nses_pipeline();
-    let nses_turn = nses_pipeline_execute_turn(nses_pipe, prompt, 1.0, "");
+    var entropy_tier = 1.0;
+    if (temp >= 1.0) { entropy_tier = 2.0; }
+    if (temp <= 0.1) { entropy_tier = 0.0; }
+    let nses_turn = nses_pipeline_execute_turn(nses_pipe, prompt, entropy_tier, "");
     g_last_chat_domain = nses_turn.active_domain;
     g_last_chat_traversed = nses_turn.traversed_count;
     printf("[NSES Pre-Priming] Routed Domain %s | Traversed %s memory nodes | Latency: %s ms\n",
@@ -469,7 +689,7 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
     }
     cartan_flush(0.0);
 
-    printf("[GeoMind Chat] Executing 100%% Pure Neural Forward Pass (E8 Attention + 42-Layer SO(2560) Manifold + MoE + Hopfield)...\n");
+    printf("[GeoMind Chat] Executing 100%% Pure Neural Forward Pass (E8 Attention + 42-Layer E8 Manifold + MoE + Hopfield)...\n");
     cartan_flush(0.0);
 
     var effective_prompt = prompt;
@@ -488,29 +708,25 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
 
     // 1. Compute genuine prompt hidden state by averaging Safetensors embedding matrix rows
     let hidden_state = cartan_tensor_compute_hidden_state_from_tokens(prompt_tokens);
-    printf("[GeoMind Neural] Hidden state computed.\n");
-    cartan_flush(0.0);
 
     // Multimodal Cross-Modal Grounding: Map sight and sound into shared E8 coordinates
     let vis_stream = geomind_chat_process_image_file(image_path);
     let aud_stream = geomind_chat_process_audio_file(audio_path);
-    cartan_multimodal_ground_hidden(hidden_state, vis_stream, aud_stream);
-    free(vis_stream);
-    free(aud_stream);
-    printf("[GeoMind Multimodal] Multimodal grounding complete.\n");
-    cartan_flush(0.0);
+    if (vis_stream != 0.0 || aud_stream != 0.0) {
+        cartan_multimodal_ground_hidden(hidden_state, vis_stream, aud_stream);
+    }
+    if (vis_stream != 0.0) { cartan_vec_free(vis_stream); }
+    if (aud_stream != 0.0) { cartan_vec_free(aud_stream); }
 
+    var max_res = 0.0;
     // 2. Relax hidden state through Continuous Hopfield Attractor Basin Memory (O(1) Associative Recall)
     if (cartan_hopfield_attractor_count() > 0.0) {
-        printf("[GeoMind Hopfield] Checking max resonance...\n");
-        cartan_flush(0.0);
-        let max_res = cartan_hopfield_get_max_resonance(hidden_state);
-        printf("[GeoMind Hopfield] Max res: %s\n", cartan_float_to_string(max_res));
-        cartan_flush(0.0);
+        max_res = cartan_hopfield_get_max_resonance(hidden_state);
         if (max_res > 0.55) {
             let recalled_val = cartan_hopfield_query_vec(hidden_state, 6.0);
+            let h_dim = cartan_vec_len(hidden_state);
             var d = 0.0;
-            while (d < 2560.0) {
+            while (d < h_dim) {
                 let h_d = cartan_vec_get_f32(hidden_state, d);
                 let r_d = cartan_vec_get_f32(recalled_val, d);
                 cartan_vec_set_f32(hidden_state, d, 0.65 * h_d + 0.35 * r_d);
@@ -518,112 +734,106 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
             }
             cartan_vec_free(recalled_val);
         }
-        printf("[GeoMind Hopfield] Relaxing...\n");
-        cartan_flush(0.0);
         cartan_hopfield_relax(hidden_state, 3.5, 2.0);
-        printf("[GeoMind Hopfield] Relaxed.\n");
-        cartan_flush(0.0);
     }
-    printf("[GeoMind E8] Stepping...\n");
-    cartan_flush(0.0);
     var cur_h = e8_attention_forward_step(hidden_state, temp);
-    printf("[GeoMind E8] Stepped. Energy...\n");
-    cartan_flush(0.0);
     let hopfield_energy = cartan_hopfield_energy(cur_h);
-    printf("[GeoMind E8] Energy: %s\n", cartan_float_to_string(hopfield_energy));
-    cartan_flush(0.0);
 
-    printf("[GeoMind Chat] GeoMind Neural Output:\n");
+    var full_gen_text = "";
+    printf("[GeoMind Chat] GeoMind Native Neural Engine: ACTIVE\n");
+    printf("[GeoMind Hopfield Resonance: %s | Energy: %s]\n\nGeoMind> ", cartan_float_to_string(max_res), cartan_float_to_string(hopfield_energy));
     cartan_flush(0.0);
 
     let primary_concept = semantics_extract_primary_concept(prompt);
-    let history = cartan_vec_create();
-    var prev_h = hidden_state;
-    var mom = cartan_vec_create();
-    var d_mom = 0.0;
-    while (d_mom < 2560.0) {
-        cartan_vec_push_f32(mom, 0.0);
-        d_mom = d_mom + 1.0;
-    }
-    var step = 0.0;
-    var max_t = 22.0;
-    if (max_tokens > 0.0) { max_t = max_tokens; }
+        let history = cartan_vec_create();
+        var prev_h = hidden_state;
+        var mom = cartan_vec_create();
+        let h_dim_mom = cartan_vec_len(cur_h);
+        var d_mom = 0.0;
+        while (d_mom < h_dim_mom) {
+            cartan_vec_push_f32(mom, 0.0);
+            d_mom = d_mom + 1.0;
+        }
+        var step = 0.0;
+        var max_t = 22.0;
+        if (max_tokens > 0.0) { max_t = max_tokens; }
 
-    // Checkpoint initial prompt trajectory for Kimi-style Reflective Doubt verification & context rewind
-    cartan_doubt_checkpoint(cur_h, mom, history, 0.0, temp);
-    var current_temp = temp;
-    var rewind_executed = 0.0;
+        cartan_doubt_checkpoint(cur_h, mom, history, 0.0, temp);
+        var current_temp = temp;
+        var rewind_executed = 0.0;
 
-    let gen_buffer = prompt_scaffold_create(16384.0);
+        let gen_buffer = prompt_scaffold_create(16384.0);
 
-    while (step < max_t) {
-        let logits_vec = cartan_tensor_compute_lm_head_logits(cur_h, current_temp);
-        cartan_apply_repetition_penalty(logits_vec, history, 3.50);
-        semantics_apply_concept_logit_boost(logits_vec, primary_concept, 1.20);
+        while (step < max_t) {
+            let logits_vec = cartan_tensor_compute_lm_head_logits(cur_h, current_temp);
+            cartan_apply_repetition_penalty(logits_vec, history, 3.50);
+            semantics_apply_concept_logit_boost(logits_vec, primary_concept, 1.20);
 
-        // Kimi-Style Reflective Doubt & Entropy Verification
-        let conf = cartan_tensor_compute_confidence(logits_vec, 50.0);
-        let ent = cartan_doubt_get_last_entropy();
-        if (rewind_executed == 0.0 && step >= 2.0 && (conf < 0.035 || ent > 3.75)) {
-            printf("\n[Reflective Doubt & Context Rewind] High uncertainty detected (Top-1 Conf: %s, Entropy: %s at step %s).\n",
-                cartan_float_to_string(conf), cartan_float_to_string(ent), cartan_float_to_string(step));
+            let conf = cartan_tensor_compute_confidence(logits_vec, 50.0);
+            let ent = cartan_doubt_get_last_entropy();
+            if (rewind_executed == 0.0 && step >= 2.0 && (conf < 0.035 || ent > 3.75)) {
+                printf("\n[Reflective Doubt & Context Rewind] High uncertainty detected (Top-1 Conf: %s, Entropy: %s at step %s).\n",
+                    cartan_float_to_string(conf), cartan_float_to_string(ent), cartan_float_to_string(step));
+                cartan_flush(0.0);
+                printf("[Reflective Doubt & Context Rewind] Rewinding context trajectory to checkpoint, cooling temperature, and boosting taxonomy...\n");
+                cartan_flush(0.0);
+                step = cartan_doubt_rewind(cur_h, mom, history);
+                current_temp = current_temp * 0.75;
+                semantics_apply_concept_logit_boost(logits_vec, primary_concept, 4.0);
+                rewind_executed = 1.0;
+            }
+
+            var min_gen_tokens = 32.0;
+            if (max_t < min_gen_tokens) { min_gen_tokens = max_t * 0.8; }
+            if (step < min_gen_tokens) {
+                cartan_vec_set_f32(logits_vec, 1.0, -1000.0);
+            }
+
+            let sampled_tok = cartan_tokenizer_sample_topp_topk(logits_vec, 50.0, 0.90, current_temp + step * 0.01);
+            cartan_vec_free(logits_vec);
+            if (sampled_tok == 1.0 && step >= min_gen_tokens) {
+                break;
+            }
+            let tok_str = bpe_decode_token(sampled_tok);
+            prompt_scaffold_append(gen_buffer, tok_str);
+            c_cartan_print_token(sampled_tok);
             cartan_flush(0.0);
-            printf("[Reflective Doubt & Context Rewind] Rewinding context trajectory to checkpoint, cooling temperature, and boosting taxonomy...\n");
-            cartan_flush(0.0);
-            step = cartan_doubt_rewind(cur_h, mom, history);
-            current_temp = current_temp * 0.75;
-            semantics_apply_concept_logit_boost(logits_vec, primary_concept, 4.0);
-            rewind_executed = 1.0;
+            cartan_vec_push_f32(history, sampled_tok);
+            cartan_tensor_update_autoregressive_state(cur_h, sampled_tok);
+            let next_mom = cartan_tensor_compute_momentum(cur_h, prev_h);
+            cartan_vec_free(mom);
+            mom = next_mom;
+            if (prev_h != hidden_state && prev_h != cur_h) {
+                cartan_vec_free(prev_h);
+            }
+            prev_h = cur_h;
+            cur_h = e8_attention_forward_step_with_momentum(cur_h, mom, current_temp);
+            step = step + 1.0;
         }
 
-        var min_gen_tokens = 32.0;
-        if (max_t < min_gen_tokens) { min_gen_tokens = max_t * 0.8; }
-        if (step < min_gen_tokens) {
-            cartan_vec_set_f32(logits_vec, 1.0, -1000.0);
-        }
-
-        let sampled_tok = cartan_tokenizer_sample_topp_topk(logits_vec, 50.0, 0.90, current_temp + step * 0.01);
-        cartan_vec_free(logits_vec);
-        if (sampled_tok == 1.0 && step >= min_gen_tokens) {
-            // End of Sequence reached cleanly
-            break;
-        }
-        let tok_str = bpe_decode_token(sampled_tok);
-        prompt_scaffold_append(gen_buffer, tok_str);
-        c_cartan_print_token(sampled_tok);
-        cartan_flush(0.0);
-        cartan_vec_push_f32(history, sampled_tok);
-        cartan_tensor_update_autoregressive_state(cur_h, sampled_tok);
-        // Tangent Bundle Momentum Tracking: cognitive velocity on TM = M x TxM
-        let next_mom = cartan_tensor_compute_momentum(cur_h, prev_h);
-        cartan_vec_free(mom);
-        mom = next_mom;
         if (prev_h != hidden_state && prev_h != cur_h) {
             cartan_vec_free(prev_h);
         }
-        prev_h = cur_h;
-        // Autoregressive Manifold Step with Sasaki Phase-Space Brainstem Routing
-        cur_h = e8_attention_forward_step_with_momentum(cur_h, mom, current_temp);
-        // Read-only inference: Hebbian synaptic mutation is disabled during generation to prevent attractor collapse
-        // cartan_hebbian_step_token(cur_h, sampled_tok, 0.5, 0.0005);
-        step = step + 1.0;
-    }
 
-    if (prev_h != hidden_state && prev_h != cur_h) {
-        cartan_vec_free(prev_h);
-    }
+        printf(" [Hopfield Energy Minimum: %s]\n", cartan_float_to_string(hopfield_energy));
+        full_gen_text = prompt_scaffold_get_text(gen_buffer);
+        cartan_vec_free(mom);
+        cartan_vec_free(history);
 
-    printf(" [Hopfield Energy Minimum: %s]\n", cartan_float_to_string(hopfield_energy));
+    // Hybrid Ensemble Discriminator: Dual-score candidate trajectory against Continuous Hopfield attractor energy and template/veto match confidence
+    let ensemble_score = geomind_hybrid_ensemble_discriminate(cur_h, full_gen_text, primary_concept, nses_pipe.veto_reg);
+    printf("[Hybrid Ensemble Discriminator] Trajectory Confidence Score: %s\n", cartan_float_to_string(ensemble_score));
 
     // Post-Pass Deterministic Veto Gate: Firewall candidate output against Domain 0 invariants
-    let full_gen_text = prompt_scaffold_get_text(gen_buffer);
     let veto_res = veto_gate_scan(nses_pipe.veto_reg, full_gen_text);
     if (veto_res.is_vetoed != 0.0) {
         printf("\n\n[NSES POST-PASS DETERMINISTIC VETO GATE ACTIVATED]\n");
         printf("[NSES VETO FIREWALL] Contradiction detected: '%s' violates Invariant Rule %.0f\n",
                veto_res.violation_pattern, veto_res.violated_rule_id);
         printf("[NSES CANONICAL INVARIANT ASSERTION] %s\n\n", veto_res.output_text);
+        full_gen_text = veto_res.output_text;
     }
+    geomind_chat_log_turn("geomind", full_gen_text);
     prompt_scaffold_free(gen_buffer);
 
     // 3. O(1) One-Shot Key-Value Attractor Basin Insertion: Ingest conversational context into persistent memory
@@ -631,11 +841,13 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
     cartan_hopfield_save_basins("test/geomind/trainingdata/hopfield_basins.bin");
     cartan_flush(0.0);
 
-    cartan_vec_free(mom);
-    cartan_vec_free(history);
     cartan_vec_free(prompt_tokens);
-    cartan_vec_free(cur_h);
-    cartan_vec_free(hidden_state);
+    if (cur_h != 0.0 && cur_h != hidden_state) {
+        cartan_vec_free(cur_h);
+    }
+    if (hidden_state != 0.0) {
+        cartan_vec_free(hidden_state);
+    }
 
     return 1.0;
 }
@@ -648,6 +860,14 @@ fn geomind_chat_remember_fact(fact_text: string) -> float {
     cartan_hopfield_store_pair_vec(h_fact, h_stepped);
     cartan_hopfield_save_basins("test/geomind/trainingdata/hopfield_basins.bin");
     let total_count = cartan_hopfield_attractor_count();
+
+    // Persist remembered fact into Tier 2 Cognitive Memory
+    let db = geomind_chat_get_db();
+    if (db != 0.0) {
+        sqlite_vec_add_episode(db, "session_active", 1.0, "user", fact_text);
+        sqlite_vec_upsert_rule(db, 0.0, 1.0, "fact_grounding", fact_text, 0.0, 0.95);
+    }
+
     printf("[Continuous Hopfield Memory] Remembered fact into attractor basin #%s: \"%s\"\n",
         cartan_float_to_string(total_count), fact_text);
     cartan_vec_free(toks);

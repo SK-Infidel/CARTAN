@@ -481,9 +481,7 @@ fn fusion_riemannian_align(source_w: ptr, target_dim: float) -> ptr {
     var i = 0.0;
     while (i < src_len) {
         let sv = cartan_vec_get_f32(source_w, i);
-        let sub_idx = math_mod_val(floor(i / 320.0), 8.0);
-        let g_i = geom_killing_form_dynkin_weight(sub_idx);
-        src_energy = src_energy + (sv * sv) * g_i;
+        src_energy = src_energy + (sv * sv);
         i = i + 1.0;
     }
     let rms_src = sqrt((src_energy / src_len) + 0.000001);
@@ -501,9 +499,7 @@ fn fusion_riemannian_align(source_w: ptr, target_dim: float) -> ptr {
         let v0 = cartan_vec_get_f32(source_w, i0);
         let v1 = cartan_vec_get_f32(source_w, i1);
         let interp = v0 * (1.0 - frac) + v1 * frac;
-        let sub_j = math_mod_val(floor(j / 320.0), 8.0);
-        let g_j = geom_killing_form_dynkin_weight(sub_j);
-        out_energy = out_energy + (interp * interp) * g_j;
+        out_energy = out_energy + (interp * interp);
         cartan_vec_set_f32(out, j, interp);
         j = j + 1.0;
     }
@@ -574,5 +570,20 @@ fn fusion_riemannian_retract_arrays(base_arr: ptr, tan_arr: ptr, out_arr: ptr, s
         out_arr[i] = out_arr[i] * scale;
         i = i + 1.0;
     }
+}
+
+// Zero-Hallucination Weight Grafting: Merge template-distilled weights with open-ended weights
+// along Riemannian geodesic via SLERP and apply WordNet Information Content (IC) modulation
+fn fusion_zero_hallucination_weight_graft(template_weights: ptr, open_weights: ptr, alpha: float, vocab_cols: float) -> ptr {
+    if (template_weights == 0.0 || open_weights == 0.0) { return 0.0; }
+    let fused = fusion_slerp_tensors(template_weights, open_weights, alpha);
+    fusion_apply_wordnet_ic_modulation(fused, vocab_cols);
+    return fused;
+}
+
+fn fusion_zero_hallucination_weight_graft_arrays(template_arr: ptr, open_arr: ptr, out_arr: ptr, size: float, alpha: float, vocab_cols: float) {
+    if (template_arr == 0.0 || open_arr == 0.0 || out_arr == 0.0 || size <= 0.0) { return; }
+    fusion_slerp_arrays(template_arr, open_arr, out_arr, size, alpha);
+    fusion_apply_wordnet_ic_modulation_arrays(out_arr, size, vocab_cols);
 }
 

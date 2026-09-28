@@ -1,0 +1,22 @@
+# Sprint 440 Task List: GeoMind Inference Latency Optimization & GPU VRAM Residency Realignment
+
+- [x] **Task 1: Hardware & Inference Profiling**
+  - [x] Inspect GPU memory state and offloading ratio (`nvidia-smi`, `ollama ps`).
+  - [x] Identify root cause of latency (>35s per prompt due to 131,072 context VRAM overflow and 66% CPU offload).
+- [x] **Task 2: Context Window & GPU VRAM Realignment**
+  - [x] Update warmup and generation requests in `src/std/cartan_gemma_engine.c` to pin `num_ctx: 8192`.
+  - [x] Verify model memory footprint drops to 3.2 GB, enabling 100% GPU VRAM residency on RTX 2000 Ada.
+- [x] **Task 3: Streaming Reasoning Bypass**
+  - [x] Configure `"think": false` in `cartan_ollama_generate_stream` and `cartan_ollama_warmup` for conversational flow.
+  - [x] Benchmark raw generation throughput (verified 54.9 tokens/sec vs 1.2 tokens/sec previously).
+- [x] **Task 4: Engine Cleanup & UTF-8 Encoding**
+  - [x] Initialize UTF-8 console codepages on Windows (`SetConsoleOutputCP(CP_UTF8)`).
+  - [x] Clean up temporary checkpoint diagnostic prints in `cartan_gemma_engine.c` and `chat.cl`.
+- [x] **Task 5: Compilation, Deployment & Verification**
+  - [x] Build native `geomind.exe` with `cartanc.exe`.
+  - [x] Deploy to `bin/geomind.exe`, `geomind.exe`, and `test/geomind/geomind.exe`.
+  - [x] Verify direct prompt generation (`--chat -prompt "..."`) runs cleanly with exit code 0.
+  - [x] Verify interactive REPL (`geomind.exe --chat`) multi-turn session.
+- [x] **Task 6: Documentation & Retrospective**
+  - [x] Record Sprint 440 entry in `CHANGELOG.md`.
+  - [x] Update `ISSUES.md`.

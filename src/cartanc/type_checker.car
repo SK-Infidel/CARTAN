@@ -328,6 +328,22 @@ fn type_checker_init() -> TypeChecker {
                 idx_stmt = idx_stmt + 1.0;
             }
             pop_scope(self_ptr);
+        } else if (disc == 19.0) { // ForStmt
+            let var_name = cartan_tree_get_f32(stmt, 1.0);
+            let iterable = cartan_tree_get_f32(stmt, 2.0);
+            let body = cartan_tree_get_f32(stmt, 3.0);
+            tc_visit_expr(self_ptr, iterable);
+            push_scope(self_ptr);
+            var scope = cartan_tree_get_f32(self_ptr.symbol_table, cartan_tree_len(self_ptr.symbol_table) - 1.0);
+            cartan_dict_set(scope, var_name, CartanType::Float);
+            var idx_stmt = 0.0;
+            while (idx_stmt < cartan_tree_len(cartan_tree_get_f32(body, 0.0))) {
+                tc_visit_stmt(self_ptr, cartan_tree_get_f32(cartan_tree_get_f32(body, 0.0), idx_stmt));
+                idx_stmt = idx_stmt + 1.0;
+            }
+            pop_scope(self_ptr);
+        } else if (disc == 21.0) { // Throw
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(stmt, 1.0));
         } else if (disc == 20.0) { // TryCatch
             let try_block = cartan_tree_get_f32(stmt, 1.0);
             let catch_var = cartan_tree_get_f32(stmt, 2.0);
@@ -375,6 +391,29 @@ fn type_checker_init() -> TypeChecker {
             let alias = cartan_tree_get_f32(stmt, 2.0);
             var scope = cartan_tree_get_f32(self_ptr.symbol_table, cartan_tree_len(self_ptr.symbol_table) - 1.0);
             cartan_dict_set(scope, alias, CartanType::Unknown);
+        } else if (disc == 56.0 || disc == 119.0) { // Satisfy
+            let condition = cartan_tree_get_f32(stmt, 1.0);
+            let body = cartan_tree_get_f32(stmt, 2.0);
+            let oth_val = cartan_tree_get_f32(stmt, 3.0);
+            tc_visit_expr(self_ptr, condition);
+            push_scope(self_ptr);
+            var idx_stmt = 0.0;
+            while (idx_stmt < cartan_tree_len(cartan_tree_get_f32(body, 0.0))) {
+                tc_visit_stmt(self_ptr, cartan_tree_get_f32(cartan_tree_get_f32(body, 0.0), idx_stmt));
+                idx_stmt = idx_stmt + 1.0;
+            }
+            pop_scope(self_ptr);
+            if (oth_val != 0.0) {
+                push_scope(self_ptr);
+                var idx_oth = 0.0;
+                while (idx_oth < cartan_tree_len(cartan_tree_get_f32(oth_val, 0.0))) {
+                    tc_visit_stmt(self_ptr, cartan_tree_get_f32(cartan_tree_get_f32(oth_val, 0.0), idx_oth));
+                    idx_oth = idx_oth + 1.0;
+                }
+                pop_scope(self_ptr);
+            }
+        } else if (disc == 57.0 || disc == 120.0) { // Backtrack
+            // Statement jump, scope preserved
         }
     }
 
@@ -451,6 +490,30 @@ fn type_checker_init() -> TypeChecker {
             tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
             tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 2.0));
             return CartanType::Unknown;
+        } else if (disc == 40.0 || disc == 104.0) { // Transform (vmap, grad)
+            let target = cartan_tree_get_f32(expr, 2.0);
+            return tc_visit_expr(self_ptr, target);
+        } else if (disc == 41.0 || disc == 105.0) { // Quantize
+            let target = cartan_tree_get_f32(expr, 1.0);
+            return tc_visit_expr(self_ptr, target);
+        } else if (disc == 49.0 || disc == 113.0) { // WeightDecay
+            let target = cartan_tree_get_f32(expr, 1.0);
+            return tc_visit_expr(self_ptr, target);
+        } else if (disc == 48.0 || disc == 112.0) { // ProjectVocab
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 2.0));
+            return CartanType::Tensor(cartan_tree_create(), 0.0, 0.0);
+        } else if (disc == 4.0 || disc == 68.0) { // PromptLiteral
+            return CartanType::String;
+        } else if (disc == 47.0 || disc == 111.0) { // PagedAttention
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 2.0));
+            tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 3.0));
+            let bt = cartan_tree_get_f32(expr, 4.0);
+            if (bt != 0.0) { tc_visit_expr(self_ptr, bt); }
+            return CartanType::Tensor(cartan_tree_create(), 0.0, 0.0);
+        } else if (disc == 46.0 || disc == 110.0) { // Lazy
+            return tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
         } else if (disc == 11.0) { // StringView
             tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 1.0));
             tc_visit_expr(self_ptr, cartan_tree_get_f32(expr, 2.0));

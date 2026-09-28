@@ -1,3 +1,103 @@
+## [8.411.0] - 2026-09-28 (Sprint 453: Native For Loops, Project Vocab, Prompt Literals, Paged Attention Kernel, & Scoped Exception Handling)
+
+### Completed & Validated
+- **Native `for` Loop Implementation (`src/cartanc/parser.car`, `src/cartanc/type_checker.car`, `src/cartanc/llvm_codegen.car`, `[ISSUE-221]`)**:
+  - Implemented `for <var> in <iterable> { <body> }` parsing in `parser.car:statement` returning `Stmt::ForStmt(var_name, iterable, body)`.
+  - Added scope-aware type checking for `ForStmt` (disc 19.0) in `type_checker.car`.
+  - Emitted LLVM IR loop structures in `llvm_codegen.car` iterating vectors via `@cartan_vec_len` and `@cartan_vec_get_f32` with condition, body, step, and exit blocks.
+- **AST Expression Lowering for `ProjectVocab` & `PromptLiteral` (`src/cartanc/lexer.car`, `src/cartanc/type_checker.car`, `src/cartanc/llvm_codegen.car`, `[ISSUE-222]`)**:
+  - Added `p"..."` tokenization in `lexer.car` emitting `TokenType::PromptLiteral`.
+  - Added type-checking for `Expr::ProjectVocab` (disc 48.0/112.0) and `Expr::PromptLiteral` (disc 4.0/68.0) in `type_checker.car`.
+  - Lowered `Expr::ProjectVocab` to `@cartan_project_vocab` and `Expr::PromptLiteral` to global constant string pointers in `llvm_codegen.car`.
+- **Paged Attention Causal Kernel & Lazy Evaluation (`src/cartanc/parser.car`, `src/cartanc/type_checker.car`, `src/cartanc/llvm_codegen.car`, `src/cartanc/core_runtime.car`, `[ISSUE-223]`)**:
+  - Aligned `PagedAttention` to 4 arguments with optional `block_table` in `parser.car`.
+  - Implemented authentic scaled causal attention `cartan_rt_paged_attention(query, key, value, block_table)` in `core_runtime.car` with $Q \cdot K / \sqrt{d}$ dot products and weighted accumulation.
+  - Added type checking and LLVM lowering for `PagedAttention` (disc 47.0/111.0) and `Lazy` (disc 46.0/110.0).
+- **Exception Scoping & Throw Lowering (`src/cartanc/parser.car`, `src/cartanc/type_checker.car`, `src/cartanc/llvm_codegen.car`, `[ISSUE-224]`)**:
+  - Implemented `throw <expr>;` parsing in `parser.car:statement` returning `Stmt::Throw(expr)`.
+  - Added type-checking for `Stmt::Throw` (disc 21.0) in `type_checker.car`.
+  - Lowered `Throw` in `llvm_codegen.car` with runtime exception diagnostics and function return exits.
+- **Regression Suite Expansion & Empirical Verification (`test/compiler_suite/`)**:
+  - Authored regression Target 63: `test/compiler_suite/test_loops_and_primitives.car` validating native `for` loops, `project_vocab`, prompt literal `p"..."`, authentic `paged_attention`, and scoped `try-catch`.
+  - Whitelisted Target 63 in `.gitignore` and registered as Target 63 in `test/compiler_suite/run_tests.car`.
+  - Rebuilt self-hosting stage 1 `cartanc.exe` and verified 100% clean pass across all 63 compiler regression suite targets with 0 failures (Exit Code 0).
+
+## [8.410.0] - 2026-09-28 (Sprint 452: Higher-Order Transforms, Weight Decay Regularization, Declarative Satisfy/Backtrack, & Freestanding ONNX Ingestion)
+
+### Completed & Validated
+- **Freestanding ONNX Ingestion Hook (`src/cartanc/core_runtime.car`, `src/cartanc/llvm_codegen.car`, `[ISSUE-217]`)**:
+  - Implemented authentic `cartan_internal_import_onnx(uri: string) -> ptr` in `core_runtime.car` allocating a model container with URI and tensor graph tables, with disk presence verification.
+  - Registered return type `CartanType::Ptr` in `llvm_codegen.car:132`.
+- **Higher-Order Transforms (`vmap`, `grad`) (`src/cartanc/lexer.car`, `src/cartanc/parser.car`, `src/cartanc/type_checker.car`, `src/cartanc/llvm_codegen.car`, `src/cartanc/core_runtime.car`, `[ISSUE-218]`)**:
+  - Added `grad` to keyword checks in `lexer.car`.
+  - Added contextual identifier fallback in `parser.car` so `grad` can be used as parameter or variable names when not followed by `(`.
+  - Added type-checking for `Expr::Transform` in `type_checker.car:477`.
+  - Implemented `cartan_rt_transform(op: string, target: ptr) -> ptr` in `core_runtime.car` executing vector/tensor mapping and automatic adjoint gradient computation.
+  - Lowered `Expr::Transform` to `@cartan_rt_transform` in `llvm_codegen.car:3125`.
+- **L2 Weight Decay Regularization (`src/cartanc/lexer.car`, `src/cartanc/parser.car`, `src/cartanc/type_checker.car`, `src/cartanc/llvm_codegen.car`, `src/cartanc/core_runtime.car`, `[ISSUE-219]`)**:
+  - Added `weight_decay` to keyword checks in `lexer.car`.
+  - Added contextual identifier fallback in `parser.car` so `weight_decay` can be used as a parameter name in optimizers (`src/std/optim.cl`).
+  - Added type-checking for `Expr::WeightDecay` in `type_checker.car:483`.
+  - Implemented authentic in-place $w \leftarrow w \cdot (1 - \lambda)$ regularization in `cartan_tensor_apply_weight_decay` in `core_runtime.car`.
+  - Lowered `Expr::WeightDecay` in `llvm_codegen.car:3153`, extracting float literal payloads directly via `expr[2]` to preserve exact numeric precision.
+- **Declarative Constraint Solving (`satisfy` / `backtrack`) (`src/cartanc/ast.ch`, `src/cartanc/parser.car`, `src/cartanc/type_checker.car`, `src/cartanc/llvm_codegen.car`, `[ISSUE-220]`)**:
+  - Updated AST declaration signature in `ast.ch:173` from `Satisfy(ptr)` to `Satisfy(ptr, ptr, ptr)`.
+  - Corrected `parser.car:197` declaration dispatcher to return `Stmt::Satisfy(condition, body_sat, otherwise_node)` instead of stubbed `Stmt::Placeholder`.
+  - Added scoped recursive statement and expression validation in `type_checker.car:378-401`.
+  - Updated LLVM codegen block exit paths in `llvm_codegen.car:1938` so the `otherwise` block exits to `end_label`, and `backtrack;` rewinds execution to `start_label`.
+- **Regression Suite Expansion & Empirical Verification (`test/compiler_suite/`)**:
+  - Authored regression Target 62: `test/compiler_suite/test_transforms_and_logic.car` verifying `vmap`, `grad`, `weight_decay`, `satisfy`/`backtrack`, and `cartan_internal_import_onnx`.
+  - Whitelisted Target 62 in `.gitignore` and registered as Target 62 in `test/compiler_suite/run_tests.car`.
+  - Rebuilt self-hosting stage 1 `cartanc.exe` and verified 100% clean pass across all 62 compiler regression suite targets with 0 failures (Exit Code 0).
+
+## [8.409.0] - 2026-09-27 (Sprint 451: Native Language Primitives, INT8 Quantization & Standard Library Zero-Mock Parity)
+
+### Completed & Validated
+- **Compiler Lexer Keyword Recognition (`src/cartanc/lexer.car`, `[ISSUE-213]`)**:
+  - Integrated explicit keyword recognition in `check_keyword` for 30 missing keywords (`sequence`, `block`, `lattice`, `layout`, `manifold`, `topology`, `quantize`, `spike`, `neuron`, `fuse`, `search`, `satisfy`, `otherwise`, `backtrack`, `supervisor`, `mesh`, `jit`, `lazy`, `unified`, `latent`, `fluid`, `sparsity`, `emit`, `rule`, `knowledge_base`, `fuzzy`, `evolve`, `paged_attention`, `backed_by`, `with`).
+  - Preserved `attention` as a module identifier to ensure backwards compatibility with standard library module calls (e.g., `attention::scaled_dot_product_attention`).
+- **LLVM Codegen Extern Signatures & AST Discriminant Fixes (`src/cartanc/llvm_codegen.car`, `[ISSUE-214]`)**:
+  - Synchronized prototype declarations in `llvm_codegen.car` to `double` parameter types matching LLVM emitted call signatures for `cartan_alloc_sequence`, `cartan_alloc_block`, `cartan_rt_alloc_lattice`, `cartan_rt_alloc_tree`, `cartan_alloc_parameter_adam`, `cartan_alloc_parameter_adam_nd`, `cartan_emit_spike`, `cartan_fluid_precision_start/end`, `cartan_sparsity_start/end`, and `cartan_prune_graph`.
+  - Resolved float-to-string conversion bugs in `SequenceDecl`, `BlockDecl`, and `LatticeDecl` code generation by lowering size expressions through `llvm_visit_expr` and formatting via `as_float`.
+  - Fixed AST discriminant collision in `llvm_codegen.car` where discriminant 12.0 (`TreeDecl`) was erroneously intercepted as `TensorDecl`.
+- **Freestanding Core Runtime Allocators & Lifecycle Hooks (`src/cartanc/core_runtime.car`, `[ISSUE-214]`)**:
+  - Implemented `cartan_alloc_sequence`, `cartan_alloc_block`, `cartan_rt_alloc_lattice`, `cartan_rt_alloc_tree`, `cartan_alloc_parameter_adam`, `cartan_alloc_parameter_adam_nd`, `cartan_emit_spike`, `cartan_get_last_spike`, `cartan_fluid_precision_start/end`, `cartan_sparsity_start/end`, and `cartan_prune_graph`.
+- **AST Expression Lowering for INT8 Quantization (`src/cartanc/type_checker.car`, `src/cartanc/llvm_codegen.car`, `[ISSUE-215]`)**:
+  - Added type-checking for `Expr::Quantize` in `type_checker.car` returning `CartanType::Tensor`.
+  - Added LLVM codegen lowering for `Expr::Quantize` calling `@cartan_tensor_quantize_int8`.
+  - Implemented symmetric zero-mock INT8 tensor quantization `cartan_tensor_quantize_int8` in `src/cartanc/core_runtime.car`.
+- **Standard Library Zero-Mock & Hygiene Cleanup (`src/std/env.cl`, `src/std/evolution.cl`, `[ISSUE-216]`)**:
+  - Removed dead `struct ArgParser` from `src/std/env.cl`.
+  - Refactored `azr_evaluate_binary_reward(candidate_code: string) -> float` in `src/std/evolution.cl` to evaluate real candidate code strings.
+  - Updated `test/compiler_suite/test_evolution_master.car` to pass authentic candidate code.
+- **Regression Suite Expansion & Empirical Verification (`test/compiler_suite/`)**:
+  - Authored `test/compiler_suite/test_language_primitives.car` validating `sequence`, `block`, `lattice`, `tree`, `emit spike`, `quantize INT8`, `fluid`, and `sparsity` native syntax.
+  - Registered `test_language_primitives.car` as Target 61 in `test/compiler_suite/run_tests.car`.
+  - Rebuilt self-hosting `cartanc.exe` and verified 100% test pass parity across all 61 regression suite targets with 0 failures (Exit Code 0).
+
+## [8.408.0] - 2026-09-27 (Sprint 450: Freestanding Core Runtime Completeness & Compiler Warning Hygiene)
+
+### Completed & Validated
+- **Freestanding Core Runtime Completeness (`src/cartanc/core_runtime.car`, `[ISSUE-211]`)**:
+  - Implemented all cognitive control block lifecycle hooks in `src/cartanc/core_runtime.car`: `cartan_rt_multimodal_sync_start/end`, `cartan_rt_vmap_begin/end`, `cartan_rt_doubt_begin/end`, `cartan_rt_chain_begin/end`, `cartan_rt_route_begin/end`, `cartan_rt_grok_begin/end`, and `cartan_rt_override_begin/end`.
+  - Implemented doubt scope query state functions in `core_runtime.car`: `cartan_doubt_is_active`, `cartan_doubt_should_rewind`, `cartan_doubt_trigger_rewind`, and `cartan_doubt_clear_rewind`.
+  - Implemented built-in tensor operations: `cartan_tensor_ones_like`, `cartan_tensor_zeros_like`, and 2D matrix / 1D vector `cartan_tensor_transpose`.
+  - Implemented genuine, zero-mock prompt pattern matching in `cartan_pattern_match(cond: string, pat: string) -> float`, supporting exact string matching, prefix/suffix/infix wildcards (`*`), single-character wildcards (`?`), and substring searches.
+  - Implemented `cartan_print`, `cartan_free_compute_graph`, `cartan_absorb_weights`, and `cartan_project_vocab` built-in runtime routines.
+- **Compiler Lexer Keyword Completeness (`src/cartanc/lexer.car`)**:
+  - Added missing `override` keyword mapping in `check_keyword` in `src/cartanc/lexer.car`, correctly resolving `TokenType::Override` (discriminant 56.0) for native `override { ... }` blocks.
+- **LLVM Codegen Built-in Function Registration (`src/cartanc/llvm_codegen.car`)**:
+  - Registered return types for `cartan_tensor_ones_like` (`ptr`), `cartan_tensor_zeros_like` (`ptr`), `cartan_tensor_transpose` (`ptr`), and `cartan_pattern_match` (`double`) in `func_return_types`.
+  - Declared `cartan_tensor_zeros_like` built-in extern in `llvm_codegen.car`.
+- **Reasoning Module Symbol De-Duplication (`src/std/reasoning.cl`)**:
+  - Eliminated duplicate definitions of cognitive hooks (`cartan_rt_multimodal_sync_start`, `cartan_rt_doubt_begin`, `cartan_rt_doubt_end`, `cartan_rt_chain_begin`, `cartan_rt_route_begin`, `cartan_rt_grok_begin`) and doubt state query functions from `src/std/reasoning.cl`, consolidating all core runtime hooks into `core_runtime.car` and eliminating LLVM module redefinition collisions across 7 dependent tests.
+- **Build Hygiene & Warning Elimination (`src/std/cartan_native_io.c`, `[ISSUE-212]`)**:
+  - Wrapped `#define _CRT_SECURE_NO_WARNINGS` with `#ifndef _CRT_SECURE_NO_WARNINGS` in `src/std/cartan_native_io.c`, achieving 100% clean compilation with zero diagnostic warnings.
+- **Regression Suite Expansion & Empirical Verification (`test/compiler_suite/`)**:
+  - Authored `test/compiler_suite/test_core_builtins.car` verifying all 7 cognitive syntax blocks, vector `ones_like`/`zeros_like`/`transpose`, 2D matrix transposition, prompt pattern matching, and runtime print.
+  - Registered `test_core_builtins.car` as Target 60 in `test/compiler_suite/run_tests.car`.
+  - Executed `build/run_tests.exe` across all 60 targets with 0 failures (Exit Code 0).
+
 ## [8.407.0] - 2026-09-27 (Sprint 449: Hardened Compiler Regression Suite & Parser Module Namespace Resolution)
 
 ### Completed & Validated

@@ -170,7 +170,7 @@ enum Stmt {
     GrokBlock(ptr),
     OverrideBlock(ptr),
     ToolDecl(ptr),
-    Satisfy(ptr),
+    Satisfy(ptr, ptr, ptr),
     Backtrack,
     TopologyDecl(string, tree<ptr>),
     FluidPrecisionBlock(ptr),

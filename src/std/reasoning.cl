@@ -98,12 +98,6 @@ fn azr_framework_eval_binary_reward(candidate_code: string) -> float {
     return 0.0;
 }
 
-fn cartan_rt_multimodal_sync_start() {
-    printf("[cartan_rt] Multimodal Sync Block Started\n");
-}
-
-var g_doubt_active = 0.0;
-var g_doubt_rewind_triggered = 0.0;
 var g_doubt_last_confidence = 0.0;
 var g_doubt_last_entropy = 0.0;
 var g_doubt_temp_saved = 0.0;
@@ -111,31 +105,6 @@ var g_doubt_token_count = 0.0;
 var g_doubt_h_saved: ptr = 0.0;
 var g_doubt_mom_saved: ptr = 0.0;
 var g_doubt_history_saved: ptr = 0.0;
-
-fn cartan_rt_doubt_begin() {
-    g_doubt_active = 1.0;
-    g_doubt_rewind_triggered = 0.0;
-}
-
-fn cartan_rt_doubt_end() {
-    g_doubt_active = 0.0;
-}
-
-fn cartan_doubt_is_active() -> float {
-    return g_doubt_active;
-}
-
-fn cartan_doubt_should_rewind() -> float {
-    return g_doubt_rewind_triggered;
-}
-
-fn cartan_doubt_trigger_rewind() {
-    g_doubt_rewind_triggered = 1.0;
-}
-
-fn cartan_doubt_clear_rewind() {
-    g_doubt_rewind_triggered = 0.0;
-}
 
 fn cartan_doubt_get_last_confidence() -> float {
     return g_doubt_last_confidence;
@@ -331,17 +300,6 @@ fn doubt_should_rewind_threshold(confidence: float, min_confidence: float, entro
     return 0.0;
 }
 
-fn cartan_rt_chain_begin() {
-    printf("[cartan_rt] Reasoning Chain Block Started\n");
-}
-
-fn cartan_rt_route_begin() {
-    printf("[cartan_rt] Dynamic Routing Block Started\n");
-}
-
-fn cartan_rt_grok_begin() {
-    printf("[cartan_rt] Grok Deep Analysis Block Started\n");
-}
 
 fn azr_framework_run_selfplay(iterations: float) -> float {
     printf("================================================================================\n");

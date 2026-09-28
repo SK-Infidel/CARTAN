@@ -62,6 +62,11 @@ fn check_keyword(lexeme: string) -> ptr {
     if (cartan_string_eq(lexeme, "mut") != 0.0) { return TokenType::Mut;}
     if (cartan_string_eq(lexeme, "parameter") != 0.0) { return TokenType::Parameter;}
     if (cartan_string_eq(lexeme, "under") != 0.0) { return TokenType::Under;}
+    if (cartan_string_eq(lexeme, "with") != 0.0) { return TokenType::With;}
+    if (cartan_string_eq(lexeme, "backed_by") != 0.0) { return TokenType::BackedBy;}
+    if (cartan_string_eq(lexeme, "absorb_layer_weights") != 0.0) { return TokenType::AbsorbLayerWeights;}
+    if (cartan_string_eq(lexeme, "project_vocab") != 0.0) { return TokenType::ProjectVocab;}
+    if (cartan_string_eq(lexeme, "riemannian") != 0.0) { return TokenType::Riemannian;}
     if (cartan_string_eq(lexeme, "break") != 0.0) { return TokenType::Break;}
     if (cartan_string_eq(lexeme, "continue") != 0.0) { return TokenType::Continue;}
     if (cartan_string_eq(lexeme, "try") != 0.0) { return TokenType::Try;}
@@ -80,10 +85,43 @@ fn check_keyword(lexeme: string) -> ptr {
     if (cartan_string_eq(lexeme, "import") != 0.0) { return TokenType::Import;}
     if (cartan_string_eq(lexeme, "doubt") != 0.0) { return TokenType::Doubt;}
     if (cartan_string_eq(lexeme, "vmap") != 0.0) { return TokenType::Vmap;}
+    if (cartan_string_eq(lexeme, "grad") != 0.0) { return TokenType::Grad;}
+    if (cartan_string_eq(lexeme, "weight_decay") != 0.0) { return TokenType::WeightDecay;}
     if (cartan_string_eq(lexeme, "multimodal") != 0.0) { return TokenType::Multimodal;}
     if (cartan_string_eq(lexeme, "chain") != 0.0) { return TokenType::Chain;}
     if (cartan_string_eq(lexeme, "route") != 0.0) { return TokenType::Route;}
     if (cartan_string_eq(lexeme, "grok") != 0.0) { return TokenType::Grok;}
+    if (cartan_string_eq(lexeme, "override") != 0.0) { return TokenType::Override;}
+    if (cartan_string_eq(lexeme, "lattice") != 0.0) { return TokenType::Lattice;}
+    if (cartan_string_eq(lexeme, "sequence") != 0.0) { return TokenType::Sequence;}
+    if (cartan_string_eq(lexeme, "block") != 0.0) { return TokenType::Block;}
+    if (cartan_string_eq(lexeme, "layout") != 0.0) { return TokenType::Layout;}
+    if (cartan_string_eq(lexeme, "manifold") != 0.0) { return TokenType::Manifold;}
+    if (cartan_string_eq(lexeme, "topology") != 0.0) { return TokenType::Topology;}
+    if (cartan_string_eq(lexeme, "quantize") != 0.0) { return TokenType::Quantize;}
+    if (cartan_string_eq(lexeme, "import_onnx") != 0.0) { return TokenType::ImportOnnx;}
+    if (cartan_string_eq(lexeme, "spike") != 0.0) { return TokenType::Spike;}
+    if (cartan_string_eq(lexeme, "neuron") != 0.0) { return TokenType::Neuron;}
+    if (cartan_string_eq(lexeme, "fuse") != 0.0) { return TokenType::Fuse;}
+    if (cartan_string_eq(lexeme, "search") != 0.0) { return TokenType::Search;}
+    if (cartan_string_eq(lexeme, "satisfy") != 0.0) { return TokenType::Satisfy;}
+    if (cartan_string_eq(lexeme, "otherwise") != 0.0) { return TokenType::Otherwise;}
+    if (cartan_string_eq(lexeme, "backtrack") != 0.0) { return TokenType::Backtrack;}
+    if (cartan_string_eq(lexeme, "supervisor") != 0.0) { return TokenType::Supervisor;}
+    if (cartan_string_eq(lexeme, "mesh") != 0.0) { return TokenType::Mesh;}
+    if (cartan_string_eq(lexeme, "jit") != 0.0) { return TokenType::Jit;}
+    if (cartan_string_eq(lexeme, "lazy") != 0.0) { return TokenType::Lazy;}
+    if (cartan_string_eq(lexeme, "unified") != 0.0) { return TokenType::Unified;}
+    if (cartan_string_eq(lexeme, "latent") != 0.0) { return TokenType::Latent;}
+    if (cartan_string_eq(lexeme, "tool") != 0.0) { return TokenType::Tool;}
+    if (cartan_string_eq(lexeme, "fluid") != 0.0) { return TokenType::Fluid;}
+    if (cartan_string_eq(lexeme, "sparsity") != 0.0) { return TokenType::Sparsity;}
+    if (cartan_string_eq(lexeme, "emit") != 0.0) { return TokenType::Emit;}
+    if (cartan_string_eq(lexeme, "rule") != 0.0) { return TokenType::Rule;}
+    if (cartan_string_eq(lexeme, "knowledge_base") != 0.0) { return TokenType::KnowledgeBase;}
+    if (cartan_string_eq(lexeme, "fuzzy") != 0.0) { return TokenType::Fuzzy;}
+    if (cartan_string_eq(lexeme, "evolve") != 0.0) { return TokenType::Evolve;}
+    if (cartan_string_eq(lexeme, "paged_attention") != 0.0) { return TokenType::PagedAttention;}
     return TokenType::Identifier(lexeme);
 }
 
@@ -166,6 +204,30 @@ fn lexer_next_token(lexer: Lexer) -> Token {
         
         var start_current = lexer.current;
         
+        // Prompt Literals: p"..."
+        if (c == 112.0 && lexer_peek_next(lexer) == 34.0) {
+            lexer_advance(lexer); // skip 'p'
+            lexer_advance(lexer); // skip opening quote
+            start_current = lexer.current;
+            while (lexer_peek(lexer) != 34.0 && lexer_peek(lexer) != 0.0) {
+                if (lexer_peek(lexer) == 92.0) { // '\'
+                    lexer_advance(lexer);
+                    lexer_advance(lexer);
+                    continue;
+                }
+                lexer_advance(lexer);
+            }
+            var lexeme_p = substring(lexer.source, start_current, lexer.current);
+            if (lexer_peek(lexer) == 34.0) {
+                lexer_advance(lexer); // skip closing quote
+            }
+            var tok_prompt = Token {
+                token_type: TokenType::PromptLiteral(lexeme_p),
+                span: Span { line: start_line, col_start: start_col, col_end: lexer.col, line_end: lexer.line }
+            };
+            return tok_prompt;
+        }
+
         // Identifiers and Keywords
         if (is_alpha(c) == 1.0) {
             while (is_alphanumeric(lexer_peek(lexer)) == 1.0) {
@@ -190,12 +252,31 @@ fn lexer_next_token(lexer: Lexer) -> Token {
                 while (is_digit(lexer_peek(lexer)) == 1.0) {
                     lexer_advance(lexer);
                 }
+                if (lexer_peek(lexer) == 101.0 || lexer_peek(lexer) == 69.0) { // 'e' or 'E'
+                    lexer_advance(lexer);
+                    if (lexer_peek(lexer) == 43.0 || lexer_peek(lexer) == 45.0) { // '+' or '-'
+                        lexer_advance(lexer);
+                    }
+                    while (is_digit(lexer_peek(lexer)) == 1.0) {
+                        lexer_advance(lexer);
+                    }
+                }
                 var lexeme_f = substring(lexer.source, start_current, lexer.current);
-                // Currently float literal conversion from string isn t here, assuming we store string or have `str_to_float`
-                // For now just pass the float inside Enum? Wait, Cartan currently doesn t have `str_to_float`.
-                // For now, let s keep it as string if needed, or dummy 0.0? 
-                // Ah, in Cartan `FloatLiteral` takes a float. We will need `atof(lexeme_f)`.
-                // I ll add `atof` declaration.
+                var tok_float = Token {
+                    token_type: TokenType::FloatLiteral(atof(lexeme_f)),
+                    span: Span { line: start_line, col_start: start_col, col_end: lexer.col, line_end: lexer.line }
+                };
+                return tok_float;
+            }
+            if (lexer_peek(lexer) == 101.0 || lexer_peek(lexer) == 69.0) { // 'e' or 'E'
+                lexer_advance(lexer);
+                if (lexer_peek(lexer) == 43.0 || lexer_peek(lexer) == 45.0) { // '+' or '-'
+                    lexer_advance(lexer);
+                }
+                while (is_digit(lexer_peek(lexer)) == 1.0) {
+                    lexer_advance(lexer);
+                }
+                var lexeme_f = substring(lexer.source, start_current, lexer.current);
                 var tok_float = Token {
                     token_type: TokenType::FloatLiteral(atof(lexeme_f)),
                     span: Span { line: start_line, col_start: start_col, col_end: lexer.col, line_end: lexer.line }

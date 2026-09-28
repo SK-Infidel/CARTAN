@@ -92,11 +92,12 @@ fn prompt_sanitize_delimiters(s: string) -> string {
     return sanitized;
 }
 
-// Assembles the formal 4-block structured prompt scaffold into the buffer
-fn prompt_assemble_scaffold(
+// Assembles the formal structured prompt scaffold with active entity state injection
+fn prompt_assemble_scaffold_v2(
     buf: PromptScaffoldBuffer,
     guardrails_tree: ptr,
     memory_nodes_tree: ptr,
+    entity_states_tree: ptr,
     lateral_fragment: string,
     user_query: string
 ) -> string {
@@ -104,7 +105,13 @@ fn prompt_assemble_scaffold(
 
     // Block 1: [SYSTEM BOUNDS - INVIOLABLE]
     prompt_scaffold_append(buf, "[SYSTEM BOUNDS - INVIOLABLE]\n");
-    if (guardrails_tree == 0.0 || cartan_tree_len_f(guardrails_tree) == 0.0) {
+    var has_bounds = 0.0;
+    if (guardrails_tree != 0.0) {
+        if (cartan_tree_len_f(guardrails_tree) > 0.0) {
+            has_bounds = 1.0;
+        }
+    }
+    if (has_bounds == 0.0) {
         prompt_scaffold_append(buf, "None specified.\n\n");
     } else {
         let g_len = cartan_tree_len_f(guardrails_tree);
@@ -121,17 +128,49 @@ fn prompt_assemble_scaffold(
 
     // Block 2: [OBJECTIVE KNOWLEDGE & ACTIVE MEMORY]
     prompt_scaffold_append(buf, "[OBJECTIVE KNOWLEDGE & ACTIVE MEMORY]\n");
-    if (memory_nodes_tree == 0.0 || cartan_tree_len_f(memory_nodes_tree) == 0.0) {
+    var has_memory = 0.0;
+    if (memory_nodes_tree != 0.0) {
+        if (cartan_tree_len_f(memory_nodes_tree) > 0.0) {
+            has_memory = 1.0;
+        }
+    }
+    var has_entities = 0.0;
+    if (entity_states_tree != 0.0) {
+        if (cartan_tree_len_f(entity_states_tree) > 0.0) {
+            has_entities = 1.0;
+        }
+    }
+
+    if (has_memory == 0.0 && has_entities == 0.0) {
         prompt_scaffold_append(buf, "None retrieved.\n\n");
     } else {
-        let m_len = cartan_tree_len_f(memory_nodes_tree);
-        var j = 0.0;
-        while (j < m_len) {
-            let m_item = cartan_tree_get_f32(memory_nodes_tree, j);
-            prompt_scaffold_append(buf, "- ");
-            prompt_scaffold_append(buf, m_item);
-            prompt_scaffold_append(buf, "\n");
-            j = j + 1.0;
+        if (has_entities != 0.0) {
+            let e_len = cartan_tree_len_f(entity_states_tree);
+            var k = 0.0;
+            while (k < e_len) {
+                let e_item = cartan_tree_get_f32(entity_states_tree, k);
+                let clean_item = prompt_sanitize_delimiters(e_item);
+                if (cartan_string_starts_with(clean_item, "[WORLD-STATE:") != 0.0) {
+                    prompt_scaffold_append(buf, clean_item);
+                } else {
+                    prompt_scaffold_append(buf, "[WORLD-STATE: ");
+                    prompt_scaffold_append(buf, clean_item);
+                    prompt_scaffold_append(buf, "]");
+                }
+                prompt_scaffold_append(buf, "\n");
+                k = k + 1.0;
+            }
+        }
+        if (has_memory != 0.0) {
+            let m_len = cartan_tree_len_f(memory_nodes_tree);
+            var j = 0.0;
+            while (j < m_len) {
+                let m_item = cartan_tree_get_f32(memory_nodes_tree, j);
+                prompt_scaffold_append(buf, "- ");
+                prompt_scaffold_append(buf, m_item);
+                prompt_scaffold_append(buf, "\n");
+                j = j + 1.0;
+            }
         }
         prompt_scaffold_append(buf, "\n");
     }
@@ -155,4 +194,16 @@ fn prompt_assemble_scaffold(
     prompt_scaffold_append(buf, "\n");
 
     return prompt_scaffold_get_text(buf);
+}
+
+// Assembles the formal 4-block structured prompt scaffold (Backwards-compatible)
+fn prompt_assemble_scaffold(
+    buf: PromptScaffoldBuffer,
+    guardrails_tree: ptr,
+    memory_nodes_tree: ptr,
+    lateral_fragment: string,
+    user_query: string
+) -> string {
+    var null_tree: ptr = 0.0;
+    return prompt_assemble_scaffold_v2(buf, guardrails_tree, memory_nodes_tree, null_tree, lateral_fragment, user_query);
 }
