@@ -88,9 +88,11 @@ fn domain_lexicon_register_frames(lex: DomainLexicon) {
     cartan_tree_push(lex.discourse_frames_tree, "[Decision Policy Frame] Optimal action A is executable because preconditions Pre(A) are entailed in state S, maximizing recursive Bellman value V*(s) toward goal G.");
     // Domain 9: EPISTEMOLOGY_BELIEF (Epistemic Credence & Defeasible Belief Revision Framing)
     cartan_tree_push(lex.discourse_frames_tree, "[Epistemic Belief Frame] Given prior probability P(H) and likelihood ratio P(E|H), empirical evidence E updates posterior credence P(H|E) via Bayes rule, minimally revising commitments under AGM contraction.");
+    // Domain 10: COMPILER_SYSTEMS (Software Architecture, Compilers & Type Systems Framing)
+    cartan_tree_push(lex.discourse_frames_tree, "[Compiler Architecture Frame] Under static single assignment (SSA) and type soundness constraints, source syntax lowers into canonical intermediate representation preserving memory exclusivity and type safety without stuck states.");
 }
 
-// Populates universal cross-domain lexicons and ontologies across all 10 domains
+// Populates universal cross-domain lexicons and ontologies across all 11 domains
 fn domain_lexicon_populate_defaults(lex: DomainLexicon) {
     // --- Domain 0: SYSTEM_CORE ---
     domain_lexicon_add_term(lex, "conservation", 0.0, 0.95, "predicate");
@@ -166,6 +168,16 @@ fn domain_lexicon_populate_defaults(lex: DomainLexicon) {
     domain_lexicon_add_term(lex, "dempster_shafer", 9.0, 0.95, "operator");
     domain_lexicon_add_term(lex, "credence", 9.0, 0.91, "entity");
 
+    // --- Domain 10: COMPILER_SYSTEMS ---
+    domain_lexicon_add_term(lex, "monomorphization", 10.0, 0.98, "operator");
+    domain_lexicon_add_term(lex, "llvm_ir", 10.0, 0.97, "entity");
+    domain_lexicon_add_term(lex, "type_soundness", 10.0, 0.96, "predicate");
+    domain_lexicon_add_term(lex, "ssa_dominance", 10.0, 0.95, "predicate");
+    domain_lexicon_add_term(lex, "register_allocation", 10.0, 0.94, "operator");
+    domain_lexicon_add_term(lex, "curry_howard", 10.0, 0.96, "operator");
+    domain_lexicon_add_term(lex, "linear_type", 10.0, 0.93, "entity");
+    domain_lexicon_add_term(lex, "dead_code_elimination", 10.0, 0.95, "operator");
+
     domain_lexicon_register_frames(lex);
 }
 
@@ -205,20 +217,20 @@ fn domain_lexicon_validate_predicate_category(
 ) -> float {
     if (predicate == 0.0) { return 1.0; }
 
-    // Category Error: Biological predicates (photosynthesize, metabolize, phosphorylate) applied to formal math/logic/physics
+    // Category Error: Biological predicates (photosynthesize, metabolize, phosphorylate) applied to formal math/logic/physics/compiler
     if (cartan_string_contains(predicate, "photosynthesize") != 0.0 ||
         cartan_string_contains(predicate, "metabolize") != 0.0 ||
         cartan_string_contains(predicate, "digest") != 0.0) {
-        if (subject_domain == 2.0 || subject_domain == 3.0 || subject_domain == 7.0 || subject_domain == 8.0 || subject_domain == 9.0) {
+        if (subject_domain == 2.0 || subject_domain == 3.0 || subject_domain == 7.0 || subject_domain == 8.0 || subject_domain == 9.0 || subject_domain == 10.0) {
             return 0.0; // Invariant violation: Abstract formal systems do not have biological metabolism
         }
     }
 
-    // Category Error: Differential geometry / topological calculus applied to discrete propositional truth tables
+    // Category Error: Differential geometry / topological calculus applied to discrete propositional truth tables or compiler IR
     if (cartan_string_contains(predicate, "exterior_derivative_of") != 0.0 ||
         cartan_string_contains(predicate, "geodesic_curvature_of") != 0.0) {
-        if (subject_domain == 7.0 || subject_domain == 3.0 || subject_domain == 9.0) {
-            return 0.0; // Discrete logic / Turing complexity classes do not have smooth differential forms
+        if (subject_domain == 7.0 || subject_domain == 3.0 || subject_domain == 9.0 || subject_domain == 10.0) {
+            return 0.0; // Discrete logic / Turing complexity classes / Compilers do not have smooth differential forms
         }
     }
 

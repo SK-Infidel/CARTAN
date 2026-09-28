@@ -33,7 +33,7 @@ fn main(argc: float, argv: ptr) -> float {
     let builder = cargraph_builder_create(1536.0);
 
     // -------------------------------------------------------------------------
-    // 1. Ingest Cognitive Domains (10 Total Domains)
+    // 1. Ingest Cognitive Domains (11 Total Domains)
     // -------------------------------------------------------------------------
     cargraph_builder_add_domain(builder, 0.0, 0.0, 4.0, 4.0);   // SYSTEM_CORE (4 strict invariants)
     cargraph_builder_add_domain(builder, 1.0, 4.0, 8.0, 2.0);   // PHYSICS_SIM (2 strict, 6 factual)
@@ -45,6 +45,7 @@ fn main(argc: float, argv: ptr) -> float {
     cargraph_builder_add_domain(builder, 7.0, 52.0, 10.0, 2.0); // LOGIC_REASONING (2 strict, 8 factual)
     cargraph_builder_add_domain(builder, 8.0, 62.0, 10.0, 2.0); // DECISION_PLANNING (2 strict, 8 factual)
     cargraph_builder_add_domain(builder, 9.0, 72.0, 10.0, 2.0); // EPISTEMOLOGY_BELIEF (2 strict, 8 factual)
+    cargraph_builder_add_domain(builder, 10.0, 82.0, 10.0, 2.0); // COMPILER_SYSTEMS (2 strict, 8 factual)
 
     // -------------------------------------------------------------------------
     // 2. Ingest Rules & Guardrails
@@ -151,15 +152,27 @@ fn main(argc: float, argv: ptr) -> float {
     cargraph_builder_add_rule(builder, 9.0, 1.0, 0.0, "Bayesian Confirmation Holism: Evidence confirms an interconnected theoretical network rather than isolated propositions, distributing likelihood updates across prior dependencies.");
     cargraph_builder_add_rule(builder, 9.0, 1.0, 0.0, "Iterated Belief Contraction: When retracting an asserted belief B, the agent removes B and all dependent derived propositions while retaining independent ground axioms.");
 
-    printf("[Ingest Compiler] Ingested 10 cognitive domains and 82 structured rules (20 strict invariants).\n");
+    // --- Domain 10: COMPILER_SYSTEMS (Software Architecture, Compilers & Type Systems) ---
+    cargraph_builder_add_rule(builder, 10.0, 0.0, 1.0, "Type Soundness Invariant (Subject Reduction & Progress): A well-typed program term gamma |- e : tau that is not a value evaluates to term e' preserving type gamma |- e' : tau, preventing stuck undefined states.");
+    cargraph_builder_add_rule(builder, 10.0, 0.0, 1.0, "Single-Writer Multiple-Reader (SWMR) Memory Exclusivity Invariant: Mutable memory access mandates either exactly one exclusive mutable pointer or any number of shared immutable references, forbidding data races.");
+    cargraph_builder_add_rule(builder, 10.0, 1.0, 0.0, "Static Single Assignment (SSA) Dominance: In SSA form, every variable definition strictly dominates all of its use sites across the control flow graph.");
+    cargraph_builder_add_rule(builder, 10.0, 1.0, 0.0, "Curry-Howard Isomorphism: Computational type signatures correspond to propositional propositions in intuitionistic logic, and program terms correspond to deductive formal proofs.");
+    cargraph_builder_add_rule(builder, 10.0, 1.0, 0.0, "Dead Code Elimination Postulate: Instructions computing values with zero control flow side-effects and empty successor use sets can be eliminated without altering semantic execution.");
+    cargraph_builder_add_rule(builder, 10.0, 1.0, 0.0, "Register Allocation Chordal Graph Coloring: Register interference graphs over strict SSA programs are chordal and can be optimally colored in polynomial time.");
+    cargraph_builder_add_rule(builder, 10.0, 1.0, 0.0, "LLVM IR Canonical Lowering: High-level syntax constructs compile into canonical target-independent intermediate representation preserving strict semantics prior to native code generation.");
+    cargraph_builder_add_rule(builder, 10.0, 1.0, 0.0, "AST Transformation Idempotence: Canonical semantic analysis and AST normalization passes preserve semantic equivalence across repeated compiler invocations.");
+    cargraph_builder_add_rule(builder, 10.0, 1.0, 0.0, "Monomorphization Specialization: Generic polymorphism specializes generic template instantiations into concrete monomorphic types at compile time, eliminating runtime dispatch overhead.");
+    cargraph_builder_add_rule(builder, 10.0, 1.0, 0.0, "Linear Resource Typing: Linear type values must be consumed exactly once along every execution trajectory, guaranteeing deterministic zero-cost resource deallocation without garbage collection.");
+
+    printf("[Ingest Compiler] Ingested 11 cognitive domains and 92 structured rules (22 strict invariants).\n");
 
     // -------------------------------------------------------------------------
     // 3. Automated SMT/SAT Consistency Verification Pass
     // -------------------------------------------------------------------------
     printf("[Ingest Compiler] Running SMT/SAT Propositional Consistency Verification Pass...\n");
-    let solver = sat_solver_create(96.0);
+    let solver = sat_solver_create(112.0);
 
-    // Assert strict invariants as positive ground axioms across all 10 domains
+    // Assert strict invariants as positive ground axioms across all 11 domains
     sat_assert_axiom(solver, 0.0);
     sat_assert_axiom(solver, 1.0);
     sat_assert_axiom(solver, 2.0);
@@ -180,6 +193,8 @@ fn main(argc: float, argv: ptr) -> float {
     sat_assert_axiom(solver, 63.0);
     sat_assert_axiom(solver, 72.0);
     sat_assert_axiom(solver, 73.0);
+    sat_assert_axiom(solver, 82.0);
+    sat_assert_axiom(solver, 83.0);
 
     // Model valid implication dependencies across domains
     sat_add_implication(solver, 6.0, 7.0);   // Kinetic Energy -> Inelastic Dissipation
@@ -210,6 +225,13 @@ fn main(argc: float, argv: ptr) -> float {
     sat_add_implication(solver, 75.0, 77.0); // Defeasible Inference -> POMDP Epistemic State Estimation
     sat_add_implication(solver, 76.0, 80.0); // Occam Model Selection -> Bayesian Confirmation Holism
     sat_add_implication(solver, 47.0, 72.0); // Lexical Grounding Hub -> Bayesian Prior Invariant
+    sat_add_implication(solver, 82.0, 84.0); // Type Soundness -> SSA Dominance
+    sat_add_implication(solver, 85.0, 82.0); // Curry-Howard Isomorphism -> Type Soundness
+    sat_add_implication(solver, 54.0, 85.0); // Modus Ponens -> Curry-Howard Isomorphism (Domain 7 -> Domain 10)
+    sat_add_implication(solver, 84.0, 86.0); // SSA Dominance -> Dead Code Elimination
+    sat_add_implication(solver, 87.0, 21.0); // Register Allocation Chordal Coloring -> Polynomial Reduction (Domain 10 -> Domain 3)
+    sat_add_implication(solver, 83.0, 91.0); // SWMR Exclusivity -> Linear Resource Typing
+    sat_add_implication(solver, 47.0, 82.0); // Lexical Grounding Hub -> Type Soundness Invariant (Domain 6 -> Domain 10)
 
     let is_consistent = sat_solve_consistency(solver);
     if (is_consistent == 0.0) {
@@ -219,7 +241,7 @@ fn main(argc: float, argv: ptr) -> float {
         sat_solver_free(solver);
         return 1.0;
     }
-    printf("[Ingest Compiler] [PASS] SMT/SAT consistency mathematically proved across 82 rules. Graph is SAT.\n");
+    printf("[Ingest Compiler] [PASS] SMT/SAT consistency mathematically proved across 92 rules. Graph is SAT.\n");
 
     // -------------------------------------------------------------------------
     // 4. Binary Emission

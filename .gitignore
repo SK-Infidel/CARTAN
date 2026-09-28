@@ -50,6 +50,7 @@ test*.car
 !test/compiler_suite/test_nses_decision_domain.car
 !test/compiler_suite/test_universal_domain_lexicon.car
 !test/compiler_suite/test_nses_epistemology_domain.car
+!test/compiler_suite/test_nses_compiler_domain.car
 !test/geomind/nses/**
 test/geomind/nses/*.exe
 test/geomind/nses/*.pdb

@@ -3526,6 +3526,24 @@ This file tracks technical debt and bugs identified during repository code revie
   5. Added Domain 9 lateral primes in `src/std/burroughs.cl` and dataset routing in `test/geomind/train.cl`.
   6. Authored Target 78 (`test/compiler_suite/test_nses_epistemology_domain.car`), whitelisted in `.gitignore`, registered in `test/compiler_suite/run_tests.car`, and verified clean test execution across all 78 regression targets.
 
+---
+
+## [ISSUE-260] [FIXED] Lack of Software Architecture, Compilers & Type Systems Domain (Domain 10) & Self-Hosting Integration
+- **Severity**: High (Self-Hosting Core Compiler & Memory Model Symbolic Gap)
+- **Component**: [`src/std/cargraph.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/cargraph.cl), [`src/std/nses_pipeline.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/nses_pipeline.cl), [`src/std/veto_gate.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/veto_gate.cl), [`src/std/domain_lexicon.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/domain_lexicon.cl), [`tools/cargraph_ingest.car`](file:///C:/Users/rich-/source/repos/CARTAN/tools/cargraph_ingest.car), [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl)
+- **Description**:
+  1. CARTAN is designed to be a self-hosting, self-compiling programming language executing the next version of its own cognitive architecture. However, NSES lacks dedicated symbolic invariants governing type safety (Subject Reduction and Progress), memory exclusivity (SWMR), Static Single Assignment (SSA) dominance, register interference coloring, dead code elimination, and LLVM IR canonical lowering.
+  2. The CSR graph lacks bridges connecting Formal Deductive Logic (Domain 7, Modus Ponens/Cut Elimination) to Compiler Type Soundness via the Curry-Howard Isomorphism, and compiler optimization bounds to Computational Complexity (Domain 3, polynomial reductions).
+  3. The veto gate lacks protection against compiler-level undefined behavior assertions such as type confusion dereferences, use-after-free, and simultaneous mutable aliasing.
+- **Resolution**:
+  1. Synthesized Domain 10 (`COMPILER_SYSTEMS`) in `tools/cargraph_ingest.car` with 2 strict invariants (Type Soundness Invariant Rule 82, SWMR Memory Exclusivity Rule 83) and 8 relational rules (Rules 84..91: SSA Dominance, Curry-Howard Isomorphism, Dead Code Elimination, Register Allocation Chordal Coloring, LLVM IR Lowering, AST Idempotence, Monomorphization, Linear Resource Typing).
+  2. Scaled knowledge base to 11 domains, 92 rules, and 22 strict invariants, with a 112-variable SMT/SAT consistency proof prior to binary serialization.
+  3. Wired Deductive-Compiler-Complexity CSR bridges in `src/std/nses_pipeline.cl`: Rule 54 (Modus Ponens) $\to$ Rule 85 (Curry-Howard Isomorphism) $\to$ Rule 82 (Type Soundness), Rule 87 (Register Coloring) $\to$ Rule 21 (Polynomial Reductions), Rule 83 (SWMR Memory Exclusivity) $\to$ Rule 91 (Linear Resource Typing), and Rule 47 (Language Hub) $\to$ Rule 82 (Type Soundness).
+  4. Implemented Rule 13 (Compiler Undefined Behavior Veto) in `src/std/veto_gate.cl` and registered contradiction tokens `1001.0`–`1004.0` for logit suppression and loss shaping.
+  5. Expanded `src/std/domain_lexicon.cl` with Domain 10 specialized terminology and discourse framing (`[Compiler Architecture Frame]`).
+  6. Added Domain 10 lateral primes in `src/std/burroughs.cl` and dataset routing in `test/geomind/train.cl`.
+  7. Authored Target 79 (`test/compiler_suite/test_nses_compiler_domain.car`), whitelisted in `.gitignore`, registered in `test/compiler_suite/run_tests.car`, and verified 100% clean test execution across all 79 regression targets.
+
 
 
 

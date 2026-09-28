@@ -1,0 +1,28 @@
+# Sprint 469 Task List: Software Architecture, Compilers & Type Systems (Domain 10)
+
+- [x] **Task 1: Ingest Domain 10 in Knowledge Compiler (`tools/cargraph_ingest.car`)**
+  - [x] Add Domain 10 (`COMPILER_SYSTEMS`) with 2 strict invariants and 8 relational rules (Rules 82..91).
+  - [x] Scale total domains to 11, total rules to 92, strict count to 22.
+  - [x] Wire SMT/SAT consistency checks (implications 82 -> 84, 85 -> 82, 54 -> 85, 84 -> 86, 87 -> 21, 83 -> 91, 47 -> 82) with 112-variable solver.
+  - [x] Recompile `tools/cargraph_ingest.car` and generate updated `nses_knowledge.car_graph`.
+- [x] **Task 2: Veto Gate, Lexicon & Burroughs Primes Integration**
+  - [x] Add Rule 13 (Domain 10) compiler undefined behavior veto in `src/std/veto_gate.cl`.
+  - [x] Register default contradiction tokens `1001`, `1002`, `1003`, `1004` for Domain 10 in `veto_registry_populate_defaults`.
+  - [x] Add Domain 10 terms, IC weights, and discourse frame in `src/std/domain_lexicon.cl`.
+  - [x] Add Domain 10 lateral primes in `src/std/burroughs.cl`.
+- [x] **Task 3: Pipeline Intent Routing, CSR Bridges & Training Routing**
+  - [x] Add Stage 1 intent detection for compiler queries in `src/std/nses_pipeline.cl`.
+  - [x] Add Stage 3 seed selection for Domain 10 (Rule 82: Type Soundness Invariant).
+  - [x] Wire CSR bridges (82 -> 84, 85 -> 82, 54 -> 85, 84 -> 86, 87 -> 21, 83 -> 91, 47 -> 82) and fallbacks in `src/std/nses_pipeline.cl`.
+  - [x] In `test/geomind/train.cl`, route compiler and programming language datasets to Domain 10.
+- [x] **Task 4: Author Target 79 & Regression Verification**
+  - [x] Author `test/compiler_suite/test_nses_compiler_domain.car`.
+  - [x] Whitelist Target 79 in `.gitignore`.
+  - [x] Register Target 79 in `test/compiler_suite/run_tests.car` and update total count to 79.
+  - [x] Rebuild `build/run_tests.exe` and execute all 79 targets (must pass 79/79 cleanly with exit code 0).
+- [x] **Task 5: Documentation & Session Closeout**
+  - [x] Update `ISSUES.md` (`[ISSUE-260]` -> `[FIXED]`).
+  - [x] Update `CHANGELOG.md` (`[8.427.0]`).
+  - [x] Update `docs/ROADMAP.md`.
+  - [x] Save walkthrough to `docs/archive/sprint_469_walkthrough.md`.
+  - [x] Commit and push to `origin/master`.

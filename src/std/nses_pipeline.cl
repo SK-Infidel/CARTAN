@@ -98,6 +98,12 @@ fn nses_pipeline_create(graph_path: string) -> NSES_Pipeline {
     csr_builder_add_edge(b, 54.0, 75.0, 1.25, 1.0, 0.0); // Modus Ponens -> Defeasible Logic Bridge (Domain 7 -> Domain 9)
     csr_builder_add_edge(b, 75.0, 77.0, 1.20, 1.0, 0.0); // Defeasible Inference -> POMDP Epistemic State Estimation (Domain 9 -> Domain 8)
     csr_builder_add_edge(b, 76.0, 80.0, 1.20, 1.0, 0.0); // Occam Model Selection -> Bayesian Confirmation Holism
+    csr_builder_add_edge(b, 82.0, 84.0, 1.30, 1.0, 0.0); // Type Soundness -> SSA Dominance
+    csr_builder_add_edge(b, 85.0, 82.0, 1.30, 1.0, 0.0); // Curry-Howard Isomorphism -> Type Soundness
+    csr_builder_add_edge(b, 54.0, 85.0, 1.25, 1.0, 0.0); // Modus Ponens -> Curry-Howard Isomorphism (Domain 7 -> Domain 10)
+    csr_builder_add_edge(b, 84.0, 86.0, 1.20, 1.0, 0.0); // SSA Dominance -> Dead Code Elimination
+    csr_builder_add_edge(b, 87.0, 21.0, 1.25, 1.0, 0.0); // Register Allocation Chordal Coloring -> Polynomial Reduction (Domain 10 -> Domain 3)
+    csr_builder_add_edge(b, 83.0, 91.0, 1.25, 1.0, 0.0); // SWMR Exclusivity -> Linear Resource Typing
 
     // Hub-and-Spoke Universal Cross-Domain Linguistic Grounding (Domain 6 -> All Domains)
     csr_builder_add_edge(b, 47.0, 0.0, 1.25, 1.0, 0.0);  // Lexical Grounding -> Conservation Invariant (Domain 0)
@@ -109,6 +115,7 @@ fn nses_pipeline_create(graph_path: string) -> NSES_Pipeline {
     csr_builder_add_edge(b, 47.0, 54.0, 1.30, 1.0, 0.0); // Lexical Grounding -> Modus Ponens (Domain 7)
     csr_builder_add_edge(b, 47.0, 62.0, 1.25, 1.0, 0.0); // Lexical Grounding -> Bellman Optimality (Domain 8)
     csr_builder_add_edge(b, 47.0, 72.0, 1.25, 1.0, 0.0); // Lexical Grounding -> Bayesian Posterior Invariant (Domain 9)
+    csr_builder_add_edge(b, 47.0, 82.0, 1.25, 1.0, 0.0); // Lexical Grounding -> Type Soundness Invariant (Domain 10)
     let g = csr_builder_build(b);
     csr_builder_free(b);
 
@@ -189,6 +196,8 @@ fn nses_pipeline_execute_turn(
         routed_domain = 8.0; // DECISION_PLANNING
     } else if (cartan_string_contains(query, "epistemolog") != 0.0 || cartan_string_contains(query, "belief") != 0.0 || cartan_string_contains(query, "bayes") != 0.0 || cartan_string_contains(query, "posterior") != 0.0 || cartan_string_contains(query, "prior") != 0.0 || cartan_string_contains(query, "evidence") != 0.0 || cartan_string_contains(query, "credence") != 0.0 || cartan_string_contains(query, "uncertainty") != 0.0 || cartan_string_contains(query, "agm") != 0.0 || cartan_string_contains(query, "defeasible") != 0.0 || cartan_string_contains(query, "likelihood") != 0.0 || cartan_string_contains(query, "occam") != 0.0) {
         routed_domain = 9.0; // EPISTEMOLOGY_BELIEF
+    } else if (cartan_string_contains(query, "compiler") != 0.0 || cartan_string_contains(query, "type_check") != 0.0 || cartan_string_contains(query, "ast") != 0.0 || cartan_string_contains(query, "llvm") != 0.0 || cartan_string_contains(query, "ssa") != 0.0 || cartan_string_contains(query, "register") != 0.0 || cartan_string_contains(query, "monomorph") != 0.0 || cartan_string_contains(query, "borrow") != 0.0 || cartan_string_contains(query, "bytecode") != 0.0 || cartan_string_contains(query, "codegen") != 0.0 || cartan_string_contains(query, "syntax") != 0.0) {
+        routed_domain = 10.0; // COMPILER_SYSTEMS
     }
 
     // -------------------------------------------------------------------------
@@ -228,6 +237,9 @@ fn nses_pipeline_execute_turn(
         collections_list_push(pipe.act_list, 1.0);
     } else if (routed_domain == 9.0) {
         collections_list_push(pipe.seed_list, 72.0); // Seed: Rule 72 (Bayesian Posterior Invariant)
+        collections_list_push(pipe.act_list, 1.0);
+    } else if (routed_domain == 10.0) {
+        collections_list_push(pipe.seed_list, 82.0); // Seed: Rule 82 (Type Soundness Invariant)
         collections_list_push(pipe.act_list, 1.0);
     } else {
         collections_list_push(pipe.seed_list, 44.0);
@@ -324,6 +336,18 @@ fn nses_pipeline_execute_turn(
                 cartan_tree_push(pipe.memory_tree, "Occam Model Selection: Given equal empirical likelihood and explanatory warrant, models with lower Kolmogorov complexity and fewer free parameters possess higher prior probability.");
             } else if (n_id == 77.0) {
                 cartan_tree_push(pipe.memory_tree, "POMDP Epistemic State Estimation: In partially observable environments, the belief state vector updates through observation probabilities and state transition dynamics.");
+            } else if (n_id == 82.0) {
+                cartan_tree_push(pipe.memory_tree, "Type Soundness Invariant (Subject Reduction & Progress): A well-typed program term gamma |- e : tau that is not a value evaluates to term e' preserving type gamma |- e' : tau, preventing stuck undefined states.");
+            } else if (n_id == 83.0) {
+                cartan_tree_push(pipe.memory_tree, "Single-Writer Multiple-Reader (SWMR) Memory Exclusivity Invariant: Mutable memory access mandates either exactly one exclusive mutable pointer or any number of shared immutable references, forbidding data races.");
+            } else if (n_id == 84.0) {
+                cartan_tree_push(pipe.memory_tree, "Static Single Assignment (SSA) Dominance: In SSA form, every variable definition strictly dominates all of its use sites across the control flow graph.");
+            } else if (n_id == 85.0) {
+                cartan_tree_push(pipe.memory_tree, "Curry-Howard Isomorphism: Computational type signatures correspond to propositional propositions in intuitionistic logic, and program terms correspond to deductive formal proofs.");
+            } else if (n_id == 86.0) {
+                cartan_tree_push(pipe.memory_tree, "Dead Code Elimination Postulate: Instructions computing values with zero control flow side-effects and empty successor use sets can be eliminated without altering semantic execution.");
+            } else if (n_id == 87.0) {
+                cartan_tree_push(pipe.memory_tree, "Register Allocation Chordal Graph Coloring: Register interference graphs over strict SSA programs are chordal and can be optimally colored in polynomial time.");
             }
         }
         m_idx = m_idx + 1.0;

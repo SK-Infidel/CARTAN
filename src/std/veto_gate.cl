@@ -381,6 +381,29 @@ fn veto_registry_populate_defaults(reg: VetoRegistry) {
     veto_registry_add_forbidden_token(reg, 9.0, 902.0);
     veto_registry_add_forbidden_token(reg, 9.0, 903.0);
     veto_registry_add_forbidden_token(reg, 9.0, 904.0);
+
+    // 13. Compiler Undefined Behavior, Type Confusion & Memory Exclusivity (Domain 10: COMPILER_SYSTEMS)
+    let p13 = cartan_tree_create();
+    cartan_tree_push(p13, "type confusion dereference");
+    cartan_tree_push(p13, "use after free with dangling pointer");
+    cartan_tree_push(p13, "simultaneous mutable aliasing");
+    cartan_tree_push(p13, "access undefined stuck state");
+    cartan_tree_push(p13, "evaluating stuck ill-typed term");
+    cartan_tree_push(p13, "data race on shared mutable pointer");
+    cartan_tree_push(p13, "multiple exclusive writers");
+    veto_registry_add_rule(
+        reg,
+        13.0,
+        10.0,
+        "In accordance with programming language semantics and compiler type soundness, well-typed terms never evaluate to stuck undefined states, and memory access strictly enforces single-writer multiple-reader exclusivity.",
+        p13
+    );
+
+    // Domain 10: COMPILER_SYSTEMS (Type confusion, use after free, data race, SSA dominance violation)
+    veto_registry_add_forbidden_token(reg, 10.0, 1001.0);
+    veto_registry_add_forbidden_token(reg, 10.0, 1002.0);
+    veto_registry_add_forbidden_token(reg, 10.0, 1003.0);
+    veto_registry_add_forbidden_token(reg, 10.0, 1004.0);
 }
 
 // Computes analytical symbolic penalty across output logits to shape training loss

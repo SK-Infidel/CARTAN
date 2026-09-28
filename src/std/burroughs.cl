@@ -229,4 +229,9 @@ fn burroughs_pool_populate_defaults(pool: BurroughsPool) {
     burroughs_pool_add(pool, 22.0, 9.0, 1.0, "Bayesian belief distributions contract and shift across probability simplexes under streams of incoming empirical evidence.");
     burroughs_pool_add(pool, 23.0, 9.0, 2.0, "Defeasible default assumptions hold tentatively until sharp counter-evidence triggers AGM epistemic contraction.");
     burroughs_pool_add(pool, 24.0, 9.0, 3.0, "Occam razor carves minimal Kolmogorov complexity pathways through high-dimensional hypothesis spaces.");
+
+    // --- Domain 10: Software Architecture, Compilers & Type Systems Lateral Primes ---
+    burroughs_pool_add(pool, 25.0, 10.0, 1.0, "Curry-Howard isomorphism projects program typing judgments onto intuitionistic logical proofs.");
+    burroughs_pool_add(pool, 26.0, 10.0, 2.0, "Static single assignment dominance trees funnel mutable lifetimes into chordal register interference matrices.");
+    burroughs_pool_add(pool, 27.0, 10.0, 3.0, "Monomorphized generic expressions fold compile-time template branches into deterministic native machine opcodes.");
 }

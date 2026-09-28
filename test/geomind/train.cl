@@ -2640,6 +2640,8 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
                         active_d = 8.0; // DECISION_PLANNING
                     } else if (cartan_string_contains(cur_dataset_name, "epistem") != 0.0 || cartan_string_contains(cur_dataset_name, "belief") != 0.0 || cartan_string_contains(cur_dataset_name, "bayes") != 0.0 || cartan_string_contains(cur_dataset_name, "evidence") != 0.0 || cartan_string_contains(cur_dataset_name, "uncertain") != 0.0 || cartan_string_contains(cur_dataset_name, "credence") != 0.0) {
                         active_d = 9.0; // EPISTEMOLOGY_BELIEF
+                    } else if (cartan_string_contains(cur_dataset_name, "compiler") != 0.0 || cartan_string_contains(cur_dataset_name, "llvm") != 0.0 || cartan_string_contains(cur_dataset_name, "syntax") != 0.0 || cartan_string_contains(cur_dataset_name, "ast") != 0.0 || cartan_string_contains(cur_dataset_name, "type_system") != 0.0 || cartan_string_contains(cur_dataset_name, "code") != 0.0) {
+                        active_d = 10.0; // COMPILER_SYSTEMS
                     } else {
                         active_d = 5.0; // CAUSAL_TAXONOMY
                     }
