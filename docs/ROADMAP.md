@@ -321,6 +321,8 @@ This roadmap tracks the implementation of the advanced AI optimizations and nati
 - [x] **21. Full Regression Suite (72 Targets)**: 72/72 regression suite test targets passing with 0 failures (Exit code 0).
 - [x] **22. Bulk Neuro-Symbolic Corpus Ingestion & Dynamic String Pool Resolution (`src/std/nses_pipeline.cl`, `tools/ns_rule_generator.car`, Sprint 463)**: Ingested 110 communicative relational triples (`test/geomind/trainingdata/atomic_conceptnet_discourse.tsv`); upgraded NSES memory traversal to dynamic zero-copy string resolution from `.car_graph` string pool (`cargraph_get_rule_text`); verified 256-variable SAT consistency; Target 73 passing.
 - [x] **23. Full Regression Suite (73 Targets)**: 73/73 regression suite test targets passing with 0 failures (Exit code 0).
+- [x] **24. Chat & Training NSES Forward Pass & Loss Integration (`src/std/veto_gate.cl`, `test/geomind/chat.cl`, `test/geomind/train.cl`, Sprint 464)**: Automated domain contradiction extraction in veto gate under null token arrays; real-time logit modulation in chat forward generation loop; Continuous Hopfield attractor memory priming from `.car_graph` embeddings; Domain 6 (`LANGUAGE_DISCOURSE`) dataset routing; Target 74 passing.
+- [x] **25. Full Regression Suite (74 Targets)**: 74/74 regression suite test targets passing with 0 failures (Exit code 0).
 
 
 

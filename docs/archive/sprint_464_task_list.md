@@ -1,0 +1,23 @@
+# Sprint 464 Task List: Chat & Training Integration with NSES Forward Pass
+
+- [x] **Task 1: Veto Registry Auto-Forbidden Token Extraction**
+  - [x] Add `domain_forbidden_tokens` tree to `VetoRegistry` in `src/std/veto_gate.cl`.
+  - [x] Implement `veto_registry_add_forbidden_token` and populate defaults for domains 0 and 6.
+  - [x] Update `veto_compute_symbolic_loss_penalty` to penalize registered domain tokens when explicit `forbidden_token_ids == 0.0`.
+- [x] **Task 2: Chat Forward Pass & Attractor Integration**
+  - [x] Update `geomind_chat_get_nses_pipeline()` in `test/geomind/chat.cl` to resolve `atomic_discourse.car_graph` when present.
+  - [x] Prime Hopfield memory with active domain rule attractors from `nses_pipe.graph_file` before hidden state relaxation.
+  - [x] Inject `nses_pipeline_shape_loss` into the autoregressive token generation forward pass loop.
+- [x] **Task 3: Training Dataset Routing & Loss Shaping**
+  - [x] In `test/geomind/train.cl`, add Domain 6 (`LANGUAGE_DISCOURSE`) routing for discourse/chat/dialogue datasets.
+  - [x] Update stage logging and ensure `train_sync_salient_attractors_to_gpu` and loss shaping operate for Domain 6.
+- [x] **Task 4: Author Target 74 & Regression Verification**
+  - [x] Author `test/compiler_suite/test_chat_train_nses_forward_integration.car`.
+  - [x] Whitelist Target 74 in `.gitignore`.
+  - [x] Register Target 74 in `test/compiler_suite/run_tests.car`.
+  - [x] Rebuild `build/run_tests.exe` and execute all 74 targets (74/74 passing cleanly).
+- [x] **Task 5: Documentation & Session Closeout**
+  - [x] Update `ISSUES.md` (`[ISSUE-255]` -> `[FIXED]`).
+  - [x] Update `CHANGELOG.md` (`[8.422.0]`).
+  - [x] Update `docs/ROADMAP.md`.
+  - [x] Save walkthrough to `docs/archive/sprint_464_walkthrough.md`.

@@ -3437,6 +3437,25 @@ This file tracks technical debt and bugs identified during repository code revie
   3. Upgraded `tools/ns_rule_generator.car` / `build/ns_rule_generator.exe` with 256-variable SAT capacity and dynamic domain rule counting, successfully compiling `test/geomind/trainingdata/atomic_discourse.car_graph` and `test/geomind/trainingdata/atomic_discourse.car`.
   4. Authored Target 73 (`test/compiler_suite/test_bulk_corpus_ingestion.car`) and verified 100% clean compilation and execution across all 73 regression targets.
 
+---
+
+## [ISSUE-255] [FIXED] Ineffective Symbolic Loss & Forward Logit Shaping Due to Null Forbidden Token IDs in Training & Missing Chat Forward Pass Integration
+- **Severity**: High (Neuro-Symbolic Forward Pass & Training Loss Shaping Gap)
+- **Component**: [`src/std/veto_gate.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/veto_gate.cl), [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl), [`test/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl)
+- **Description**:
+  1. In `src/std/veto_gate.cl`, `veto_compute_symbolic_loss_penalty` required an explicit non-null `forbidden_token_ids` pointer. When `forbidden_token_ids == 0.0` (as called in `train.cl:2701`), the function immediately returned 0.0, failing to penalize active domain contradiction triggers during training backpropagation.
+  2. In `test/geomind/train.cl`, dataset routing lacked routing for Domain 6 (`LANGUAGE_DISCOURSE`), preventing discourse datasets from activating domain 6 attractors and guardrails.
+  3. In `test/geomind/chat.cl`, the token-by-token autoregressive forward pass loop did not apply NSES symbolic logit modulation, and Hopfield memory did not preload active domain salient attractors from the `.car_graph` string/embedding pool.
+- **Resolution**:
+  1. Upgraded `VetoRegistry` in `src/std/veto_gate.cl` to maintain per-domain contradiction token lists (`domain_forbidden_tokens`) populated during initialization with universal and domain-specific contradiction tokens (e.g. Domain 0: 101, 102, 103; Domain 6: 601, 602, 603, 604).
+  2. Upgraded `veto_compute_symbolic_loss_penalty` to automatically extract and penalize registered domain contradiction tokens when `forbidden_token_ids == 0.0`, computing authentic analytical loss penalties.
+  3. Upgraded `test/geomind/chat.cl`:
+     a. Prioritizes `test/geomind/trainingdata/atomic_discourse.car_graph` for comprehensive 110-rule discourse coverage.
+     b. Injects active domain salient rule vectors into Continuous Hopfield attractor memory before relaxation, with deterministic Lie coordinate fallback for zero-norm embeddings.
+     c. Integrated `nses_pipeline_shape_loss` directly into the autoregressive forward pass loop (`while (step < max_t)`), actively modulating logits and suppressing contradictions in real time.
+  4. Upgraded `test/geomind/train.cl` with Domain 6 (`LANGUAGE_DISCOURSE`) dataset routing matching `"discourse"`, `"dialogue"`, `"chat"`, `"language"`, `"conversation"`, and `"atomic"`.
+  5. Authored Target 74 (`test/compiler_suite/test_chat_train_nses_forward_integration.car`) verifying auto-forbidden token extraction, forward logit modulation, Hopfield attractor priming, and dataset routing, passing 100% cleanly across all 74 compiler regression targets.
+
 
 
 

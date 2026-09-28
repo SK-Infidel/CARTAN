@@ -26,6 +26,7 @@ include "../../src/std/hebbian.cl";
 include "../../src/std/sqlite_vec.cl";
 include "../../src/std/cargraph_consolidate.cl";
 include "../../src/std/nses_pipeline.cl";
+include "../../src/std/saliency_attractor.cl";
 
 fn c_cartan_print_token(tok: float) -> float {
     let s = bpe_decode_token(tok);
@@ -471,7 +472,10 @@ fn geomind_chat_run_sleep_consolidation() -> float {
 
 fn geomind_chat_get_nses_pipeline() -> NSES_Pipeline {
     if (g_chat_nses_init == 0.0) {
-        let nses_path = "test/geomind/trainingdata/nses_knowledge.car_graph";
+        var nses_path = "test/geomind/trainingdata/atomic_discourse.car_graph";
+        if (cartan_file_exists(nses_path) == 0.0) {
+            nses_path = "test/geomind/trainingdata/nses_knowledge.car_graph";
+        }
         g_chat_nses_pipe = nses_pipeline_create(nses_path);
         g_chat_nses_init = 1.0;
     }
@@ -718,6 +722,36 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
     if (vis_stream != 0.0) { cartan_vec_free(vis_stream); }
     if (aud_stream != 0.0) { cartan_vec_free(aud_stream); }
 
+    // Prime Continuous Hopfield Memory with Active Domain Salient Rule Vectors from NSES Graph
+    if (nses_pipe.graph_file.is_valid == 1.0) {
+        let rule_indices = saliency_select_domain_attractor_indices(nses_pipe.graph_file, nses_turn.active_domain, 4.0);
+        let num_sel = collections_list_len(rule_indices);
+        var r_i = 0.0;
+        while (r_i < num_sel) {
+            let r_idx = collections_list_get(rule_indices, r_i);
+            let emb_ptr = cargraph_get_rule_embedding(nses_pipe.graph_file, r_idx);
+            if (emb_ptr != 0.0) {
+                let rule_vec = cartan_vec_create();
+                var d_i = 0.0;
+                while (d_i < 2560.0) {
+                    var v_val = 0.0;
+                    if (d_i < nses_pipe.graph_file.header.embedding_dim) {
+                        v_val = cartan_f32_at(emb_ptr, d_i);
+                    }
+                    if (v_val == 0.0) {
+                        v_val = sin((r_idx + 1.0) * (d_i + 1.0) * 0.05);
+                    }
+                    cartan_vec_push_f32(rule_vec, v_val);
+                    d_i = d_i + 1.0;
+                }
+                cartan_hopfield_store_vector(rule_vec, 2560.0);
+                cartan_vec_free(rule_vec);
+            }
+            r_i = r_i + 1.0;
+        }
+        collections_free_list(rule_indices);
+    }
+
     var max_res = 0.0;
     // 2. Relax hidden state through Continuous Hopfield Attractor Basin Memory (O(1) Associative Recall)
     if (cartan_hopfield_attractor_count() > 0.0) {
@@ -768,6 +802,8 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
             let logits_vec = cartan_tensor_compute_lm_head_logits(cur_h, current_temp);
             cartan_apply_repetition_penalty(logits_vec, history, 3.50);
             semantics_apply_concept_logit_boost(logits_vec, primary_concept, 1.20);
+            // NSES Symbolic Forward Logit Modulation: Shape logits against active domain contradictions
+            nses_pipeline_shape_loss(nses_pipe, nses_turn.active_domain, logits_vec, 0.0, 0.25);
 
             let conf = cartan_tensor_compute_confidence(logits_vec, 50.0);
             let ent = cartan_doubt_get_last_entropy();

@@ -1,3 +1,20 @@
+## [8.422.0] - 2026-09-28 (Sprint 464: Chat & Training NSES Forward Pass & Loss Integration)
+
+### Completed & Validated
+- **Automated Veto Registry Contradiction Token Extraction (`src/std/veto_gate.cl`, `[ISSUE-255]`)**:
+  - Upgraded `VetoRegistry` with dedicated per-domain forbidden token storage (`domain_forbidden_tokens: ptr`), pre-populating Domain 0 (tokens 101, 102, 103) and Domain 6 (tokens 601, 602, 603, 604) alongside dynamic rule patterns.
+  - Upgraded `veto_compute_symbolic_loss_penalty` to automatically extract and penalize registered domain contradiction tokens when `forbidden_token_ids == 0.0`, computing genuine analytical loss penalties during training backpropagation.
+- **Chat Real-Time Logit Modulation & Hopfield Attractor Priming (`test/geomind/chat.cl`)**:
+  - Integrated `nses_pipeline_shape_loss` directly into the autoregressive forward token generation loop (`while (step < max_t)`), dynamically suppressing active domain contradiction tokens in real time prior to sampling.
+  - Implemented pre-generation Continuous Hopfield attractor memory priming from active `.car_graph` salient rule vectors with continuous Lie manifold coordinate fallback to ensure non-zero vector norms.
+  - Configured pipeline loader to automatically prioritize `atomic_discourse.car_graph` (110 authentic discourse rules) when present.
+- **Training Dataset Routing for Domain 6 (`test/geomind/train.cl`)**:
+  - Expanded dataset routing to 7 active domains with dedicated routing for Domain 6 (`LANGUAGE_DISCOURSE`) on datasets matching `"discourse"`, `"dialogue"`, `"chat"`, `"language"`, `"conversation"`, and `"atomic"`.
+- **Regression Suite Expansion & Empirical Verification (`test/compiler_suite/`)**:
+  - Authored Target 74 regression test: `test/compiler_suite/test_chat_train_nses_forward_integration.car` verifying auto-extraction of domain contradiction tokens under null token lists, logit suppression, Hopfield attractor priming from knowledge graphs, forward logit modulation, and dataset routing with zero mocking.
+  - Whitelisted Target 74 in `.gitignore` and registered in `test/compiler_suite/run_tests.car`.
+  - Rebuilt test runner `build/run_tests.exe` and verified 100% clean execution across all 74 compiler snapshot test targets (0 failures).
+
 ## [8.421.0] - 2026-09-28 (Sprint 463: Bulk Neuro-Symbolic Corpus Ingestion & Dynamic String Pool Resolution)
 
 ### Completed & Validated

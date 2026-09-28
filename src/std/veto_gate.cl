@@ -31,6 +31,7 @@ struct VetoRegistry {
     domain_ids: ptr;              // collections list (float)
     canonical_assertions: ptr;   // cartan_tree of strings
     pattern_trees: ptr;           // cartan_tree of cartan_trees (list of forbidden patterns per rule)
+    domain_forbidden_tokens: ptr; // cartan_tree of collections lists of float token IDs
 }
 
 // Converts an ASCII string to lowercase for robust pattern matching
@@ -57,12 +58,20 @@ fn veto_registry_create() -> VetoRegistry {
     let d_ids = collections_create_list();
     let c_tree = cartan_tree_create();
     let p_tree = cartan_tree_create();
+    let d_toks = cartan_tree_create();
+    var d = 0.0;
+    while (d < 8.0) {
+        let t_list = collections_create_list();
+        cartan_tree_push(d_toks, t_list);
+        d = d + 1.0;
+    }
     return VetoRegistry {
         count: 0.0,
         rule_ids: r_ids,
         domain_ids: d_ids,
         canonical_assertions: c_tree,
-        pattern_trees: p_tree
+        pattern_trees: p_tree,
+        domain_forbidden_tokens: d_toks
     };
 }
 
@@ -76,10 +85,30 @@ fn veto_registry_add_rule(reg: VetoRegistry, rule_id: float, domain_id: float, a
     return reg.count;
 }
 
+// Registers a forbidden token ID associated with contradictions in a domain
+fn veto_registry_add_forbidden_token(reg: VetoRegistry, domain_id: float, token_id: float) -> float {
+    if (reg.domain_forbidden_tokens == 0.0 || domain_id < 0.0 || domain_id >= 8.0) { return 0.0; }
+    let t_list = cartan_tree_get_f32(reg.domain_forbidden_tokens, domain_id);
+    if (t_list != 0.0) {
+        collections_list_push(t_list, token_id);
+        return collections_list_len(t_list);
+    }
+    return 0.0;
+}
+
 // Deallocates VetoRegistry resources
 fn veto_registry_free(reg: VetoRegistry) {
     if (reg.rule_ids != 0.0) { collections_free_list(reg.rule_ids); }
     if (reg.domain_ids != 0.0) { collections_free_list(reg.domain_ids); }
+    if (reg.domain_forbidden_tokens != 0.0) {
+        var d = 0.0;
+        let num_d = cartan_tree_len_f(reg.domain_forbidden_tokens);
+        while (d < num_d) {
+            let t_list = cartan_tree_get_f32(reg.domain_forbidden_tokens, d);
+            if (t_list != 0.0) { collections_free_list(t_list); }
+            d = d + 1.0;
+        }
+    }
 }
 
 // Scans candidate generated response text against active invariants
@@ -250,6 +279,18 @@ fn veto_registry_populate_defaults(reg: VetoRegistry) {
         "In accordance with communicative pragmatics, language conveys structured meaning through shared vocabulary, grammatical syntax, and coherent speech acts.",
         p8
     );
+
+    // Register Default Contradiction Tokens across Cognitive Domains
+    // Domain 0: SYSTEM_CORE (Energy destruction, perpetual motion, causality violations)
+    veto_registry_add_forbidden_token(reg, 0.0, 101.0);
+    veto_registry_add_forbidden_token(reg, 0.0, 102.0);
+    veto_registry_add_forbidden_token(reg, 0.0, 103.0);
+
+    // Domain 6: LANGUAGE_DISCOURSE (Nonsense, meaninglessness, grammar denial)
+    veto_registry_add_forbidden_token(reg, 6.0, 601.0);
+    veto_registry_add_forbidden_token(reg, 6.0, 602.0);
+    veto_registry_add_forbidden_token(reg, 6.0, 603.0);
+    veto_registry_add_forbidden_token(reg, 6.0, 604.0);
 }
 
 // Computes analytical symbolic penalty across output logits to shape training loss
@@ -260,6 +301,8 @@ fn veto_compute_symbolic_loss_penalty(reg: VetoRegistry, active_domain: float, l
     if (v_len == 0.0) { return 0.0; }
 
     var penalty_loss = 0.0;
+
+    // 1. Explicit forbidden token IDs
     if (forbidden_token_ids != 0.0) {
         let num_toks = cartan_vec_len(forbidden_token_ids);
         var i = 0.0;
@@ -267,10 +310,8 @@ fn veto_compute_symbolic_loss_penalty(reg: VetoRegistry, active_domain: float, l
             let tok = cartan_vec_get_f32(forbidden_token_ids, i);
             if (tok >= 0.0 && tok < v_len) {
                 let cur_z = cartan_vec_get_f32(logits_vec, tok);
-                // Analytical symbolic penalty: subtract steep gradient from logit
                 let pen = lambda_sym * 15.0;
                 cartan_vec_set_f32(logits_vec, tok, cur_z - pen);
-                // Accumulate positive penalty term
                 let exp_z = exp(cur_z / 10.0);
                 if (exp_z > 0.0) {
                     penalty_loss = penalty_loss + (lambda_sym * exp_z * 0.01);
@@ -279,6 +320,52 @@ fn veto_compute_symbolic_loss_penalty(reg: VetoRegistry, active_domain: float, l
             i = i + 1.0;
         }
     }
+
+    // 2. Automated domain contradiction tokens from veto registry
+    if (reg.domain_forbidden_tokens != 0.0) {
+        // Universal Domain 0 Invariants (Always checked)
+        let d0_list = cartan_tree_get_f32(reg.domain_forbidden_tokens, 0.0);
+        if (d0_list != 0.0) {
+            let d0_len = collections_list_len(d0_list);
+            var j = 0.0;
+            while (j < d0_len) {
+                let tok0 = collections_list_get(d0_list, j);
+                if (tok0 >= 0.0 && tok0 < v_len) {
+                    let cur_z = cartan_vec_get_f32(logits_vec, tok0);
+                    let pen = lambda_sym * 15.0;
+                    cartan_vec_set_f32(logits_vec, tok0, cur_z - pen);
+                    let exp_z = exp(cur_z / 10.0);
+                    if (exp_z > 0.0) {
+                        penalty_loss = penalty_loss + (lambda_sym * exp_z * 0.01);
+                    }
+                }
+                j = j + 1.0;
+            }
+        }
+
+        // Active domain specific invariants
+        if (active_domain > 0.0 && active_domain < 8.0) {
+            let da_list = cartan_tree_get_f32(reg.domain_forbidden_tokens, active_domain);
+            if (da_list != 0.0) {
+                let da_len = collections_list_len(da_list);
+                var k = 0.0;
+                while (k < da_len) {
+                    let tok_a = collections_list_get(da_list, k);
+                    if (tok_a >= 0.0 && tok_a < v_len) {
+                        let cur_z = cartan_vec_get_f32(logits_vec, tok_a);
+                        let pen = lambda_sym * 15.0;
+                        cartan_vec_set_f32(logits_vec, tok_a, cur_z - pen);
+                        let exp_z = exp(cur_z / 10.0);
+                        if (exp_z > 0.0) {
+                            penalty_loss = penalty_loss + (lambda_sym * exp_z * 0.01);
+                        }
+                    }
+                    k = k + 1.0;
+                }
+            }
+        }
+    }
+
     return penalty_loss;
 }
 

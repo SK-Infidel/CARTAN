@@ -2188,7 +2188,7 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
     let cons_arena = dynamic_arena_create(65536.0, 64.0);
     if (nses_pipe.graph_file.is_valid == 1.0) {
         nses_active = 1.0;
-        printf("[Steady-State Stage: %s] NSES Grounding Engine Active (6 Domains, %s Rules loaded)\n",
+        printf("[Steady-State Stage: %s] NSES Grounding Engine Active (7 Domains, %s Rules loaded)\n",
             stage_name, cartan_float_to_string(nses_pipe.graph_file.header.num_rules));
         cartan_flush(0.0);
     }
@@ -2632,6 +2632,8 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
                         active_d = 3.0; // COMPLEXITY_THEORY / Formal Logic
                     } else if (cartan_string_contains(cur_dataset_name, "physics") != 0.0 || cartan_string_contains(cur_dataset_name, "mechanics") != 0.0) {
                         active_d = 1.0; // PHYSICS_SIM
+                    } else if (cartan_string_contains(cur_dataset_name, "discourse") != 0.0 || cartan_string_contains(cur_dataset_name, "dialogue") != 0.0 || cartan_string_contains(cur_dataset_name, "chat") != 0.0 || cartan_string_contains(cur_dataset_name, "language") != 0.0 || cartan_string_contains(cur_dataset_name, "conversation") != 0.0 || cartan_string_contains(cur_dataset_name, "atomic") != 0.0) {
+                        active_d = 6.0; // LANGUAGE_DISCOURSE
                     } else {
                         active_d = 5.0; // CAUSAL_TAXONOMY
                     }
