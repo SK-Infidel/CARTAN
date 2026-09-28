@@ -480,12 +480,31 @@ fn cartan_tensor_add(A: ptr, B: ptr) -> ptr {
     let lenB = cartan_vec_len(B);
     var len = lenA;
     if (lenB < len) { len = lenB; }
-    let res = cartan_vec_create();
+    if (len <= 0.0) { return cartan_vec_create(); }
+    let res = cartan_tensor_alloc(len);
+    if (cartan_c_is_tree(A) == 0.0 && cartan_c_is_tree(B) == 0.0) {
+        let limit = len - 3.0;
+        var i = 0.0;
+        while (i < limit) {
+            let offset = 2.0 + i;
+            res[offset] = A[offset] + B[offset];
+            res[offset + 1.0] = A[offset + 1.0] + B[offset + 1.0];
+            res[offset + 2.0] = A[offset + 2.0] + B[offset + 2.0];
+            res[offset + 3.0] = A[offset + 3.0] + B[offset + 3.0];
+            i = i + 4.0;
+        }
+        while (i < len) {
+            let offset = 2.0 + i;
+            res[offset] = A[offset] + B[offset];
+            i = i + 1.0;
+        }
+        return res;
+    }
     var i = 0.0;
     while (i < len) {
         let va = cartan_vec_get_f32(A, i);
         let vb = cartan_vec_get_f32(B, i);
-        cartan_vec_push_f32(res, va + vb);
+        res[2.0 + i] = va + vb;
         i = i + 1.0;
     }
     return res;
@@ -497,12 +516,31 @@ fn cartan_tensor_sub(A: ptr, B: ptr) -> ptr {
     let lenB = cartan_vec_len(B);
     var len = lenA;
     if (lenB < len) { len = lenB; }
-    let res = cartan_vec_create();
+    if (len <= 0.0) { return cartan_vec_create(); }
+    let res = cartan_tensor_alloc(len);
+    if (cartan_c_is_tree(A) == 0.0 && cartan_c_is_tree(B) == 0.0) {
+        let limit = len - 3.0;
+        var i = 0.0;
+        while (i < limit) {
+            let offset = 2.0 + i;
+            res[offset] = A[offset] - B[offset];
+            res[offset + 1.0] = A[offset + 1.0] - B[offset + 1.0];
+            res[offset + 2.0] = A[offset + 2.0] - B[offset + 2.0];
+            res[offset + 3.0] = A[offset + 3.0] - B[offset + 3.0];
+            i = i + 4.0;
+        }
+        while (i < len) {
+            let offset = 2.0 + i;
+            res[offset] = A[offset] - B[offset];
+            i = i + 1.0;
+        }
+        return res;
+    }
     var i = 0.0;
     while (i < len) {
         let va = cartan_vec_get_f32(A, i);
         let vb = cartan_vec_get_f32(B, i);
-        cartan_vec_push_f32(res, va - vb);
+        res[2.0 + i] = va - vb;
         i = i + 1.0;
     }
     return res;
@@ -514,12 +552,31 @@ fn cartan_tensor_mul(A: ptr, B: ptr) -> ptr {
     let lenB = cartan_vec_len(B);
     var len = lenA;
     if (lenB < len) { len = lenB; }
-    let res = cartan_vec_create();
+    if (len <= 0.0) { return cartan_vec_create(); }
+    let res = cartan_tensor_alloc(len);
+    if (cartan_c_is_tree(A) == 0.0 && cartan_c_is_tree(B) == 0.0) {
+        let limit = len - 3.0;
+        var i = 0.0;
+        while (i < limit) {
+            let offset = 2.0 + i;
+            res[offset] = A[offset] * B[offset];
+            res[offset + 1.0] = A[offset + 1.0] * B[offset + 1.0];
+            res[offset + 2.0] = A[offset + 2.0] * B[offset + 2.0];
+            res[offset + 3.0] = A[offset + 3.0] * B[offset + 3.0];
+            i = i + 4.0;
+        }
+        while (i < len) {
+            let offset = 2.0 + i;
+            res[offset] = A[offset] * B[offset];
+            i = i + 1.0;
+        }
+        return res;
+    }
     var i = 0.0;
     while (i < len) {
         let va = cartan_vec_get_f32(A, i);
         let vb = cartan_vec_get_f32(B, i);
-        cartan_vec_push_f32(res, va * vb);
+        res[2.0 + i] = va * vb;
         i = i + 1.0;
     }
     return res;
@@ -531,15 +588,30 @@ fn cartan_tensor_div(A: ptr, B: ptr) -> ptr {
     let lenB = cartan_vec_len(B);
     var len = lenA;
     if (lenB < len) { len = lenB; }
-    let res = cartan_vec_create();
+    if (len <= 0.0) { return cartan_vec_create(); }
+    let res = cartan_tensor_alloc(len);
+    if (cartan_c_is_tree(A) == 0.0 && cartan_c_is_tree(B) == 0.0) {
+        var i = 0.0;
+        while (i < len) {
+            let offset = 2.0 + i;
+            let vb = B[offset];
+            if (vb != 0.0) {
+                res[offset] = A[offset] / vb;
+            } else {
+                res[offset] = 0.0;
+            }
+            i = i + 1.0;
+        }
+        return res;
+    }
     var i = 0.0;
     while (i < len) {
         let va = cartan_vec_get_f32(A, i);
         let vb = cartan_vec_get_f32(B, i);
         if (vb != 0.0) {
-            cartan_vec_push_f32(res, va / vb);
+            res[2.0 + i] = va / vb;
         } else {
-            cartan_vec_push_f32(res, 0.0);
+            res[2.0 + i] = 0.0;
         }
         i = i + 1.0;
     }
@@ -557,8 +629,20 @@ fn cartan_tensor_alloc(size: float) -> ptr {
 
 fn cartan_tensor_sum(arr: ptr, size: float) -> float {
     if (arr == 0.0 || size <= 0.0) { return 0.0; }
-    var s = 0.0;
+    var s0 = 0.0;
+    var s1 = 0.0;
+    var s2 = 0.0;
+    var s3 = 0.0;
     var i = 0.0;
+    let limit = size - 3.0;
+    while (i < limit) {
+        s0 = s0 + arr[i];
+        s1 = s1 + arr[i + 1.0];
+        s2 = s2 + arr[i + 2.0];
+        s3 = s3 + arr[i + 3.0];
+        i = i + 4.0;
+    }
+    var s = s0 + s1 + s2 + s3;
     while (i < size) {
         s = s + arr[i];
         i = i + 1.0;
@@ -1099,11 +1183,65 @@ fn cartan_tensor_transpose(A: ptr) -> ptr {
     return res;
 }
 
-// Authentic General Matrix Multiplication (GEMM) for Flat Buffers: C = A (M x K) * B (K x N)
+// Authentic High-Performance Transpose-Tiled GEMM for Flat Buffers: C = A (M x K) * B (K x N)
 fn cartan_tensor_matmul_gemm(A: ptr, B: ptr, M: float, K: float, N: float) -> ptr {
     if (A == 0.0 || B == 0.0) { return 0.0; }
     if (M <= 0.0 || K <= 0.0 || N <= 0.0) { return 0.0; }
     let C = cartan_tensor_alloc(M * N);
+    let is_flat_A = (cartan_c_is_tree(A) == 0.0);
+    let is_flat_B = (cartan_c_is_tree(B) == 0.0);
+
+    // If both are flat contiguous buffers, perform cache-friendly transpose-tiled multiplication
+    if (is_flat_A != 0.0 && is_flat_B != 0.0) {
+        let B_T = cartan_tensor_alloc(N * K);
+        // Pre-transpose B (K x N) -> B_T (N x K) so columns of B become contiguous rows
+        var k_idx = 0.0;
+        while (k_idx < K) {
+            let b_row_k = 2.0 + k_idx * N;
+            var j_idx = 0.0;
+            while (j_idx < N) {
+                B_T[2.0 + j_idx * K + k_idx] = B[b_row_k + j_idx];
+                j_idx = j_idx + 1.0;
+            }
+            k_idx = k_idx + 1.0;
+        }
+
+        // Compute C = A * (B_T)^T using contiguous 4-way unrolled row-row dot products
+        let k_limit = K - 3.0;
+        var i = 0.0;
+        while (i < M) {
+            let a_offset = 2.0 + i * K;
+            let c_offset = 2.0 + i * N;
+            var j = 0.0;
+            while (j < N) {
+                let b_offset = 2.0 + j * K;
+                var sum0 = 0.0;
+                var sum1 = 0.0;
+                var sum2 = 0.0;
+                var sum3 = 0.0;
+                var k = 0.0;
+                while (k < k_limit) {
+                    sum0 = sum0 + A[a_offset + k] * B_T[b_offset + k];
+                    sum1 = sum1 + A[a_offset + k + 1.0] * B_T[b_offset + k + 1.0];
+                    sum2 = sum2 + A[a_offset + k + 2.0] * B_T[b_offset + k + 2.0];
+                    sum3 = sum3 + A[a_offset + k + 3.0] * B_T[b_offset + k + 3.0];
+                    k = k + 4.0;
+                }
+                var sum = sum0 + sum1 + sum2 + sum3;
+                while (k < K) {
+                    sum = sum + A[a_offset + k] * B_T[b_offset + k];
+                    k = k + 1.0;
+                }
+                C[c_offset + j] = sum;
+                j = j + 1.0;
+            }
+            i = i + 1.0;
+        }
+        free(B_T);
+        return C;
+    }
+
+    // Fallback for non-flat structures
     var i = 0.0;
     while (i < M) {
         let i_row = i * N;
@@ -1126,7 +1264,7 @@ fn cartan_tensor_matmul_gemm(A: ptr, B: ptr, M: float, K: float, N: float) -> pt
     return C;
 }
 
-// Authentic Matrix Multiplication supporting 2D Trees and Dynamic Layouts
+// Authentic Matrix Multiplication supporting 2D Trees, Flat Tensors, and 1D Vectors
 fn cartan_tensor_matmul(A: ptr, B: ptr) -> ptr {
     if (A == 0.0 || B == 0.0) { return 0.0; }
     // Case 1: 2D Tree representation
@@ -1141,59 +1279,151 @@ fn cartan_tensor_matmul(A: ptr, B: ptr) -> ptr {
             let first_b = cartan_tree_get_f32(B, 0.0);
             let N = cartan_vec_len(first_b);
             let C = cartan_tree_create();
+
+            // Pre-transpose B into a tree of N column vectors, each of length K
+            let B_T = cartan_tree_create();
+            var j_col = 0.0;
+            while (j_col < N) {
+                let col_vec = cartan_tensor_alloc(K);
+                var k_r = 0.0;
+                while (k_r < K) {
+                    let b_r = cartan_tree_get_f32(B, k_r);
+                    col_vec[2.0 + k_r] = cartan_vec_get_f32(b_r, j_col);
+                    k_r = k_r + 1.0;
+                }
+                cartan_tree_push(B_T, col_vec);
+                j_col = j_col + 1.0;
+            }
+
+            let k_limit = K - 3.0;
             var i = 0.0;
             while (i < M) {
                 let a_r = cartan_tree_get_f32(A, i);
-                let c_row = cartan_vec_create();
+                let c_row = cartan_tensor_alloc(N);
                 var j = 0.0;
                 while (j < N) {
-                    var sum = 0.0;
+                    let b_col = cartan_tree_get_f32(B_T, j);
+                    var sum0 = 0.0;
+                    var sum1 = 0.0;
+                    var sum2 = 0.0;
+                    var sum3 = 0.0;
                     var k = 0.0;
-                    while (k < K) {
-                        let a_v = cartan_vec_get_f32(a_r, k);
-                        let b_r = cartan_tree_get_f32(B, k);
-                        let b_v = cartan_vec_get_f32(b_r, j);
-                        sum = sum + a_v * b_v;
-                        k = k + 1.0;
+                    if (cartan_c_is_tree(a_r) == 0.0) {
+                        while (k < k_limit) {
+                            sum0 = sum0 + a_r[2.0 + k] * b_col[2.0 + k];
+                            sum1 = sum1 + a_r[2.0 + k + 1.0] * b_col[2.0 + k + 1.0];
+                            sum2 = sum2 + a_r[2.0 + k + 2.0] * b_col[2.0 + k + 2.0];
+                            sum3 = sum3 + a_r[2.0 + k + 3.0] * b_col[2.0 + k + 3.0];
+                            k = k + 4.0;
+                        }
+                        var sum = sum0 + sum1 + sum2 + sum3;
+                        while (k < K) {
+                            sum = sum + a_r[2.0 + k] * b_col[2.0 + k];
+                            k = k + 1.0;
+                        }
+                        c_row[2.0 + j] = sum;
+                    } else {
+                        while (k < K) {
+                            sum0 = sum0 + cartan_vec_get_f32(a_r, k) * b_col[2.0 + k];
+                            k = k + 1.0;
+                        }
+                        c_row[2.0 + j] = sum0;
                     }
-                    cartan_vec_push_f32(c_row, sum);
                     j = j + 1.0;
                 }
                 cartan_tree_push(C, c_row);
                 i = i + 1.0;
             }
+            // Clean up temporary transposed columns
+            var free_j = 0.0;
+            while (free_j < N) {
+                free(cartan_tree_get_f32(B_T, free_j));
+                free_j = free_j + 1.0;
+            }
             return C;
         }
+
         // Subcase 1b: B is a 1D vector (matrix-vector multiplication)
-        let C_vec = cartan_vec_create();
+        let C_vec = cartan_tensor_alloc(M);
+        let k_limit = K - 3.0;
+        let is_flat_B = (cartan_c_is_tree(B) == 0.0);
         var i = 0.0;
         while (i < M) {
             let a_r = cartan_tree_get_f32(A, i);
-            var sum = 0.0;
+            var sum0 = 0.0;
+            var sum1 = 0.0;
+            var sum2 = 0.0;
+            var sum3 = 0.0;
             var k = 0.0;
-            while (k < K) {
-                let a_v = cartan_vec_get_f32(a_r, k);
-                let b_v = cartan_vec_get_f32(B, k);
-                sum = sum + a_v * b_v;
-                k = k + 1.0;
+            if (cartan_c_is_tree(a_r) == 0.0 && is_flat_B != 0.0) {
+                while (k < k_limit) {
+                    sum0 = sum0 + a_r[2.0 + k] * B[2.0 + k];
+                    sum1 = sum1 + a_r[2.0 + k + 1.0] * B[2.0 + k + 1.0];
+                    sum2 = sum2 + a_r[2.0 + k + 2.0] * B[2.0 + k + 2.0];
+                    sum3 = sum3 + a_r[2.0 + k + 3.0] * B[2.0 + k + 3.0];
+                    k = k + 4.0;
+                }
+                var sum = sum0 + sum1 + sum2 + sum3;
+                while (k < K) {
+                    sum = sum + a_r[2.0 + k] * B[2.0 + k];
+                    k = k + 1.0;
+                }
+                C_vec[2.0 + i] = sum;
+            } else {
+                while (k < K) {
+                    sum0 = sum0 + cartan_vec_get_f32(a_r, k) * cartan_vec_get_f32(B, k);
+                    k = k + 1.0;
+                }
+                C_vec[2.0 + i] = sum0;
             }
-            cartan_vec_push_f32(C_vec, sum);
             i = i + 1.0;
         }
         return C_vec;
     }
-    // Case 2: 1D flat vectors
+
+    // Case 2: 1D flat vectors (dot product)
     let lenA = cartan_vec_len(A);
     let lenB = cartan_vec_len(B);
     if (lenA == lenB && lenA > 0.0) {
-        var sum = 0.0;
+        var sum0 = 0.0;
+        var sum1 = 0.0;
+        var sum2 = 0.0;
+        var sum3 = 0.0;
         var i = 0.0;
+        let limit = lenA - 3.0;
+        if (cartan_c_is_tree(A) == 0.0 && cartan_c_is_tree(B) == 0.0) {
+            while (i < limit) {
+                let off = 2.0 + i;
+                sum0 = sum0 + A[off] * B[off];
+                sum1 = sum1 + A[off + 1.0] * B[off + 1.0];
+                sum2 = sum2 + A[off + 2.0] * B[off + 2.0];
+                sum3 = sum3 + A[off + 3.0] * B[off + 3.0];
+                i = i + 4.0;
+            }
+            var sum = sum0 + sum1 + sum2 + sum3;
+            while (i < lenA) {
+                let off = 2.0 + i;
+                sum = sum + A[off] * B[off];
+                i = i + 1.0;
+            }
+            let res = cartan_tensor_alloc(1.0);
+            res[2.0] = sum;
+            return res;
+        }
+        while (i < limit) {
+            sum0 = sum0 + cartan_vec_get_f32(A, i) * cartan_vec_get_f32(B, i);
+            sum1 = sum1 + cartan_vec_get_f32(A, i + 1.0) * cartan_vec_get_f32(B, i + 1.0);
+            sum2 = sum2 + cartan_vec_get_f32(A, i + 2.0) * cartan_vec_get_f32(B, i + 2.0);
+            sum3 = sum3 + cartan_vec_get_f32(A, i + 3.0) * cartan_vec_get_f32(B, i + 3.0);
+            i = i + 4.0;
+        }
+        var sum = sum0 + sum1 + sum2 + sum3;
         while (i < lenA) {
             sum = sum + cartan_vec_get_f32(A, i) * cartan_vec_get_f32(B, i);
             i = i + 1.0;
         }
-        let res = cartan_vec_create();
-        cartan_vec_push_f32(res, sum);
+        let res = cartan_tensor_alloc(1.0);
+        res[2.0] = sum;
         return res;
     }
     return 0.0;

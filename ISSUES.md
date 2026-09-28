@@ -3579,6 +3579,25 @@ This file tracks technical debt and bugs identified during repository code revie
   4. Wired Stage 1 intent detection routing, Stage 3 seed (162.0), CSR bridges (162 $\to$ 163 $\to$ 168, 166 $\to$ 169, 162 $\to$ 82, 163 $\to$ 21, 166 $\to$ 132; hub 47 $\to$ 162), and memory fallbacks in `src/std/nses_pipeline.cl`. Added dataset routing in `test/geomind/train.cl`.
   5. Authored Target 81 (`test/compiler_suite/test_nses_software_engineering_domain.car`), whitelisted in `.gitignore`, registered in `test/compiler_suite/run_tests.car`, and verified 81/81 regression targets pass cleanly with 0 failures.
 
+---
+
+## [ISSUE-263] [FIXED] Core Runtime SIMD Vector Math, Cacheline-Tiled Matrix Multiplication & 3-Stage Bootstrap Parity
+- **Severity**: High (Compiler Performance, Mathematical Efficiency & Self-Hosting Parity)
+- **Component**: [`src/cartanc/core_runtime.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/core_runtime.car), [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car), [`src/cartanc/main.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/main.car), [`test/compiler_suite/run_tests.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/compiler_suite/run_tests.car)
+- **Description**:
+  1. `cartan_tensor_matmul` and `cartan_tensor_matmul_gemm` in `src/cartanc/core_runtime.car` suffer from severe memory cacheline thrashing: inner loops access matrix $B$ with column strides ($k \cdot N + j$), preventing spatial prefetching and hardware auto-vectorization.
+  2. In 2D tree matmul, `cartan_tree_get_f32(B, k)` is called $M \times N \times K$ times inside the hot loop, producing redundant pointer chasing and function call overhead.
+  3. `cartan_tensor_add`, `cartan_tensor_sub`, `cartan_tensor_mul`, `cartan_tensor_div` use dynamic vector allocation and `cartan_vec_push_f32` in sequential scalar loops rather than pre-allocating exact flat buffers (`cartan_tensor_alloc`) with 4-way unrolled vector pipelines.
+  4. Reductions (`cartan_tensor_sum`) and 1D vector dot products suffer from serial accumulator latency bottlenecks (`sum = sum + a * b`) without multi-accumulator unrolling.
+  5. The compiler requires a formal 3-stage bootstrap self-hosting proof ($\text{Root } \to \text{Stage 1} \to \text{Stage 2} \to \text{Stage 3}$) to verify bit-for-bit LLVM IR convergence and promote the newly optimized compiler to production.
+- **Resolution**:
+  1. Implemented transpose-tiled GEMM in `cartan_tensor_matmul_gemm`: pre-transposes matrix $B$ into $B^T$, streaming contiguous row-row dot products with 4-way unrolled accumulators (`sum0..sum3`) and scalar cleanup.
+  2. Implemented transpose-cached GEMM in `cartan_tensor_matmul` for 2D trees, reducing tree lookups from $O(M \cdot N \cdot K)$ to $O(N \cdot K)$ (a 64x call reduction on $64^3$ matrices) with unrolled inner loops.
+  3. Upgraded elementwise tensor math (`add`, `sub`, `mul`, `div`) to allocate exact sizes via `cartan_tensor_alloc` and stream direct 4-wide unrolled SIMD loops.
+  4. Upgraded `cartan_tensor_sum` and 1D vector dot products to 4 parallel independent accumulators, eliminating loop-carried dependency stalls.
+  5. Authored Target 82 (`test/compiler_suite/test_compiler_simd_tensor_math.car`), whitelisted in `.gitignore`, and registered in `run_tests.car`.
+  6. Executed a 3-stage self-hosting bootstrap ($\text{Root } \to \text{Stage 1} \to \text{Stage 2} \to \text{Stage 3}$), proving bit-for-bit LLVM IR identity (SHA256: `2B26EDEF18F202903FFFD6ED5665FDD95A0EFC5989AA223201C9550008EA399E`), promoted Stage 2 binary to root `cartanc.exe`, and verified 82/82 regression suite targets pass with 0 failures.
+
 
 
 

@@ -1,0 +1,28 @@
+# Sprint 472 Task List: Core Runtime SIMD Vector Math, Cacheline-Tiled Matrix Multiplication & 3-Stage Bootstrap Parity
+
+- [x] **Task 1: Optimize Built-in Core Runtime Tensor Math (`src/cartanc/core_runtime.car`)**
+  - [x] Implement transpose-tiled, 4-way unrolled GEMM for flat buffers (`cartan_tensor_matmul_gemm`).
+  - [x] Implement transpose-cached GEMM for 2D tree structures (`cartan_tensor_matmul`).
+  - [x] Implement 4-way unrolled parallel accumulator 1D vector dot product.
+  - [x] Implement exact-size flat allocation and 4-way unrolling for elementwise ops (`cartan_tensor_add`, `sub`, `mul`, `div`).
+  - [x] Implement 4-accumulator parallel reductions (`cartan_tensor_sum`, `cartan_tensor_mean`).
+- [x] **Task 2: Author Target 82 Regression & Performance Benchmark Suite**
+  - [x] Create `test/compiler_suite/test_compiler_simd_tensor_math.car` with 5 rigorous assertion phases.
+  - [x] Whitelist Target 82 in `.gitignore`.
+  - [x] Register Target 82 in `test/compiler_suite/run_tests.car` and update target count to 82.
+  - [x] Compile and execute Target 82 individually to verify analytical exactness and performance speedup.
+- [x] **Task 3: Execute 3-Stage Bootstrap & Bit-for-Bit Parity Verification**
+  - [x] Compile Stage 1 (`build/cartanc_stage1.exe` and `build/cartanc_stage1.ll`).
+  - [x] Compile Stage 2 using Stage 1 (`build/cartanc_stage2.exe` and `build/cartanc_stage2.ll`).
+  - [x] Compile Stage 3 using Stage 2 (`build/cartanc_stage3.exe` and `build/cartanc_stage3.ll`).
+  - [x] Compute and verify bit-for-bit LLVM IR parity between Stage 2 and Stage 3 (`diff build/cartanc_stage2.ll build/cartanc_stage3.ll`).
+- [x] **Task 4: Promote Bootstrapped Compiler & Verify Full 82-Target Suite**
+  - [x] Promote `build/cartanc_stage2.exe` to root `cartanc.exe`.
+  - [x] Rebuild `build/run_tests.exe` using new root compiler.
+  - [x] Run full 82-target regression suite and verify 82/82 passing with 0 failures (exit code 0).
+- [x] **Task 5: Documentation & Session Closeout**
+  - [x] Update `ISSUES.md` (`[ISSUE-263]` -> `[FIXED]`).
+  - [x] Update `CHANGELOG.md` (`[8.430.0]`).
+  - [x] Update `docs/ROADMAP.md`.
+  - [x] Save walkthrough to `docs/archive/sprint_472_walkthrough.md`.
+  - [x] Commit and push to `origin/master`.

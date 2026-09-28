@@ -511,11 +511,17 @@ fn main(argc: float, argv: ptr) -> float {
     cartan_flush(0.0);
     run_step(t80_cmd);
 
-    // [81/81] Positive test: test_nses_software_engineering_domain
+    // [81/82] Positive test: test_nses_software_engineering_domain
     let t81_cmd = "cartanc.exe build test/compiler_suite/test_nses_software_engineering_domain.car -o build/test_nses_software_engineering_domain.exe && build\\test_nses_software_engineering_domain.exe";
-    printf("[81/81] [// run-pass] Building and Executing NSES Software Engineering, Programming & Algorithms Domain 18: %s\n", t81_cmd);
+    printf("[81/82] [// run-pass] Building and Executing NSES Software Engineering, Programming & Algorithms Domain 18: %s\n", t81_cmd);
     cartan_flush(0.0);
     run_step(t81_cmd);
+
+    // [82/82] Positive test: test_compiler_simd_tensor_math
+    let t82_cmd = "cartanc.exe build test/compiler_suite/test_compiler_simd_tensor_math.car -o build/test_compiler_simd_tensor_math.exe && build\\test_compiler_simd_tensor_math.exe";
+    printf("[82/82] [// run-pass] Building and Executing Core Runtime SIMD & Transpose-Tiled Tensor Math: %s\n", t82_cmd);
+    cartan_flush(0.0);
+    run_step(t82_cmd);
 
     if (g_failed_count > 0.0) {
         printf("\n====================================================\n", "");
@@ -523,7 +529,7 @@ fn main(argc: float, argv: ptr) -> float {
         printf("====================================================\n", "");
         return 1.0;
     }
-    printf("\nAll 81 compiler snapshot test targets executed successfully (0 failures)!\n", "");
+    printf("\nAll 82 compiler snapshot test targets executed successfully (0 failures)!\n", "");
     return 0.0;
 }
 
