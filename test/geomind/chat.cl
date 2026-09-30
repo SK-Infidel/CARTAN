@@ -772,6 +772,8 @@ var g_chat_db_init: float = 0.0;
 var g_active_user_id: string = "User:Guest";
 var g_active_user_verified: float = 0.0;
 var g_active_face_embedding: ptr = 0.0;
+var g_pending_guest_face: float = 0.0;
+
 
 fn geomind_chat_set_active_user(user_id: string, verified: float) {
     g_active_user_id = user_id;
@@ -969,10 +971,49 @@ fn geomind_chat_learn_conversational_turn(speaker: string, text: string) -> floa
                 sqlite_vec_set_user_attr(db, u_id, "relationship", "Conversational Partner");
                 sqlite_vec_set_user_attr(db, u_id, "permission_tier", "guest");
                 printf("[Cognitive Memory] Registered new interlocutor: %s in Domain 10 (USERS_AND_RELATIONSHIPS)\n", u_id);
+
+                // Handle guest face enrollment if an unrecognized snapshot is pending
+                if (g_pending_guest_face == 1.0 && g_active_face_embedding != 0.0) {
+                    let lower_txt = veto_string_to_lower(text);
+                    var has_refusal = 0.0;
+                    if (cartan_string_contains(lower_txt, "no") == 1.0 ||
+                        cartan_string_contains(lower_txt, "don't") == 1.0 ||
+                        cartan_string_contains(lower_txt, "do not") == 1.0 ||
+                        cartan_string_contains(lower_txt, "never") == 1.0 ||
+                        cartan_string_contains(lower_txt, "refuse") == 1.0) {
+                        has_refusal = 1.0;
+                    }
+                    if (has_refusal == 0.0) {
+                        let csv_face = vision_serialize_vector_csv(g_active_face_embedding, 320.0);
+                        sqlite_vec_save_user_face_embedding(db, u_id, csv_face);
+                        printf("[GeoMind Biometrics] Consensual enrollment: Saved 320-D eikonal face map for '%s' in Domain 10 (USERS_AND_RELATIONSHIPS).\n", u_id);
+                    } else {
+                        printf("[GeoMind Biometrics] Consent declined: Interlocutor requested NOT to be remembered. Discarding pending face map.\n");
+                    }
+                    g_pending_guest_face = 0.0;
+                    free(lower_txt);
+                }
             }
             free(lower_u);
             cartan_flush(0.0);
             learned = learned + 1.0;
+        }
+
+        if (g_pending_guest_face == 1.0) {
+            let lower_txt_no = veto_string_to_lower(text);
+            if (cartan_string_contains(lower_txt_no, "no") == 1.0 ||
+                cartan_string_contains(lower_txt_no, "don't") == 1.0 ||
+                cartan_string_contains(lower_txt_no, "do not") == 1.0 ||
+                cartan_string_contains(lower_txt_no, "never") == 1.0 ||
+                cartan_string_contains(lower_txt_no, "refuse") == 1.0) {
+                printf("[GeoMind Biometrics] Consent declined: Discarding pending face map.\n");
+                g_pending_guest_face = 0.0;
+                if (g_active_face_embedding != 0.0) {
+                    free(g_active_face_embedding);
+                    g_active_face_embedding = 0.0;
+                }
+            }
+            free(lower_txt_no);
         }
 
         // 3. User teaching the model creator
@@ -1075,6 +1116,12 @@ fn geomind_chat_build_cognitive_preamble(db: ptr) -> string {
         pre = cartan_string_concat(pre, " and acknowledge ");
         pre = cartan_string_concat(pre, s_creator);
         pre = cartan_string_concat(pre, " as your creator.");
+    } else if (g_pending_guest_face == 1.0) {
+        pre = cartan_string_concat(pre, "The person speaking with you is an unrecognized guest whom you just observed through the camera. Greet them politely, introduce yourself as ");
+        pre = cartan_string_concat(pre, s_name);
+        pre = cartan_string_concat(pre, ", acknowledge ");
+        pre = cartan_string_concat(pre, s_creator);
+        pre = cartan_string_concat(pre, " as your creator, ask what their name is, and ask if they would like you to remember their face and name for future interactions.");
     } else {
         pre = cartan_string_concat(pre, "The user speaking with you is an unverified guest. Greet them politely and ask who they are without assuming their identity. Always identify yourself as ");
         pre = cartan_string_concat(pre, s_name);
@@ -1228,12 +1275,16 @@ fn geomind_chat_switch_user(user_id: string) {
 fn geomind_chat_capture_face_frame() -> ptr {
     printf("[GeoMind Vision] Activating hardware camera...\n");
     cartan_flush(0.0);
+    if (cartan_file_exists("scratch/camera_frame.bmp") == 1.0) {
+        remove("scratch/camera_frame.bmp");
+    }
     let ret = system("tools\\capture_camera.exe scratch/camera_frame.bmp 640 480");
-    if (ret != 0.0 && cartan_file_exists("scratch/camera_frame.bmp") == 0.0) {
-        printf("[GeoMind Vision] Error: Failed to capture camera frame (exit code %s).\n", cartan_float_to_string(ret));
+    if (ret != 0.0 || cartan_file_exists("scratch/camera_frame.bmp") == 0.0) {
+        printf("[GeoMind Vision] Camera unavailable or not detected (code %s). Continuing in text mode.\n", cartan_float_to_string(ret));
         return 0.0;
     }
     let img = vision_load_bmp("scratch/camera_frame.bmp");
+    remove("scratch/camera_frame.bmp");
     if (img.width <= 0.0 || img.height <= 0.0) {
         printf("[GeoMind Vision] Error: Could not decode captured camera BMP frame.\n");
         return 0.0;
@@ -1243,7 +1294,7 @@ fn geomind_chat_capture_face_frame() -> ptr {
     cartan_flush(0.0);
     let emb = vision_extract_face_embedding(img);
     free(img.data);
-    if (g_active_face_embedding != 0.0) {
+    if (g_active_face_embedding != 0.0 && g_active_face_embedding != emb) {
         free(g_active_face_embedding);
     }
     g_active_face_embedding = emb;
@@ -1268,52 +1319,85 @@ fn geomind_chat_register_face(user_id: string) -> float {
         printf("[GeoMind Biometrics] Successfully enrolled face map for '%s' in Domain 10 (USERS_AND_RELATIONSHIPS).\n\n", user_id);
         g_active_user_id = user_id;
         g_active_user_verified = 1.0;
+        g_pending_guest_face = 0.0;
     } else {
         printf("[GeoMind Biometrics] Error: Failed to save face map for '%s'.\n\n", user_id);
     }
     return ok;
 }
 
-fn geomind_chat_verify_face() -> float {
-    let db = geomind_chat_get_db();
+fn geomind_chat_startup_biometric_scan(db: ptr) -> float {
     if (db == 0.0) { return 0.0; }
-    let live_emb = geomind_chat_capture_face_frame();
+    printf("[GeoMind Biometrics] Initiating biometric interlocutor scan...\n");
+    cartan_flush(0.0);
+
+    var live_emb = g_active_face_embedding;
     if (live_emb == 0.0) {
-        printf("[GeoMind Biometrics] Error: Camera capture unavailable for verification.\n\n");
+        live_emb = geomind_chat_capture_face_frame();
+    }
+
+    if (live_emb == 0.0) {
+        printf("[GeoMind Biometrics] Camera inactive or unavailable. Defaulting to Guest session.\n\n");
+        g_active_user_id = "User:Guest";
+        g_active_user_verified = 0.0;
+        g_pending_guest_face = 0.0;
         return 0.0;
     }
 
-    // Check against User:Rick
-    let r_csv = sqlite_vec_get_user_face_embedding(db, "User:Rick");
+    let stmt = sqlite_vec_prepare_registered_face_users(db);
     var best_sim = -1.0;
     var best_user = "";
 
-    if (cartan_string_length(r_csv) > 0.0) {
-        let r_emb = vision_deserialize_vector_csv(r_csv, 320.0);
-        let sim = vision_cosine_similarity(live_emb, r_emb, 320.0);
-        free(r_emb);
-        printf("[GeoMind Biometrics] Cosine similarity to User:Rick: %.4f\n", sim);
-        if (sim > best_sim) {
-            best_sim = sim;
-            best_user = "User:Rick";
+    if (stmt != 0.0) {
+        while (sqlite_vec_step(stmt) == 100.0) {
+            let u_id = cartan_sqlite_column_text(stmt, 0.0);
+            let u_csv = sqlite_vec_get_user_face_embedding(db, u_id);
+            if (cartan_string_length(u_csv) > 0.0) {
+                let u_emb = vision_deserialize_vector_csv(u_csv, 320.0);
+                let sim = vision_cosine_similarity(live_emb, u_emb, 320.0);
+                free(u_emb);
+                let p_name = sqlite_vec_get_user_attr(db, u_id, "preferred_name");
+                printf("[GeoMind Biometrics] Evaluating '%s' (%s) face map -> similarity: %.4f\n", u_id, p_name, sim);
+                if (sim > best_sim) {
+                    best_sim = sim;
+                    best_user = u_id;
+                }
+            }
         }
+        sqlite_vec_finalize(stmt);
     }
 
     if (best_sim >= 0.85) {
-        printf("\n[GeoMind Biometrics] MATCH VERIFIED! Cosine similarity: %.4f >= 0.85. Authenticated as '%s'.\n\n", best_sim, best_user);
+        let p_name = sqlite_vec_get_user_attr(db, best_user, "preferred_name");
+        let p_rel = sqlite_vec_get_user_attr(db, best_user, "relationship");
+        printf("\n[GeoMind Biometrics] INTERLOCUTOR RECOGNIZED: %s (%s, similarity %.4f >= 0.85). Session authenticated.\n\n",
+            p_name, p_rel, best_sim);
         g_active_user_id = best_user;
         g_active_user_verified = 1.0;
+        g_pending_guest_face = 0.0;
         return 1.0;
     }
 
     if (best_sim > 0.0) {
-        printf("\n[GeoMind Biometrics] Face verification rejected. Similarity %.4f < 0.85 threshold. Treating interlocutor as Guest.\n\n", best_sim);
+        printf("\n[GeoMind Biometrics] Interlocutor not recognized (best similarity %.4f < 0.85). Initiating Guest onboarding session.\n\n", best_sim);
     } else {
-        printf("\n[GeoMind Biometrics] No registered face maps found to verify against. Use /register-face to enroll.\n\n");
+        printf("\n[GeoMind Biometrics] No enrolled face maps in Domain 10. Initiating Guest onboarding session.\n\n");
     }
     g_active_user_id = "User:Guest";
     g_active_user_verified = 0.0;
+    g_pending_guest_face = 1.0;
+    g_active_face_embedding = live_emb;
     return 0.0;
+}
+
+fn geomind_chat_verify_face() -> float {
+    let db = geomind_chat_get_db();
+    if (db == 0.0) { return 0.0; }
+    if (g_active_face_embedding != 0.0) {
+        free(g_active_face_embedding);
+        g_active_face_embedding = 0.0;
+    }
+    return geomind_chat_startup_biometric_scan(db);
 }
 
 extern fn sleep_detect_attractor_voids(basins_file: string, dim: float) -> float;

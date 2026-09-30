@@ -360,6 +360,12 @@ This roadmap tracks the implementation of the advanced AI optimizations and nati
   - Implemented eikonal face feature extraction, unit L2 normalization ($S^{319}$), and vector cosine similarity in `src/std/vision.cl` [ISSUE-321].
   - Implemented neutral guest preamble conditioning and interactive `/whoami`, `/capture-face`, `/register-face`, `/verify-face`, and `/switch-user` commands in `test/geomind/chat.cl` and `main.car`.
   - Authored and verified `test/geomind/test_face_mapping_and_user_domain.car` across all 4 gates (biometric discrimination, unit hypersphere projection, multi-user preambles).
+- [x] **5. Startup Biometric Authentication, Dynamic Guest Onboarding & Consensual Face Enrollment (Sprint 494)**:
+  - Implemented automatic startup camera frame capture and 1:N biometric verification against Domain 10 registered profiles (`geomind_chat_startup_biometric_scan`, `[ISSUE-322]`).
+  - Implemented multi-user registered face retrieval in SQLite Vector Domain 10 (`sqlite_vec_prepare_registered_face_users`, `[ISSUE-323]`).
+  - Added guest onboarding protocol and conversational consent handling (`[ISSUE-324]`): GeoMind greets unrecognized guests, introduces itself, acknowledges Rick as creator, asks their name, and requests permission to remember their face and name for future interactions.
+  - Implemented consensual dynamic enrollment (`User:<Name>`) with persistent 320-D eikonal embedding on $S^{319}$, zero-retention privacy on refusal, and subsequent cold-boot recognition.
+  - Authored and verified `test/geomind/test_startup_biometric_onboarding.car` (4/4 gates passed).
 
 
 

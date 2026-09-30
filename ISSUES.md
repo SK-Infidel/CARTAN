@@ -4144,3 +4144,42 @@ This file tracks technical debt and bugs identified during repository code revie
   4. Implemented `vision_cosine_similarity` computing metric angle $\langle u, v \rangle$ in $O(d)$ time.
   5. Implemented `vision_serialize_vector_csv` and `vision_deserialize_vector_csv` ensuring round-trip numerical reconstruction error $< 10^{-7}$.
   6. Empirically verified metric discrimination: self-identity similarity $= 1.0000$, orthogonal vector similarity $= 0.0000$, perturbed face similarity $= 0.9984$ ($\ge 0.85$ verification match), unrelated face similarity $= 0.000088$ ($< 0.50$ rejection).
+
+---
+
+## [ISSUE-322] [FIXED] Absence of Automatic Startup Biometric Scan in REPL Chat Boot Pipeline
+- **Severity**: High (User Experience & Biometric Automation)
+- **Component**: [`test/geomind/main.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/main.car), [`test/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl)
+- **Description**: `geomind_chat_interactive_loop` boots passively into `g_active_user_id = "User:Guest"` without invoking the camera or evaluating registered face embeddings in Domain 10.
+- **Resolution**:
+  1. Implemented `geomind_chat_startup_biometric_scan(db)` triggered at the entrance of `geomind_chat_interactive_loop` and one-shot `--chat` inference in `test/geomind/main.car`.
+  2. Captured frame via `geomind_chat_capture_face_frame()`, hardened with pre-capture cleanup of stale BMP frames and post-read deletion.
+  3. Extracted 320-D eikonal face embedding on unit hypersphere $S^{319}$.
+  4. Performed 1:N scan across all registered profiles in Domain 10; if best cosine similarity $\ge 0.85$, auto-elevates session to recognized user without prompting.
+  5. Empirically verified auto-login in `test_startup_biometric_onboarding.car` Gate 1 ($sim = 0.9994$).
+
+---
+
+## [ISSUE-323] [FIXED] Missing Multi-User Registered Face Lookup in SQLite Vector Domain 10
+- **Severity**: Medium (Cognitive Memory & Biometric Querying)
+- **Component**: [`src/std/sqlite_vec.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/sqlite_vec.cl)
+- **Description**: `sqlite_vec.cl` only provides single-user lookups and cannot enumerate all registered users with active face maps (`face_registered == '1'`) to perform 1:N biometric identification.
+- **Resolution**:
+  1. Implemented `sqlite_vec_prepare_registered_face_users(db)` and backward-compatible alias `cartan_sqlite_prepare_registered_face_users(db)` in `src/std/sqlite_vec.cl`.
+  2. Prepared and executed `SELECT entity_name FROM entity_states WHERE domain_id = 10.0 AND attribute_name = 'face_registered' AND attribute_value = '1'`.
+  3. Validated 1:N traversal lifecycle with zero memory leaks via immediate deserialized vector freeing per row and statement handle finalization.
+
+---
+
+## [ISSUE-324] [FIXED] Unhandled Guest Face Consent and Conversational Biometric Enrollment Protocol
+- **Severity**: High (Safety, Privacy & Conversational Onboarding)
+- **Component**: [`test/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl)
+- **Description**: GeoMind does not retain unregistered face snapshots or condition its cognitive preamble to introduce itself, request the stranger's name, and solicit explicit consent to store their face map.
+- **Resolution**:
+  1. Added `g_pending_guest_face` global flag tracking active unverified camera snapshots in RAM.
+  2. Conditioned `geomind_chat_build_cognitive_preamble(db)` when `g_pending_guest_face == 1.0` to instruct the model: *"The person speaking with you is an unrecognized guest whom you just observed through the camera. Greet them politely, introduce yourself as GeoMind, acknowledge Rick as your creator, ask what their name is, and ask if they would like you to remember their face and name for future interactions."*
+  3. Integrated dynamic biometric enrollment in `geomind_chat_learn_conversational_turn`: upon conversational consent and name extraction (`"My name is..."`, `"I'm..."`), persists new `User:<Name>` in Domain 10 with the pending 320-D embedding and elevates active session.
+  4. Enforced strict zero-retention privacy: upon negative consent (`"no"`, `"don't"`, `"refuse"`), immediately purges pending embedding from RAM with zero database writes.
+  5. Verified end-to-end guest onboarding, consent protocol, and cold-boot recognition in `test_startup_biometric_onboarding.car` Gates 2, 3, and 4.
+
+

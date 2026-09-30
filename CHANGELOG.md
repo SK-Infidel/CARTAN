@@ -1,3 +1,26 @@
+## [8.452.0] - 2026-09-30 (Sprint 494: Startup Biometric Scan, Dynamic Guest Onboarding & Consensual Face Enrollment)
+
+### Completed & Validated
+- **Automatic Startup Biometric Scanner (`test/geomind/chat.cl`, `test/geomind/main.car`, `[ISSUE-322]`)**:
+  - Implemented `geomind_chat_startup_biometric_scan(db)` triggered at the entrance of `geomind_chat_interactive_loop` and one-shot `--chat` inference in `test/geomind/main.car`.
+  - Hardened `geomind_chat_capture_face_frame` with pre-capture unlinking of stale `scratch/camera_frame.bmp` files and immediate post-read file deletion.
+  - Automatically queries registered users in Domain 10 and performs 1:N cosine verification on $S^{319}$ with threshold $\tau = 0.85$.
+  - Automatically elevates authenticated users (e.g., Rick as Father / Primary Creator) without prompting or asking for consent.
+- **Multi-User Registered Face Lookup in SQLite Vector Domain 10 (`src/std/sqlite_vec.cl`, `[ISSUE-323]`)**:
+  - Implemented `sqlite_vec_prepare_registered_face_users(db)` and alias `cartan_sqlite_prepare_registered_face_users(db)` in `src/std/sqlite_vec.cl`.
+  - Prepares `SELECT entity_name FROM entity_states WHERE domain_id = 10.0 AND attribute_name = 'face_registered' AND attribute_value = '1'`.
+  - Implemented leak-free 1:N scan lifecycle by freeing deserialized candidate vectors per iteration and finalizing prepared statements.
+- **Dynamic Guest Onboarding & Consensual Biometric Enrollment Protocol (`test/geomind/chat.cl`, `[ISSUE-324]`)**:
+  - Introduced `g_pending_guest_face` global flag tracking active unverified camera snapshots in RAM.
+  - Conditioned `geomind_chat_build_cognitive_preamble(db)` when an unverified face snapshot is present (`g_pending_guest_face == 1.0`): instructs GeoMind to greet politely, introduce itself as GeoMind, acknowledge Rick as creator, ask what their name is, and request explicit permission to remember their face and name for future interactions.
+  - Implemented conversational consent evaluation in `geomind_chat_learn_conversational_turn`:
+    - Upon affirmative consent and name extraction (`"My name is..."`, `"I'm..."`), persists new `User:<Name>` in Domain 10 with the pending 320-D eikonal embedding and elevates active session.
+    - Upon negative consent (`"no"`, `"don't"`, `"refuse"`), enforces zero-retention privacy by freeing the pending embedding from RAM with zero database writes.
+  - Verified subsequent cold-boot recognition without re-triggering guest onboarding.
+- **Empirical Verification**:
+  - Authored `test/geomind/test_startup_biometric_onboarding.car` covering all 4 gates: known face auto-login (similarity $0.9994 \ge 0.85$), unknown face guest onboarding preamble, conversational enrollment turn with consent, and subsequent cold-boot recognition ($sim = 0.9994 \ge 0.85$). All 4 gates passed.
+  - Rebuilt production `geomind.exe` with Zig -O3 LTO (`IR len: 106971`) and synchronized across workspace (`./geomind.exe`, `bin/geomind.exe`, `test/geomind/geomind.exe`).
+
 ## [8.451.0] - 2026-09-30 (Sprint 493: Domain 10 USERS_AND_RELATIONSHIPS, Camera Ingestion & Eikonal Face Verification)
 
 ### Completed & Validated

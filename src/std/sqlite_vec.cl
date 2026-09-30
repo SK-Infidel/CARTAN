@@ -585,6 +585,13 @@ fn sqlite_vec_get_user_face_embedding(db: ptr, user_id: string) -> string {
     return sqlite_vec_get_entity_state(db, 10.0, user_id, "face_embedding");
 }
 
+// Prepare statement to enumerate all users with active registered face maps in Domain 10
+fn sqlite_vec_prepare_registered_face_users(db: ptr) -> ptr {
+    if (db == 0.0) { return 0.0; }
+    let sql = "SELECT entity_name FROM entity_states WHERE domain_id = 10.0 AND attribute_name = 'face_registered' AND attribute_value = '1';";
+    return sqlite_vec_prepare(db, sql);
+}
+
 // -------------------------------------------------------------------------
 // Backward-Compatible Aliases for Legacy cartan_sqlite_* Callers
 // -------------------------------------------------------------------------
@@ -621,3 +628,5 @@ fn cartan_sqlite_get_user_attr(db: ptr, user_id: string, attr: string) -> string
 fn cartan_sqlite_set_user_attr(db: ptr, user_id: string, attr: string, val: string) -> float { return sqlite_vec_set_user_attr(db, user_id, attr, val); }
 fn cartan_sqlite_save_user_face_embedding(db: ptr, user_id: string, emb_str: string) -> float { return sqlite_vec_save_user_face_embedding(db, user_id, emb_str); }
 fn cartan_sqlite_get_user_face_embedding(db: ptr, user_id: string) -> string { return sqlite_vec_get_user_face_embedding(db, user_id); }
+fn cartan_sqlite_prepare_registered_face_users(db: ptr) -> ptr { return sqlite_vec_prepare_registered_face_users(db); }
+

@@ -517,6 +517,10 @@ fn geomind_eval_single_analogy(a_tok: float, b_tok: float, c_tok: float, expecte
 }
 
 fn geomind_chat_interactive_loop(image_arg: string, audio_arg: string, tokens_arg: float) -> float {
+    let db = geomind_chat_get_db();
+    if (db != 0.0) {
+        geomind_chat_startup_biometric_scan(db);
+    }
     printf("[GeoMind Chat] Interactive REPL Session Ready. Type 'exit' or 'quit' to end.\n\n");
     cartan_flush(0.0);
     var running = 1.0;
@@ -737,6 +741,10 @@ fn main() -> float {
             }
 
             if (cartan_string_length(prompt_arg) > 0.0) {
+                let db = geomind_chat_get_db();
+                if (db != 0.0) {
+                    geomind_chat_startup_biometric_scan(db);
+                }
                 geomind_chat_generate_reasoning_pass(prompt_arg, temp_arg);
                 geomind_chat_generate_reply_multimodal(prompt_arg, tokens_arg, temp_arg, image_arg, audio_arg);
                 cartan_flush(0.0);
