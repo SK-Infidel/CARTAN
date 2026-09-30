@@ -537,6 +537,13 @@ fn geomind_chat_interactive_loop(image_arg: string, audio_arg: string, tokens_ar
         } else if (cartan_string_eq(line, "/sleep") == 1.0) {
             geomind_chat_run_sleep_consolidation();
             cartan_flush(0.0);
+        } else if (cartan_string_eq(line, "/who") == 1.0 || cartan_string_eq(line, "/identity") == 1.0) {
+            let db = geomind_chat_get_db();
+            if (db != 0.0) {
+                let pre = geomind_chat_build_cognitive_preamble(db);
+                printf("%s", pre);
+            }
+            cartan_flush(0.0);
         } else if (cartan_string_starts_with(line, "/set ") == 1.0) {
             let cmd_arg = cartan_string_substring(line, 5.0, len);
             let arg_len = cartan_string_length(cmd_arg);

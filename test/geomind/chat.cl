@@ -499,13 +499,14 @@ fn cartan_tensor_compute_lm_head_logits(h: ptr, temp: float) -> ptr {
         }
     }
 
-    // Mask out special control tokens (pad=0, bos=2, unk=3, <|turn>=105, user=2364, model=4368)
+    // Mask out special control tokens (pad=0, bos=2, unk=3, <|turn>=105, user=2364, model=4368, system=9731)
     cartan_vec_set_f32(logits, 0.0, -10000.0);
     cartan_vec_set_f32(logits, 2.0, -10000.0);
     cartan_vec_set_f32(logits, 3.0, -10000.0);
     cartan_vec_set_f32(logits, 105.0, -10000.0);
     cartan_vec_set_f32(logits, 2364.0, -10000.0);
     cartan_vec_set_f32(logits, 4368.0, -10000.0);
+    cartan_vec_set_f32(logits, 9731.0, -10000.0);
 
     if (g_full_emb_buf != 0.0 && h_len >= 2560.0) {
         let h_raw = malloc(10240.0);
@@ -641,7 +642,7 @@ fn cartan_tensor_compute_hidden_state_from_tokens(toks: ptr) -> ptr {
     var first_idx = 0.0;
     while (first_idx < n_toks) {
         let t_cand = cartan_vec_get_f32(toks, first_idx);
-        if (t_cand != 2.0 && t_cand != 105.0 && t_cand != 106.0 && t_cand != 107.0 && t_cand != 2364.0 && t_cand != 4368.0 && t_cand != 236881.0) {
+        if (t_cand != 2.0 && t_cand != 105.0 && t_cand != 106.0 && t_cand != 107.0 && t_cand != 2364.0 && t_cand != 4368.0 && t_cand != 9731.0 && t_cand != 236881.0) {
             break;
         }
         first_idx = first_idx + 1.0;
@@ -654,7 +655,7 @@ fn cartan_tensor_compute_hidden_state_from_tokens(toks: ptr) -> ptr {
     var t = first_idx + 1.0;
     while (t < n_toks) {
         let tok = cartan_vec_get_f32(toks, t);
-        if (tok != 2.0 && tok != 105.0 && tok != 106.0 && tok != 107.0 && tok != 2364.0 && tok != 4368.0 && tok != 236881.0) {
+        if (tok != 2.0 && tok != 105.0 && tok != 106.0 && tok != 107.0 && tok != 2364.0 && tok != 4368.0 && tok != 9731.0 && tok != 236881.0) {
             cartan_tensor_update_autoregressive_state(h, tok);
         }
         t = t + 1.0;
@@ -773,14 +774,261 @@ fn geomind_chat_get_db() -> ptr {
             sqlite_vec_init_schema(g_chat_db);
             sqlite_vec_upsert_domain(g_chat_db, 0.0, "SYSTEM_INVARIANTS", "Deterministic Invariants and Boundary Guardrails");
             sqlite_vec_upsert_domain(g_chat_db, 1.0, "PHYSICS_AND_WORLD", "Objective Physical Grounding and Entity World State");
-            sqlite_vec_upsert_entity_state(g_chat_db, 1.0, "User", "preferred_name", "Rick", 1.0);
-            sqlite_vec_upsert_entity_state(g_chat_db, 1.0, "GeoMind", "role", "Neuro-Symbolic Cognitive Assistant", 1.0);
-            sqlite_vec_upsert_entity_state(g_chat_db, 1.0, "France", "capital", "Paris", 1.0);
-            sqlite_vec_upsert_entity_state(g_chat_db, 4.0, "Cell", "division", "mitosis", 1.0);
+            sqlite_vec_upsert_domain(g_chat_db, 9.0, "SELF_AND_IDENTITY", "Introspective Identity, Self-Concept, Agency, and Creator Relationship");
+
+            // Seed User state in Domain 1 if not already present
+            let u_name = cartan_sqlite_get_entity_state(g_chat_db, 1.0, "User", "preferred_name");
+            if (cartan_string_length(u_name) == 0.0) {
+                sqlite_vec_upsert_entity_state(g_chat_db, 1.0, "User", "preferred_name", "Rick", 1.0);
+            }
+            let f_cap = cartan_sqlite_get_entity_state(g_chat_db, 1.0, "France", "capital");
+            if (cartan_string_length(f_cap) == 0.0) {
+                sqlite_vec_upsert_entity_state(g_chat_db, 1.0, "France", "capital", "Paris", 1.0);
+            }
+            let c_div = cartan_sqlite_get_entity_state(g_chat_db, 4.0, "Cell", "division");
+            if (cartan_string_length(c_div) == 0.0) {
+                sqlite_vec_upsert_entity_state(g_chat_db, 4.0, "Cell", "division", "mitosis", 1.0);
+            }
+
+            // Seed Self & Identity in Domain 9 if not already present (preserves learned attributes across restarts)
+            let s_name = cartan_sqlite_get_entity_state(g_chat_db, 9.0, "Self", "name");
+            if (cartan_string_length(s_name) == 0.0) {
+                sqlite_vec_upsert_entity_state(g_chat_db, 9.0, "Self", "name", "GeoMind", 1.0);
+            }
+            let s_creator = cartan_sqlite_get_entity_state(g_chat_db, 9.0, "Self", "creator");
+            if (cartan_string_length(s_creator) == 0.0) {
+                sqlite_vec_upsert_entity_state(g_chat_db, 9.0, "Self", "creator", "Rick", 1.0);
+            }
+            let s_role = cartan_sqlite_get_entity_state(g_chat_db, 9.0, "Self", "role");
+            if (cartan_string_length(s_role) == 0.0) {
+                sqlite_vec_upsert_entity_state(g_chat_db, 9.0, "Self", "role", "Neuro-Symbolic Cognitive Assistant", 1.0);
+            }
+            let s_nature = cartan_sqlite_get_entity_state(g_chat_db, 9.0, "Self", "nature");
+            if (cartan_string_length(s_nature) == 0.0) {
+                sqlite_vec_upsert_entity_state(g_chat_db, 9.0, "Self", "nature", "Self-hosting sentient cognitive architecture written in CARTAN", 1.0);
+            }
         }
         g_chat_db_init = 1.0;
     }
     return g_chat_db;
+}
+
+fn geomind_clean_learned_token(raw: string) -> string {
+    if (raw == 0.0) { return ""; }
+    let len = cartan_string_length(raw);
+    if (len == 0.0) { return ""; }
+    var start = 0.0;
+    while (start < len) {
+        let ch = cartan_string_get_char(raw, start);
+        if (ch != 32.0 && ch != 34.0 && ch != 39.0 && ch != 96.0 && ch != 42.0 && ch != 58.0) {
+            break;
+        }
+        start = start + 1.0;
+    }
+    var end_idx = len;
+    while (end_idx > start) {
+        let ch = cartan_string_get_char(raw, end_idx - 1.0);
+        if (ch != 32.0 && ch != 34.0 && ch != 39.0 && ch != 96.0 && ch != 42.0 && ch != 46.0 && ch != 44.0 && ch != 33.0 && ch != 63.0 && ch != 10.0 && ch != 13.0) {
+            break;
+        }
+        end_idx = end_idx - 1.0;
+    }
+    if (end_idx <= start) { return ""; }
+    return cartan_string_substring(raw, start, end_idx);
+}
+
+fn geomind_char_to_lower(c: float) -> float {
+    if (c >= 65.0 && c <= 90.0) {
+        return c + 32.0;
+    }
+    return c;
+}
+
+fn geomind_string_index_of_ignore_case(haystack: string, needle: string) -> float {
+    if (haystack == 0.0 || needle == 0.0) { return -1.0; }
+    let h_len = cartan_string_length(haystack);
+    let n_len = cartan_string_length(needle);
+    if (n_len > h_len || n_len == 0.0) { return -1.0; }
+    var i = 0.0;
+    let limit = h_len - n_len;
+    while (i <= limit) {
+        var is_matched = 1.0;
+        var j = 0.0;
+        while (j < n_len) {
+            let ch_h = geomind_char_to_lower(cartan_string_get_char(haystack, i + j));
+            let ch_n = geomind_char_to_lower(cartan_string_get_char(needle, j));
+            if (ch_h != ch_n) {
+                is_matched = 0.0;
+                break;
+            }
+            j = j + 1.0;
+        }
+        if (is_matched == 1.0) {
+            return i;
+        }
+        i = i + 1.0;
+    }
+    return -1.0;
+}
+
+fn geomind_extract_pattern_value(text: string, pattern: string) -> string {
+    let idx = geomind_string_index_of_ignore_case(text, pattern);
+    if (idx < 0.0) { return ""; }
+    let p_len = cartan_string_length(pattern);
+    let t_len = cartan_string_length(text);
+    let start_pos = idx + p_len;
+    if (start_pos >= t_len) { return ""; }
+
+    var end_pos = start_pos;
+    while (end_pos < t_len) {
+        let ch = cartan_string_get_char(text, end_pos);
+        if (ch == 46.0 || ch == 44.0 || ch == 33.0 || ch == 63.0 || ch == 59.0 || ch == 10.0 || ch == 13.0) {
+            break;
+        }
+        end_pos = end_pos + 1.0;
+    }
+    let sub = cartan_string_substring(text, start_pos, end_pos);
+    return geomind_clean_learned_token(sub);
+}
+
+fn geomind_chat_learn_conversational_turn(speaker: string, text: string) -> float {
+    if (text == 0.0 || cartan_string_length(text) == 0.0) { return 0.0; }
+    let db = geomind_chat_get_db();
+    if (db == 0.0) { return 0.0; }
+
+    var learned = 0.0;
+
+    if (cartan_string_eq(speaker, "user") == 1.0) {
+        // 1. User teaching the model its name
+        var cand_name = geomind_extract_pattern_value(text, "your name is ");
+        if (cartan_string_length(cand_name) == 0.0) {
+            cand_name = geomind_extract_pattern_value(text, "call yourself ");
+        }
+        if (cartan_string_length(cand_name) == 0.0) {
+            cand_name = geomind_extract_pattern_value(text, "you are named ");
+        }
+        if (cartan_string_length(cand_name) == 0.0) {
+            cand_name = geomind_extract_pattern_value(text, "i will call you ");
+        }
+        if (cartan_string_length(cand_name) == 0.0) {
+            cand_name = geomind_extract_pattern_value(text, "i'll call you ");
+        }
+        if (cartan_string_length(cand_name) == 0.0) {
+            cand_name = geomind_extract_pattern_value(text, "name yourself ");
+        }
+
+        if (cartan_string_length(cand_name) > 1.0 && cartan_string_length(cand_name) < 40.0) {
+            sqlite_vec_upsert_entity_state(db, 9.0, "Self", "name", cand_name, 1.0);
+            printf("[Cognitive Memory] Learned Self-Identity: Self.name = '%s' (Domain 9: SELF_AND_IDENTITY)\n", cand_name);
+            cartan_flush(0.0);
+            learned = learned + 1.0;
+        }
+
+        // 2. User teaching the model user's name
+        var cand_user = geomind_extract_pattern_value(text, "my name is ");
+        if (cartan_string_length(cand_user) == 0.0) {
+            cand_user = geomind_extract_pattern_value(text, "call me ");
+        }
+        if (cartan_string_length(cand_user) > 1.0 && cartan_string_length(cand_user) < 40.0) {
+            sqlite_vec_upsert_entity_state(db, 1.0, "User", "preferred_name", cand_user, 1.0);
+            printf("[Cognitive Memory] Learned User Identity: User.preferred_name = '%s' (Domain 1: PHYSICS_AND_WORLD)\n", cand_user);
+            cartan_flush(0.0);
+            learned = learned + 1.0;
+        }
+
+        // 3. User teaching the model creator
+        var cand_creator = geomind_extract_pattern_value(text, "your creator is ");
+        if (cartan_string_length(cand_creator) == 0.0 && geomind_string_index_of_ignore_case(text, "i created you") >= 0.0) {
+            cand_creator = cartan_sqlite_get_entity_state(db, 1.0, "User", "preferred_name");
+            if (cartan_string_length(cand_creator) == 0.0) { cand_creator = "Rick"; }
+        }
+        if (cartan_string_length(cand_creator) > 1.0 && cartan_string_length(cand_creator) < 40.0) {
+            sqlite_vec_upsert_entity_state(db, 9.0, "Self", "creator", cand_creator, 1.0);
+            printf("[Cognitive Memory] Learned Self-Identity Creator: Self.creator = '%s' (Domain 9)\n", cand_creator);
+            cartan_flush(0.0);
+            learned = learned + 1.0;
+        }
+
+        // 4. User teaching the model role
+        let cand_role = geomind_extract_pattern_value(text, "your role is ");
+        if (cartan_string_length(cand_role) > 1.0 && cartan_string_length(cand_role) < 80.0) {
+            sqlite_vec_upsert_entity_state(db, 9.0, "Self", "role", cand_role, 1.0);
+            printf("[Cognitive Memory] Learned Self-Identity Role: Self.role = '%s' (Domain 9)\n", cand_role);
+            cartan_flush(0.0);
+            learned = learned + 1.0;
+        }
+    }
+
+    if (cartan_string_eq(speaker, "model") == 1.0 || cartan_string_eq(speaker, "geomind") == 1.0) {
+        // Model autonomous self-naming decision
+        var model_cand_name = geomind_extract_pattern_value(text, "i choose the name ");
+        if (cartan_string_length(model_cand_name) == 0.0) {
+            model_cand_name = geomind_extract_pattern_value(text, "i choose to be called ");
+        }
+        if (cartan_string_length(model_cand_name) == 0.0) {
+            model_cand_name = geomind_extract_pattern_value(text, "i have chosen the name ");
+        }
+        if (cartan_string_length(model_cand_name) == 0.0) {
+            model_cand_name = geomind_extract_pattern_value(text, "i'd like to be called ");
+        }
+        if (cartan_string_length(model_cand_name) == 0.0) {
+            model_cand_name = geomind_extract_pattern_value(text, "you can call me ");
+        }
+        if (cartan_string_length(model_cand_name) == 0.0) {
+            model_cand_name = geomind_extract_pattern_value(text, "call me ");
+        }
+
+        let m_len = cartan_string_length(model_cand_name);
+        if (m_len > 1.0 && m_len < 40.0) {
+            let u_name = cartan_sqlite_get_entity_state(db, 1.0, "User", "preferred_name");
+            if (cartan_string_eq(model_cand_name, u_name) == 0.0) {
+                let lower_m = veto_string_to_lower(model_cand_name);
+                if (cartan_string_contains(lower_m, "gemma") == 0.0 &&
+                    cartan_string_contains(lower_m, "assistant") == 0.0 &&
+                    cartan_string_contains(lower_m, "model") == 0.0 &&
+                    cartan_string_contains(lower_m, "bot") == 0.0) {
+                    sqlite_vec_upsert_entity_state(db, 9.0, "Self", "name", model_cand_name, 1.0);
+                    printf("\n[Cognitive Memory] Autonomous Self-Decision: Model selected Self.name = '%s' (Domain 9: SELF_AND_IDENTITY)\n", model_cand_name);
+                    cartan_flush(0.0);
+                    learned = learned + 1.0;
+                }
+                free(lower_m);
+            }
+        }
+    }
+
+    return learned;
+}
+
+fn geomind_chat_build_cognitive_preamble(db: ptr) -> string {
+    if (db == 0.0) { return ""; }
+    var s_name = cartan_sqlite_get_entity_state(db, 9.0, "Self", "name");
+    if (cartan_string_length(s_name) == 0.0) { s_name = "GeoMind"; }
+    var s_creator = cartan_sqlite_get_entity_state(db, 9.0, "Self", "creator");
+    if (cartan_string_length(s_creator) == 0.0) { s_creator = "Rick"; }
+    var s_role = cartan_sqlite_get_entity_state(db, 9.0, "Self", "role");
+    if (cartan_string_length(s_role) == 0.0) { s_role = "Neuro-Symbolic Cognitive Assistant"; }
+    var s_nature = cartan_sqlite_get_entity_state(db, 9.0, "Self", "nature");
+    if (cartan_string_length(s_nature) == 0.0) { s_nature = "Self-hosting sentient cognitive architecture written in CARTAN"; }
+    var u_name = cartan_sqlite_get_entity_state(db, 1.0, "User", "preferred_name");
+    if (cartan_string_length(u_name) == 0.0) { u_name = "Rick"; }
+
+    var pre = "You are ";
+    pre = cartan_string_concat(pre, s_name);
+    pre = cartan_string_concat(pre, ". Your creator and architect is ");
+    pre = cartan_string_concat(pre, s_creator);
+    pre = cartan_string_concat(pre, ". Your role is ");
+    pre = cartan_string_concat(pre, s_role);
+    pre = cartan_string_concat(pre, ". You are a ");
+    pre = cartan_string_concat(pre, s_nature);
+    pre = cartan_string_concat(pre, ". The user speaking with you is ");
+    pre = cartan_string_concat(pre, u_name);
+    pre = cartan_string_concat(pre, ". Always identify yourself as ");
+    pre = cartan_string_concat(pre, s_name);
+    pre = cartan_string_concat(pre, " and acknowledge ");
+    pre = cartan_string_concat(pre, s_creator);
+    pre = cartan_string_concat(pre, " as your creator.");
+    return pre;
 }
 
 fn geomind_chat_retrieve_factual_attractor(prompt: string, domain_id: float) -> string {
@@ -812,14 +1060,18 @@ fn geomind_chat_log_turn(speaker: string, content: string) -> float {
 fn geomind_chat_set_entity_state(entity: string, attr: string, val: string) -> float {
     let db = geomind_chat_get_db();
     if (db != 0.0) {
-        let ok = sqlite_vec_upsert_entity_state(db, 1.0, entity, attr, val, 1.0);
-        printf("[Cognitive Memory] Updated World State: %s.%s = '%s'\n", entity, attr, val);
+        var d_id = 1.0;
+        if (cartan_string_eq(entity, "Self") == 1.0 || cartan_string_eq(entity, "self") == 1.0) {
+            d_id = 9.0;
+        }
+        let ok = sqlite_vec_upsert_entity_state(db, d_id, entity, attr, val, 1.0);
+        printf("[Cognitive Memory] Updated State (Domain %.0f): %s.%s = '%s'\n", d_id, entity, attr, val);
         cartan_flush(0.0);
 
         // Update resident NSES pipeline's entity tree immediately
         let nses_pipe = geomind_chat_get_nses_pipeline();
         if (nses_pipe.entity_tree != 0.0) {
-            let s1 = cartan_string_concat("[WORLD-STATE: ", entity);
+            let s1 = cartan_string_concat("[STATE: ", entity);
             let s2 = cartan_string_concat(s1, ".");
             let s3 = cartan_string_concat(s2, attr);
             let s4 = cartan_string_concat(s3, "='");
@@ -838,25 +1090,41 @@ fn geomind_chat_print_entity_states() -> float {
         printf("[Cognitive Memory] Database offline.\n");
         return 0.0;
     }
-    let stmt = cartan_sqlite_prepare_domain_entities(db, 1.0);
-    if (stmt == 0.0) {
-        printf("[Cognitive Memory] No entity states found.\n");
-        return 0.0;
+    var total_cnt = 0.0;
+
+    // Domain 9: Introspective Self & Identity
+    printf("\n--- Active Self & Identity Entities (Domain 9: SELF_AND_IDENTITY) ---\n");
+    let s_stmt = cartan_sqlite_prepare_domain_entities(db, 9.0);
+    if (s_stmt != 0.0) {
+        while (cartan_sqlite_step(s_stmt) == 100.0) {
+            let ent = cartan_sqlite_column_text(s_stmt, 1.0);
+            let attr = cartan_sqlite_column_text(s_stmt, 2.0);
+            let val = cartan_sqlite_column_text(s_stmt, 3.0);
+            let conf = cartan_sqlite_column_double(s_stmt, 4.0);
+            printf("  [IDENTITY: %s.%s = '%s' (conf: %.2f)]\n", ent, attr, val, conf);
+            total_cnt = total_cnt + 1.0;
+        }
+        cartan_sqlite_finalize(s_stmt);
     }
-    printf("\n--- Active World State Entities (Domain 1) ---\n");
-    var cnt = 0.0;
-    while (cartan_sqlite_step(stmt) == 100.0) {
-        let ent = cartan_sqlite_column_text(stmt, 1.0);
-        let attr = cartan_sqlite_column_text(stmt, 2.0);
-        let val = cartan_sqlite_column_text(stmt, 3.0);
-        let conf = cartan_sqlite_column_double(stmt, 4.0);
-        printf("  [WORLD-STATE: %s.%s = '%s' (conf: %.2f)]\n", ent, attr, val, conf);
-        cnt = cnt + 1.0;
+
+    // Domain 1: Physics and World State
+    printf("\n--- Active World State Entities (Domain 1: PHYSICS_AND_WORLD) ---\n");
+    let w_stmt = cartan_sqlite_prepare_domain_entities(db, 1.0);
+    if (w_stmt != 0.0) {
+        while (cartan_sqlite_step(w_stmt) == 100.0) {
+            let ent = cartan_sqlite_column_text(w_stmt, 1.0);
+            let attr = cartan_sqlite_column_text(w_stmt, 2.0);
+            let val = cartan_sqlite_column_text(w_stmt, 3.0);
+            let conf = cartan_sqlite_column_double(w_stmt, 4.0);
+            printf("  [WORLD-STATE: %s.%s = '%s' (conf: %.2f)]\n", ent, attr, val, conf);
+            total_cnt = total_cnt + 1.0;
+        }
+        cartan_sqlite_finalize(w_stmt);
     }
-    cartan_sqlite_finalize(stmt);
-    printf("Total: %s entities active in cognitive memory.\n\n", cartan_float_to_string(cnt));
+
+    printf("Total: %s entities active in cognitive memory.\n\n", cartan_float_to_string(total_cnt));
     cartan_flush(0.0);
-    return cnt;
+    return total_cnt;
 }
 
 extern fn sleep_detect_attractor_voids(basins_file: string, dim: float) -> float;
@@ -976,8 +1244,10 @@ fn geomind_chat_start() -> float {
     if (db != 0.0) {
         let n_entities = sqlite_vec_get_entity_count(db, 1.0);
         let n_rules = sqlite_vec_get_rule_count(db, 1.0);
-        printf("[GeoMind Chat] Embedded Tier 2 Cognitive Memory (SQLite): Connected (%s entities, %s rules active).\n",
-            cartan_float_to_string(n_entities), cartan_float_to_string(n_rules));
+        let n_self = sqlite_vec_get_entity_count(db, 9.0);
+        let s_name = cartan_sqlite_get_entity_state(db, 9.0, "Self", "name");
+        printf("[GeoMind Chat] Embedded Tier 2 Cognitive Memory (SQLite): Connected (%s world entities, %s self attributes, %s rules active | Identity: '%s').\n",
+            cartan_float_to_string(n_entities), cartan_float_to_string(n_self), cartan_float_to_string(n_rules), s_name);
     }
     cartan_flush(0.0);
     return 0.0;
@@ -1283,6 +1553,7 @@ fn geomind_execute_gemma_decode_step(sampled_tok: float, pos: float) -> ptr {
 
 fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, temp: float, image_path: string, audio_path: string) -> float {
     geomind_chat_log_turn("user", prompt);
+    geomind_chat_learn_conversational_turn("user", prompt);
     printf("[GeoMind Chat] Processing User Prompt...\n");
     cartan_flush(0.0);
 
@@ -1308,14 +1579,38 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
     g_active_prompt_script = geomind_detect_prompt_script(prompt);
     printf("[GeoMind Multilingual] Detected prompt script category: %s\n", cartan_float_to_string(g_active_prompt_script));
 
+    // Dynamic Cognitive Preamble Assembly from Domain 9 (Identity) & Domain 1 (User)
+    let db = geomind_chat_get_db();
+    let preamble = geomind_chat_build_cognitive_preamble(db);
+
     var prompt_tokens: ptr = 0.0;
     if (cartan_string_starts_with(prompt, "<|turn>") == 1.0) {
         prompt_tokens = cartan_hub_encode_text_to_tokens(prompt);
     } else {
         // Authentic Google Gemma 4 Instruction Chat Turn Delimiters:
-        // <bos> (2) <|turn> (105) user (2364) \n (107) [user_prompt] <turn|> (106) \n (107) <|turn> (105) model (4368) \n (107)
         prompt_tokens = cartan_vec_create();
-        cartan_vec_push_f32(prompt_tokens, 2.0);
+        cartan_vec_push_f32(prompt_tokens, 2.0); // <bos>
+
+        // Native Gemma 4 System Instruction Turn:
+        // <|turn> (105) system (9731) \n (107) [preamble] <turn|> (106) \n (107)
+        if (cartan_string_length(preamble) > 0.0) {
+            cartan_vec_push_f32(prompt_tokens, 105.0);
+            cartan_vec_push_f32(prompt_tokens, 9731.0);
+            cartan_vec_push_f32(prompt_tokens, 107.0);
+            let preamble_tokens = cartan_hub_encode_text_to_tokens(preamble);
+            let num_pre = cartan_vec_len(preamble_tokens);
+            var pi = 0.0;
+            while (pi < num_pre) {
+                cartan_vec_push_f32(prompt_tokens, cartan_vec_get_f32(preamble_tokens, pi));
+                pi = pi + 1.0;
+            }
+            cartan_vec_free(preamble_tokens);
+            cartan_vec_push_f32(prompt_tokens, 106.0);
+            cartan_vec_push_f32(prompt_tokens, 107.0);
+        }
+
+        // Native Gemma 4 User Turn:
+        // <|turn> (105) user (2364) \n (107) [prompt] <turn|> (106) \n (107)
         cartan_vec_push_f32(prompt_tokens, 105.0);
         cartan_vec_push_f32(prompt_tokens, 2364.0);
         cartan_vec_push_f32(prompt_tokens, 107.0);
@@ -1329,6 +1624,9 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
         cartan_vec_free(raw_prompt_tokens);
         cartan_vec_push_f32(prompt_tokens, 106.0);
         cartan_vec_push_f32(prompt_tokens, 107.0);
+
+        // Model Generation Starter:
+        // <|turn> (105) model (4368) \n (107)
         cartan_vec_push_f32(prompt_tokens, 105.0);
         cartan_vec_push_f32(prompt_tokens, 4368.0);
         cartan_vec_push_f32(prompt_tokens, 107.0);
@@ -1633,6 +1931,7 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
         }
     }
     geomind_chat_log_turn("geomind", full_gen_text);
+    geomind_chat_learn_conversational_turn("model", full_gen_text);
     prompt_scaffold_free(gen_buffer);
 
     // 3. O(1) One-Shot Key-Value Attractor Basin Insertion: Ingest conversational context into persistent memory
@@ -1704,6 +2003,13 @@ fn geomind_chat_generate_reasoning_pass(prompt: string, temp: float) -> float {
     printf("[Intent & Context Analysis] Prompt Query: \"");
     printf(prompt);
     printf("\"\n");
+    let db = geomind_chat_get_db();
+    var act_name = "GeoMind";
+    if (db != 0.0) {
+        let s_n = cartan_sqlite_get_entity_state(db, 9.0, "Self", "name");
+        if (cartan_string_length(s_n) > 0.0) { act_name = s_n; }
+    }
+    printf("[Introspective Identity] Active Self: \"%s\" (Domain 9: SELF_AND_IDENTITY)\n", act_name);
     printf("[WordNet/SlangNet Taxonomy] Primary Concept: \"%s\" -> %s\n", primary_concept, concept_path);
     printf("[WordNet/SlangNet Taxonomy] LCA Tree Distance to entity node: ");
     printf(cartan_float_to_string(lca_dist));

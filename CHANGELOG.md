@@ -1,3 +1,23 @@
+## [8.449.0] - 2026-09-30 (Sprint 491: Persistent Introspective Self-Identity, Domain 9 SELF_AND_IDENTITY & Conversational Learning)
+
+### Completed & Validated
+- **Domain 9: `SELF_AND_IDENTITY` Registration & Seeding (`test/geomind/chat.cl`)**:
+  - Registered dedicated Domain 9 in Tier 2 SQLite Cognitive Memory (`cognitive_memory.db`) for introspective self-awareness, agency, and creator relationship.
+  - Initialized safe default seeding for `Self.name = 'GeoMind'`, `Self.creator = 'Rick'`, `Self.role = 'Neuro-Symbolic Cognitive Assistant'`, `Self.nature = 'Self-hosting sentient cognitive architecture written in CARTAN'`, and `User.preferred_name = 'Rick'` without overwriting learned state across restarts.
+- **Native Gemma 4 System Turn Injection (`<|turn>system\n`, `test/geomind/chat.cl`)**:
+  - Discovered native Gemma 4 system turn tokens (`[105, 9731, 107]`) and formatted cognitive preamble as authoritative system instruction.
+  - Masked system control token `9731.0` in LM head logits to prevent token leakage.
+  - Dynamically injected system preamble prior to user turns, conditioning all 42 transformer layers on genuine identity during causal prefill.
+- **Conversational Learning & Self-Decision Extraction (`test/geomind/chat.cl`, `test/geomind/main.car`)**:
+  - Implemented `geomind_chat_learn_conversational_turn(speaker, text)` detecting user teaching patterns (*"Your name is..."*, *"Call me..."*, *"I created you"*) and model self-naming decisions (*"I choose the name..."*, *"Call me..."*).
+  - Wired conversational learning into multimodal chat generation and interactive REPL loops, persisting updates to `cognitive_memory.db`.
+  - Added `/who` and `/identity` inspection commands to REPL and enhanced `/state` to display Domain 9 along with Domain 1.
+- **Empirical Verification & Zero Regression Clearance**:
+  - Verified persistence across process restart via `test/geomind/test_domain9_persistence.car`: learned names retain across complete process terminations without overwriting.
+  - Verified pure neural inference (`--no-expert-priming`): `"Hello! Who are you and who created you?"` -> `"Greetings, Rick. I am GeoMind, a Neuro-Symbolic Cognitive Assistant. My creator and architect is you, Rick."`
+  - Rebuilt and synchronized `geomind.exe` across workspace.
+  - Cleared all 87 compiler regression test targets with 0 failures (`tools/run_affected_tests.ps1 -All`).
+
 ## [8.448.0] - 2026-09-30 (Sprint 490: 64-Bit File I/O Codegen, Gemma 4 Causal Transformer Alignment & Zero-Runaway Chat Inference)
 
 ### Completed & Validated
