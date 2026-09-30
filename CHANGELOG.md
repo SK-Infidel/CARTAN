@@ -1,3 +1,31 @@
+## [8.451.0] - 2026-09-30 (Sprint 493: Domain 10 USERS_AND_RELATIONSHIPS, Camera Ingestion & Eikonal Face Verification)
+
+### Completed & Validated
+- **Hardware Camera Capture Developer Tooling (`tools/capture_camera.c`, `tools/capture_camera.exe`, `[ISSUE-319]`)**:
+  - Implemented physical webcam ingestion tool via Windows Media Foundation (`IMFSourceReader`, `MFCreateSourceReaderFromMediaSource`, `MF_SOURCE_READER_ENABLE_VIDEO_PROCESSING`, `MFVideoFormat_RGB32`).
+  - Implemented 8-frame sensor warm-up loop ensuring CMOS hardware Auto Exposure Control (AEC) and Auto White Balance (AWB) converge before frame capture.
+  - Implemented uncompressed 24-bit BMP image serializer with downsampling support (defaults to 640x480).
+  - Compiled with `zig cc -O2 tools/capture_camera.c -lmf -lmfplat -lmfreadwrite -lmfuuid -lole32 -o tools/capture_camera.exe`.
+  - Empirically verified frame capture on physical `HP 5MP Camera` producing authentic 921,654 byte 640x480 BMP (`scratch/camera_test_640.bmp`).
+- **Domain 10: `USERS_AND_RELATIONSHIPS` Registration & User Profile Separation (`src/std/sqlite_vec.cl`, `[ISSUE-320]`)**:
+  - Registered Domain 10 (`USERS_AND_RELATIONSHIPS`) in `sqlite_vec_init_schema` to isolate interpersonal profiles and biometric data from transient interlocutors.
+  - Seeded initial user entities `User:Rick` (`relationship='creator'`, `verified='1'`) and `User:Guest` (`relationship='guest'`, `verified='0'`) in `sqlite_vec_init_domain10`.
+  - Implemented `sqlite_vec_get_user_attr`, `sqlite_vec_set_user_attr`, `sqlite_vec_save_user_face_embedding`, and `sqlite_vec_get_user_face_embedding` with backward-compatible `cartan_sqlite_*` aliases.
+- **Native Eikonal Face Feature Extraction & Cosine Verification (`src/std/vision.cl`, `[ISSUE-321]`)**:
+  - Implemented `cartan_vec_normalize_l2` projecting arbitrary feature vectors onto the unit hypersphere $S^{d-1}$ with zero-norm safety.
+  - Implemented `vision_extract_face_patch` extracting centered facial regions of interest (ROI) with bilinear interpolation downsampling.
+  - Implemented `vision_extract_face_embedding` projecting face patches through multi-scale 320-D eikonal gradient receptive fields.
+  - Implemented `vision_cosine_similarity` computing metric angle $\langle u, v \rangle$ in $O(d)$ time.
+  - Implemented `vision_serialize_vector_csv` and `vision_deserialize_vector_csv` ensuring round-trip numerical reconstruction error $< 10^{-7}$.
+- **Dialogue Protocol & Multi-User Interlocutor Conditioning (`test/geomind/chat.cl`, `test/geomind/main.car`)**:
+  - Introduced `g_active_user_id` in `chat.cl` defaulting unverified sessions to neutral guest preamble: *"The user speaking with you is an unverified guest. Greet them politely and ask who they are without assuming their identity."*
+  - Conditioned preamble to acknowledge Rick as creator while tailoring interlocutor identity to the verified user.
+  - Added interactive REPL commands `/whoami`, `/capture-face`, `/register-face`, `/verify-face`, and `/switch-user` in `main.car`.
+  - Updated `geomind_chat_learn_conversational_turn` to update the active user's profile in Domain 10 rather than global Domain 1 attributes.
+- **Empirical Verification**:
+  - Authored `test/geomind/test_face_mapping_and_user_domain.car` verifying all 4 gates: Domain 10 profile partitioning, L2 unit hypersphere normalization and CSV persistence, metric discrimination (self-similarity $1.0000$, orthogonal $0.0000$, perturbed face $0.9984 \ge 0.85$, unrelated face $0.000088 < 0.50$), and cognitive preamble conditioning across unverified guest, verified creator, and new interlocutor (all 4 gates passed).
+  - Rebuilt production `geomind.exe` and synchronized across workspace (`./geomind.exe`, `bin/geomind.exe`, `test/geomind/geomind.exe`).
+
 ## [8.450.0] - 2026-09-30 (Sprint 492: Multi-Turn Conversational Coherence, Dynamic Factual Grounding & Test Harness Integrity)
 
 ### Completed & Validated

@@ -541,8 +541,28 @@ fn geomind_chat_interactive_loop(image_arg: string, audio_arg: string, tokens_ar
             let db = geomind_chat_get_db();
             if (db != 0.0) {
                 let pre = geomind_chat_build_cognitive_preamble(db);
-                printf("%s", pre);
+                printf("%s\n\n", pre);
             }
+            cartan_flush(0.0);
+        } else if (cartan_string_eq(line, "/whoami") == 1.0) {
+            geomind_chat_print_active_interlocutor();
+            cartan_flush(0.0);
+        } else if (cartan_string_eq(line, "/capture-face") == 1.0) {
+            geomind_chat_capture_face_frame();
+            cartan_flush(0.0);
+        } else if (cartan_string_starts_with(line, "/register-face") == 1.0) {
+            var target_user = "User:Rick";
+            if (len > 15.0) {
+                target_user = cartan_string_substring(line, 15.0, len);
+            }
+            geomind_chat_register_face(target_user);
+            cartan_flush(0.0);
+        } else if (cartan_string_eq(line, "/verify-face") == 1.0) {
+            geomind_chat_verify_face();
+            cartan_flush(0.0);
+        } else if (cartan_string_starts_with(line, "/switch-user ") == 1.0) {
+            let u_id = cartan_string_substring(line, 13.0, len);
+            geomind_chat_switch_user(u_id);
             cartan_flush(0.0);
         } else if (cartan_string_eq(line, "/clear") == 1.0 || cartan_string_eq(line, "/new") == 1.0) {
             geomind_chat_clear_session();

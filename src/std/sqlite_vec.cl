@@ -530,6 +530,62 @@ fn sqlite_vec_prepare_prior_episodes(db: ptr, session_id: string, limit: float) 
 }
 
 // -------------------------------------------------------------------------
+// Domain 10: USERS_AND_RELATIONSHIPS Registration & Seeding
+// -------------------------------------------------------------------------
+fn sqlite_vec_init_domain10(db: ptr) -> float {
+    if (db == 0.0) { return 0.0; }
+    sqlite_vec_upsert_domain(db, 10.0, "USERS_AND_RELATIONSHIPS", "Interpersonal identities, user profiles, face maps, and creator relationships");
+
+    // Seed User:Rick (Creator / Root Profile) if not already present
+    let r_name = sqlite_vec_get_entity_state(db, 10.0, "User:Rick", "preferred_name");
+    if (cartan_string_length(r_name) == 0.0) {
+        sqlite_vec_upsert_entity_state(db, 10.0, "User:Rick", "preferred_name", "Rick", 1.0);
+        sqlite_vec_upsert_entity_state(db, 10.0, "User:Rick", "role", "Creator & Architect", 1.0);
+        sqlite_vec_upsert_entity_state(db, 10.0, "User:Rick", "relationship", "Father / Primary Creator", 1.0);
+        sqlite_vec_upsert_entity_state(db, 10.0, "User:Rick", "permission_tier", "root", 1.0);
+        sqlite_vec_upsert_entity_state(db, 10.0, "User:Rick", "face_registered", "0", 1.0);
+    }
+
+    // Seed User:Guest (Unverified Profile) if not already present
+    let g_name = sqlite_vec_get_entity_state(db, 10.0, "User:Guest", "preferred_name");
+    if (cartan_string_length(g_name) == 0.0) {
+        sqlite_vec_upsert_entity_state(db, 10.0, "User:Guest", "preferred_name", "Guest", 1.0);
+        sqlite_vec_upsert_entity_state(db, 10.0, "User:Guest", "role", "Visitor", 1.0);
+        sqlite_vec_upsert_entity_state(db, 10.0, "User:Guest", "relationship", "Unverified Interlocutor", 1.0);
+        sqlite_vec_upsert_entity_state(db, 10.0, "User:Guest", "permission_tier", "guest", 1.0);
+        sqlite_vec_upsert_entity_state(db, 10.0, "User:Guest", "face_registered", "0", 1.0);
+    }
+    return 1.0;
+}
+
+// Fetch user profile attribute from Domain 10
+fn sqlite_vec_get_user_attr(db: ptr, user_id: string, attr: string) -> string {
+    if (db == 0.0 || user_id == 0.0 || attr == 0.0) { return ""; }
+    return sqlite_vec_get_entity_state(db, 10.0, user_id, attr);
+}
+
+// Set user profile attribute in Domain 10
+fn sqlite_vec_set_user_attr(db: ptr, user_id: string, attr: string, val: string) -> float {
+    if (db == 0.0 || user_id == 0.0 || attr == 0.0 || val == 0.0) { return 0.0; }
+    return sqlite_vec_upsert_entity_state(db, 10.0, user_id, attr, val, 1.0);
+}
+
+// Store serialized 320-D eikonal face embedding string in Domain 10
+fn sqlite_vec_save_user_face_embedding(db: ptr, user_id: string, emb_str: string) -> float {
+    if (db == 0.0 || user_id == 0.0 || emb_str == 0.0) { return 0.0; }
+    let s1 = sqlite_vec_upsert_entity_state(db, 10.0, user_id, "face_embedding", emb_str, 1.0);
+    let s2 = sqlite_vec_upsert_entity_state(db, 10.0, user_id, "face_registered", "1", 1.0);
+    if (s1 == 1.0 && s2 == 1.0) { return 1.0; }
+    return 0.0;
+}
+
+// Retrieve serialized face embedding string from Domain 10
+fn sqlite_vec_get_user_face_embedding(db: ptr, user_id: string) -> string {
+    if (db == 0.0 || user_id == 0.0) { return ""; }
+    return sqlite_vec_get_entity_state(db, 10.0, user_id, "face_embedding");
+}
+
+// -------------------------------------------------------------------------
 // Backward-Compatible Aliases for Legacy cartan_sqlite_* Callers
 // -------------------------------------------------------------------------
 fn cartan_sqlite_open(path: string) -> ptr { return sqlite_vec_open(path); }
@@ -560,3 +616,8 @@ fn cartan_sqlite_apply_ebbinghaus_decay(db: ptr, domain_id: float, min_confidenc
 fn cartan_sqlite_flush_hebbian_weight(db: ptr, src_id: float, tgt_id: float, weight: float) -> float { return sqlite_vec_flush_hebbian_weight(db, src_id, tgt_id, weight); }
 fn cartan_sqlite_find_entity_attribute_in_prompt(db: ptr, prompt: string) -> string { return sqlite_vec_find_entity_attribute_in_prompt(db, prompt); }
 fn cartan_sqlite_prepare_prior_episodes(db: ptr, session_id: string, limit: float) -> ptr { return sqlite_vec_prepare_prior_episodes(db, session_id, limit); }
+fn cartan_sqlite_init_domain10(db: ptr) -> float { return sqlite_vec_init_domain10(db); }
+fn cartan_sqlite_get_user_attr(db: ptr, user_id: string, attr: string) -> string { return sqlite_vec_get_user_attr(db, user_id, attr); }
+fn cartan_sqlite_set_user_attr(db: ptr, user_id: string, attr: string, val: string) -> float { return sqlite_vec_set_user_attr(db, user_id, attr, val); }
+fn cartan_sqlite_save_user_face_embedding(db: ptr, user_id: string, emb_str: string) -> float { return sqlite_vec_save_user_face_embedding(db, user_id, emb_str); }
+fn cartan_sqlite_get_user_face_embedding(db: ptr, user_id: string) -> string { return sqlite_vec_get_user_face_embedding(db, user_id); }

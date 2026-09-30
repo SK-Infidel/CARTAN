@@ -353,11 +353,13 @@ This roadmap tracks the implementation of the advanced AI optimizations and nati
 ## 🚀 PHASE 19: Pure Causal Generation, Introspective Identity & Conversational Architecture (Active - Sprints 490–492)
 - [x] **1. Native 64-Bit File I/O & Gemma 4 Causal Transformer Alignment (Sprint 490)**: Implemented `_fseeki64` and `_ftelli64` lowering in `llvm_codegen.car` and `core_runtime.car` [ISSUE-314]; built on-demand 43 KB streaming token row reader in `transformer.cl` resolving 11.27 GB allocation failure [ISSUE-315]; eliminated token ID clamping; aligned global attention layers (proportional rotary factor = 0.25); upgraded Target 84 Gate 5 to normalized cosine similarity on tangent manifold; verified live factual chat generation without expert priming.
 - [x] **2. Persistent Introspective Self-Identity & Domain 9 SELF_AND_IDENTITY (Sprint 491)**: Registered dedicated Domain 9 (`SELF_AND_IDENTITY`) in `cognitive_memory.db` for introspective self-awareness and creator relationship; seeded defaults without overwrite; implemented native Gemma 4 system turn injection (`<|turn>system\n...<turn|>\n`) using token `9731` (`system`); masked control tokens to prevent leakage; implemented conversational learning (`geomind_chat_learn_conversational_turn`) extracting user teaching and model self-decisions; verified persistence across process restart (`test_domain9_persistence.car`); verified pure neural self-identification.
-- [ ] **3. Multi-Turn Conversational Coherence, Dynamic Factual Grounding & Test Harness Integrity (Sprint 492)**:
-  - Wire Target 88 (`test_autodiff_backward_syntax.car`) into `tools/run_affected_tests.ps1` (`1..88`) and `test/compiler_suite/run_tests.car` [ISSUE-316].
-  - Implement multi-turn conversational context assembly in `test/geomind/chat.cl` and `test/geomind/main.car`, querying active session episodes from `cognitive_memory.db` and preserving cumulative token sequence positions [ISSUE-317].
-  - Eradicate hardcoded string filters in `geomind_chat_retrieve_factual_attractor` with dynamic SQLite entity state discovery [ISSUE-318].
-  - Verify multi-turn conversational recall, unprimed factual chat, and full 88-target compiler regression clearance.
+- [x] **3. Multi-Turn Conversational Coherence, Dynamic Factual Grounding & Test Harness Integrity (Sprint 492)**: Wired Target 88 into test runners (`tools/run_affected_tests.ps1`, `test/compiler_suite/run_tests.car`) [ISSUE-316]; implemented multi-turn conversational context assembly in `test/geomind/chat.cl` and `src/std/sqlite_vec.cl` [ISSUE-317]; dynamic SQLite entity state discovery in `geomind_chat_retrieve_factual_attractor` [ISSUE-318]; verified 4-turn coherence and 88/88 test targets.
+- [x] **4. Domain 10 USERS_AND_RELATIONSHIPS, Camera Ingestion & Eikonal Face Verification (Sprint 493)**:
+  - Created Windows Media Foundation hardware camera capture tool (`tools/capture_camera.exe`) [ISSUE-319].
+  - Registered Domain 10 (`USERS_AND_RELATIONSHIPS`) in `cognitive_memory.db` isolating user profiles, face maps, and creator relationship from transient interlocutor state [ISSUE-320].
+  - Implemented eikonal face feature extraction, unit L2 normalization ($S^{319}$), and vector cosine similarity in `src/std/vision.cl` [ISSUE-321].
+  - Implemented neutral guest preamble conditioning and interactive `/whoami`, `/capture-face`, `/register-face`, `/verify-face`, and `/switch-user` commands in `test/geomind/chat.cl` and `main.car`.
+  - Authored and verified `test/geomind/test_face_mapping_and_user_domain.car` across all 4 gates (biometric discrimination, unit hypersphere projection, multi-user preambles).
 
 
 

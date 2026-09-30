@@ -4103,3 +4103,44 @@ This file tracks technical debt and bugs identified during repository code revie
   2. Implemented `cartan_string_to_lower` and `string_to_lower` in `src/std/string.cl`.
   3. Refactored `geomind_chat_retrieve_factual_attractor` in `test/geomind/chat.cl` to query `cartan_sqlite_find_entity_attribute_in_prompt(db, prompt)`, eradicating all static string branches.
   4. Verified dynamic factual retrieval across France, Germany, Japan, and Cell entities in `test_multiturn_conversational_coherence.car`.
+
+---
+
+## [ISSUE-319] [FIXED] Absence of Hardware Camera Capture & Real Frame Ingestion Tooling
+- **Severity**: High (Multimodal Capability & Biometric Grounding)
+- **Component**: [`tools/capture_camera.c`](file:///C:/Users/rich-/source/repos/CARTAN/tools/capture_camera.c), [`tools/capture_camera.exe`](file:///C:/Users/rich-/source/repos/CARTAN/tools/capture_camera.exe)
+- **Description**: While `docs/spec.md` specifies native camera streaming, CARTAN possessed no runtime or developer tooling to capture physical webcam frames on Windows, forcing image input to rely on pre-existing disk images.
+- **Resolution**:
+  1. Authored `tools/capture_camera.c` using Windows Media Foundation (`IMFSourceReader`, `MFCreateSourceReaderFromMediaSource`, `MF_SOURCE_READER_ENABLE_VIDEO_PROCESSING`, `MFVideoFormat_RGB32`).
+  2. Implemented 8-frame sensor warm-up loop to allow physical CMOS hardware Auto Exposure Control (AEC) and Auto White Balance (AWB) to converge.
+  3. Implemented uncompressed 24-bit BMP image serializer with downsampling support (defaults to 640x480).
+  4. Compiled to standalone binary `tools/capture_camera.exe` with `zig cc -O2 -lmf -lmfplat -lmfreadwrite -lmfuuid -lole32`.
+  5. Empirically verified frame capture on physical `HP 5MP Camera` producing authentic 921,654 byte 640x480 BMP.
+
+---
+
+## [ISSUE-320] [FIXED] Global Interlocutor Assumption & Lack of Domain 10 User/Relationship Profile Separation
+- **Severity**: High (Cognitive Architecture & Interpersonal Multi-User Safety)
+- **Component**: [`test/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl), [`test/geomind/main.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/main.car), [`src/std/sqlite_vec.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/sqlite_vec.cl)
+- **Description**: `geomind_chat_build_cognitive_preamble` unconditionally declared that the user speaking is Rick. When another person speaks, GeoMind either misidentifies them or permanently overwrites `User.preferred_name` in Domain 1, breaking creator/interlocutor separation.
+- **Resolution**:
+  1. Registered Domain 10: `USERS_AND_RELATIONSHIPS` ("Interpersonal User Profiles, Biometric Face Maps, Social Boundaries, and Interlocutor Verification") in `sqlite_vec_init_schema`.
+  2. Seeded initial user entities `User:Rick` (`relationship='creator'`, `verified='1'`) and `User:Guest` (`relationship='guest'`, `verified='0'`) in `sqlite_vec_init_domain10`.
+  3. Implemented `sqlite_vec_get_user_attr`, `sqlite_vec_set_user_attr`, `sqlite_vec_save_user_face_embedding`, and `sqlite_vec_get_user_face_embedding`.
+  4. Introduced `g_active_user_id` in `test/geomind/chat.cl` defaulting unverified sessions to neutral guest preamble: *"The user speaking with you is an unverified guest. Greet them politely and ask who they are without assuming their identity."*
+  5. Added interactive REPL commands `/whoami`, `/capture-face`, `/register-face`, `/verify-face`, and `/switch-user` in `test/geomind/main.car`.
+  6. Verified multi-user profile separation and preamble conditioning across unverified guest, verified creator, and new interlocutor in `test_face_mapping_and_user_domain.car`.
+
+---
+
+## [ISSUE-321] [FIXED] Missing Eikonal Face Feature Extraction & Vector Cosine Verification in Vision Standard Library
+- **Severity**: Medium (Vision Algorithm & Biometric Verification)
+- **Component**: [`src/std/vision.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/vision.cl)
+- **Description**: `src/std/vision.cl` lacks high-level facial receptive field extraction, L2 unit normalization, cosine similarity comparison, and vector serialization routines required for persistent face map verification.
+- **Resolution**:
+  1. Implemented `cartan_vec_normalize_l2` in `src/std/vision.cl` projecting arbitrary feature vectors onto the unit hypersphere $S^{d-1}$ with zero-norm safety.
+  2. Implemented `vision_extract_face_patch` extracting a centered facial region of interest (ROI) with bilinear interpolation downsampling.
+  3. Implemented `vision_extract_face_embedding` projecting face patches through multi-scale 320-D eikonal gradient receptive fields.
+  4. Implemented `vision_cosine_similarity` computing metric angle $\langle u, v \rangle$ in $O(d)$ time.
+  5. Implemented `vision_serialize_vector_csv` and `vision_deserialize_vector_csv` ensuring round-trip numerical reconstruction error $< 10^{-7}$.
+  6. Empirically verified metric discrimination: self-identity similarity $= 1.0000$, orthogonal vector similarity $= 0.0000$, perturbed face similarity $= 0.9984$ ($\ge 0.85$ verification match), unrelated face similarity $= 0.000088$ ($< 0.50$ rejection).

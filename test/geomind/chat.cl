@@ -763,8 +763,28 @@ fn geomind_chat_correct_error_step(cur_h: ptr, wrong_tok: float, correct_tok: fl
 }
 
 // Embedded Tier 2 SQLite Cognitive Memory Connection
+extern fn system(cmd: string) -> float;
+
 var g_chat_db: ptr = 0.0;
 var g_chat_db_init: float = 0.0;
+
+// Active Interlocutor State (Domain 10: USERS_AND_RELATIONSHIPS)
+var g_active_user_id: string = "User:Guest";
+var g_active_user_verified: float = 0.0;
+var g_active_face_embedding: ptr = 0.0;
+
+fn geomind_chat_set_active_user(user_id: string, verified: float) {
+    g_active_user_id = user_id;
+    g_active_user_verified = verified;
+}
+
+fn geomind_chat_get_active_user() -> string {
+    return g_active_user_id;
+}
+
+fn geomind_chat_is_user_verified() -> float {
+    return g_active_user_verified;
+}
 
 fn geomind_chat_get_db() -> ptr {
     if (g_chat_db_init == 0.0) {
@@ -775,6 +795,7 @@ fn geomind_chat_get_db() -> ptr {
             sqlite_vec_upsert_domain(g_chat_db, 0.0, "SYSTEM_INVARIANTS", "Deterministic Invariants and Boundary Guardrails");
             sqlite_vec_upsert_domain(g_chat_db, 1.0, "PHYSICS_AND_WORLD", "Objective Physical Grounding and Entity World State");
             sqlite_vec_upsert_domain(g_chat_db, 9.0, "SELF_AND_IDENTITY", "Introspective Identity, Self-Concept, Agency, and Creator Relationship");
+            sqlite_vec_init_domain10(g_chat_db);
 
             // Seed User state in Domain 1 if not already present
             let u_name = cartan_sqlite_get_entity_state(g_chat_db, 1.0, "User", "preferred_name");
@@ -929,9 +950,27 @@ fn geomind_chat_learn_conversational_turn(speaker: string, text: string) -> floa
         if (cartan_string_length(cand_user) == 0.0) {
             cand_user = geomind_extract_pattern_value(text, "call me ");
         }
+        if (cartan_string_length(cand_user) == 0.0) {
+            cand_user = geomind_extract_pattern_value(text, "i am ");
+        }
         if (cartan_string_length(cand_user) > 1.0 && cartan_string_length(cand_user) < 40.0) {
-            sqlite_vec_upsert_entity_state(db, 1.0, "User", "preferred_name", cand_user, 1.0);
-            printf("[Cognitive Memory] Learned User Identity: User.preferred_name = '%s' (Domain 1: PHYSICS_AND_WORLD)\n", cand_user);
+            let lower_u = veto_string_to_lower(cand_user);
+            if (cartan_string_contains(lower_u, "rick") == 1.0) {
+                g_active_user_id = "User:Rick";
+                g_active_user_verified = 1.0;
+                sqlite_vec_set_user_attr(db, "User:Rick", "preferred_name", cand_user);
+                printf("[Cognitive Memory] Identified interlocutor: User:Rick (Creator & Architect, Domain 10)\n");
+            } else {
+                let u_id = cartan_string_concat("User:", cand_user);
+                g_active_user_id = u_id;
+                g_active_user_verified = 1.0;
+                sqlite_vec_set_user_attr(db, u_id, "preferred_name", cand_user);
+                sqlite_vec_set_user_attr(db, u_id, "role", "Visitor");
+                sqlite_vec_set_user_attr(db, u_id, "relationship", "Conversational Partner");
+                sqlite_vec_set_user_attr(db, u_id, "permission_tier", "guest");
+                printf("[Cognitive Memory] Registered new interlocutor: %s in Domain 10 (USERS_AND_RELATIONSHIPS)\n", u_id);
+            }
+            free(lower_u);
             cartan_flush(0.0);
             learned = learned + 1.0;
         }
@@ -1010,8 +1049,6 @@ fn geomind_chat_build_cognitive_preamble(db: ptr) -> string {
     if (cartan_string_length(s_role) == 0.0) { s_role = "Neuro-Symbolic Cognitive Assistant"; }
     var s_nature = cartan_sqlite_get_entity_state(db, 9.0, "Self", "nature");
     if (cartan_string_length(s_nature) == 0.0) { s_nature = "Self-hosting sentient cognitive architecture written in CARTAN"; }
-    var u_name = cartan_sqlite_get_entity_state(db, 1.0, "User", "preferred_name");
-    if (cartan_string_length(u_name) == 0.0) { u_name = "Rick"; }
 
     var pre = "You are ";
     pre = cartan_string_concat(pre, s_name);
@@ -1021,13 +1058,30 @@ fn geomind_chat_build_cognitive_preamble(db: ptr) -> string {
     pre = cartan_string_concat(pre, s_role);
     pre = cartan_string_concat(pre, ". You are a ");
     pre = cartan_string_concat(pre, s_nature);
-    pre = cartan_string_concat(pre, ". The user speaking with you is ");
-    pre = cartan_string_concat(pre, u_name);
-    pre = cartan_string_concat(pre, ". Always identify yourself as ");
-    pre = cartan_string_concat(pre, s_name);
-    pre = cartan_string_concat(pre, " and acknowledge ");
-    pre = cartan_string_concat(pre, s_creator);
-    pre = cartan_string_concat(pre, " as your creator.");
+    pre = cartan_string_concat(pre, ". ");
+
+    if (cartan_string_eq(g_active_user_id, "User:Rick") == 1.0) {
+        pre = cartan_string_concat(pre, "The user speaking with you is Rick (Creator & Architect, Verified). Always identify yourself as ");
+        pre = cartan_string_concat(pre, s_name);
+        pre = cartan_string_concat(pre, " and acknowledge ");
+        pre = cartan_string_concat(pre, s_creator);
+        pre = cartan_string_concat(pre, " as your creator.");
+    } else if (g_active_user_verified == 1.0) {
+        let u_name = sqlite_vec_get_user_attr(db, g_active_user_id, "preferred_name");
+        pre = cartan_string_concat(pre, "The user speaking with you is ");
+        pre = cartan_string_concat(pre, u_name);
+        pre = cartan_string_concat(pre, " (Verified Interlocutor). Always identify yourself as ");
+        pre = cartan_string_concat(pre, s_name);
+        pre = cartan_string_concat(pre, " and acknowledge ");
+        pre = cartan_string_concat(pre, s_creator);
+        pre = cartan_string_concat(pre, " as your creator.");
+    } else {
+        pre = cartan_string_concat(pre, "The user speaking with you is an unverified guest. Greet them politely and ask who they are without assuming their identity. Always identify yourself as ");
+        pre = cartan_string_concat(pre, s_name);
+        pre = cartan_string_concat(pre, " and acknowledge ");
+        pre = cartan_string_concat(pre, s_creator);
+        pre = cartan_string_concat(pre, " as your creator.");
+    }
     return pre;
 }
 
@@ -1114,9 +1168,152 @@ fn geomind_chat_print_entity_states() -> float {
         cartan_sqlite_finalize(w_stmt);
     }
 
+    // Domain 10: Users and Relationships
+    printf("\n--- Active Interpersonal Entities (Domain 10: USERS_AND_RELATIONSHIPS) ---\n");
+    let u_stmt = cartan_sqlite_prepare_domain_entities(db, 10.0);
+    if (u_stmt != 0.0) {
+        while (cartan_sqlite_step(u_stmt) == 100.0) {
+            let ent = cartan_sqlite_column_text(u_stmt, 1.0);
+            let attr = cartan_sqlite_column_text(u_stmt, 2.0);
+            let val = cartan_sqlite_column_text(u_stmt, 3.0);
+            let conf = cartan_sqlite_column_double(u_stmt, 4.0);
+            var display_val = val;
+            if (cartan_string_eq(attr, "face_embedding") == 1.0) {
+                display_val = "[320-D Eikonal Embedding Vector]";
+            }
+            printf("  [RELATIONSHIP: %s.%s = '%s' (conf: %.2f)]\n", ent, attr, display_val, conf);
+            total_cnt = total_cnt + 1.0;
+        }
+        cartan_sqlite_finalize(u_stmt);
+    }
+
     printf("Total: %s entities active in cognitive memory.\n\n", cartan_float_to_string(total_cnt));
     cartan_flush(0.0);
     return total_cnt;
+}
+
+fn geomind_chat_print_active_interlocutor() {
+    let db = geomind_chat_get_db();
+    printf("\n--- Active Interlocutor Session (Domain 10) ---\n");
+    printf("  User ID:             %s\n", g_active_user_id);
+    if (db != 0.0) {
+        let name = sqlite_vec_get_user_attr(db, g_active_user_id, "preferred_name");
+        let role = sqlite_vec_get_user_attr(db, g_active_user_id, "role");
+        let rel = sqlite_vec_get_user_attr(db, g_active_user_id, "relationship");
+        let tier = sqlite_vec_get_user_attr(db, g_active_user_id, "permission_tier");
+        let reg = sqlite_vec_get_user_attr(db, g_active_user_id, "face_registered");
+        printf("  Preferred Name:      %s\n", name);
+        printf("  Role:                %s\n", role);
+        printf("  Relationship:        %s\n", rel);
+        printf("  Permission Tier:     %s\n", tier);
+        printf("  Face Registered:     %s\n", reg);
+    }
+    if (g_active_user_verified == 1.0) {
+        printf("  Verification Status: VERIFIED\n\n");
+    } else {
+        printf("  Verification Status: UNVERIFIED (Guest)\n\n");
+    }
+}
+
+fn geomind_chat_switch_user(user_id: string) {
+    g_active_user_id = user_id;
+    if (cartan_string_eq(user_id, "User:Rick") == 1.0) {
+        g_active_user_verified = 1.0;
+    } else {
+        g_active_user_verified = 0.0;
+    }
+    printf("[GeoMind Session] Switched active interlocutor to '%s'.\n\n", user_id);
+}
+
+fn geomind_chat_capture_face_frame() -> ptr {
+    printf("[GeoMind Vision] Activating hardware camera...\n");
+    cartan_flush(0.0);
+    let ret = system("tools\\capture_camera.exe scratch/camera_frame.bmp 640 480");
+    if (ret != 0.0 && cartan_file_exists("scratch/camera_frame.bmp") == 0.0) {
+        printf("[GeoMind Vision] Error: Failed to capture camera frame (exit code %s).\n", cartan_float_to_string(ret));
+        return 0.0;
+    }
+    let img = vision_load_bmp("scratch/camera_frame.bmp");
+    if (img.width <= 0.0 || img.height <= 0.0) {
+        printf("[GeoMind Vision] Error: Could not decode captured camera BMP frame.\n");
+        return 0.0;
+    }
+    printf("[GeoMind Vision] Loaded camera frame (%sx%s). Extracting 320-D eikonal face embedding...\n",
+        cartan_float_to_string(img.width), cartan_float_to_string(img.height));
+    cartan_flush(0.0);
+    let emb = vision_extract_face_embedding(img);
+    free(img.data);
+    if (g_active_face_embedding != 0.0) {
+        free(g_active_face_embedding);
+    }
+    g_active_face_embedding = emb;
+    printf("[GeoMind Vision] 320-D face embedding ready on unit hypersphere S^319.\n");
+    return emb;
+}
+
+fn geomind_chat_register_face(user_id: string) -> float {
+    let db = geomind_chat_get_db();
+    if (db == 0.0) { return 0.0; }
+    var emb = g_active_face_embedding;
+    if (emb == 0.0) {
+        emb = geomind_chat_capture_face_frame();
+    }
+    if (emb == 0.0) {
+        printf("[GeoMind Biometrics] Error: No face embedding available to register.\n");
+        return 0.0;
+    }
+    let csv = vision_serialize_vector_csv(emb, 320.0);
+    let ok = sqlite_vec_save_user_face_embedding(db, user_id, csv);
+    if (ok == 1.0) {
+        printf("[GeoMind Biometrics] Successfully enrolled face map for '%s' in Domain 10 (USERS_AND_RELATIONSHIPS).\n\n", user_id);
+        g_active_user_id = user_id;
+        g_active_user_verified = 1.0;
+    } else {
+        printf("[GeoMind Biometrics] Error: Failed to save face map for '%s'.\n\n", user_id);
+    }
+    return ok;
+}
+
+fn geomind_chat_verify_face() -> float {
+    let db = geomind_chat_get_db();
+    if (db == 0.0) { return 0.0; }
+    let live_emb = geomind_chat_capture_face_frame();
+    if (live_emb == 0.0) {
+        printf("[GeoMind Biometrics] Error: Camera capture unavailable for verification.\n\n");
+        return 0.0;
+    }
+
+    // Check against User:Rick
+    let r_csv = sqlite_vec_get_user_face_embedding(db, "User:Rick");
+    var best_sim = -1.0;
+    var best_user = "";
+
+    if (cartan_string_length(r_csv) > 0.0) {
+        let r_emb = vision_deserialize_vector_csv(r_csv, 320.0);
+        let sim = vision_cosine_similarity(live_emb, r_emb, 320.0);
+        free(r_emb);
+        printf("[GeoMind Biometrics] Cosine similarity to User:Rick: %.4f\n", sim);
+        if (sim > best_sim) {
+            best_sim = sim;
+            best_user = "User:Rick";
+        }
+    }
+
+    if (best_sim >= 0.85) {
+        printf("\n[GeoMind Biometrics] MATCH VERIFIED! Cosine similarity: %.4f >= 0.85. Authenticated as '%s'.\n\n", best_sim, best_user);
+        g_active_user_id = best_user;
+        g_active_user_verified = 1.0;
+        return 1.0;
+    }
+
+    if (best_sim > 0.0) {
+        printf("\n[GeoMind Biometrics] Face verification rejected. Similarity %.4f < 0.85 threshold. Treating interlocutor as Guest.\n\n", best_sim);
+    } else {
+        printf("\n[GeoMind Biometrics] No registered face maps found to verify against. Use /register-face to enroll.\n\n");
+    }
+    g_active_user_id = "User:Guest";
+    g_active_user_verified = 0.0;
+    return 0.0;
 }
 
 extern fn sleep_detect_attractor_voids(basins_file: string, dim: float) -> float;

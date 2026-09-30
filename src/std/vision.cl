@@ -485,3 +485,111 @@ fn vision_load_bmp(path: string) -> Image {
     return img;
 }
 
+extern fn atof(s: string) -> float;
+
+// L2 Unit Normalization for Tangent Feature Vectors
+fn cartan_vec_normalize_l2(vec: ptr, dim: float) -> float {
+    if (vec == 0.0 || dim <= 0.0) { return 0.0; }
+    var sum_sq = 0.0;
+    var i = 0.0;
+    while (i < dim) {
+        let v = cartan_vec_get_f32(vec, i);
+        sum_sq = sum_sq + (v * v);
+        i = i + 1.0;
+    }
+    if (sum_sq > 0.000000000001) {
+        let norm = sqrt(sum_sq);
+        let inv_norm = 1.0 / norm;
+        var j = 0.0;
+        while (j < dim) {
+            let val = cartan_vec_get_f32(vec, j);
+            cartan_vec_set_f32(vec, j, val * inv_norm);
+            j = j + 1.0;
+        }
+        return norm;
+    }
+    return 0.0;
+}
+
+// Extract central facial quadrant receptive field (default patch_dim = 16x16)
+fn vision_extract_face_patch(img: Image, patch_dim: float) -> ptr {
+    if (img.width <= 0.0 || img.height <= 0.0 || img.data == 0.0) {
+        return cartan_tensor_alloc(patch_dim * patch_dim * 3.0);
+    }
+    var sx = 0.0;
+    var sy = 0.0;
+    if (img.width > patch_dim) {
+        sx = floor((img.width - patch_dim) * 0.5);
+    }
+    if (img.height > patch_dim) {
+        sy = floor((img.height - patch_dim) * 0.5);
+    }
+    return vision_extract_patch(img, sx, sy, patch_dim, patch_dim);
+}
+
+// Extract 320-D normalized eikonal face embedding on unit hypersphere S^319
+fn vision_extract_face_embedding(img: Image) -> ptr {
+    let patch_dim = 16.0;
+    let patch = vision_extract_face_patch(img, patch_dim);
+    let emb = vision_project_to_eikonal_stream(patch, patch_dim * patch_dim * 3.0, 320.0);
+    free(patch);
+    cartan_vec_normalize_l2(emb, 320.0);
+    return emb;
+}
+
+// Cosine similarity between two feature vectors in R^dim
+fn vision_cosine_similarity(vec_a: ptr, vec_b: ptr, dim: float) -> float {
+    if (vec_a == 0.0 || vec_b == 0.0 || dim <= 0.0) { return 0.0; }
+    var dot = 0.0;
+    var sq_a = 0.0;
+    var sq_b = 0.0;
+    var i = 0.0;
+    while (i < dim) {
+        let va = cartan_vec_get_f32(vec_a, i);
+        let vb = cartan_vec_get_f32(vec_b, i);
+        dot = dot + (va * vb);
+        sq_a = sq_a + (va * va);
+        sq_b = sq_b + (vb * vb);
+        i = i + 1.0;
+    }
+    if (sq_a < 0.000000000001 || sq_b < 0.000000000001) { return 0.0; }
+    return dot / (sqrt(sq_a) * sqrt(sq_b));
+}
+
+// Serialize vector to CSV string for SQLite storage
+fn vision_serialize_vector_csv(vec: ptr, dim: float) -> string {
+    if (vec == 0.0 || dim <= 0.0) { return ""; }
+    var result = "";
+    var i = 0.0;
+    while (i < dim) {
+        let v = cartan_vec_get_f32(vec, i);
+        let v_str = cartan_float_to_string(v);
+        if (i == 0.0) {
+            result = v_str;
+        } else {
+            result = cartan_string_concat(result, ",");
+            result = cartan_string_concat(result, v_str);
+        }
+        i = i + 1.0;
+    }
+    return result;
+}
+
+// Deserialize CSV string back into flat tensor
+fn vision_deserialize_vector_csv(str_val: string, dim: float) -> ptr {
+    let vec = cartan_tensor_alloc(dim);
+    if (str_val == 0.0 || cartan_string_length(str_val) == 0.0) {
+        return vec;
+    }
+    let parts = string_split(str_val, ",");
+    let count = cartan_tree_len(parts);
+    var i = 0.0;
+    while (i < dim && i < count) {
+        let part_str = cartan_tree_get(parts, i);
+        let num_val = atof(part_str);
+        cartan_vec_set_f32(vec, i, num_val);
+        i = i + 1.0;
+    }
+    return vec;
+}
+
