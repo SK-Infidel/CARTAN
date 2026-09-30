@@ -4,6 +4,9 @@
 include "src/std/constants.ch";
 include "src/std/math.cl";
 
+extern fn calloc(count: float, size: float) -> ptr;
+extern fn free(p: ptr) -> void;
+
 fn geom_dot_3d(x1: float, y1: float, z1: float, x2: float, y2: float, z2: float) -> float {
     return x1 * x2 + y1 * y2 + z1 * z2;
 }
@@ -72,15 +75,8 @@ fn geom_e8_root_coordinate(root_idx: float, dim: float) -> float {
 fn geomind_inverse_randers_backward_project(drift_vector: ptr, lambda_mass_penalty: float, grad_tensor: ptr, velocity: ptr) -> float {
     if (grad_tensor == 0.0 || velocity == 0.0 || drift_vector == 0.0) { return 0.0; }
     let dim = cartan_vec_len(grad_tensor);
-    var stride = 31.0;
-    if (dim >= 2560.0) {
-        stride = 320.0;
-    } else if (dim >= 1984.0) {
-        stride = 248.0;
-    } else if (dim > 0.0) {
-        let calc = floor(dim / 8.0);
-        if (calc >= 1.0) { stride = calc; }
-    }
+    var stride = floor(dim / 8.0);
+    if (stride < 1.0) { stride = 1.0; }
 
     var norm_g_sq = 0.0;
     var dot_bv = 0.0;
@@ -105,15 +101,8 @@ fn geomind_inverse_randers_transform_grad(grad_ptr: ptr, drift_ptr: ptr, metric_
     let dim = cartan_vec_len(grad_ptr);
     if (dim <= 0.0) { return 0.0; }
 
-    var stride = 31.0;
-    if (dim >= 2560.0) {
-        stride = 320.0;
-    } else if (dim >= 1984.0) {
-        stride = 248.0;
-    } else if (dim > 0.0) {
-        let calc = floor(dim / 8.0);
-        if (calc >= 1.0) { stride = calc; }
-    }
+    var stride = floor(dim / 8.0);
+    if (stride < 1.0) { stride = 1.0; }
 
     // Step 1: Global vector reductions (g . b) and (||b||^2) across the entire tensor
     var dot_gb = 0.0;
@@ -319,3 +308,96 @@ fn geom_killing_form_dynkin_weight(submanifold_idx: float) -> float {
     if (submanifold_idx == 6.0) { return 1.5; } // SU(5) x SU(5)
     return 2.0;                                // SU(3)^3
 }
+
+// Pure Native CARTAN Manifold Analogy Search over Vocabulary Candidates
+// Evaluates query vector against all candidate embedding rows with exact cosine normalization
+// Returns 1.0 on success and populates out_stats_vec (size >= 8, elements at [2 + i])
+fn cartan_analogy_search_topk(
+    query_tensor: ptr,
+    embedding_buf: ptr,
+    vocab_size: float,
+    dim: float,
+    exclude_a: float,
+    exclude_b: float,
+    exclude_c: float,
+    expected_tok: float,
+    out_stats_vec: ptr
+) -> float {
+    if (query_tensor == 0.0 || embedding_buf == 0.0 || out_stats_vec == 0.0) { return 0.0; }
+    if (dim <= 0.0 || vocab_size <= 0.0) { return 0.0; }
+
+    let q_raw = calloc(dim, 4.0);
+    var d = 0.0;
+    var q_norm_sq = 0.0;
+    while (d < dim) {
+        let q_val = cartan_vec_get_f32(query_tensor, d);
+        cartan_set_f32(q_raw, d, q_val);
+        q_norm_sq = q_norm_sq + (q_val * q_val);
+        d = d + 1.0;
+    }
+    var inv_q_norm = 0.0;
+    if (q_norm_sq > 0.000000000001) { inv_q_norm = 1.0 / sqrt(q_norm_sq); }
+    d = 0.0;
+    while (d < dim) {
+        let q_val = cartan_f32_at(q_raw, d);
+        cartan_set_f32(q_raw, d, q_val * inv_q_norm);
+        d = d + 1.0;
+    }
+
+    var expected_sim = -100.0;
+    if (expected_tok >= 0.0 && expected_tok < vocab_size) {
+        let exp_row = cartan_f32_ptr_add(embedding_buf, expected_tok * dim);
+        let dot_e = cartan_simd_dot_f32(q_raw, exp_row, dim);
+        let norm_e_sq = cartan_simd_dot_f32(exp_row, exp_row, dim);
+        if (norm_e_sq > 0.000000000001) {
+            expected_sim = dot_e / sqrt(norm_e_sq);
+        }
+    }
+
+    var best_tok = -1.0;
+    var best_sim = -100.0;
+    var second_tok = -1.0;
+    var second_sim = -100.0;
+    var expected_rank = 1.0;
+
+    var v = 0.0;
+    while (v < vocab_size) {
+        if (v == exclude_a || v == exclude_b || v == exclude_c) {
+            v = v + 1.0;
+            continue;
+        }
+        let row = cartan_f32_ptr_add(embedding_buf, v * dim);
+        let dot = cartan_simd_dot_f32(q_raw, row, dim);
+        let norm_sq = cartan_simd_dot_f32(row, row, dim);
+        var sim = -1.0;
+        if (norm_sq > 0.000000000001) {
+            sim = dot / sqrt(norm_sq);
+        }
+        if (sim > expected_sim) {
+            expected_rank = expected_rank + 1.0;
+        }
+        if (sim > best_sim) {
+            second_sim = best_sim;
+            second_tok = best_tok;
+            best_sim = sim;
+            best_tok = v;
+        } else if (sim > second_sim) {
+            second_sim = sim;
+            second_tok = v;
+        }
+        v = v + 1.0;
+    }
+
+    cartan_vec_set_f32(out_stats_vec, 0.0, best_tok);
+    cartan_vec_set_f32(out_stats_vec, 1.0, best_sim);
+    cartan_vec_set_f32(out_stats_vec, 2.0, second_tok);
+    cartan_vec_set_f32(out_stats_vec, 3.0, second_sim);
+    cartan_vec_set_f32(out_stats_vec, 4.0, expected_tok);
+    cartan_vec_set_f32(out_stats_vec, 5.0, expected_sim);
+    cartan_vec_set_f32(out_stats_vec, 6.0, expected_rank);
+    cartan_vec_set_f32(out_stats_vec, 7.0, best_sim - second_sim);
+
+    free(q_raw);
+    return 1.0;
+}
+

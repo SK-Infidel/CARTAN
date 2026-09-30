@@ -57,6 +57,9 @@ fn sleep_run_consolidation_cycle(basins_file: string, dim: float, lr_sleep: floa
         return 0.0;
     }
 
+    var eff_dim = dim;
+    if (g_hopfield_dim > 0.0) { eff_dim = g_hopfield_dim; }
+
     var prune_thresh = thresh;
     if (prune_thresh <= 0.0) { prune_thresh = 0.98; }
 
@@ -72,8 +75,8 @@ fn sleep_run_consolidation_cycle(basins_file: string, dim: float, lr_sleep: floa
     while (k < replay_limit) {
         let basin = cartan_hopfield_get_basin(k);
         if (basin != 0.0) {
-            let replay = sleep_replay_basin(basin, dim, 0.01, 2.0, 3.0);
-            let rho = sleep_compute_resonance(basin, replay, dim);
+            let replay = sleep_replay_basin(basin, eff_dim, 0.01, 2.0, 3.0);
+            let rho = sleep_compute_resonance(basin, replay, eff_dim);
             if (rho > 0.5) {
                 sleep_consolidate_slow_weights(basin, replay, lr_sleep);
                 consolidated_count = consolidated_count + 1.0;
@@ -98,6 +101,9 @@ fn sleep_run_consolidation_cycle_memory(basins_file: string, dim: float, lr_slee
         return 0.0;
     }
 
+    var eff_dim = dim;
+    if (g_hopfield_dim > 0.0) { eff_dim = g_hopfield_dim; }
+
     var prune_thresh = thresh;
     if (prune_thresh <= 0.0) { prune_thresh = 0.98; }
 
@@ -113,8 +119,8 @@ fn sleep_run_consolidation_cycle_memory(basins_file: string, dim: float, lr_slee
     while (k < replay_limit) {
         let basin = cartan_hopfield_get_basin(k);
         if (basin != 0.0) {
-            let replay = sleep_replay_basin(basin, dim, 0.01, 2.0, 3.0);
-            let rho = sleep_compute_resonance(basin, replay, dim);
+            let replay = sleep_replay_basin(basin, eff_dim, 0.01, 2.0, 3.0);
+            let rho = sleep_compute_resonance(basin, replay, eff_dim);
             if (rho > 0.5) {
                 sleep_consolidate_slow_weights(basin, replay, lr_sleep);
                 consolidated_count = consolidated_count + 1.0;
@@ -224,11 +230,15 @@ fn sleep_run_axiomatic_consolidation(nses_graph_path: string, basins_file: strin
 }
 
 fn cartan_sleep_consolidate_cycle(filepath: string, lr: float, thresh: float) -> float {
-    return sleep_run_consolidation_cycle(filepath, 248.0, lr, thresh);
+    var eff_dim = 248.0;
+    if (g_hopfield_dim > 0.0) { eff_dim = g_hopfield_dim; }
+    return sleep_run_consolidation_cycle(filepath, eff_dim, lr, thresh);
 }
 
 fn cartan_sleep_consolidate_cycle_memory(filepath: string, lr: float, thresh: float) -> float {
-    return sleep_run_consolidation_cycle_memory(filepath, 248.0, lr, thresh);
+    var eff_dim = 248.0;
+    if (g_hopfield_dim > 0.0) { eff_dim = g_hopfield_dim; }
+    return sleep_run_consolidation_cycle_memory(filepath, eff_dim, lr, thresh);
 }
 
 // Detects angular voids on the unit hypersphere between episodic Hopfield attractor basins

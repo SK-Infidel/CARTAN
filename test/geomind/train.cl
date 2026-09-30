@@ -70,6 +70,10 @@ var g_pipe_hopfield_backward: ptr = 0.0;
 var g_pipe_causal_mha_backward: ptr = 0.0;
 var g_pipe_accumulate_recurrent_dh: ptr = 0.0;
 var g_pipe_copy_pre_rmsnorm: ptr = 0.0;
+var g_pipe_critic_supervision: ptr = 0.0;
+var g_buf_critic_forbidden: ptr = 0.0;
+var g_host_critic_forbidden: ptr = 0.0;
+var g_critic_active_domain: float = -1.0;
 
 var g_buf_x: ptr = 0.0;
 var g_buf_attn_out: ptr = 0.0;
@@ -232,14 +236,14 @@ fn webgpu_get_causal_loss_shader() -> string {
     let s5 = "@compute @workgroup_size(64, 1, 1)\n";
     let s6 = "fn causal_loss_fwd(@builtin(global_invocation_id) gid: vec3<u32>) {\n";
     let s7 = "    let t_idx = gid.x;\n    let T = 31u;\n    if (t_idx >= T) { return; }\n";
-    let s8 = "    let base = t_idx * 64u;\n    var k: u32 = u32(targets[t_idx]) & 63u;\n    let ic = ic_weights[t_idx];\n";
-    let s9 = "    var max_l: f32 = -10000.0f;\n    for (var d: u32 = 0u; d < 64u; d = d + 1u) {\n";
+    let s8 = "    let V = 2560u;\n    let base = t_idx * V;\n    var k: u32 = u32(targets[t_idx]);\n    if (k >= V) { return; }\n    let ic = ic_weights[t_idx];\n";
+    let s9 = "    var max_l: f32 = -10000.0f;\n    for (var d: u32 = 0u; d < V; d = d + 1u) {\n";
     let s10 = "        let l_val = logits[base + d];\n        if (l_val > max_l) { max_l = l_val; }\n    }\n";
-    let s11 = "    var sum_exp: f32 = 0.0f;\n    for (var d: u32 = 0u; d < 64u; d = d + 1u) {\n";
+    let s11 = "    var sum_exp: f32 = 0.0f;\n    for (var d: u32 = 0u; d < V; d = d + 1u) {\n";
     let s12 = "        sum_exp = sum_exp + exp(logits[base + d] - max_l);\n    }\n";
     let s13 = "    if (sum_exp < 0.00001f) { sum_exp = 0.00001f; }\n    let log_z = max_l + log(sum_exp);\n";
     let s14 = "    let tgt_l = logits[base + k];\n    var token_loss: f32 = (log_z - tgt_l) * ic;\n";
-    let s15 = "    if (token_loss < 0.01f) { token_loss = 0.01f; }\n    loss_out[t_idx] = token_loss;\n}\n";
+    let s15 = "    loss_out[t_idx] = token_loss;\n}\n";
 
     let a = cartan_string_concat(s1, s2);
     let b = cartan_string_concat(s3, s4);
@@ -456,6 +460,14 @@ fn train_mount_gpu() -> float {
     g_buf_prev_chunk_h = gpu_alloc(2560.0 * 4.0);
     g_buf_hopfield_attractors = gpu_alloc(8.0 * 2560.0 * 4.0);
     g_buf_pre_rmsnorm_h = gpu_alloc(2560.0 * 4.0);
+    g_buf_critic_forbidden = gpu_alloc(2560.0 * 4.0);
+    g_host_critic_forbidden = cartan_f32_buffer_alloc(2560.0);
+    var z_cf = 0.0;
+    while (z_cf < 2560.0) {
+        cartan_set_f32(g_host_critic_forbidden, z_cf, 0.0);
+        z_cf = z_cf + 1.0;
+    }
+    gpu_write(g_buf_critic_forbidden, g_host_critic_forbidden, 2560.0 * 4.0);
     g_host_hopfield_attractors = cartan_f32_buffer_alloc(8.0 * 2560.0);
 
     g_host_train_hidden = cartan_f32_buffer_alloc(2560.0);
@@ -552,6 +564,18 @@ fn train_mount_gpu() -> float {
 
     let copy_domain_src = "__kernel void geomind_copy_domain_h(__global float* domain_buf, __global float* chunk_buf, int d_idx, int dim, int to_domain) {\n    int i = get_global_id(0);\n    if (i < dim) {\n        if (to_domain == 1) {\n            domain_buf[d_idx * dim + i] = chunk_buf[i];\n        } else {\n            chunk_buf[i] = domain_buf[d_idx * dim + i];\n        }\n    }\n}\n";
     g_pipe_copy_domain_h = gpu_create_pipeline(copy_domain_src, "geomind_copy_domain_h");
+
+    let critic_bwd_src = "__kernel void geomind_critic_backward_supervision(__global float* delta, int target_tok, int prev_tok, int vocab, float lambda_echo, float lambda_sym, __global const float* forbidden_mask, float lambda_boost) {\n    int col = get_global_id(0);\n    if (col < vocab) {\n        float d = delta[col];\n        if (col == prev_tok && prev_tok != target_tok && prev_tok >= 0) {\n            d += lambda_echo;\n        }\n        if (forbidden_mask[col] > 0.5f) {\n            d += lambda_sym;\n        }\n        if (col == target_tok && target_tok >= 0 && lambda_boost > 0.0f) {\n            d -= lambda_boost;\n        }\n        delta[col] = d;\n    }\n}\n";
+    g_pipe_critic_supervision = gpu_create_pipeline(critic_bwd_src, "geomind_critic_backward_supervision");
+
+    cartan_gpu_set_arg_buf(g_pipe_critic_supervision, 0.0, g_buf_train_delta);
+    cartan_gpu_set_arg_i32(g_pipe_critic_supervision, 1.0, 0.0);
+    cartan_gpu_set_arg_i32(g_pipe_critic_supervision, 2.0, 0.0);
+    cartan_gpu_set_arg_i32(g_pipe_critic_supervision, 3.0, 2560.0);
+    cartan_gpu_set_arg_f32(g_pipe_critic_supervision, 4.0, 0.35);
+    cartan_gpu_set_arg_f32(g_pipe_critic_supervision, 5.0, 0.25);
+    cartan_gpu_set_arg_buf(g_pipe_critic_supervision, 6.0, g_buf_critic_forbidden);
+    cartan_gpu_set_arg_f32(g_pipe_critic_supervision, 7.0, 0.15);
 
     cartan_gpu_set_arg_buf(g_pipe_gemv, 0.0, g_buf_train_hidden);
     cartan_gpu_set_arg_buf(g_pipe_gemv, 1.0, g_buf_cortical_weights);
@@ -750,11 +774,16 @@ fn cartan_tensor_train_step(hidden_ptr: ptr, target_tok_id: float, learning_rate
     if (hidden_ptr == 0.0) { return 0.0; }
     cartan_init_cortical_weights_if_needed();
     var dim = hidden_ptr[0];
-    if (dim > 2560.0) { dim = 2560.0; }
     if (dim <= 0.0) { return 0.0; }
+    if (g_cortical_dim > 0.0 && dim > g_cortical_dim) {
+        dim = g_cortical_dim;
+    }
 
     var target_idx = target_tok_id;
-    let vocab_cols = 2560.0;
+    var vocab_cols = 2560.0;
+    if (g_cortical_vocab > 0.0) {
+        vocab_cols = g_cortical_vocab;
+    }
     if (target_idx < 0.0) { return 0.0; }
     if (target_idx >= vocab_cols) {
         target_idx = math_mod_val(target_idx, vocab_cols);
@@ -842,7 +871,7 @@ fn cartan_tensor_train_step(hidden_ptr: ptr, target_tok_id: float, learning_rate
     while (r < dim) {
         let hv = hidden_ptr[2.0 + r];
         if (hv != 0.0) {
-            let w_row = 2.0 + (r * 2560.0);
+            let w_row = 2.0 + (r * vocab_cols);
             c = 0.0;
             while (c < vocab_cols) {
                 let col = 2.0 + c;
@@ -944,15 +973,8 @@ fn cartan_tensor_train_step(hidden_ptr: ptr, target_tok_id: float, learning_rate
     g_train_logits[2.0 + target_idx] = ((target_p_t - 1.0) * inv_temp) * ic_w;
 
     // Finsler-Randers Sherman-Morrison dual cotangent projection with Killing-Cartan metric & AGC
-    var stride = 31.0;
-    if (dim >= 2560.0) {
-        stride = 320.0;
-    } else if (dim >= 1984.0) {
-        stride = 248.0;
-    } else if (dim > 0.0) {
-        let calc = floor(dim / 8.0);
-        if (calc >= 1.0) { stride = calc; }
-    }
+    var stride = floor(dim / 8.0);
+    if (stride < 1.0) { stride = 1.0; }
 
     var dot_gb = 0.0;
     var norm_b_sq = 0.0;
@@ -1003,7 +1025,7 @@ fn cartan_tensor_train_step(hidden_ptr: ptr, target_tok_id: float, learning_rate
     while (r_idx < dim) {
         let lr_h = lr * hidden_ptr[2.0 + r_idx] * 0.0197642;
         if (lr_h != 0.0) {
-            let w_row = 2.0 + (r_idx * 2560.0);
+            let w_row = 2.0 + (r_idx * vocab_cols);
             var col = 0.0;
             while (col < vocab_cols) {
                 let col_idx = 2.0 + col;
@@ -1117,10 +1139,19 @@ fn geomind_train_chunk_gpu_launch_pass(tokens: ptr, lr: float) -> float {
         cartan_gpu_set_arg_f32(g_pipe_softmax_loss_delta, 7.0, step_temp);
         cartan_gpu_launch_local(g_pipe_softmax_loss_delta, 256.0, 1.0, 1.0, 256.0, 1.0, 1.0);
 
+        // 2.5 Active Neuro-Symbolic Critic Gradient Supervision
+        if (lr > 0.0 && next_tok >= 0.0) {
+            cartan_gpu_set_arg_i32(g_pipe_critic_supervision, 1.0, next_tok);
+            cartan_gpu_set_arg_i32(g_pipe_critic_supervision, 2.0, prev_tok);
+            cartan_gpu_launch(g_pipe_critic_supervision, 2560.0, 1.0, 1.0);
+        }
+
         // 3. Full Non-Euclidean Reverse Randers Backpropagation Chain:
-        if (lr > 0.0 && next_tok >= 0.0 && next_tok < 2560.0) {
+        if (lr > 0.0 && next_tok >= 0.0) {
             // A. LM Head Weight SGD with Reverse Randers Metric & Killing Form Scaling
-            cartan_gpu_launch(g_pipe_sgd, 2560.0, 1.0, 1.0);
+            if (next_tok < 2560.0) {
+                cartan_gpu_launch(g_pipe_sgd, 2560.0, 1.0, 1.0);
+            }
 
             // B. Backward Head GEMV: Backpropagates covector delta into hidden gradient dh
             cartan_gpu_launch(g_pipe_head_backward_gemv, 2560.0, 1.0, 1.0);
@@ -2699,6 +2730,15 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
                     step_lr = 0.0;
                 }
 
+                // Pre-launch sync active domain forbidden mask to GPU VRAM for critic supervision
+                if (nses_active == 1.0 && g_train_gpu_mounted == 1.0) {
+                    if (d_idx != g_critic_active_domain) {
+                        veto_registry_get_domain_forbidden_mask(nses_pipe.veto_reg, active_d, g_host_critic_forbidden, 2560.0);
+                        gpu_write(g_buf_critic_forbidden, g_host_critic_forbidden, 2560.0 * 4.0);
+                        g_critic_active_domain = d_idx;
+                    }
+                }
+
                 // 1. Asynchronously launch training pass on GPU (non-blocking)
                 g_is_training_pass = 1.0;
                 geomind_train_chunk_gpu_launch_pass(active_tokens, step_lr);
@@ -2724,7 +2764,8 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
                 g_is_training_pass = 0.0;
                 var chunk_loss = chunk_loss_raw;
                 if (nses_active == 1.0 && step_lr > 0.0) {
-                    let sym_penalty = nses_pipeline_shape_loss(nses_pipe, active_d, g_host_train_logits, 0.0, 0.15);
+                    var null_tokens: ptr = 0.0;
+                    let sym_penalty = nses_pipeline_shape_loss(nses_pipe, active_d, g_host_train_logits, null_tokens, 0.15);
                     if (sym_penalty > 0.0) {
                         chunk_loss = chunk_loss + sym_penalty;
                     }

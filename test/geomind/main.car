@@ -44,6 +44,7 @@ fn print_help_dialogue() -> float {
     printf("Usage: geomind.exe [mode flag]\n\n");
     printf("Modes:\n");
     printf("  --chat          Start interactive E8 Hopfield multimodal chat engine\n");
+    printf("                  Flags: -prompt <text>, -tokens <num>, -temp <float>, --no-expert-priming, --online-critic\n");
     printf("  --hf-download   Explore & download HuggingFace datasets (-repo <repo_id>)\n");
     printf("  --train-pre     Pre-train model on skill corpus (-target <file>|-repo <id>)\n");
     printf("  --train-cloze   Run Anchored Cloze Curriculum Stream (-target <file>)\n");
@@ -161,6 +162,32 @@ fn get_cli_param(flag_name: string, arg_count: float) -> string {
         }
         if (is_matched == 1.0 && (i + 1.0) < arg_count) {
             return sys_get_arg(i + 1.0);
+        }
+        i = i + 1.0;
+    }
+    return "";
+}
+
+// Retrieve multi-word CLI prompt argument across single/double dash, assembling tokens until next flag
+fn get_cli_prompt(arg_count: float) -> string {
+    var i = 1.0;
+    while (i < arg_count) {
+        let arg = sys_get_arg(i);
+        if (cartan_string_eq(arg, "-prompt") == 1.0 || cartan_string_eq(arg, "--prompt") == 1.0) {
+            var full_prompt = "";
+            var j = i + 1.0;
+            while (j < arg_count) {
+                let next_arg = sys_get_arg(j);
+                if (cartan_string_starts_with(next_arg, "-") == 1.0) {
+                    break;
+                }
+                if (cartan_string_length(full_prompt) > 0.0) {
+                    full_prompt = cartan_string_concat(full_prompt, " ");
+                }
+                full_prompt = cartan_string_concat(full_prompt, next_arg);
+                j = j + 1.0;
+            }
+            return full_prompt;
         }
         i = i + 1.0;
     }
@@ -346,82 +373,67 @@ fn apply_focus_cli_params(arg_count: float) {
 }
 
 // Evaluate vector analogy arithmetic on cortical weight manifold: a - b + c = ?
-fn geomind_eval_single_analogy(a_tok: float, b_tok: float, c_tok: float, expected_tok: float, a_name: string, b_name: string, c_name: string, exp_name: string) {
-    if (g_e8_embeddings != 0.0) {
-        let dim = 248.0;
+fn geomind_eval_single_analogy(a_tok: float, b_tok: float, c_tok: float, expected_tok: float, a_name: string, b_name: string, c_name: string, exp_name: string) -> float {
+    geomind_load_e8_assets_if_needed();
+    var emb_buf: ptr = 0.0;
+    var dim: float = 2560.0;
+    let full_emb = geomind_get_full_embeddings();
+    if (full_emb != 0.0) {
+        emb_buf = full_emb;
+        dim = 2560.0;
+    } else if (g_e8_embeddings != 0.0) {
+        emb_buf = g_e8_embeddings;
+        dim = 248.0;
+    }
+
+    if (emb_buf != 0.0) {
         let t_vec = cartan_tensor_alloc(dim);
-        var norm_t = 0.0;
         var r = 0.0;
         while (r < dim) {
-            let va = cartan_f32_at(g_e8_embeddings, a_tok * dim + r);
-            let vb = cartan_f32_at(g_e8_embeddings, b_tok * dim + r);
-            let vc = cartan_f32_at(g_e8_embeddings, c_tok * dim + r);
+            let va = cartan_f32_at(emb_buf, a_tok * dim + r);
+            let vb = cartan_f32_at(emb_buf, b_tok * dim + r);
+            let vc = cartan_f32_at(emb_buf, c_tok * dim + r);
             let vt = va - vb + vc;
             cartan_vec_set_f32(t_vec, r, vt);
-            norm_t = norm_t + vt * vt;
             r = r + 1.0;
         }
-        norm_t = sqrt(norm_t + 0.000001);
 
-        var best_tok = -1.0;
-        var best_sim = -100.0;
-        var second_tok = -1.0;
-        var second_sim = -100.0;
-        var expected_sim = -100.0;
+        let stats = cartan_tensor_alloc(8.0);
+        cartan_analogy_search_topk(t_vec, emb_buf, 262144.0, dim, a_tok, b_tok, c_tok, expected_tok, stats);
 
-        var col = 0.0;
-        let vocab_limit = 262144.0;
-        while (col < vocab_limit) {
-            var active = 1.0;
-            if (g_e8_vocab_mask != 0.0) {
-                let mask_byte = cartan_byte_at(g_e8_vocab_mask, col);
-                if (mask_byte == 0.0) { active = 0.0; }
-            }
-            if (active == 1.0 && col != a_tok && col != b_tok && col != c_tok) {
-                var dot = 0.0;
-                r = 0.0;
-                while (r < dim) {
-                    let vt = cartan_vec_get_f32(t_vec, r);
-                    let vc = cartan_f32_at(g_e8_embeddings, col * dim + r);
-                    dot = dot + vt * vc;
-                    r = r + 1.0;
-                }
-                let sim = dot / norm_t;
-                if (col == expected_tok) {
-                    expected_sim = sim;
-                }
-                if (sim > best_sim) {
-                    second_sim = best_sim;
-                    second_tok = best_tok;
-                    best_sim = sim;
-                    best_tok = col;
-                } else if (sim > second_sim) {
-                    second_sim = sim;
-                    second_tok = col;
-                }
-            }
-            col = col + 1.0;
-        }
+        let best_tok = cartan_vec_get_f32(stats, 0.0);
+        let best_sim = cartan_vec_get_f32(stats, 1.0);
+        let second_tok = cartan_vec_get_f32(stats, 2.0);
+        let second_sim = cartan_vec_get_f32(stats, 3.0);
+        let exp_sim = cartan_vec_get_f32(stats, 5.0);
+        let exp_rank = cartan_vec_get_f32(stats, 6.0);
+        let margin = cartan_vec_get_f32(stats, 7.0);
+
         free(t_vec);
+        free(stats);
 
         let best_word = bpe_decode_token(best_tok);
         let second_word = bpe_decode_token(second_tok);
         let exp_word = bpe_decode_token(expected_tok);
 
-        printf("  >>> Rank 1 Result: Token %s ('%s') | E8 Cosine Similarity: %s\n",
+        printf("  >>> Rank 1 Result: Token %s ('%s') | Cosine Similarity: %s\n",
             cartan_float_to_string(best_tok), best_word, cartan_float_to_string(best_sim));
-        printf("  >>> Rank 2 Runner-Up: Token %s ('%s') | E8 Cosine Similarity: %s\n",
+        printf("  >>> Rank 2 Runner-Up: Token %s ('%s') | Cosine Similarity: %s\n",
             cartan_float_to_string(second_tok), second_word, cartan_float_to_string(second_sim));
+        printf("  >>> Target '%s' (Token %s): Rank %s | Cosine Similarity: %s\n",
+            exp_name, cartan_float_to_string(expected_tok), cartan_float_to_string(exp_rank), cartan_float_to_string(exp_sim));
+
         if (best_tok == expected_tok) {
             printf("  >>> Status: PASS (Expected '%s' matches Rank 1 cleanly! Margin: +%s)\n\n",
-                exp_name, cartan_float_to_string(best_sim - second_sim));
+                exp_name, cartan_float_to_string(margin));
         } else {
-            printf("  >>> Status: Expected Token %s ('%s') similarity is %s\n\n",
-                cartan_float_to_string(expected_tok), exp_word, cartan_float_to_string(expected_sim));
+            printf("  >>> Status: GAP (Target is Rank %s, diff from top: %s)\n\n",
+                cartan_float_to_string(exp_rank), cartan_float_to_string(best_sim - exp_sim));
         }
         cartan_flush(0.0);
-        return;
+        return exp_rank;
     }
+
 
     let dim = 256.0;
     let vocab = 256.0;
@@ -563,7 +575,26 @@ fn geomind_chat_interactive_loop(image_arg: string, audio_arg: string, tokens_ar
 
 fn main() -> float {
     let arg_count = sys_get_arg_count();
-    let default_tokens = get_cli_param_float("-tokens", arg_count, 256.0);
+    let default_tokens = get_cli_param_float("-tokens", arg_count, 24.0);
+    let no_priming = get_cli_flag_present("-no-expert-priming", arg_count) + 
+                     get_cli_flag_present("-no-priming", arg_count) +
+                     get_cli_flag_present("-raw-neural", arg_count);
+    if (no_priming > 0.0) {
+        geomind_chat_set_expert_priming(0.0);
+    }
+    let online_critic = get_cli_flag_present("-online-critic", arg_count) + 
+                        get_cli_flag_present("-train-on-error", arg_count) +
+                        get_cli_flag_present("-critic", arg_count);
+    if (online_critic > 0.0) {
+        geomind_chat_set_online_critic(1.0);
+        printf("[GeoMind Mode] Online Critic & 1-Step Invariant Correction ENABLED\n");
+    }
+    let ephemeral_mem = get_cli_flag_present("-ephemeral-memory", arg_count) +
+                        get_cli_flag_present("-no-save-memory", arg_count);
+    if (ephemeral_mem > 0.0) {
+        geomind_chat_set_ephemeral_memory(1.0);
+        printf("[GeoMind Mode] Ephemeral Memory ENABLED: Attractor updates preserved in RAM without disk mutation\n");
+    }
     if (arg_count < 2.0) {
         geomind_chat_start();
         cartan_flush(0.0);
@@ -648,16 +679,29 @@ fn main() -> float {
             geomind_chat_start();
             cartan_flush(0.0);
 
+            if (no_priming > 0.0) {
+                printf("[GeoMind Mode] Expert System Priming DISABLED: Pure Raw Neural Forward Pass\n\n");
+                cartan_flush(0.0);
+            }
+
             let image_arg = get_cli_param("--image", arg_count);
             let audio_arg = get_cli_param("--audio", arg_count);
-            var prompt_arg = get_cli_param("-prompt", arg_count);
-            let tokens_arg = get_cli_param_float("-tokens", arg_count, 256.0);
+            var prompt_arg = get_cli_prompt(arg_count);
+            let tokens_arg = get_cli_param_float("-tokens", arg_count, 24.0);
             let temp_arg = get_cli_param_float("-temp", arg_count, 0.7);
 
             if (cartan_string_length(prompt_arg) == 0.0 && arg_count >= 3.0) {
-                let first_pos = sys_get_arg(2.0);
-                if (cartan_string_starts_with(first_pos, "-") == 0.0) {
-                    prompt_arg = first_pos;
+                var p_idx = 2.0;
+                while (p_idx < arg_count) {
+                    let first_pos = sys_get_arg(p_idx);
+                    if (cartan_string_starts_with(first_pos, "-") == 1.0) {
+                        break;
+                    }
+                    if (cartan_string_length(prompt_arg) > 0.0) {
+                        prompt_arg = cartan_string_concat(prompt_arg, " ");
+                    }
+                    prompt_arg = cartan_string_concat(prompt_arg, first_pos);
+                    p_idx = p_idx + 1.0;
                 }
             }
 
@@ -946,8 +990,11 @@ fn main() -> float {
                     printf("[Analogy Engine] Loaded cortical LM head weights from: %s\n", ckpt_path);
                 }
             }
-            if (g_e8_embeddings != 0.0) {
-                printf("[Analogy Engine] Operating on continuous E8 Lie algebra manifold coordinates (%s tokens x 248D).\n\n", cartan_float_to_string(262144.0));
+            let full_emb = geomind_get_full_embeddings();
+            if (full_emb != 0.0) {
+                printf("[Analogy Engine] Operating on authentic 2,560D full embeddings (262,144 tokens x 2560D).\n\n");
+            } else if (g_e8_embeddings != 0.0) {
+                printf("[Analogy Engine] Operating on continuous E8 Lie algebra manifold coordinates (262,144 tokens x 248D).\n\n");
             } else {
                 g_embedding_weights = g_cortical_weights;
                 printf("[Analogy Engine] Operating on cortical weights (tied embedding fallback).\n\n");
@@ -956,21 +1003,27 @@ fn main() -> float {
 
             // Analogy 1: King (6065) - man (880) + woman (3875) = queen (26476)
             printf("[Analogy 1] King - man + woman = ? (Expected: ' queen')\n");
-            geomind_eval_single_analogy(6065.0, 880.0, 3875.0, 26476.0, "King", "man", "woman", "queen");
+            let r1 = geomind_eval_single_analogy(6065.0, 880.0, 3875.0, 26476.0, "King", "man", "woman", "queen");
 
             // Analogy 2: he (668) - him (1515) + her (1116) = she (1304)
             printf("[Analogy 2] he - him + her = ? (Expected: ' she')\n");
-            geomind_eval_single_analogy(668.0, 1515.0, 1116.0, 1304.0, "he", "him", "her", "she");
+            let r2 = geomind_eval_single_analogy(668.0, 1515.0, 1116.0, 1304.0, "he", "him", "her", "she");
 
             // Analogy 3: father (6353) - man (880) + woman (3875) = mother (5946)
             printf("[Analogy 3] father - man + woman = ? (Expected: ' mother')\n");
-            geomind_eval_single_analogy(6353.0, 880.0, 3875.0, 5946.0, "father", "man", "woman", "mother");
+            let r3 = geomind_eval_single_analogy(6353.0, 880.0, 3875.0, 5946.0, "father", "man", "woman", "mother");
 
             // Analogy 4: boy (6938) - man (880) + woman (3875) = girl (3953)
             printf("[Analogy 4] boy - man + woman = ? (Expected: ' girl')\n");
-            geomind_eval_single_analogy(6938.0, 880.0, 3875.0, 3953.0, "boy", "man", "woman", "girl");
+            let r4 = geomind_eval_single_analogy(6938.0, 880.0, 3875.0, 3953.0, "boy", "man", "woman", "girl");
 
-            printf("[Analogy Engine] All semantic vector analogy arithmetic verified cleanly.\n");
+            printf("================================================================================\n");
+            printf("  ANALOGY EVALUATION SUMMARY (Zero-Expert Pure Geometric Space)\n");
+            printf("  Analogy 1 (' queen'):  Rank %s\n", cartan_float_to_string(r1));
+            printf("  Analogy 2 (' she'):    Rank %s\n", cartan_float_to_string(r2));
+            printf("  Analogy 3 (' mother'): Rank %s\n", cartan_float_to_string(r3));
+            printf("  Analogy 4 (' girl'):   Rank %s\n", cartan_float_to_string(r4));
+            printf("================================================================================\n");
             cartan_flush(0.0);
             return 0.0;
         }

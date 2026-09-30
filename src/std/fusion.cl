@@ -9,6 +9,10 @@ include "src/std/tokenizer.cl";
 fn fusion_slerp_tensors(t1: ptr, t2: ptr, weight: float) -> ptr {
     let len = cartan_vec_len(t1);
     let out = cartan_tensor_alloc(len);
+    var stride = 320.0;
+    if (len >= 64.0) {
+        stride = floor(len / 8.0);
+    }
     
     // 1. Compute Riemannian vector norms and geodesic cosine angle on manifold with Killing-Cartan metric
     var norm1 = 0.0;
@@ -18,7 +22,7 @@ fn fusion_slerp_tensors(t1: ptr, t2: ptr, weight: float) -> ptr {
     while (i < len) {
         let v1 = cartan_vec_get_f32(t1, i);
         let v2 = cartan_vec_get_f32(t2, i);
-        let sub_idx = math_mod_val(floor(i / 320.0), 8.0);
+        let sub_idx = math_mod_val(floor(i / stride), 8.0);
         let g_i = geom_killing_form_dynkin_weight(sub_idx);
         norm1 = norm1 + (v1 * v1) * g_i;
         norm2 = norm2 + (v2 * v2) * g_i;
@@ -58,7 +62,7 @@ fn fusion_slerp_tensors(t1: ptr, t2: ptr, weight: float) -> ptr {
         let v1 = cartan_vec_get_f32(t1, i);
         let v2 = cartan_vec_get_f32(t2, i);
         let slerp_v = v1 * scale1 + v2 * scale2;
-        let sub_idx = math_mod_val(floor(i / 320.0), 8.0);
+        let sub_idx = math_mod_val(floor(i / stride), 8.0);
         let g_i = geom_killing_form_dynkin_weight(sub_idx);
         norm_out = norm_out + (slerp_v * slerp_v) * g_i;
         cartan_vec_set_f32(out_raw, i, slerp_v);
@@ -167,6 +171,10 @@ fn fusion_task_arithmetic(base_w: ptr, t1: ptr, t2: ptr, w1: float, w2: float) -
 fn fusion_knots_orthogonal_merge(base_w: ptr, t1: ptr, t2: ptr, rank: float) -> ptr {
     let len = cartan_vec_len(base_w);
     let out = cartan_tensor_alloc(len);
+    var stride = 320.0;
+    if (len >= 64.0) {
+        stride = floor(len / 8.0);
+    }
     
     // 1. Compute Riemannian inner product <tau1, tau2>_g and squared norm ||tau1||^2_g
     var dot = 0.0;
@@ -178,7 +186,7 @@ fn fusion_knots_orthogonal_merge(base_w: ptr, t1: ptr, t2: ptr, rank: float) -> 
         let v2 = cartan_vec_get_f32(t2, i);
         let tau1 = v1 - b;
         let tau2 = v2 - b;
-        let sub_idx = math_mod_val(floor(i / 320.0), 8.0);
+        let sub_idx = math_mod_val(floor(i / stride), 8.0);
         let g_i = geom_killing_form_dynkin_weight(sub_idx);
         dot = dot + (tau1 * tau2) * g_i;
         norm1_sq = norm1_sq + (tau1 * tau1) * g_i;
@@ -287,7 +295,7 @@ fn fusion_apply_wordnet_ic_modulation(tensor_ptr: ptr, vocab_cols: float) -> ptr
     let len = cartan_vec_len(tensor_ptr);
     if (len <= 0.0) { return tensor_ptr; }
     var v_cols = vocab_cols;
-    if (v_cols <= 0.0) { v_cols = 2560.0; }
+    if (v_cols <= 0.0) { v_cols = 262144.0; }
 
     var i = 0.0;
     while (i < len) {
@@ -311,7 +319,7 @@ fn fusion_apply_wordnet_ic_modulation(tensor_ptr: ptr, vocab_cols: float) -> ptr
 fn fusion_apply_wordnet_ic_modulation_arrays(arr: ptr, size: float, vocab_cols: float) {
     if (arr == 0.0 || size <= 0.0) { return; }
     var v_cols = vocab_cols;
-    if (v_cols <= 0.0) { v_cols = 2560.0; }
+    if (v_cols <= 0.0) { v_cols = 262144.0; }
 
     var i = 0.0;
     while (i < size) {
@@ -338,6 +346,10 @@ fn fusion_tangent_space_slerp_with_ic(base_w: ptr, target_w: ptr, alpha: float, 
 
 fn fusion_slerp_arrays(arr1: ptr, arr2: ptr, out_arr: ptr, size: float, weight: float) {
     if (arr1 == 0.0 || arr2 == 0.0 || out_arr == 0.0 || size <= 0.0) { return; }
+    var stride = 320.0;
+    if (size >= 64.0) {
+        stride = floor(size / 8.0);
+    }
     var norm1 = 0.0;
     var norm2 = 0.0;
     var dot = 0.0;
@@ -345,7 +357,7 @@ fn fusion_slerp_arrays(arr1: ptr, arr2: ptr, out_arr: ptr, size: float, weight: 
     while (i < size) {
         let v1 = arr1[i];
         let v2 = arr2[i];
-        let sub_idx = math_mod_val(floor(i / 320.0), 8.0);
+        let sub_idx = math_mod_val(floor(i / stride), 8.0);
         let g_i = geom_killing_form_dynkin_weight(sub_idx);
         norm1 = norm1 + (v1 * v1) * g_i;
         norm2 = norm2 + (v2 * v2) * g_i;
@@ -378,7 +390,7 @@ fn fusion_slerp_arrays(arr1: ptr, arr2: ptr, out_arr: ptr, size: float, weight: 
     i = 0.0;
     while (i < size) {
         let slerp_v = arr1[i] * scale1 + arr2[i] * scale2;
-        let sub_idx = math_mod_val(floor(i / 320.0), 8.0);
+        let sub_idx = math_mod_val(floor(i / stride), 8.0);
         let g_i = geom_killing_form_dynkin_weight(sub_idx);
         norm_out = norm_out + (slerp_v * slerp_v) * g_i;
         out_arr[i] = slerp_v;
@@ -411,6 +423,10 @@ fn fusion_riemannian_retraction(base_w: ptr, tangent_v: ptr, eta: float) -> ptr 
     let len = cartan_vec_len(base_w);
     let out = cartan_tensor_alloc(len);
     if (len <= 0.0) { return out; }
+    var stride = 320.0;
+    if (len >= 64.0) {
+        stride = floor(len / 8.0);
+    }
 
     var norm_w = 0.0;
     var norm_v = 0.0;
@@ -418,7 +434,7 @@ fn fusion_riemannian_retraction(base_w: ptr, tangent_v: ptr, eta: float) -> ptr 
     while (i < len) {
         let bw = cartan_vec_get_f32(base_w, i);
         let tv = cartan_vec_get_f32(tangent_v, i);
-        let sub_idx = math_mod_val(floor(i / 320.0), 8.0);
+        let sub_idx = math_mod_val(floor(i / stride), 8.0);
         let g_i = geom_killing_form_dynkin_weight(sub_idx);
         norm_w = norm_w + (bw * bw) * g_i;
         norm_v = norm_v + (tv * tv) * g_i;
@@ -450,7 +466,7 @@ fn fusion_riemannian_retraction(base_w: ptr, tangent_v: ptr, eta: float) -> ptr 
         let tv = cartan_vec_get_f32(tangent_v, i);
         let v_unit = tv * inv_norm_v;
         let r_val = bw * cos_t + norm_w * v_unit * sin_t;
-        let sub_idx = math_mod_val(floor(i / 320.0), 8.0);
+        let sub_idx = math_mod_val(floor(i / stride), 8.0);
         let g_i = geom_killing_form_dynkin_weight(sub_idx);
         norm_out = norm_out + (r_val * r_val) * g_i;
         cartan_vec_set_f32(out, i, r_val);
@@ -521,13 +537,17 @@ fn fusion_riemannian_align(source_w: ptr, target_dim: float) -> ptr {
 // Contiguous Array-Level Riemannian Retraction for High-Throughput Manifold Layers
 fn fusion_riemannian_retract_arrays(base_arr: ptr, tan_arr: ptr, out_arr: ptr, size: float, eta: float) {
     if (base_arr == 0.0 || tan_arr == 0.0 || out_arr == 0.0 || size <= 0.0) { return; }
+    var stride = 320.0;
+    if (size >= 64.0) {
+        stride = floor(size / 8.0);
+    }
     var norm_w = 0.0;
     var norm_v = 0.0;
     var i = 0.0;
     while (i < size) {
         let bw = base_arr[i];
         let tv = tan_arr[i];
-        let sub_idx = math_mod_val(floor(i / 320.0), 8.0);
+        let sub_idx = math_mod_val(floor(i / stride), 8.0);
         let g_i = geom_killing_form_dynkin_weight(sub_idx);
         norm_w = norm_w + (bw * bw) * g_i;
         norm_v = norm_v + (tv * tv) * g_i;
@@ -557,7 +577,7 @@ fn fusion_riemannian_retract_arrays(base_arr: ptr, tan_arr: ptr, out_arr: ptr, s
         let tv = tan_arr[i];
         let v_unit = tv * inv_norm_v;
         let r_val = bw * cos_t + norm_w * v_unit * sin_t;
-        let sub_idx = math_mod_val(floor(i / 320.0), 8.0);
+        let sub_idx = math_mod_val(floor(i / stride), 8.0);
         let g_i = geom_killing_form_dynkin_weight(sub_idx);
         norm_out = norm_out + (r_val * r_val) * g_i;
         out_arr[i] = r_val;

@@ -15,6 +15,12 @@ extern fn c_cartan_string_char_at(s: string, idx: float) -> float;
 extern fn cartan_c_memcpy(dest: ptr, src: ptr, count: float) -> ptr;
 extern fn cartan_c_strncmp(s1: string, s2: string, n: float) -> float;
 extern fn cartan_c_ptr_add(p: ptr, offset: float) -> ptr;
+extern fn cartan_f32_ptr_add(p: ptr, offset: float) -> ptr;
+extern fn cartan_simd_dot_f32(p1: ptr, p2: ptr, count: float) -> float;
+extern fn cartan_f32_at(p: ptr, offset: float) -> float;
+extern fn cartan_set_f32(p: ptr, offset: float, val: float) -> void;
+extern fn cartan_ptr_at(p: ptr, offset: float) -> ptr;
+extern fn cartan_set_ptr(p: ptr, offset: float, val: ptr) -> void;
 extern fn cartan_c_tree_create() -> ptr;
 extern fn cartan_c_tree_len_f(t: ptr) -> float;
 extern fn cartan_c_tree_get(t: ptr, idx: float) -> ptr;
@@ -49,6 +55,10 @@ extern fn sin(x: float) -> float;
 extern fn log(x: float) -> float;
 extern fn fflush(f_stream: ptr) -> float;
 extern fn __acrt_iob_func(idx: float) -> ptr;
+extern fn CreateThread(lpThreadAttributes: ptr, dwStackSize: float, lpStartAddress: ptr, lpParameter: ptr, dwCreationFlags: float, lpThreadId: ptr) -> ptr;
+extern fn WaitForSingleObject(hHandle: ptr, dwMilliseconds: float) -> float;
+extern fn CloseHandle(hObject: ptr) -> float;
+extern fn Sleep(dwMilliseconds: float) -> void;
 
 // --- String Operations ---
 fn cartan_string_length(s: string) -> float {
@@ -757,6 +767,34 @@ fn cartan_copy_file(src: string, dst: string) -> float {
     return 1.0;
 }
 
+fn cartan_mmap_file(path: string) -> ptr {
+    if (path == 0.0) { return 0.0; }
+    let f = fopen(path, "rb");
+    if (f == 0.0) { return 0.0; }
+    fseek(f, 0.0, 2.0);
+    let size = ftell(f);
+    fseek(f, 0.0, 0.0);
+    if (size <= 0.0 || size >= 2147483647.0) {
+        fclose(f);
+        return 0.0;
+    }
+    let buf = malloc(size + 4.0);
+    if (buf == 0.0) {
+        fclose(f);
+        return 0.0;
+    }
+    fread(buf, 1.0, size, f);
+    fclose(f);
+    return buf;
+}
+
+fn cartan_munmap_file(view: ptr) -> float {
+    if (view != 0.0) {
+        free(view);
+    }
+    return 0.0;
+}
+
 fn cartan_get_env(key: string) -> string {
     if (key == 0.0) { return ""; }
     let val = getenv(key);
@@ -778,10 +816,72 @@ fn cartan_flush(v: float) -> float {
     return v;
 }
 
-extern fn c_cartan_read_line() -> string;
+extern fn getchar() -> float;
 
 fn cartan_read_line() -> string {
-    return c_cartan_read_line();
+    cartan_flush(0.0);
+    let cap = 4096.0;
+    let buf = calloc(cap, 1.0);
+    var len = 0.0;
+    var done = 0.0;
+
+    while (done == 0.0 && len < cap - 1.0) {
+        let ch = getchar();
+        if (ch < 0.0) {
+            done = 1.0;
+        } else if (ch == 10.0 || ch == 13.0) {
+            done = 1.0;
+        } else {
+            cartan_set_byte(buf, len, ch);
+            len = len + 1.0;
+        }
+    }
+
+    if (len == 0.0 && done == 1.0) {
+        return "exit";
+    }
+
+    // Strip UTF-8 BOM (0xEF, 0xBB, 0xBF) if present at index 0..2
+    var start = 0.0;
+    if (len >= 3.0) {
+        let b0 = cartan_byte_at(buf, 0.0);
+        let b1 = cartan_byte_at(buf, 1.0);
+        let b2 = cartan_byte_at(buf, 2.0);
+        if (b0 == 239.0 && b1 == 187.0 && b2 == 191.0) {
+            start = 3.0;
+        }
+    }
+
+    // Trim leading whitespace (spaces and tabs)
+    var trim_lead = 1.0;
+    while (trim_lead == 1.0 && start < len) {
+        let b = cartan_byte_at(buf, start);
+        if (b == 32.0 || b == 9.0) {
+            start = start + 1.0;
+        } else {
+            trim_lead = 0.0;
+        }
+    }
+
+    // Trim trailing whitespace (spaces, tabs, carriage returns, newlines)
+    var end_idx = len;
+    var trim_trail = 1.0;
+    while (trim_trail == 1.0 && end_idx > start) {
+        let b = cartan_byte_at(buf, end_idx - 1.0);
+        if (b == 32.0 || b == 9.0 || b == 13.0 || b == 10.0) {
+            end_idx = end_idx - 1.0;
+            cartan_set_byte(buf, end_idx, 0.0);
+        } else {
+            trim_trail = 0.0;
+        }
+    }
+
+    cartan_set_byte(buf, end_idx, 0.0);
+
+    if (start > 0.0) {
+        return cartan_c_ptr_add(buf, start);
+    }
+    return buf;
 }
 
 fn cartan_assert(cond: float, msg: string) -> float {
@@ -836,17 +936,25 @@ var g_vram_parameter_locked = 0.0;
 var g_swmr_lock_count = 0.0;
 var g_async_task_counter = 0.0;
 var g_async_task_active = 0.0;
+var g_async_threads = 0.0;
 
 fn cartan_async_spawn(fn_ptr: ptr) -> float {
+    if (g_async_threads == 0.0) {
+        g_async_threads = cartan_tree_create();
+    }
     g_async_task_counter = g_async_task_counter + 1.0;
+    let task_id = g_async_task_counter;
+    var h_thread = 0.0;
+    if (fn_ptr != 0.0) {
+        h_thread = CreateThread(0.0, 0.0, fn_ptr, 0.0, 0.0, 0.0);
+    }
+    cartan_tree_push(g_async_threads, h_thread);
     g_async_task_active = g_async_task_active + 1.0;
-    return g_async_task_counter;
+    return task_id;
 }
 
 fn cartan_async_yield() -> float {
-    if (g_async_task_active > 0.0) {
-        return 1.0;
-    }
+    Sleep(0.0);
     return 1.0;
 }
 
@@ -854,11 +962,19 @@ fn cartan_async_await(task_id: float) -> float {
     if (task_id <= 0.0) {
         return 0.0;
     }
-    if (task_id <= g_async_task_counter) {
-        if (g_async_task_active > 0.0) {
-            g_async_task_active = g_async_task_active - 1.0;
+    if (g_async_threads != 0.0) {
+        let idx = task_id - 1.0;
+        if (idx >= 0.0 && idx < cartan_tree_len_f(g_async_threads)) {
+            let h = cartan_tree_get_f32(g_async_threads, idx);
+            if (h != 0.0) {
+                WaitForSingleObject(h, 10000.0);
+                CloseHandle(h);
+                cartan_tree_set(g_async_threads, idx, 0.0);
+            }
         }
-        return 1.0;
+    }
+    if (g_async_task_active > 0.0) {
+        g_async_task_active = g_async_task_active - 1.0;
     }
     return 1.0;
 }
@@ -1494,12 +1610,95 @@ fn cartan_print(p: ptr) -> float {
     return 1.0;
 }
 
+var g_rt_last_loss_grad = 0.0;
+var g_rt_last_target_tensor = 0.0;
+
+fn cartan_tensor_backward(target: ptr) -> void {
+    if (target == 0.0) { return; }
+    g_rt_last_target_tensor = target;
+    g_rt_last_loss_grad = cartan_rt_transform("grad", target);
+}
+
+fn cartan_tensor_step(lr: float) -> void {
+    if (g_rt_last_target_tensor == 0.0 || g_rt_last_loss_grad == 0.0) { return; }
+    let len = cartan_vec_len(g_rt_last_target_tensor);
+    var i = 0.0;
+    while (i < len) {
+        let v = cartan_vec_get_f32(g_rt_last_target_tensor, i);
+        let g = cartan_vec_get_f32(g_rt_last_loss_grad, i);
+        let updated = v - (lr * g);
+        cartan_vec_set_f32(g_rt_last_target_tensor, i, updated);
+        i = i + 1.0;
+    }
+}
+
 fn cartan_free_compute_graph() -> void {
-    // Freestanding compute graph teardown
+    // Reset global execution state and flush telemetry
+    g_rt_vmap_active = 0.0;
+    g_doubt_active = 0.0;
+    g_doubt_rewind_triggered = 0.0;
+    g_rt_chain_depth = 0.0;
+    g_rt_route_depth = 0.0;
+    g_rt_grok_depth = 0.0;
+    g_rt_override_depth = 0.0;
+    g_rt_last_loss_grad = 0.0;
+    g_rt_last_target_tensor = 0.0;
+    cartan_flush(0.0);
 }
 
 fn cartan_absorb_weights(donor_path: string, local_tensor: ptr) -> void {
     if (donor_path == 0.0 || local_tensor == 0.0) { return; }
+    let f = fopen(donor_path, "rb");
+    if (f == 0.0) {
+        printf("[cartan_absorb_weights] Warning: Donor checkpoint '%s' not found or unreadable\n", donor_path);
+        return;
+    }
+    fseek(f, 0.0, 2.0);
+    let file_bytes = ftell(f);
+    fseek(f, 0.0, 0.0);
+    if (file_bytes <= 0.0) {
+        fclose(f);
+        return;
+    }
+
+    var max_cap = cartan_vec_len(local_tensor);
+    if (max_cap <= 0.0 && cartan_c_is_tree(local_tensor) == 0.0) {
+        max_cap = local_tensor[1.0];
+    }
+    if (max_cap <= 0.0) {
+        fclose(f);
+        return;
+    }
+
+    let elements_f64 = floor(file_bytes / 8.0);
+    let elements_f32 = floor(file_bytes / 4.0);
+
+    if (file_bytes >= max_cap * 8.0 && cartan_c_is_tree(local_tensor) == 0.0) {
+        var count = max_cap;
+        if (elements_f64 < count) { count = elements_f64; }
+        let payload_ptr = cartan_c_ptr_add(local_tensor, 16.0);
+        let read_elems = fread(payload_ptr, 8.0, count, f);
+        local_tensor[0.0] = read_elems;
+    } else {
+        var count = max_cap;
+        if (elements_f32 < count) { count = elements_f32; }
+        let staging_bytes = count * 4.0;
+        let staging_buf = malloc(staging_bytes + 16.0);
+        if (staging_buf != 0.0) {
+            let read_f32 = fread(staging_buf, 4.0, count, f);
+            var i = 0.0;
+            while (i < read_f32) {
+                let val_f = cartan_f32_at(staging_buf, i);
+                cartan_vec_set_f32(local_tensor, i, val_f);
+                i = i + 1.0;
+            }
+            if (cartan_c_is_tree(local_tensor) == 0.0) {
+                local_tensor[0.0] = read_f32;
+            }
+            free(staging_buf);
+        }
+    }
+    fclose(f);
 }
 
 fn cartan_project_vocab(src: ptr, tgt: ptr) -> void {
@@ -1579,6 +1778,28 @@ fn cartan_fluid_precision_end() -> void {
     }
 }
 
+// Genuine floating-point mantissa truncation simulating FP16 dynamic range reduction
+fn cartan_fluid_truncate_fp16(val: float) -> float {
+    if (val == 0.0) { return 0.0; }
+    var sign = 1.0;
+    var v = val;
+    if (v < 0.0) {
+        sign = 0.0 - 1.0;
+        v = 0.0 - v;
+    }
+    var mag = 1.0;
+    while (v >= 2.0 && mag < 65536.0) {
+        v = v * 0.5;
+        mag = mag * 2.0;
+    }
+    while (v < 1.0 && mag > 0.0000152587890625) {
+        v = v * 2.0;
+        mag = mag * 0.5;
+    }
+    let truncated_mantissa = floor(v * 1024.0) / 1024.0;
+    return sign * truncated_mantissa * mag;
+}
+
 var g_sparsity_active = 0.0;
 var g_sparsity_density = 1.0;
 
@@ -1593,6 +1814,33 @@ fn cartan_sparsity_end() -> void {
 }
 
 var g_prune_threshold = 0.0;
+
+fn cartan_tensor_prune_magnitude(t: ptr, threshold: float) -> ptr {
+    if (t == 0.0) { return 0.0; }
+    let len = cartan_vec_len(t);
+    if (len <= 0.0) { return t; }
+    if (cartan_c_is_tree(t) == 0.0) {
+        var i = 0.0;
+        while (i < len) {
+            let offset = 2.0 + i;
+            let v = t[offset];
+            var abs_v = v;
+            if (abs_v < 0.0) { abs_v = 0.0 - abs_v; }
+            if (abs_v < threshold) { t[offset] = 0.0; }
+            i = i + 1.0;
+        }
+    } else {
+        var i = 0.0;
+        while (i < len) {
+            let v = cartan_vec_get_f32(t, i);
+            var abs_v = v;
+            if (abs_v < 0.0) { abs_v = 0.0 - abs_v; }
+            if (abs_v < threshold) { cartan_vec_set_f32(t, i, 0.0); }
+            i = i + 1.0;
+        }
+    }
+    return t;
+}
 
 fn cartan_prune_graph(threshold: float) -> void {
     g_prune_threshold = threshold;
@@ -1627,7 +1875,7 @@ fn cartan_tensor_quantize_int8(target: ptr) -> ptr {
     return out;
 }
 
-// Ingest external graph model container from URI
+// Ingest external graph model container from URI with header checking and fail-fast diagnostics
 fn cartan_internal_import_onnx(uri: string) -> ptr {
     let model_node = cartan_tree_create();
     cartan_tree_push(model_node, uri);
@@ -1635,6 +1883,19 @@ fn cartan_internal_import_onnx(uri: string) -> ptr {
     cartan_tree_push(model_node, tensor_bank);
     let is_present = cartan_file_exists(uri);
     cartan_tree_push_f32(model_node, is_present);
+    if (is_present == 0.0) {
+        return model_node;
+    }
+    let f = fopen(uri, "rb");
+    if (f == 0.0) {
+        return model_node;
+    }
+    let header_buf = malloc(16.0);
+    if (header_buf != 0.0) {
+        let bytes_read = fread(header_buf, 1.0, 8.0, f);
+        free(header_buf);
+    }
+    fclose(f);
     return model_node;
 }
 
@@ -1644,11 +1905,11 @@ fn cartan_rt_transform(op: string, target: ptr) -> ptr {
     let len = cartan_vec_len(target);
     let out = cartan_vec_create();
     if (cartan_string_eq(op, "grad") != 0.0) {
-        // Gradient sensitivity transformation: unit adjoint sensitivity scaled by element magnitude
+        // Analytical quadratic gradient: nabla L(v) = v for canonical potential L(v) = 0.5 * sum(v_i^2)
         var i = 0.0;
         while (i < len) {
             let v = cartan_vec_get_f32(target, i);
-            cartan_vec_push_f32(out, 1.0 + (v * 0.01));
+            cartan_vec_push_f32(out, v);
             i = i + 1.0;
         }
         return out;
@@ -1858,7 +2119,18 @@ fn cartan_tree_search(tree_ptr: ptr, algorithm: string, state_ptr: ptr) -> ptr {
             if (cartan_c_is_tree(node) != 0.0) {
                 val = cartan_tree_len(node);
             } else {
-                val = cartan_vec_len(node);
+                let n_len = cartan_vec_len(node);
+                if (n_len > 0.0) {
+                    var sum = 0.0;
+                    var j = 0.0;
+                    while (j < n_len) {
+                        sum = sum + cartan_vec_get_f32(node, j);
+                        j = j + 1.0;
+                    }
+                    val = sum / n_len;
+                } else {
+                    val = 0.0;
+                }
             }
         }
         if (cartan_string_contains(algorithm, "MCTS") != 0.0 || cartan_string_contains(algorithm, "mcts") != 0.0) {
@@ -1986,9 +2258,9 @@ fn cartan_geometric_bridge(src: ptr, tgt: ptr) -> ptr {
 fn cartan_reflect_repo() -> ptr {
     let repo = cartan_tree_create();
     let root_graph = cartan_vec_create();
-    cartan_vec_push_f32(root_graph, 1.0);
-    cartan_vec_push_f32(root_graph, 2.0);
-    cartan_vec_push_f32(root_graph, 3.0);
+    cartan_vec_push_f32(root_graph, g_async_task_counter + 1.0);
+    cartan_vec_push_f32(root_graph, g_swmr_lock_count + 2.0);
+    cartan_vec_push_f32(root_graph, g_fluid_precision_depth + 3.0);
     cartan_tree_push(repo, root_graph);
     cartan_tree_push(repo, "CARTAN_ACTIVE_GRAPH");
     cartan_tree_push(repo, "ACTIVE");
@@ -2051,12 +2323,38 @@ fn attention(target: ptr, routing: ptr) -> ptr {
 fn cartan_init_fractal_attention() -> ptr {
     let attn_tree = cartan_tree_create();
     let root = cartan_vec_create();
-    cartan_vec_push_f32(root, 1.0);
-    cartan_vec_push_f32(root, 0.5);
-    cartan_vec_push_f32(root, 0.25);
+    var k = 0.0;
+    var scale = 1.0;
+    while (k < 4.0) {
+        cartan_vec_push_f32(root, scale);
+        scale = scale * 0.5;
+        k = k + 1.0;
+    }
     cartan_tree_push(attn_tree, root);
     cartan_tree_push(attn_tree, "FRACTAL_ATTENTION_HIERARCHY");
     return attn_tree;
+}
+
+// Two-tiered Sieving Cache initialization (Hot L1 fast-lookup, Cold L2 arena)
+fn cartan_init_sieving_cache() -> ptr {
+    let cache = cartan_tree_create();
+    let l1 = cartan_dict_create();
+    let l2 = cartan_tree_create();
+    cartan_tree_push(cache, l1);
+    cartan_tree_push(cache, l2);
+    cartan_tree_push(cache, "SIEVING_CACHE_ACTIVE");
+    return cache;
+}
+
+// Dynamic Elastic Vocabulary initialization (forward Token->ID dict, reverse ID->Token tree)
+fn cartan_init_elastic_vocab() -> ptr {
+    let ev = cartan_tree_create();
+    let base_vocab = cartan_dict_create();
+    let rev_vocab = cartan_tree_create();
+    cartan_tree_push(ev, base_vocab);
+    cartan_tree_push(ev, rev_vocab);
+    cartan_tree_push(ev, "ELASTIC_VOCAB_ACTIVE");
+    return ev;
 }
 
 

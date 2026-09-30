@@ -10,6 +10,7 @@ extern fn fwrite(buffer: ptr, size: float, count: float, file: ptr) -> float;
 extern fn fputs(str: string, file: ptr) -> float;
 extern fn malloc(size: float) -> ptr;
 extern fn free(p: ptr);
+extern fn cartan_c_ptr_add(p: ptr, offset: float) -> ptr;
 
 extern fn cartan_file_exists(path: string) -> float;
 extern fn cartan_read_file(path: string) -> string;
@@ -17,7 +18,6 @@ extern fn cartan_write_file(path: string, content: string) -> float;
 extern fn cartan_copy_file(src: string, dst: string) -> float;
 extern fn remove(path: string) -> float;
 extern fn rename(old_path: string, new_path: string) -> float;
-extern fn MoveFileExA(existing: string, new_name: string, flags: float) -> float;
 
 fn fs_exists(path: string) -> float {
     return cartan_file_exists(path);
@@ -35,13 +35,9 @@ fn fs_rename(old_path: string, new_path: string) -> float {
     return rename(old_path, new_path);
 }
 
-// True atomic filesystem metadata swap on disk (MoveFileExA with MOVEFILE_REPLACE_EXISTING 0x01 | MOVEFILE_WRITE_THROUGH 0x08)
+// Cross-platform filesystem metadata swap on disk (remove dst, rename src to dst)
 fn fs_atomic_swap(src: string, dst: string) -> float {
     if (src == 0.0 || dst == 0.0) { return 0.0; }
-    // Try Win32 atomic metadata swap (flags = 9.0)
-    let ok = MoveFileExA(src, dst, 9.0);
-    if (ok != 0.0) { return 1.0; }
-    // Fallback: remove existing destination then atomic rename
     remove(dst);
     let r_ok = rename(src, dst);
     if (r_ok == 0.0) { return 1.0; }
@@ -116,6 +112,34 @@ fn cartan_read_binary_file_data(path: string) -> ptr {
         return 0.0;
     }
     fread(buf, 1.0, sz, f);
+    fclose(f);
+    return buf;
+}
+
+fn cartan_read_binary_file_data_sized(path: string, size: float) -> ptr {
+    if (path == 0.0 || size <= 0.0) { return 0.0; }
+    let f = fopen(path, "rb");
+    if (f == 0.0) { return 0.0; }
+    let buf = malloc(size + 4.0);
+    if (buf == 0.0) {
+        fclose(f);
+        return 0.0;
+    }
+    var bytes_read = 0.0;
+    let chunk_size = 67108864.0;
+    while (bytes_read < size) {
+        var to_read = chunk_size;
+        if (bytes_read + to_read > size) {
+            to_read = size - bytes_read;
+        }
+        let dest = cartan_c_ptr_add(buf, bytes_read);
+        let n = fread(dest, 1.0, to_read, f);
+        if (n <= 0.0) {
+            bytes_read = size;
+        } else {
+            bytes_read = bytes_read + n;
+        }
+    }
     fclose(f);
     return buf;
 }

@@ -129,12 +129,8 @@ fn e8_attention_compute_energy(h: ptr) -> float {
     var sum_sq = 0.0;
     var i = 0.0;
     let n = cartan_vec_len(h);
-    var stride = 31.0;
-    if (n >= 2560.0) {
-        stride = 320.0;
-    } else if (n >= 1984.0) {
-        stride = 248.0;
-    }
+    var stride = floor(n / 8.0);
+    if (stride < 1.0) { stride = 1.0; }
     while (i < n) {
         let v = cartan_vec_get_f32(h, i);
         let sub_idx = floor(i / stride);
@@ -152,12 +148,8 @@ fn cartan_tensor_rmsnorm(v: ptr, eps: float) {
     if (dim <= 0.0) { return; }
     var sum_sq = 0.0;
     var i = 0.0;
-    var stride = 31.0;
-    if (dim >= 2560.0) {
-        stride = 320.0;
-    } else if (dim >= 1984.0) {
-        stride = 248.0;
-    }
+    var stride = floor(dim / 8.0);
+    if (stride < 1.0) { stride = 1.0; }
     while (i < dim) {
         let val = v[2.0 + i];
         let sub_idx = floor(i / stride);
@@ -188,12 +180,8 @@ fn e8_attention_forward_step_with_momentum(hidden_ptr: ptr, mom_ptr: ptr, temp: 
     // Normalize manifold activations before and after 16-layer FFN cascade
     cartan_tensor_rmsnorm(h_cur, 0.00001);
     let dim = h_cur[0];
-    var stride = 31.0;
-    if (dim >= 2560.0) {
-        stride = 320.0;
-    } else if (dim >= 1984.0) {
-        stride = 248.0;
-    }
+    var stride = floor(dim / 8.0);
+    if (stride < 1.0) { stride = 1.0; }
     var l = 0.0;
     while (l < 16.0) {
         // Cross-stream E8StreamHerald gauge exchange every 6 layers

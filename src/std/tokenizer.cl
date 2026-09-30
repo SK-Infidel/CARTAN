@@ -52,7 +52,16 @@ var g_bpe_trie_initialized: float = 0.0;
 fn cartan_hub_init_bpe_trie_if_needed() -> float {
     if (g_bpe_trie_initialized == 1.0) { return 1.0; }
 
-    var bin_path = "test/geomind/trainingdata/gemma_vocab_65k.bin";
+    var bin_path = "test/geomind/trainingdata/gemma_vocab_262k.bin";
+    if (cartan_file_exists(bin_path) == 0.0) {
+        bin_path = "../test/geomind/trainingdata/gemma_vocab_262k.bin";
+    }
+    if (cartan_file_exists(bin_path) == 0.0) {
+        bin_path = "trainingdata/gemma_vocab_262k.bin";
+    }
+    if (cartan_file_exists(bin_path) == 0.0) {
+        bin_path = "test/geomind/trainingdata/gemma_vocab_65k.bin";
+    }
     if (cartan_file_exists(bin_path) == 0.0) {
         bin_path = "../test/geomind/trainingdata/gemma_vocab_65k.bin";
     }
@@ -93,7 +102,10 @@ fn bpe_decode_token(token_id: float) -> string {
     if (token_id == 1.0) { return "<eos>"; }
     if (token_id == 2.0) { return "<bos>"; }
     if (token_id == 3.0) { return "<unk>"; }
-    if (token_id == 108.0) { return "\n"; }
+    if (token_id == 105.0) { return "<|turn>"; }
+    if (token_id == 106.0) { return "<turn|>"; }
+    if (token_id == 107.0) { return "\n"; }
+    if (token_id == 108.0) { return "\n\n"; }
 
     if (g_bpe_trie_initialized == 0.0) {
         cartan_hub_init_bpe_trie_if_needed();
@@ -267,7 +279,8 @@ fn cartan_tokenizer_sample_topp_topk(logits: ptr, top_k: float, top_p: float, te
     if (n == 0.0) { return 1.0; }
 
     var t = temp;
-    if (t < 0.05) {
+    var k_limit = top_k;
+    if (k_limit <= 1.0 || t <= 0.15) {
         var max_logit = -1000000.0;
         var best_id = 0.0;
         var i = 0.0;
@@ -282,23 +295,58 @@ fn cartan_tokenizer_sample_topp_topk(logits: ptr, top_k: float, top_p: float, te
         return best_id;
     }
 
-    var max_val = -1000000.0;
+    if (k_limit > 50.0) { k_limit = 50.0; }
+    let cand_ids = malloc(k_limit * 8.0);
+    let cand_vals = malloc(k_limit * 8.0);
+
+    var ki = 0.0;
+    while (ki < k_limit) {
+        cand_ids[ki] = 0.0;
+        cand_vals[ki] = -1000000.0;
+        ki = ki + 1.0;
+    }
+
+    var min_top_val = -1000000.0;
+    var min_top_idx = 0.0;
     var i = 0.0;
     while (i < n) {
-        let v = cartan_vec_get_f32(logits, i) / t;
-        if (v > max_val) { max_val = v; }
+        let v = cartan_vec_get_f32(logits, i);
+        if (v > min_top_val) {
+            cand_ids[min_top_idx] = i;
+            cand_vals[min_top_idx] = v;
+            var new_min = cand_vals[0.0];
+            var new_min_idx = 0.0;
+            var c = 1.0;
+            while (c < k_limit) {
+                let cv = cand_vals[c];
+                if (cv < new_min) {
+                    new_min = cv;
+                    new_min_idx = c;
+                }
+                c = c + 1.0;
+            }
+            min_top_val = new_min;
+            min_top_idx = new_min_idx;
+        }
         i = i + 1.0;
     }
 
+    var max_c = cand_vals[0.0];
+    ki = 1.0;
+    while (ki < k_limit) {
+        let cv = cand_vals[ki];
+        if (cv > max_c) { max_c = cv; }
+        ki = ki + 1.0;
+    }
+
     var sum_p = 0.0;
-    let probs = cartan_vec_create();
-    i = 0.0;
-    while (i < n) {
-        let sc = cartan_vec_get_f32(logits, i) / t;
-        let p = exp(sc - max_val);
-        cartan_vec_push_f32(probs, p);
+    let probs = malloc(k_limit * 8.0);
+    ki = 0.0;
+    while (ki < k_limit) {
+        let p = exp((cand_vals[ki] - max_c) / t);
+        probs[ki] = p;
         sum_p = sum_p + p;
-        i = i + 1.0;
+        ki = ki + 1.0;
     }
     if (sum_p <= 0.0) { sum_p = 1.0; }
 
@@ -306,18 +354,21 @@ fn cartan_tokenizer_sample_topp_topk(logits: ptr, top_k: float, top_p: float, te
     let u = (g_tokenizer_sample_seed / 2147483648.0) * sum_p;
 
     var cum = 0.0;
-    i = 0.0;
-    while (i < n) {
-        let p = cartan_vec_get_f32(probs, i);
-        cum = cum + p;
+    var selected_tok = cand_ids[0.0];
+    ki = 0.0;
+    while (ki < k_limit) {
+        cum = cum + probs[ki];
         if (cum >= u) {
-            cartan_vec_free(probs);
-            return i;
+            selected_tok = cand_ids[ki];
+            break;
         }
-        i = i + 1.0;
+        ki = ki + 1.0;
     }
-    cartan_vec_free(probs);
-    return n - 1.0;
+
+    free(cand_ids);
+    free(cand_vals);
+    free(probs);
+    return selected_tok;
 }
 
 fn cartan_tokenizer_is_valid_bigram(tok1: float, tok2: float) -> float {

@@ -136,10 +136,38 @@ fn hebbian_matrix_norm(w_mat: ptr, total_len: float) -> float {
 
 var g_cortical_weights: ptr = 0.0;
 var g_embedding_weights: ptr = 0.0;
+var g_cortical_dim: float = 2560.0;
+var g_cortical_vocab: float = 2560.0;
+
+fn cartan_hebbian_set_dimensions(dim: float, vocab: float) {
+    if (g_cortical_dim <= 0.0) { g_cortical_dim = 2560.0; }
+    if (g_cortical_vocab <= 0.0) { g_cortical_vocab = 2560.0; }
+    var changed = 0.0;
+    if (dim > 0.0 && dim != g_cortical_dim) {
+        g_cortical_dim = dim;
+        changed = 1.0;
+    }
+    if (vocab > 0.0 && vocab != g_cortical_vocab) {
+        g_cortical_vocab = vocab;
+        changed = 1.0;
+    }
+    if (changed == 1.0) {
+        if (g_cortical_weights != 0.0) {
+            cartan_vec_free(g_cortical_weights);
+            g_cortical_weights = 0.0;
+        }
+        if (g_embedding_weights != 0.0) {
+            cartan_vec_free(g_embedding_weights);
+            g_embedding_weights = 0.0;
+        }
+    }
+}
 
 fn cartan_init_cortical_weights_if_needed() {
+    if (g_cortical_dim <= 0.0) { g_cortical_dim = 2560.0; }
+    if (g_cortical_vocab <= 0.0) { g_cortical_vocab = 2560.0; }
     if (g_cortical_weights == 0.0) {
-        let total = 2560.0 * 2560.0;
+        let total = g_cortical_dim * g_cortical_vocab;
         g_cortical_weights = cartan_tensor_alloc(total);
         var i = 0.0;
         while (i < total) {
@@ -149,7 +177,7 @@ fn cartan_init_cortical_weights_if_needed() {
         }
     }
     if (g_embedding_weights == 0.0) {
-        let total_w = 2560.0 * 2560.0;
+        let total_w = g_cortical_dim * g_cortical_vocab;
         g_embedding_weights = cartan_tensor_alloc(total_w);
         var j = 0.0;
         while (j < total_w) {
@@ -165,9 +193,9 @@ fn cartan_tensor_hebbian_update(pre: ptr, post: ptr, neuromodulator: float, lr: 
     if (pre == 0.0 || post == 0.0) { return 0.0; }
     cartan_init_cortical_weights_if_needed();
     var pre_len = cartan_vec_len(pre);
-    if (pre_len > 256.0) { pre_len = 256.0; }
+    if (pre_len > g_cortical_dim) { pre_len = g_cortical_dim; }
     var post_len = cartan_vec_len(post);
-    if (post_len > 256.0) { post_len = 256.0; }
+    if (post_len > g_cortical_vocab) { post_len = g_cortical_vocab; }
     if (pre_len == 0.0 || post_len == 0.0) { return 0.0; }
 
     var m = neuromodulator;
@@ -176,15 +204,18 @@ fn cartan_tensor_hebbian_update(pre: ptr, post: ptr, neuromodulator: float, lr: 
     if (eta == 0.0) { eta = 0.001; }
     let alpha = 0.01;
 
+    var stride = floor(pre_len / 8.0);
+    if (stride < 1.0) { stride = 1.0; }
+
     var r = 0.0;
     while (r < pre_len) {
         let pre_val = cartan_vec_get_f32(pre, r);
-        let sub_r = math_mod_val(floor(r / 32.0), 8.0);
+        let sub_r = math_mod_val(floor(r / stride), 8.0);
         let g_r = geom_killing_form_dynkin_weight(sub_r);
         var c = 0.0;
         while (c < post_len) {
             let post_val = cartan_vec_get_f32(post, c);
-            let idx = r * 256.0 + c;
+            let idx = r * g_cortical_vocab + c;
             let cur_w = cartan_vec_get_f32(g_cortical_weights, idx);
             let oja_term = alpha * (post_val * post_val) * cur_w;
             let delta = eta * m * (pre_val * post_val * g_r - oja_term);
@@ -201,10 +232,13 @@ fn cartan_hebbian_step_token(hidden_ptr: ptr, tok_id: float, neuromodulator: flo
     if (hidden_ptr == 0.0) { return 0.0; }
     cartan_init_cortical_weights_if_needed();
     var h_len = cartan_vec_len(hidden_ptr);
-    if (h_len > 256.0) { h_len = 256.0; }
+    if (h_len > g_cortical_dim) { h_len = g_cortical_dim; }
     if (h_len == 0.0) { return 0.0; }
 
-    let target_idx = math_mod_val(tok_id, 256.0);
+    var target_idx = tok_id;
+    if (target_idx < 0.0 || target_idx >= g_cortical_vocab) {
+        target_idx = math_mod_val(target_idx, g_cortical_vocab);
+    }
 
     var m = neuromodulator;
     if (m == 0.0) { m = 1.0; }
@@ -212,13 +246,16 @@ fn cartan_hebbian_step_token(hidden_ptr: ptr, tok_id: float, neuromodulator: flo
     if (eta == 0.0) { eta = 0.001; }
     let alpha = 0.01;
 
+    var stride = floor(h_len / 8.0);
+    if (stride < 1.0) { stride = 1.0; }
+
     var r = 0.0;
     while (r < h_len) {
         let pre_val = cartan_vec_get_f32(hidden_ptr, r);
-        let sub_r = math_mod_val(floor(r / 32.0), 8.0);
+        let sub_r = math_mod_val(floor(r / stride), 8.0);
         let g_r = geom_killing_form_dynkin_weight(sub_r);
         let post_val = 1.0;
-        let idx = r * 256.0 + target_idx;
+        let idx = r * g_cortical_vocab + target_idx;
         let cur_w = cartan_vec_get_f32(g_cortical_weights, idx);
         let delta = eta * m * (pre_val * post_val * g_r - alpha * cur_w);
         cartan_vec_set_f32(g_cortical_weights, idx, cur_w + delta);

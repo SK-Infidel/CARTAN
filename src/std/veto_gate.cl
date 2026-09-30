@@ -11,6 +11,8 @@ extern fn free(p: ptr);
 extern fn strlen(s: string) -> float;
 extern fn cartan_string_get_char(s: string, idx: float) -> float;
 extern fn cartan_set_byte(buf: ptr, offset: float, val: float);
+extern fn cartan_set_f32(p: ptr, offset: float, val: float) -> void;
+extern fn cartan_f32_at(p: ptr, offset: float) -> float;
 extern fn cartan_tree_create() -> ptr;
 extern fn cartan_tree_push(t: ptr, item: ptr) -> void;
 extern fn cartan_tree_get_f32(t: ptr, idx: float) -> ptr;
@@ -685,4 +687,89 @@ fn veto_compute_symbolic_loss_penalty(reg: VetoRegistry, active_domain: float, l
 
     return penalty_loss;
 }
+
+// Fills out_mask with 1.0 at token indices that are forbidden for active_domain, 0.0 elsewhere.
+// out_mask is a raw float buffer allocated with max_vocab elements (e.g., cartan_f32_buffer_alloc).
+fn veto_registry_get_domain_forbidden_mask(reg: VetoRegistry, active_domain: float, out_mask: ptr, max_vocab: float) -> float {
+    if (out_mask == 0.0 || max_vocab <= 0.0) { return 0.0; }
+    var i = 0.0;
+    while (i < max_vocab) {
+        cartan_set_f32(out_mask, i, 0.0);
+        i = i + 1.0;
+    }
+    if (reg.domain_forbidden_tokens == 0.0) { return 0.0; }
+    var count = 0.0;
+
+    // 1. Universal Domain 0 Invariants (always active)
+    let d0_list = cartan_tree_get_f32(reg.domain_forbidden_tokens, 0.0);
+    if (d0_list != 0.0) {
+        let d0_len = collections_list_len(d0_list);
+        var j = 0.0;
+        while (j < d0_len) {
+            let tok0 = collections_list_get(d0_list, j);
+            if (tok0 >= 0.0 && tok0 < max_vocab) {
+                cartan_set_f32(out_mask, tok0, 1.0);
+                count = count + 1.0;
+            }
+            j = j + 1.0;
+        }
+    }
+
+    // 2. Active domain specific invariants
+    if (active_domain > 0.0 && active_domain < 32.0) {
+        let da_list = cartan_tree_get_f32(reg.domain_forbidden_tokens, active_domain);
+        if (da_list != 0.0) {
+            let da_len = collections_list_len(da_list);
+            var k = 0.0;
+            while (k < da_len) {
+                let tok_a = collections_list_get(da_list, k);
+                if (tok_a >= 0.0 && tok_a < max_vocab) {
+                    cartan_set_f32(out_mask, tok_a, 1.0);
+                    count = count + 1.0;
+                }
+                k = k + 1.0;
+            }
+        }
+    }
+
+    return count;
+}
+
+// Exports a flat float array of forbidden token IDs for active_domain into out_array.
+// out_array is allocated with at least max_count elements. Returns the number of tokens written.
+fn veto_registry_get_domain_forbidden_array(reg: VetoRegistry, active_domain: float, out_array: ptr, max_count: float) -> float {
+    if (out_array == 0.0 || max_count <= 0.0 || reg.domain_forbidden_tokens == 0.0) { return 0.0; }
+    var written = 0.0;
+
+    // 1. Universal Domain 0 Invariants
+    let d0_list = cartan_tree_get_f32(reg.domain_forbidden_tokens, 0.0);
+    if (d0_list != 0.0) {
+        let d0_len = collections_list_len(d0_list);
+        var j = 0.0;
+        while (j < d0_len && written < max_count) {
+            let tok0 = collections_list_get(d0_list, j);
+            cartan_set_f32(out_array, written, tok0);
+            written = written + 1.0;
+            j = j + 1.0;
+        }
+    }
+
+    // 2. Active domain specific invariants
+    if (active_domain > 0.0 && active_domain < 32.0) {
+        let da_list = cartan_tree_get_f32(reg.domain_forbidden_tokens, active_domain);
+        if (da_list != 0.0) {
+            let da_len = collections_list_len(da_list);
+            var k = 0.0;
+            while (k < da_len && written < max_count) {
+                let tok_a = collections_list_get(da_list, k);
+                cartan_set_f32(out_array, written, tok_a);
+                written = written + 1.0;
+                k = k + 1.0;
+            }
+        }
+    }
+
+    return written;
+}
+
 

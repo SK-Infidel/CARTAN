@@ -128,6 +128,8 @@ fn check_keyword(lexeme: string) -> ptr {
     if (cartan_string_eq(lexeme, "SievingCache") != 0.0) { return TokenType::SievingCacheKw;}
     if (cartan_string_eq(lexeme, "ElasticVocabulary") != 0.0) { return TokenType::ElasticVocabularyKw;}
     if (cartan_string_eq(lexeme, "backed_by") != 0.0) { return TokenType::BackedBy;}
+    if (cartan_string_eq(lexeme, "backward") != 0.0) { return TokenType::Backward;}
+    if (cartan_string_eq(lexeme, "async_compute") != 0.0) { return TokenType::AsyncCompute;}
     return TokenType::Identifier(lexeme);
 }
 
@@ -371,6 +373,10 @@ fn lexer_next_token(lexer: Lexer) -> Token {
         else if (c == 47.0) {
             if (lexer_match(lexer, 61.0) == 1.0) { ttype_op = TokenType::SlashEq; }
             else { ttype_op = TokenType::Slash; }
+        }
+        else if (c == 37.0) {
+            if (lexer_match(lexer, 61.0) == 1.0) { ttype_op = TokenType::PercentEq; }
+            else { ttype_op = TokenType::Percent; }
         }
         else if (c == 40.0) { ttype_op = TokenType::LParen;}
         else if (c == 41.0) { ttype_op = TokenType::RParen;}

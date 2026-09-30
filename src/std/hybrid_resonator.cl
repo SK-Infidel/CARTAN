@@ -75,13 +75,8 @@ fn hybrid_resonator_forward_step(
     }
 
     // --- Lie Group E8 Metric Pullback across 8 Sectors ---
-    var stride = 31.0;
-    if (dim >= 2560.0) { stride = 320.0; }
-    else if (dim >= 1984.0) { stride = 248.0; }
-    else if (dim > 0.0) {
-        let calc = floor(dim / 8.0);
-        if (calc >= 1.0) { stride = calc; }
-    }
+    var stride = floor(dim / 8.0);
+    if (stride < 1.0) { stride = 1.0; }
     var r = 0.0;
     while (r < dim) {
         let sub_idx = math_mod_val(floor(r / stride), 8.0);

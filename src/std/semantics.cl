@@ -178,8 +178,15 @@ fn cartan_taxonomy_resolve_path(word: string) -> string {
     while (i < num_nodes) {
         let node = cartan_tree_get(g_taxonomy_dag, i);
         let lemmas = cartan_tree_get(node, 1.0);
-        if (cartan_string_contains(lemmas, word) != 0.0) {
-            return cartan_tree_get(node, 0.0);
+        let lemma_list = string_split(lemmas, ",");
+        let n_lemmas = cartan_tree_len_f(lemma_list);
+        var li = 0.0;
+        while (li < n_lemmas) {
+            let l_w = cartan_tree_get(lemma_list, li);
+            if (cartan_string_eq(l_w, word) == 1.0) {
+                return cartan_tree_get(node, 0.0);
+            }
+            li = li + 1.0;
         }
         i = i + 1.0;
     }
@@ -187,7 +194,7 @@ fn cartan_taxonomy_resolve_path(word: string) -> string {
     while (i < num_nodes) {
         let node = cartan_tree_get(g_taxonomy_dag, i);
         let path = cartan_tree_get(node, 0.0);
-        if (cartan_string_contains(path, word) != 0.0) {
+        if (cartan_string_ends_with(path, word) == 1.0) {
             return path;
         }
         i = i + 1.0;
@@ -304,6 +311,30 @@ fn cartan_taxonomy_lin_similarity(w1: string, w2: string) -> float {
     return (2.0 * resnik) / (ic1 + ic2);
 }
 
+fn cartan_taxonomy_is_stopword(w: string) -> float {
+    if (w == 0.0) { return 1.0; }
+    if (cartan_string_eq(w, "the") == 1.0 || cartan_string_eq(w, "The") == 1.0) { return 1.0; }
+    if (cartan_string_eq(w, "what") == 1.0 || cartan_string_eq(w, "What") == 1.0) { return 1.0; }
+    if (cartan_string_eq(w, "is") == 1.0 || cartan_string_eq(w, "Is") == 1.0) { return 1.0; }
+    if (cartan_string_eq(w, "of") == 1.0 || cartan_string_eq(w, "Of") == 1.0) { return 1.0; }
+    if (cartan_string_eq(w, "in") == 1.0 || cartan_string_eq(w, "In") == 1.0) { return 1.0; }
+    if (cartan_string_eq(w, "to") == 1.0 || cartan_string_eq(w, "To") == 1.0) { return 1.0; }
+    if (cartan_string_eq(w, "a") == 1.0 || cartan_string_eq(w, "A") == 1.0) { return 1.0; }
+    if (cartan_string_eq(w, "an") == 1.0 || cartan_string_eq(w, "An") == 1.0) { return 1.0; }
+    if (cartan_string_eq(w, "and") == 1.0 || cartan_string_eq(w, "And") == 1.0) { return 1.0; }
+    if (cartan_string_eq(w, "for") == 1.0 || cartan_string_eq(w, "For") == 1.0) { return 1.0; }
+    if (cartan_string_eq(w, "are") == 1.0 || cartan_string_eq(w, "Are") == 1.0) { return 1.0; }
+    if (cartan_string_eq(w, "by") == 1.0 || cartan_string_eq(w, "By") == 1.0) { return 1.0; }
+    if (cartan_string_eq(w, "with") == 1.0 || cartan_string_eq(w, "With") == 1.0) { return 1.0; }
+    if (cartan_string_eq(w, "at") == 1.0 || cartan_string_eq(w, "At") == 1.0) { return 1.0; }
+    if (cartan_string_eq(w, "from") == 1.0 || cartan_string_eq(w, "From") == 1.0) { return 1.0; }
+    if (cartan_string_eq(w, "it") == 1.0 || cartan_string_eq(w, "It") == 1.0) { return 1.0; }
+    if (cartan_string_eq(w, "on") == 1.0 || cartan_string_eq(w, "On") == 1.0) { return 1.0; }
+    if (cartan_string_eq(w, "this") == 1.0 || cartan_string_eq(w, "This") == 1.0) { return 1.0; }
+    if (cartan_string_eq(w, "that") == 1.0 || cartan_string_eq(w, "That") == 1.0) { return 1.0; }
+    return 0.0;
+}
+
 fn cartan_taxonomy_extract_primary_concept(prompt: string) -> string {
     if (prompt == 0.0 || cartan_string_length(prompt) == 0.0) { return "object"; }
     let words = string_split(prompt, " ");
@@ -311,13 +342,22 @@ fn cartan_taxonomy_extract_primary_concept(prompt: string) -> string {
     var i = 0.0;
     while (i < n) {
         let w = cartan_tree_get(words, i);
-        if (cartan_string_length(w) >= 3.0) {
+        if (cartan_taxonomy_is_stopword(w) == 0.0 && cartan_string_length(w) >= 3.0) {
             let res = cartan_taxonomy_resolve_path(w);
             if (cartan_string_length(res) > 0.0) {
                 return w;
             }
         }
         i = i + 1.0;
+    }
+    // Fallback: Return the last non-stopword content word in the prompt
+    var j = n - 1.0;
+    while (j >= 0.0) {
+        let w = cartan_tree_get(words, j);
+        if (cartan_taxonomy_is_stopword(w) == 0.0 && cartan_string_length(w) >= 3.0) {
+            return w;
+        }
+        j = j - 1.0;
     }
     return "object";
 }
