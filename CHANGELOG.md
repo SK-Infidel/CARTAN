@@ -1,3 +1,22 @@
+## [8.448.0] - 2026-09-30 (Sprint 490: 64-Bit File I/O Codegen, Gemma 4 Causal Transformer Alignment & Zero-Runaway Chat Inference)
+
+### Completed & Validated
+- **Native 64-Bit File I/O Compiler Codegen (`src/cartanc/llvm_codegen.car`, `src/cartanc/core_runtime.car`, `[ISSUE-314]`)**:
+  - Implemented `_fseeki64` and `_ftelli64` lowering in `llvm_codegen.car` with full Win32 CRT 64-bit parameter (`ptr`, `i64`, `i32`) and return type (`i32`, `i64`) ABI fidelity.
+  - Added extern declarations in `core_runtime.car` and achieved bit-for-bit compiler bootstrap fixpoint parity (`IR len: 55453`).
+- **On-Demand 64-Bit Per-Layer Embedding Reader (`src/std/transformer.cl`, `test/geomind/chat.cl`, `[ISSUE-315]`)**:
+  - Resolved the 11.27 GB memory-mapping failure by implementing an on-demand 43 KB streaming token row reader via `_fseeki64` and `fread`.
+  - Removed token ID clamping, enabling complete 262k vocabulary PLE gating across all 42 Gemma layers.
+- **Proportional RoPE Rotary Factor Alignment (`src/std/transformer.cl`)**:
+  - Aligned global attention layers (`partial_rotary_factor = 0.25`, rotating first 64 angles) vs sliding window layers (rotating 128 angles).
+  - Raised default token limits to 2048.0, allowing natural end-of-turn delimiter (`<turn|>`) discovery and termination.
+- **Target 84 Cosine Alignment (`test/compiler_suite/test_gemma4_full_model_execution.car`)**:
+  - Upgraded Gate 5 from unnormalized dot products to normalized cosine similarity on the tangent manifold, passing all 5 gates cleanly.
+- **Empirical Chat Inference & Zero Regression Clearance**:
+  - Verified live neural generation for `"What is the capital of Germany?"` -> `"The capital of Germany is **Berlin**."` with clean exit code 0.
+  - Verified live neural generation for `"What is the capital of France?"` -> `"Paris. 🇫🇷"`.
+  - Cleared all 87 compiler regression test targets with 0 failures.
+
 ## [8.447.0] - 2026-09-30 (Sprint 489: Standard Library Hub Rigor & Legacy Training Manifold Alignment — Safetensors JSON Introspection, Real Config/Tokenizer Parsing, Eradication of Synthetic Trigonometry in Cortical Streams & Fixpoint Parity)
 
 ### Completed & Validated

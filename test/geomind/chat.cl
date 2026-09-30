@@ -129,6 +129,17 @@ fn cartan_apply_repetition_penalty(logits_ptr: ptr, hist: ptr, penalty: float) -
             cartan_vec_set_f32(logits_ptr, prev_alt, cur_alt - 10.0);
         }
     }
+
+    // 4. Frequency decay penalty: cumulative suppression for repeated tokens
+    var fi = 0.0;
+    while (fi < h_len) {
+        let f_tok = cartan_vec_get_f32(hist, fi);
+        if (f_tok >= 0.0 && f_tok < vocab_len) {
+            let cur_f = cartan_vec_get_f32(logits_ptr, f_tok);
+            cartan_vec_set_f32(logits_ptr, f_tok, cur_f - 0.75);
+        }
+        fi = fi + 1.0;
+    }
     return 1.0;
 }
 
@@ -140,6 +151,127 @@ var g_full_emb_path: string = "";
 var g_full_emb_buf: ptr = 0.0;
 var g_has_full_emb: float = 0.0;
 var g_e8_loaded: float = 0.0;
+
+var g_vocab_scripts_buf: ptr = 0.0;
+var g_active_script_mask: ptr = 0.0;
+var g_cached_mask_script: float = -1.0;
+var g_active_prompt_script: float = 1.0;
+
+fn geomind_load_vocab_scripts_if_needed() -> float {
+    if (g_vocab_scripts_buf != 0.0) { return 1.0; }
+    var path = "test/geomind/trainingdata/checkpoints/geomind_vocab_scripts.bin";
+    if (cartan_file_exists(path) == 0.0) {
+        path = "../test/geomind/trainingdata/checkpoints/geomind_vocab_scripts.bin";
+    }
+    if (cartan_file_exists(path) == 1.0) {
+        g_vocab_scripts_buf = cartan_read_binary_file_data_sized(path, 262144.0);
+    }
+    if (g_active_script_mask == 0.0) {
+        g_active_script_mask = malloc(262144.0);
+    }
+    return 1.0;
+}
+
+fn geomind_detect_prompt_script(prompt: string) -> float {
+    if (prompt == 0.0) { return 1.0; }
+    let len = cartan_string_length(prompt);
+    if (len == 0.0) { return 1.0; }
+
+    var latin_count = 0.0;
+    var cyrillic_count = 0.0;
+    var cjk_count = 0.0;
+    var arabic_count = 0.0;
+    var devanagari_count = 0.0;
+    var hangul_count = 0.0;
+
+    var i = 0.0;
+    while (i < len) {
+        let b0 = cartan_string_get_char(prompt, i);
+        if ((b0 >= 65.0 && b0 <= 90.0) || (b0 >= 97.0 && b0 <= 122.0)) {
+            latin_count = latin_count + 1.0;
+            i = i + 1.0;
+        } else if (b0 >= 194.0 && b0 <= 201.0) {
+            latin_count = latin_count + 1.0;
+            i = i + 2.0;
+        } else if (b0 >= 208.0 && b0 <= 211.0) {
+            cyrillic_count = cyrillic_count + 1.0;
+            i = i + 2.0;
+        } else if (b0 >= 216.0 && b0 <= 223.0) {
+            arabic_count = arabic_count + 1.0;
+            i = i + 2.0;
+        } else if (b0 == 224.0) {
+            if (i + 1.0 < len) {
+                let b1 = cartan_string_get_char(prompt, i + 1.0);
+                if (b1 >= 164.0 && b1 <= 165.0) {
+                    devanagari_count = devanagari_count + 1.0;
+                }
+            }
+            i = i + 3.0;
+        } else if (b0 == 227.0 || (b0 >= 228.0 && b0 <= 233.0)) {
+            cjk_count = cjk_count + 1.0;
+            i = i + 3.0;
+        } else if (b0 >= 234.0 && b0 <= 237.0) {
+            hangul_count = hangul_count + 1.0;
+            i = i + 3.0;
+        } else if (b0 >= 192.0 && b0 <= 223.0) {
+            i = i + 2.0;
+        } else if (b0 >= 224.0 && b0 <= 239.0) {
+            i = i + 3.0;
+        } else if (b0 >= 240.0 && b0 <= 247.0) {
+            i = i + 4.0;
+        } else {
+            i = i + 1.0;
+        }
+    }
+
+    if (cjk_count > 0.0 && cjk_count >= cyrillic_count && cjk_count >= arabic_count && cjk_count >= devanagari_count && cjk_count >= hangul_count) {
+        return 3.0;
+    }
+    if (cyrillic_count > 0.0 && cyrillic_count >= arabic_count && cyrillic_count >= devanagari_count && cyrillic_count >= hangul_count) {
+        return 2.0;
+    }
+    if (arabic_count > 0.0 && arabic_count >= devanagari_count && arabic_count >= hangul_count) {
+        return 4.0;
+    }
+    if (devanagari_count > 0.0 && devanagari_count >= hangul_count) {
+        return 5.0;
+    }
+    if (hangul_count > 0.0) {
+        return 6.0;
+    }
+    return 1.0;
+}
+
+fn geomind_get_language_mask_for_script(target_script: float) -> ptr {
+    geomind_load_vocab_scripts_if_needed();
+    if (g_vocab_scripts_buf == 0.0) {
+        return g_e8_vocab_mask;
+    }
+    if (g_cached_mask_script == target_script && g_active_script_mask != 0.0) {
+        return g_active_script_mask;
+    }
+
+    var v = 0.0;
+    while (v < 262144.0) {
+        let cat = cartan_byte_at(g_vocab_scripts_buf, v);
+        var active = 0.0;
+        if (v == 1.0 || v == 106.0) {
+            active = 1.0;
+        } else if (cat != 255.0) {
+            if (cat == 0.0) {
+                active = 1.0;
+            } else if (cat == target_script) {
+                active = 1.0;
+            } else if (target_script != 1.0 && cat == 1.0) {
+                active = 1.0;
+            }
+        }
+        cartan_set_byte(g_active_script_mask, v, active);
+        v = v + 1.0;
+    }
+    g_cached_mask_script = target_script;
+    return g_active_script_mask;
+}
 
 fn geomind_load_e8_assets_if_needed() -> float {
     if (g_e8_loaded == 1.0) { return 1.0; }
@@ -242,9 +374,9 @@ fn geomind_load_ple_assets_if_needed() -> float {
         ple_path = "../test/geomind/trainingdata/checkpoints/geomind_ple_embeddings_full_262k.bin";
     }
     if (cartan_file_exists(ple_path) == 1.0) {
-        g_ple_mmap_ptr = cartan_mmap_ple(ple_path);
-        if (g_ple_mmap_ptr != 0.0) {
-            printf("  [Host-RAM] Memory-mapped authentic 262k Per-Layer Embedding table (11.27 GB) into Tier 2 RAM.\n");
+        let ple_ok = cartan_mmap_ple(ple_path);
+        if (ple_ok == 1.0) {
+            printf("  [Host-RAM] Initialized 64-bit authentic 262k Per-Layer Embedding table stream (11.27 GB).\n");
         }
     }
     var proj_path = "test/geomind/trainingdata/checkpoints/geomind_ple_model_proj.bin";
@@ -383,11 +515,7 @@ fn cartan_tensor_compute_lm_head_logits(h: ptr, temp: float) -> ptr {
             di = di + 1.0;
         }
         var ics_ptr = g_e8_ics;
-        var mask_ptr = g_e8_vocab_mask;
-        if (g_expert_priming_enabled == 0.0) {
-            ics_ptr = 0.0;
-            mask_ptr = 0.0;
-        }
+        var mask_ptr = geomind_get_language_mask_for_script(g_active_prompt_script);
         cartan_compute_lm_head_softcap_native(h_raw, g_full_emb_buf, ics_ptr, mask_ptr, logits, vocab_size, 2560.0, 30.0);
         free(h_raw);
     } else {
@@ -1147,6 +1275,7 @@ fn geomind_execute_gemma_decode_step(sampled_tok: float, pos: float) -> ptr {
                 cur_h = next_h;
             }
         }
+
         l = l + 1.0;
     }
     return cur_h;
@@ -1175,18 +1304,22 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
     printf("[GeoMind Chat] Executing 100%% Pure Neural Forward Pass (42-Layer Gemma Transformer + Hopfield)...\n");
     cartan_flush(0.0);
 
-    var raw_prompt_tokens = cartan_hub_encode_text_to_tokens(prompt);
-    var prompt_tokens = cartan_vec_create();
-    if (cartan_string_starts_with(prompt, "<|turn>") == 1.0 || cartan_string_starts_with(prompt, "<start_of_turn>") == 1.0) {
-        cartan_vec_free(prompt_tokens);
-        prompt_tokens = raw_prompt_tokens;
+    // Dynamic prompt script detection across all modes
+    g_active_prompt_script = geomind_detect_prompt_script(prompt);
+    printf("[GeoMind Multilingual] Detected prompt script category: %s\n", cartan_float_to_string(g_active_prompt_script));
+
+    var prompt_tokens: ptr = 0.0;
+    if (cartan_string_starts_with(prompt, "<|turn>") == 1.0) {
+        prompt_tokens = cartan_hub_encode_text_to_tokens(prompt);
     } else {
-        // Gemma 4 Instruction Chat Turn Delimiters:
+        // Authentic Google Gemma 4 Instruction Chat Turn Delimiters:
         // <bos> (2) <|turn> (105) user (2364) \n (107) [user_prompt] <turn|> (106) \n (107) <|turn> (105) model (4368) \n (107)
+        prompt_tokens = cartan_vec_create();
         cartan_vec_push_f32(prompt_tokens, 2.0);
         cartan_vec_push_f32(prompt_tokens, 105.0);
         cartan_vec_push_f32(prompt_tokens, 2364.0);
         cartan_vec_push_f32(prompt_tokens, 107.0);
+        let raw_prompt_tokens = cartan_hub_encode_text_to_tokens(prompt);
         let num_raw = cartan_vec_len(raw_prompt_tokens);
         var ri = 0.0;
         while (ri < num_raw) {
@@ -1330,7 +1463,7 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
         d_mom = d_mom + 1.0;
     }
     var step = 0.0;
-    var max_t = 22.0;
+    var max_t = 2048.0;
     if (max_tokens > 0.0) { max_t = max_tokens; }
 
     cartan_doubt_checkpoint(cur_h, mom, history, 0.0, temp);
@@ -1414,26 +1547,21 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
                 cartan_vec_set_f32(logits_vec, 107.0, -10000.0);
             }
 
-            let sampled_tok = cartan_tokenizer_sample_topp_topk(logits_vec, 50.0, 0.90, current_temp + step * 0.01);
+            let sampled_tok = cartan_tokenizer_sample_topp_topk(logits_vec, 50.0, 0.90, current_temp);
             cartan_vec_free(logits_vec);
-            if ((sampled_tok == 1.0 || sampled_tok == 106.0) && step >= min_gen_tokens) {
+            if (sampled_tok == 1.0 || sampled_tok == 106.0) {
                 break;
             }
             let tok_str = bpe_decode_token(sampled_tok);
+            if (cartan_string_contains(tok_str, "<turn|>") != 0.0 ||
+                cartan_string_contains(tok_str, "<end_of_turn>") != 0.0 ||
+                cartan_string_contains(tok_str, "<|turn>") != 0.0) {
+                break;
+            }
             prompt_scaffold_append(gen_buffer, tok_str);
             cartan_print_token(sampled_tok);
             cartan_flush(0.0);
             cartan_vec_push_f32(history, sampled_tok);
-
-            if (step >= min_gen_tokens) {
-                if (cartan_string_contains(tok_str, "<turn|>") != 0.0 ||
-                    cartan_string_contains(tok_str, "<end_of_turn>") != 0.0 ||
-                    cartan_string_contains(tok_str, "\n") != 0.0 ||
-                    sampled_tok == 1.0 || sampled_tok == 106.0 ||
-                    sampled_tok == 2360.0 || sampled_tok == 1144.0) {
-                    break;
-                }
-            }
 
             // Genuine 42-Layer Gemma Causal Transformer Decode Step with KV Caching
             let next_decode_h = geomind_execute_gemma_decode_step(sampled_tok, num_prompt_toks + step);

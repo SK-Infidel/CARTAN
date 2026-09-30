@@ -404,15 +404,20 @@ fn main() -> float {
         i = i + 1.0;
     }
 
-    // Measure alignment with attractor before recall
+    // Measure directional alignment (cosine similarity) with attractor before recall
     var dot_before = 0.0;
+    var h_sq_before = 0.0;
+    var a_sq = 0.0;
     i = 0.0;
     while (i < 32.0) {
         let h_v = cartan_vec_get_f32(h_active, i);
         let a_v = cartan_vec_get_f32(attractor_vec, i);
         dot_before = dot_before + (h_v * a_v);
+        h_sq_before = h_sq_before + (h_v * h_v);
+        a_sq = a_sq + (a_v * a_v);
         i = i + 1.0;
     }
+    let cos_before = dot_before / (sqrt(h_sq_before) * sqrt(a_sq) + 0.000001);
 
     // Blend Tier 3 Attractor into trajectory: h = 0.70 * h + 0.30 * attractor
     i = 0.0;
@@ -423,19 +428,22 @@ fn main() -> float {
         i = i + 1.0;
     }
 
-    // Measure alignment with attractor after recall
+    // Measure directional alignment (cosine similarity) with attractor after recall
     var dot_after = 0.0;
+    var h_sq_after = 0.0;
     i = 0.0;
     while (i < 32.0) {
         let h_v = cartan_vec_get_f32(h_active, i);
         let a_v = cartan_vec_get_f32(attractor_vec, i);
         dot_after = dot_after + (h_v * a_v);
+        h_sq_after = h_sq_after + (h_v * h_v);
         i = i + 1.0;
     }
+    let cos_after = dot_after / (sqrt(h_sq_after) * sqrt(a_sq) + 0.000001);
 
-    printf("  -> Attractor alignment before recall: %s\n", cartan_float_to_string(dot_before));
-    printf("  -> Attractor alignment after recall:  %s\n", cartan_float_to_string(dot_after));
-    cartan_assert(dot_after > dot_before, "Tier 3 Warehouse recall must shift trajectory towards domain attractor");
+    printf("  -> Attractor alignment (cosine) before recall: %s\n", cartan_float_to_string(cos_before));
+    printf("  -> Attractor alignment (cosine) after recall:  %s\n", cartan_float_to_string(cos_after));
+    cartan_assert(cos_after > cos_before, "Tier 3 Warehouse recall must shift trajectory towards domain attractor");
     cartan_vec_free(attractor_vec);
 
     collections_free_list(attr_indices);

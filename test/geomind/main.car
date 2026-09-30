@@ -575,7 +575,7 @@ fn geomind_chat_interactive_loop(image_arg: string, audio_arg: string, tokens_ar
 
 fn main() -> float {
     let arg_count = sys_get_arg_count();
-    let default_tokens = get_cli_param_float("-tokens", arg_count, 24.0);
+    let default_tokens = get_cli_param_float("-tokens", arg_count, 2048.0);
     let no_priming = get_cli_flag_present("-no-expert-priming", arg_count) + 
                      get_cli_flag_present("-no-priming", arg_count) +
                      get_cli_flag_present("-raw-neural", arg_count);
@@ -687,7 +687,7 @@ fn main() -> float {
             let image_arg = get_cli_param("--image", arg_count);
             let audio_arg = get_cli_param("--audio", arg_count);
             var prompt_arg = get_cli_prompt(arg_count);
-            let tokens_arg = get_cli_param_float("-tokens", arg_count, 24.0);
+            let tokens_arg = get_cli_param_float("-tokens", arg_count, 2048.0);
             let temp_arg = get_cli_param_float("-temp", arg_count, 0.7);
 
             if (cartan_string_length(prompt_arg) == 0.0 && arg_count >= 3.0) {
@@ -706,6 +706,7 @@ fn main() -> float {
             }
 
             if (cartan_string_length(prompt_arg) > 0.0) {
+                geomind_chat_generate_reasoning_pass(prompt_arg, temp_arg);
                 geomind_chat_generate_reply_multimodal(prompt_arg, tokens_arg, temp_arg, image_arg, audio_arg);
                 cartan_flush(0.0);
                 return 0.0;

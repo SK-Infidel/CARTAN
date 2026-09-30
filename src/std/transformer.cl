@@ -17,6 +17,12 @@ extern fn fmod(x: float, y: float) -> float;
 extern fn floor(x: float) -> float;
 
 extern fn calloc(count: float, size: float) -> ptr;
+extern fn malloc(size: float) -> ptr;
+extern fn free(p: ptr);
+extern fn fopen(path: string, mode: string) -> ptr;
+extern fn fclose(file: ptr) -> float;
+extern fn _fseeki64(file: ptr, offset: float, origin: float) -> float;
+extern fn fread(buffer: ptr, size: float, count: float, file: ptr) -> float;
 extern fn cartan_mmap_file(path: string) -> ptr;
 extern fn cartan_munmap_file(view: ptr) -> float;
 
@@ -25,6 +31,8 @@ var g_k_cache_arena: ptr = 0.0;
 var g_v_cache_arena: ptr = 0.0;
 var g_native_emb_buf: ptr = 0.0;
 var g_ple_mmap_ptr: ptr = 0.0;
+var g_ple_file_handle: ptr = 0.0;
+var s_ple_tok_buf: ptr = 0.0;
 var g_ple_model_proj_ptr: ptr = 0.0;
 var g_ple_proj_norm_ptr: ptr = 0.0;
 var s_cached_pli: ptr = 0.0;
@@ -68,10 +76,17 @@ fn cartan_set_embedding_buffer(buf: ptr) -> float {
     return 1.0;
 }
 
-fn cartan_mmap_ple(path: string) -> ptr {
-    if (g_ple_mmap_ptr != 0.0) { return g_ple_mmap_ptr; }
-    g_ple_mmap_ptr = cartan_mmap_file(path);
-    return g_ple_mmap_ptr;
+fn cartan_mmap_ple(path: string) -> float {
+    if (g_ple_file_handle != 0.0) { return 1.0; }
+    let f = fopen(path, "rb");
+    if (f != 0.0) {
+        g_ple_file_handle = f;
+        if (s_ple_tok_buf == 0.0) {
+            s_ple_tok_buf = malloc(43008.0);
+        }
+        return 1.0;
+    }
+    return 0.0;
 }
 
 fn cartan_set_ple_mmap_ptr(p: ptr) {
@@ -95,13 +110,21 @@ fn cartan_update_pli_cache_if_needed(tok_id: float) {
     if (tok_id == s_cached_pli_token) { return; }
     s_cached_pli_token = tok_id;
     if (tok_id < 0.0 || tok_id >= 262144.0) { return; }
-    if (g_ple_mmap_ptr == 0.0 || tok_id * 43008.0 >= 2147483647.0) { return; }
     if (s_cached_pli == 0.0) {
         s_cached_pli = calloc(10752.0, 4.0);
         s_cached_proj_all = calloc(10752.0, 4.0);
     }
 
-    let ple_tok_row = cartan_f32_ptr_add(g_ple_mmap_ptr, tok_id * 10752.0);
+    var ple_tok_row: ptr = 0.0;
+    if (g_ple_mmap_ptr != 0.0) {
+        ple_tok_row = cartan_f32_ptr_add(g_ple_mmap_ptr, tok_id * 10752.0);
+    } else if (g_ple_file_handle != 0.0 && s_ple_tok_buf != 0.0) {
+        let byte_offset = tok_id * 43008.0;
+        _fseeki64(g_ple_file_handle, byte_offset, 0.0);
+        fread(s_ple_tok_buf, 4.0, 10752.0, g_ple_file_handle);
+        ple_tok_row = s_ple_tok_buf;
+    }
+    if (ple_tok_row == 0.0) { return; }
 
     if (g_ple_model_proj_ptr != 0.0 && g_ple_proj_norm_ptr != 0.0 && g_native_emb_buf != 0.0) {
         let emb_row = cartan_f32_ptr_add(g_native_emb_buf, tok_id * 2560.0);
@@ -960,8 +983,14 @@ fn cartan_gemma_layer_forward_native(
         qh = qh + 1.0;
     }
 
-    // 4. RoPE on Q heads (Gemma rotate_half)
     let half = head_dim / 2.0;
+    let is_global = (fmod(layer_idx + 1.0, 6.0) == 0.0);
+    var rope_angles = half;
+    if (is_global > 0.0) {
+        rope_angles = 64.0;
+    }
+
+    // 4. RoPE on Q heads (Gemma rotate_half with proportional rotary factor)
     qh = 0.0;
     while (qh < q_heads) {
         let qh_base = qh * head_dim;
@@ -969,19 +998,21 @@ fn cartan_gemma_layer_forward_native(
         while (k < half) {
             let x0 = cartan_f32_at(g_trans_q_norm, qh_base + k);
             let x1 = cartan_f32_at(g_trans_q_norm, qh_base + k + half);
-            let exponent = (k * 2.0) / head_dim;
-            let freq = 1.0 / pow(rope_theta, exponent);
-            let theta = pos * freq;
-            let c = cos(theta);
-            let s = sin(theta);
+            var c = 1.0;
+            var s = 0.0;
+            if (k < rope_angles) {
+                let exponent = (k * 2.0) / head_dim;
+                let freq = 1.0 / pow(rope_theta, exponent);
+                let theta = pos * freq;
+                c = cos(theta);
+                s = sin(theta);
+            }
             cartan_set_f32(g_trans_q_rot, qh_base + k, x0 * c - x1 * s);
             cartan_set_f32(g_trans_q_rot, qh_base + k + half, x1 * c + x0 * s);
             k = k + 1.0;
         }
         qh = qh + 1.0;
     }
-
-    let is_global = (fmod(layer_idx + 1.0, 6.0) == 0.0);
     let is_kv_shared = (layer_idx >= 24.0);
     var kv_source_layer = layer_idx;
     if (is_kv_shared > 0.0) {
@@ -1030,11 +1061,15 @@ fn cartan_gemma_layer_forward_native(
             while (k < half) {
                 let x0 = cartan_f32_at(g_trans_k_norm, kh_base + k);
                 let x1 = cartan_f32_at(g_trans_k_norm, kh_base + k + half);
-                let exponent = (k * 2.0) / head_dim;
-                let freq = 1.0 / pow(rope_theta, exponent);
-                let theta = pos * freq;
-                let c = cos(theta);
-                let s = sin(theta);
+                var c = 1.0;
+                var s = 0.0;
+                if (k < rope_angles) {
+                    let exponent = (k * 2.0) / head_dim;
+                    let freq = 1.0 / pow(rope_theta, exponent);
+                    let theta = pos * freq;
+                    c = cos(theta);
+                    s = sin(theta);
+                }
                 cartan_set_f32(g_trans_k_rot, kh_base + k, x0 * c - x1 * s);
                 cartan_set_f32(g_trans_k_rot, kh_base + k + half, x1 * c + x0 * s);
                 k = k + 1.0;
