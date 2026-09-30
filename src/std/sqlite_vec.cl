@@ -470,6 +470,65 @@ fn sqlite_vec_materialize_to_cargraph(db: ptr, domain_id: float, out_path: strin
     return ok;
 }
 
+// Find matching entity attribute in prompt dynamically across registered entity states
+fn sqlite_vec_find_entity_attribute_in_prompt(db: ptr, prompt: string) -> string {
+    if (db == 0.0 || prompt == 0.0) { return ""; }
+    let prompt_len = cartan_string_length(prompt);
+    if (prompt_len == 0.0) { return ""; }
+
+    let sql = "SELECT entity_name, attribute_name, attribute_value FROM entity_states WHERE domain_id != 0 ORDER BY domain_id ASC, confidence DESC;";
+    let stmt = sqlite_vec_prepare(db, sql);
+    if (stmt == 0.0) { return ""; }
+
+    let lower_prompt = cartan_string_to_lower(prompt);
+    var matched_val = "";
+
+    while (sqlite3_step(stmt) == 100.0) {
+        let ent = sqlite_vec_column_text(stmt, 0.0);
+        let attr = sqlite_vec_column_text(stmt, 1.0);
+        let val = sqlite_vec_column_text(stmt, 2.0);
+
+        if (cartan_string_length(ent) > 1.0) {
+            let lower_ent = cartan_string_to_lower(ent);
+            if (cartan_string_contains(lower_prompt, lower_ent) != 0.0) {
+                if (cartan_string_length(val) > 0.0) {
+                    if (cartan_string_length(attr) > 0.0) {
+                        let lower_attr = cartan_string_to_lower(attr);
+                        if (cartan_string_contains(lower_prompt, lower_attr) != 0.0) {
+                            matched_val = val;
+                            free(lower_attr);
+                            free(lower_ent);
+                            break;
+                        }
+                        free(lower_attr);
+                    }
+                    if (cartan_string_length(matched_val) == 0.0) {
+                        matched_val = val;
+                    }
+                }
+            }
+            free(lower_ent);
+        }
+    }
+    free(lower_prompt);
+    sqlite3_finalize(stmt);
+    return matched_val;
+}
+
+// Prepare statement for retrieving prior session episodes (excluding the currently active prompt turn)
+fn sqlite_vec_prepare_prior_episodes(db: ptr, session_id: string, limit: float) -> ptr {
+    if (db == 0.0 || session_id == 0.0) { return 0.0; }
+    var lim = limit;
+    if (lim <= 0.0) { lim = 6.0; }
+    let sql = "SELECT speaker, content FROM (SELECT episode_id, speaker, content FROM episodes WHERE session_id = ? AND episode_id < (SELECT MAX(episode_id) FROM episodes WHERE session_id = ?) ORDER BY episode_id DESC LIMIT ?) ORDER BY episode_id ASC;";
+    let stmt = sqlite_vec_prepare(db, sql);
+    if (stmt == 0.0) { return 0.0; }
+    sqlite3_bind_text(stmt, 1.0, session_id, -1.0, -1.0);
+    sqlite3_bind_text(stmt, 2.0, session_id, -1.0, -1.0);
+    sqlite3_bind_int64(stmt, 3.0, lim);
+    return stmt;
+}
+
 // -------------------------------------------------------------------------
 // Backward-Compatible Aliases for Legacy cartan_sqlite_* Callers
 // -------------------------------------------------------------------------
@@ -499,3 +558,5 @@ fn cartan_sqlite_consolidate_unprocessed_episodes(db: ptr, domain_id: float) -> 
 fn cartan_sqlite_supersede_rule(db: ptr, old_elem_id: float, new_elem_id: float) -> float { return sqlite_vec_supersede_rule(db, old_elem_id, new_elem_id); }
 fn cartan_sqlite_apply_ebbinghaus_decay(db: ptr, domain_id: float, min_confidence_thresh: float) -> float { return sqlite_vec_apply_ebbinghaus_decay(db, domain_id, min_confidence_thresh); }
 fn cartan_sqlite_flush_hebbian_weight(db: ptr, src_id: float, tgt_id: float, weight: float) -> float { return sqlite_vec_flush_hebbian_weight(db, src_id, tgt_id, weight); }
+fn cartan_sqlite_find_entity_attribute_in_prompt(db: ptr, prompt: string) -> string { return sqlite_vec_find_entity_attribute_in_prompt(db, prompt); }
+fn cartan_sqlite_prepare_prior_episodes(db: ptr, session_id: string, limit: float) -> ptr { return sqlite_vec_prepare_prior_episodes(db, session_id, limit); }

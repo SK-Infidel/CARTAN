@@ -547,11 +547,17 @@ fn main(argc: float, argv: ptr) -> float {
     cartan_flush(0.0);
     run_step(t86_cmd);
 
-    // [87/87] Positive test: test_ns_gradient_supervision
+    // [87/88] Positive test: test_ns_gradient_supervision
     let t87_cmd = "cartanc.exe build test/compiler_suite/test_ns_gradient_supervision.car -o build/test_ns_gradient_supervision.exe && build\\test_ns_gradient_supervision.exe";
-    printf("[87/87] [// run-pass] Building and Executing Neuro-Symbolic Gradient Supervision & Active Critic: %s\n", t87_cmd);
+    printf("[87/88] [// run-pass] Building and Executing Neuro-Symbolic Gradient Supervision & Active Critic: %s\n", t87_cmd);
     cartan_flush(0.0);
     run_step(t87_cmd);
+
+    // [88/88] Positive test: test_autodiff_backward_syntax
+    let t88_cmd = "cartanc.exe build test/compiler_suite/test_autodiff_backward_syntax.car -o build/test_autodiff_backward_syntax.exe && build\\test_autodiff_backward_syntax.exe";
+    printf("[88/88] [// run-pass] Building and Executing Autodiff Backward Syntax & Reverse-Mode Optimization: %s\n", t88_cmd);
+    cartan_flush(0.0);
+    run_step(t88_cmd);
 
     if (g_failed_count > 0.0) {
         printf("\n====================================================\n", "");
@@ -559,7 +565,7 @@ fn main(argc: float, argv: ptr) -> float {
         printf("====================================================\n", "");
         return 1.0;
     }
-    printf("\nAll 87 compiler snapshot test targets executed successfully (0 failures)!\n", "");
+    printf("\nAll 88 compiler snapshot test targets executed successfully (0 failures)!\n", "");
     return 0.0;
 }
 

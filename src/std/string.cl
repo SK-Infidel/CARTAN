@@ -24,6 +24,7 @@ extern fn cartan_string_get_char(s: string, idx: float) -> float;
 extern fn cartan_string_replace(s: string, old_sub: string, new_sub: string) -> string;
 extern fn cartan_string_substring(s: string, start: float, end_idx: float) -> string;
 extern fn cartan_hash_string(s: string) -> float;
+extern fn cartan_set_byte(buf: ptr, offset: float, val: float);
 
 fn string_len(s: string) -> float {
     return cartan_string_length(s);
@@ -93,5 +94,24 @@ fn string_ends_with(s: string, suffix: string) -> float {
     return cartan_string_ends_with(s, suffix);
 }
 
+fn cartan_string_to_lower(s: string) -> string {
+    if (s == 0.0) { return ""; }
+    let len = cartan_string_length(s);
+    if (len == 0.0) { return ""; }
+    let res = malloc(len + 1.0);
+    var i = 0.0;
+    while (i < len) {
+        var c = cartan_string_get_char(s, i);
+        if (c >= 65.0 && c <= 90.0) {
+            c = c + 32.0;
+        }
+        cartan_set_byte(res, i, c);
+        i = i + 1.0;
+    }
+    cartan_set_byte(res, len, 0.0);
+    return res;
+}
 
-
+fn string_to_lower(s: string) -> string {
+    return cartan_string_to_lower(s);
+}

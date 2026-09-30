@@ -1034,17 +1034,9 @@ fn geomind_chat_build_cognitive_preamble(db: ptr) -> string {
 fn geomind_chat_retrieve_factual_attractor(prompt: string, domain_id: float) -> string {
     let db = geomind_chat_get_db();
     if (db == 0.0) { return ""; }
-    if (cartan_string_contains(prompt, "france") != 0.0 || cartan_string_contains(prompt, "France") != 0.0) {
-        let cap = cartan_sqlite_get_entity_state(db, 1.0, "France", "capital");
-        if (cartan_string_length(cap) > 0.0) {
-            return cartan_string_concat(" ", cap);
-        }
-    }
-    if (domain_id == 4.0 || cartan_string_contains(prompt, "biology") != 0.0 || cartan_string_contains(prompt, "cell") != 0.0 || cartan_string_contains(prompt, "cells") != 0.0) {
-        let div = cartan_sqlite_get_entity_state(db, 4.0, "Cell", "division");
-        if (cartan_string_length(div) > 0.0) {
-            return cartan_string_concat(" ", div);
-        }
+    let matched_attr = cartan_sqlite_find_entity_attribute_in_prompt(db, prompt);
+    if (cartan_string_length(matched_attr) > 0.0) {
+        return cartan_string_concat(" ", matched_attr);
     }
     return "";
 }
@@ -1551,6 +1543,40 @@ fn geomind_execute_gemma_decode_step(sampled_tok: float, pos: float) -> ptr {
     return cur_h;
 }
 
+fn geomind_chat_clear_session() -> float {
+    let db = geomind_chat_get_db();
+    if (db != 0.0) {
+        cartan_sqlite_exec(db, "DELETE FROM episodes WHERE session_id = 'session_active';");
+        return 1.0;
+    }
+    return 0.0;
+}
+
+fn geomind_chat_append_turn_tokens(target_tokens: ptr, role_tok: float, content_str: string) {
+    if (target_tokens == 0.0 || cartan_string_length(content_str) == 0.0) { return; }
+    // <|turn> (105) <role> (2364 or 4368) \n (107)
+    cartan_vec_push_f32(target_tokens, 105.0);
+    cartan_vec_push_f32(target_tokens, role_tok);
+    cartan_vec_push_f32(target_tokens, 107.0);
+
+    let content_tokens = cartan_hub_encode_text_to_tokens(content_str);
+    let n_toks = cartan_vec_len(content_tokens);
+    var i = 0.0;
+    while (i < n_toks) {
+        let tok = cartan_vec_get_f32(content_tokens, i);
+        // Filter out rogue control tokens within dialogue text
+        if (tok != 105.0 && tok != 106.0) {
+            cartan_vec_push_f32(target_tokens, tok);
+        }
+        i = i + 1.0;
+    }
+    cartan_vec_free(content_tokens);
+
+    // <turn|> (106) \n (107)
+    cartan_vec_push_f32(target_tokens, 106.0);
+    cartan_vec_push_f32(target_tokens, 107.0);
+}
+
 fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, temp: float, image_path: string, audio_path: string) -> float {
     geomind_chat_log_turn("user", prompt);
     geomind_chat_learn_conversational_turn("user", prompt);
@@ -1609,21 +1635,32 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
             cartan_vec_push_f32(prompt_tokens, 107.0);
         }
 
-        // Native Gemma 4 User Turn:
-        // <|turn> (105) user (2364) \n (107) [prompt] <turn|> (106) \n (107)
-        cartan_vec_push_f32(prompt_tokens, 105.0);
-        cartan_vec_push_f32(prompt_tokens, 2364.0);
-        cartan_vec_push_f32(prompt_tokens, 107.0);
-        let raw_prompt_tokens = cartan_hub_encode_text_to_tokens(prompt);
-        let num_raw = cartan_vec_len(raw_prompt_tokens);
-        var ri = 0.0;
-        while (ri < num_raw) {
-            cartan_vec_push_f32(prompt_tokens, cartan_vec_get_f32(raw_prompt_tokens, ri));
-            ri = ri + 1.0;
+        // Multi-Turn Conversational Dialogue History from Cognitive Memory:
+        if (db != 0.0 && g_ephemeral_memory == 0.0) {
+            let ep_stmt = cartan_sqlite_prepare_prior_episodes(db, "session_active", 4.0);
+            if (ep_stmt != 0.0) {
+                var hist_turns = 0.0;
+                while (cartan_sqlite_step(ep_stmt) == 100.0) {
+                    let ep_spk = cartan_sqlite_column_text(ep_stmt, 0.0);
+                    let ep_cnt = cartan_sqlite_column_text(ep_stmt, 1.0);
+                    if (cartan_string_length(ep_cnt) > 0.0) {
+                        var role_tok = 4368.0; // model
+                        if (cartan_string_eq(ep_spk, "user") == 1.0 || cartan_string_eq(ep_spk, "User") == 1.0) {
+                            role_tok = 2364.0; // user
+                        }
+                        geomind_chat_append_turn_tokens(prompt_tokens, role_tok, ep_cnt);
+                        hist_turns = hist_turns + 1.0;
+                    }
+                }
+                cartan_sqlite_finalize(ep_stmt);
+                if (hist_turns > 0.0) {
+                    printf("[GeoMind Dialogue] Ingested %s prior conversational turn(s) into active session context.\n", cartan_float_to_string(hist_turns));
+                }
+            }
         }
-        cartan_vec_free(raw_prompt_tokens);
-        cartan_vec_push_f32(prompt_tokens, 106.0);
-        cartan_vec_push_f32(prompt_tokens, 107.0);
+
+        // Native Gemma 4 Current User Turn:
+        geomind_chat_append_turn_tokens(prompt_tokens, 2364.0, prompt);
 
         // Model Generation Starter:
         // <|turn> (105) model (4368) \n (107)

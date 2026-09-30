@@ -13,7 +13,7 @@ param (
 $ErrorActionPreference = "Continue"
 
 # -----------------------------------------------------------------------------
-# Target Catalog (All 87 Compiler Regression Suite Targets)
+# Target Catalog (All 88 Compiler Regression Suite Targets)
 # -----------------------------------------------------------------------------
 $TargetCatalog = @{
     1  = @{ Name = "test_primitives"; File = "test/compiler_suite/test_primitives.car"; Run = $false; Negative = $false }
@@ -130,7 +130,7 @@ $SprintMapping = @{
 $SelectedTargetIDs = [System.Collections.Generic.List[int]]::new()
 
 if ($All) {
-    1..87 | ForEach-Object { $SelectedTargetIDs.Add($_) }
+    1..88 | ForEach-Object { $SelectedTargetIDs.Add($_) }
 }
 elseif ($Sprint -gt 0) {
     if ($SprintMapping.ContainsKey($Sprint)) {
@@ -236,7 +236,7 @@ foreach ($id in $SortedIDs) {
     $isNeg = $info.Negative
     $outExe = "build/$name.exe"
 
-    Write-Host "[$id/87] Target: $name ($file)" -ForegroundColor Yellow
+    Write-Host "[$id/$($TargetCatalog.Count)] Target: $name ($file)" -ForegroundColor Yellow
     $buildCmd = ".\cartanc.exe build $file -o $outExe"
     
     $sw = [System.Diagnostics.Stopwatch]::StartNew()

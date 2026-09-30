@@ -4048,12 +4048,58 @@ This file tracks technical debt and bugs identified during repository code revie
   3. Rewrote Target 66 (`test_geometric_bridge_and_reflection.car`) to assert authentic Riemannian geodesic retractions and genuine repository reflection structures.
   4. All targets pass cleanly with genuine mathematical and operating system invariants.
 
+---
 
+## [ISSUE-314] [FIXED] Truncated 32-Bit File Offsets and Missing 64-Bit File Seek Codegen
+- **Severity**: Critical (Compiler Capability & Large Weight File Blocker)
+- **Component**: [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car), [`src/cartanc/core_runtime.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/core_runtime.car)
+- **Description**: Standard `fseek` takes a 32-bit `long` offset, overflowing on model weight files >= 2 GB. LLVM codegen lacked 64-bit file position lowering (`_fseeki64`, `_ftelli64`).
+- **Resolution**:
+  1. Implemented `_fseeki64` and `_ftelli64` lowering in `llvm_codegen.car` with full Win32 CRT 64-bit parameter (`ptr`, `i64`, `i32`) and return type (`i32`, `i64`) ABI fidelity.
+  2. Registered extern declarations in `core_runtime.car` and verified bit-for-bit compiler bootstrap fixpoint parity.
 
+---
 
+## [ISSUE-315] [FIXED] 11.27 GB Safetensors Memory-Mapping Allocation Failure in Transformers
+- **Severity**: Critical (Model Loading Failure & Token ID Clamping)
+- **Component**: [`src/std/transformer.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/transformer.cl), [`test/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl)
+- **Description**: Attempting to load the entire 11.27 GB embedding tensor into a single contiguous memory block failed, forcing artificial clamping of token IDs to <= 1000.0 and breaking Gemma 4 vocabulary alignment.
+- **Resolution**:
+  1. Implemented an on-demand 43 KB streaming token row reader via `_fseeki64` and `fread`.
+  2. Removed token ID clamping, enabling complete 262,144 vocabulary PLE gating across all 42 Gemma layers.
 
+---
 
+## [ISSUE-316] [FIXED] Target 88 Omission from Test Runners (`run_affected_tests.ps1 -All` & `test/compiler_suite/run_tests.car`)
+- **Severity**: High (Verification Integrity)
+- **Component**: [`tools/run_affected_tests.ps1`](file:///C:/Users/rich-/source/repos/CARTAN/tools/run_affected_tests.ps1), [`test/compiler_suite/run_tests.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/compiler_suite/run_tests.car)
+- **Description**: Target 88 (`test_autodiff_backward_syntax.car`) was authored in Sprint 488 to verify autodiff `backward` lowering and runtime stepping. While registered in `TargetCatalog` (line 106), `run_affected_tests.ps1` line 133 looped `1..87`, omitting Target 88 during `-All` runs. Furthermore, `test/compiler_suite/run_tests.car` only executed targets up to 87.
+- **Resolution**:
+  1. Updated `tools/run_affected_tests.ps1` to loop `1..88` and made the progress counter denominator dynamic (`$TargetCatalog.Count`).
+  2. Wired Target 88 execution block into `test/compiler_suite/run_tests.car`.
+  3. Verified Target 88 builds, runs, and passes cleanly (1.68s).
 
+---
 
+## [ISSUE-317] [FIXED] Ephemeral Multi-Turn Context Loss in Interactive REPL Chat
+- **Severity**: Medium (Conversational Coherence & Alignment)
+- **Component**: [`test/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl), [`test/geomind/main.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/main.car), [`src/std/sqlite_vec.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/sqlite_vec.cl)
+- **Description**: While `geomind_chat_log_turn` logged user and model turns into `episodes` (`session_active`), `geomind_chat_generate_reply_multimodal` only constructed single-turn prompt tokens (`<bos><|turn>system...<|turn>user...<|turn>model`). As a result, subsequent turns in an interactive REPL dialogue had zero context of earlier turns.
+- **Resolution**:
+  1. Implemented `sqlite_vec_prepare_prior_episodes(db, session_id, limit)` in `src/std/sqlite_vec.cl` to retrieve recent dialogue turns for the active session in chronological order, excluding the in-flight prompt.
+  2. Implemented `geomind_chat_append_turn_tokens` in `test/geomind/chat.cl` to sanitize and encode conversational turns into Gemma 4 delimiters (`<|turn>user...<turn|>\n<|turn>model...<turn|>\n`).
+  3. Upgraded `geomind_chat_generate_reply_multimodal` to ingest prior session episodes ahead of the active prompt, enabling full multi-turn conversational recall across turns.
+  4. Added `/clear` and `/new` interactive session commands in `test/geomind/main.car` to reset dialogue memory on demand.
+  5. Verified multi-turn prompt sequence generation and context retention via `test_multiturn_conversational_coherence.car`.
 
+---
 
+## [ISSUE-318] [FIXED] Hardcoded Substring Filter in Factual Attractor Retrieval
+- **Severity**: Medium (Zero-Mock Rule Compliance & Hardcoding)
+- **Component**: [`test/geomind/chat.cl:1034-1050`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl#L1034-L1050), [`src/std/sqlite_vec.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/sqlite_vec.cl)
+- **Description**: `geomind_chat_retrieve_factual_attractor` used statically hardcoded string matches (`cartan_string_contains(prompt, "france")` and `cartan_string_contains(prompt, "biology")`) rather than dynamically discovering entities in the SQLite `entity_states` table.
+- **Resolution**:
+  1. Implemented `sqlite_vec_find_entity_attribute_in_prompt(db, prompt)` in `src/std/sqlite_vec.cl` to dynamically match entity names and attributes across all registered domains in SQLite `entity_states`.
+  2. Implemented `cartan_string_to_lower` and `string_to_lower` in `src/std/string.cl`.
+  3. Refactored `geomind_chat_retrieve_factual_attractor` in `test/geomind/chat.cl` to query `cartan_sqlite_find_entity_attribute_in_prompt(db, prompt)`, eradicating all static string branches.
+  4. Verified dynamic factual retrieval across France, Germany, Japan, and Cell entities in `test_multiturn_conversational_coherence.car`.

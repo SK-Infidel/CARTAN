@@ -1,3 +1,23 @@
+## [8.450.0] - 2026-09-30 (Sprint 492: Multi-Turn Conversational Coherence, Dynamic Factual Grounding & Test Harness Integrity)
+
+### Completed & Validated
+- **Multi-Turn Conversational Coherence (`test/geomind/chat.cl`, `src/std/sqlite_vec.cl`, `[ISSUE-317]`)**:
+  - Implemented `sqlite_vec_prepare_prior_episodes(db, session_id, limit)` and `cartan_sqlite_prepare_prior_episodes` in `src/std/sqlite_vec.cl` to retrieve recent dialogue exchanges chronologically from `cognitive_memory.db`, excluding the in-flight prompt.
+  - Implemented `geomind_chat_append_turn_tokens` in `test/geomind/chat.cl` to encode conversational history into Gemma 4 turn delimiters (`<|turn>user\n...<turn|>\n<|turn>model\n...<turn|>\n`).
+  - Upgraded `geomind_chat_generate_reply_multimodal` to causal prefill prior session episodes ahead of the active prompt, enabling coherent multi-turn conversational memory.
+  - Added `/clear` and `/new` interactive commands in `test/geomind/main.car` to reset active dialogue memory on demand.
+- **Dynamic Factual Grounding (`src/std/string.cl`, `src/std/sqlite_vec.cl`, `test/geomind/chat.cl`, `[ISSUE-318]`)**:
+  - Implemented `cartan_string_to_lower` and `string_to_lower` in `src/std/string.cl` via native byte manipulation.
+  - Implemented `sqlite_vec_find_entity_attribute_in_prompt` and `cartan_sqlite_find_entity_attribute_in_prompt` in `src/std/sqlite_vec.cl` to dynamically match entity names and attributes across all registered domains in SQLite `entity_states`.
+  - Refactored `geomind_chat_retrieve_factual_attractor` in `test/geomind/chat.cl` to query SQLite entity states, eradicating all hardcoded substring checks (`"france"`, `"biology"`).
+- **Test Suite & Harness Integrity (`tools/run_affected_tests.ps1`, `test/compiler_suite/run_tests.car`, `[ISSUE-316]`)**:
+  - Added Target 88 (`test_autodiff_backward_syntax.car`) to `tools/run_affected_tests.ps1` catalog and updated `$All` loop from `1..87` to `1..88` with dynamic progress denominator.
+  - Wired Target 88 execution block into `test/compiler_suite/run_tests.car` (88/88 targets).
+- **Empirical Verification**:
+  - Authored `test/geomind/test_multiturn_conversational_coherence.car` verifying dynamic grounding, 4-turn episode retrieval with active prompt exclusion, 81-token prompt stream packaging, and session clearing (4/4 gates passed).
+  - Rebuilt production `geomind.exe` and synchronized across workspace (`./geomind.exe`, `bin/geomind.exe`, `test/geomind/geomind.exe`).
+  - Verified live neural generation for `"What is the capital of Germany?"` -> `"The capital of Germany is **Berlin**.\n\nHow else may I assist you today, Rick?"` with 100% authentic neural prefill and decoding (exit code 0).
+
 ## [8.449.0] - 2026-09-30 (Sprint 491: Persistent Introspective Self-Identity, Domain 9 SELF_AND_IDENTITY & Conversational Learning)
 
 ### Completed & Validated

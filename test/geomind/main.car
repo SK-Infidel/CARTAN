@@ -544,6 +544,10 @@ fn geomind_chat_interactive_loop(image_arg: string, audio_arg: string, tokens_ar
                 printf("%s", pre);
             }
             cartan_flush(0.0);
+        } else if (cartan_string_eq(line, "/clear") == 1.0 || cartan_string_eq(line, "/new") == 1.0) {
+            geomind_chat_clear_session();
+            printf("[GeoMind Chat] Active conversation history cleared.\n\n");
+            cartan_flush(0.0);
         } else if (cartan_string_starts_with(line, "/set ") == 1.0) {
             let cmd_arg = cartan_string_substring(line, 5.0, len);
             let arg_len = cartan_string_length(cmd_arg);
@@ -551,7 +555,7 @@ fn geomind_chat_interactive_loop(image_arg: string, audio_arg: string, tokens_ar
             var eq_pos = -1.0;
             var si = 0.0;
             while (si < arg_len) {
-                let ch = c_cartan_string_char_at(cmd_arg, si);
+                let ch = cartan_string_get_char(cmd_arg, si);
                 if (ch == 46.0 && dot_pos < 0.0) {
                     dot_pos = si;
                 }
