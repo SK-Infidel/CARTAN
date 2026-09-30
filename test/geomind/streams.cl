@@ -6,42 +6,40 @@ include "../../src/std/math.cl";
 include "../../src/std/collections.cl";
 include "../../src/std/geom.cl";
 
-// Stream 0: SO(16) Cosformer Linear Attention Stream
+// Stream 0: SO(16) Orthogonal Metric Projection
 fn stream_cosformer_process(x: ptr, dim: float) -> ptr {
     if (x == 0.0 || dim <= 0.0) { return x; }
     let out = cartan_vec_create();
     let kw = geom_killing_form_dynkin_weight(0.0);
+    let inv_dynkin = 1.0 / sqrt(kw);
     var i = 0.0;
     while (i < dim) {
         let val = cartan_vec_get_f32(x, i);
-        // Linear causal cosine attention modulation with Killing metric
-        let cos_mod = cos(i * 0.05 * kw) * 0.25 + 0.75;
-        cartan_vec_push_f32(out, val * cos_mod);
+        cartan_vec_push_f32(out, val * inv_dynkin);
         i = i + 1.0;
     }
     return out;
 }
 
-// Stream 1: E7 x SU(2) Selective State-Space (SSM) Cumulative Memory Stream
+// Stream 1: E7 x SU(2) Continuous Selective State-Space (SSM) Cumulative Memory Stream
 fn stream_ssm_process(x: ptr, dim: float) -> ptr {
     if (x == 0.0 || dim <= 0.0) { return x; }
     let out = cartan_vec_create();
     let kw = geom_killing_form_dynkin_weight(1.0);
+    let decay = exp(-0.05 * kw);
     var running_state = 0.0;
     var i = 0.0;
     while (i < dim) {
         let val = cartan_vec_get_f32(x, i);
-        let ssm_mod = sin(i * 0.0314 * kw) * 0.20 + 0.80;
-        // Continuous selective state-space integration (A = 0.85, B = 0.15)
-        running_state = running_state * 0.85 + val * 0.15;
-        let ssm_out = (running_state * 1.1 + val * 0.5) * ssm_mod;
+        running_state = running_state * decay + val * (1.0 - decay);
+        let ssm_out = running_state * sqrt(kw);
         cartan_vec_push_f32(out, ssm_out);
         i = i + 1.0;
     }
     return out;
 }
 
-// Stream 2: E6 x SU(3) Auditory / Spectral Discrete Fourier Transform Stream
+// Stream 2: E6 x SU(3) Auditory / Spectral Discrete Cosine Transform Stream
 fn stream_spectral_process(x: ptr, dim: float) -> ptr {
     if (x == 0.0 || dim <= 0.0) { return x; }
     let out = cartan_vec_create();
@@ -49,20 +47,20 @@ fn stream_spectral_process(x: ptr, dim: float) -> ptr {
     var i = 0.0;
     while (i < dim) {
         let val = cartan_vec_get_f32(x, i);
-        // Harmonic spectral frequency filter (DFT modulation)
-        let harmonic = sin((i + 1.0) * 0.1 * kw) * 0.7071;
-        cartan_vec_push_f32(out, val * harmonic + val * 0.5);
+        let freq = 3.1415926535 * (i + 0.5) / dim;
+        let harmonic = cos(freq * kw);
+        let spec_out = val * (0.5 + 0.5 * harmonic);
+        cartan_vec_push_f32(out, spec_out);
         i = i + 1.0;
     }
     return out;
 }
 
-// Stream 3: SU(9) Hyperbolic Poincare Hierarchical Taxonomy Stream
+// Stream 3: SU(9) Hyperbolic Poincare Conformal Metric Stream
 fn stream_poincare_process(x: ptr, dim: float) -> ptr {
     if (x == 0.0 || dim <= 0.0) { return x; }
     let out = cartan_vec_create();
     let kw = geom_killing_form_dynkin_weight(3.0);
-    // Compute norm squared on Riemannian manifold
     var norm_sq = 0.0;
     var i = 0.0;
     while (i < dim) {
@@ -70,21 +68,21 @@ fn stream_poincare_process(x: ptr, dim: float) -> ptr {
         norm_sq = norm_sq + (val * val) * kw;
         i = i + 1.0;
     }
-    // Poincare conformal metric scale: 2 / (1 - ||u||^2)
-    var u_sq = norm_sq * 0.001;
-    if (u_sq > 0.90) { u_sq = 0.90; }
-    let hyp_scale = 2.0 / (1.0 - u_sq);
+    let r = sqrt(norm_sq) * 0.05;
+    var u = r;
+    if (u > 0.95) { u = 0.95; }
+    let hyp_scale = 2.0 / (1.0 - u * u);
     
     i = 0.0;
     while (i < dim) {
         let val = cartan_vec_get_f32(x, i);
-        cartan_vec_push_f32(out, tanh(val * 0.5) * (0.8 + 0.2 * hyp_scale));
+        cartan_vec_push_f32(out, tanh(val) * (0.5 + 0.5 * hyp_scale));
         i = i + 1.0;
     }
     return out;
 }
 
-// Stream 4: F4 x G2 Simplicial Loop Homology Stream
+// Stream 4: F4 x G2 Simplicial Boundary & Homology Stream
 fn stream_homology_process(x: ptr, dim: float) -> ptr {
     if (x == 0.0 || dim <= 0.0) { return x; }
     let out = cartan_vec_create();
@@ -92,51 +90,49 @@ fn stream_homology_process(x: ptr, dim: float) -> ptr {
     var i = 0.0;
     while (i < dim) {
         let val = cartan_vec_get_f32(x, i);
-        // Topological 3-node simplicial complex loop density
-        let loop_density = val * val * val * 0.02 * kw;
-        cartan_vec_push_f32(out, val * 0.9 + loop_density + sin(val * 2.0) * 0.1);
+        var prev = val;
+        if (i > 0.0) { prev = cartan_vec_get_f32(x, i - 1.0); }
+        var next_val = val;
+        if (i < dim - 1.0) { next_val = cartan_vec_get_f32(x, i + 1.0); }
+        let lap = 2.0 * val - prev - next_val;
+        let hom_out = val - (lap / kw);
+        cartan_vec_push_f32(out, hom_out);
         i = i + 1.0;
     }
     return out;
 }
 
-// Stream 5: SO(10) x SU(4) Visual Eikonal Geodesic Ray-Tracing Stream
+// Stream 5: SO(10) x SU(4) Visual Eikonal Geodesic Retraction Stream
 fn stream_eikonal_process(x: ptr, dim: float) -> ptr {
     if (x == 0.0 || dim <= 0.0) { return x; }
     let out = cartan_vec_create();
     let kw = geom_killing_form_dynkin_weight(5.0);
-    var speed_sq = 0.0;
     var i = 0.0;
     while (i < dim) {
         let val = cartan_vec_get_f32(x, i);
-        speed_sq = speed_sq + (val * val) * kw;
-        i = i + 1.0;
-    }
-    var a = speed_sq * 0.01 + 0.1;
-    if (a < 0.001) { a = 0.001; }
-    let travel = sqrt(a);
-    
-    i = 0.0;
-    while (i < dim) {
-        let val = cartan_vec_get_f32(x, i);
-        cartan_vec_push_f32(out, travel * 0.8 + val * 0.2);
+        let eik_out = val / sqrt(1.0 + kw * val * val);
+        cartan_vec_push_f32(out, eik_out);
         i = i + 1.0;
     }
     return out;
 }
 
-// Stream 6: SU(5) x SU(5) Heat Kernel Discrete Laplacian Diffusion Stream
+// Stream 6: SU(5) x SU(5) Heat Kernel Semigroup Diffusion Stream
 fn stream_heat_kernel_process(x: ptr, dim: float) -> ptr {
     if (x == 0.0 || dim <= 0.0) { return x; }
     let out = cartan_vec_create();
     let kw = geom_killing_form_dynkin_weight(6.0);
+    let tau = 0.1 / kw;
     var i = 0.0;
     while (i < dim) {
         let val = cartan_vec_get_f32(x, i);
-        let laplacian = val * 0.5 * kw;
-        // Heat diffusion: Y = x - 0.1 * L + 0.005 * L^2
-        let diffusion = val - (laplacian * 0.1) + (laplacian * laplacian * 0.005);
-        cartan_vec_push_f32(out, diffusion);
+        var prev = val;
+        if (i > 0.0) { prev = cartan_vec_get_f32(x, i - 1.0); }
+        var next_val = val;
+        if (i < dim - 1.0) { next_val = cartan_vec_get_f32(x, i + 1.0); }
+        let lap = next_val - 2.0 * val + prev;
+        let diff_out = val + tau * lap;
+        cartan_vec_push_f32(out, diff_out);
         i = i + 1.0;
     }
     return out;
@@ -147,13 +143,15 @@ fn stream_triality_process(x: ptr, dim: float) -> ptr {
     if (x == 0.0 || dim <= 0.0) { return x; }
     let out = cartan_vec_create();
     let kw = geom_killing_form_dynkin_weight(7.0);
+    let cos_th = cos(1.04719755);
+    let sin_th = sin(1.04719755);
     var i = 0.0;
     while (i < dim) {
-        let t1 = cartan_vec_get_f32(x, i);
-        let t2 = t1 * 0.8660254; // cos(30 deg)
-        let t3 = t2 * -0.5;      // cyclic symplectic phase
-        let triality_fused = (t1 + t2 + t3) * (0.75 + 0.05 * cos(i * 1.047));
-        cartan_vec_push_f32(out, triality_fused);
+        let val = cartan_vec_get_f32(x, i);
+        var next_val = val;
+        if (i < dim - 1.0) { next_val = cartan_vec_get_f32(x, i + 1.0); }
+        let rot_val = val * cos_th - next_val * sin_th;
+        cartan_vec_push_f32(out, rot_val);
         i = i + 1.0;
     }
     return out;
@@ -233,43 +231,44 @@ fn geomind_streams_manifold_forward(x: ptr, mix: float) -> ptr {
 
     let out = cartan_vec_create();
 
-    // Stream 0: SO(16) Cosformer (0..stride-1)
+    // Stream 0: SO(16) Orthogonal Metric Projection (0..stride-1)
     let kw0 = geom_killing_form_dynkin_weight(0.0);
+    let inv_dynkin0 = 1.0 / sqrt(kw0);
     var i = 0.0;
     let end0 = 1.0 * stride;
     while (i < end0) {
         let v = cartan_vec_get_f32(x, i);
-        let cos_mod = cos(i * 0.05 * kw0) * 0.25 + 0.75;
-        let trans = v * cos_mod;
+        let trans = v * inv_dynkin0;
         cartan_vec_push_f32(out, (1.0 - m) * v + m * trans);
         i = i + 1.0;
     }
 
-    // Stream 1: E7 x SU(2) SSM (stride..2*stride-1)
+    // Stream 1: E7 x SU(2) Continuous SSM (stride..2*stride-1)
     let kw1 = geom_killing_form_dynkin_weight(1.0);
+    let decay1 = exp(-0.05 * kw1);
     var ssm_state = 0.0;
     let end1 = 2.0 * stride;
     while (i < end1) {
         let v = cartan_vec_get_f32(x, i);
-        let ssm_mod = sin(i * 0.0314 * kw1) * 0.20 + 0.80;
-        ssm_state = ssm_state * 0.85 + v * 0.15;
-        let ssm_out = (ssm_state * 1.1 + v * 0.5) * ssm_mod;
+        ssm_state = ssm_state * decay1 + v * (1.0 - decay1);
+        let ssm_out = ssm_state * sqrt(kw1);
         cartan_vec_push_f32(out, (1.0 - m) * v + m * ssm_out);
         i = i + 1.0;
     }
 
-    // Stream 2: E6 x SU(3) Spectral (2*stride..3*stride-1)
+    // Stream 2: E6 x SU(3) Spectral DCT-II (2*stride..3*stride-1)
     let kw2 = geom_killing_form_dynkin_weight(2.0);
     let end2 = 3.0 * stride;
     while (i < end2) {
         let v = cartan_vec_get_f32(x, i);
-        let harmonic = sin((i + 1.0) * 0.1 * kw2) * 0.7071;
-        let spec_out = v * harmonic + v * 0.5;
+        let freq = 3.1415926535 * (i - 2.0 * stride + 0.5) / stride;
+        let harmonic = cos(freq * kw2);
+        let spec_out = v * (0.5 + 0.5 * harmonic);
         cartan_vec_push_f32(out, (1.0 - m) * v + m * spec_out);
         i = i + 1.0;
     }
 
-    // Stream 3: SU(9) Poincare (3*stride..4*stride-1)
+    // Stream 3: SU(9) Hyperbolic Poincare Conformal (3*stride..4*stride-1)
     let kw3 = geom_killing_form_dynkin_weight(3.0);
     var norm_sq = 0.0;
     var k = 3.0 * stride;
@@ -279,66 +278,68 @@ fn geomind_streams_manifold_forward(x: ptr, mix: float) -> ptr {
         norm_sq = norm_sq + (val * val) * kw3;
         k = k + 1.0;
     }
-    var u_sq = norm_sq * 0.001;
-    if (u_sq > 0.90) { u_sq = 0.90; }
-    let hyp_scale = 2.0 / (1.0 - u_sq);
+    let r3 = sqrt(norm_sq) * 0.05;
+    var u_sq = r3;
+    if (u_sq > 0.95) { u_sq = 0.95; }
+    let hyp_scale = 2.0 / (1.0 - u_sq * u_sq);
     while (i < end3) {
         let v = cartan_vec_get_f32(x, i);
-        let poincare_out = tanh(v * 0.5) * (0.8 + 0.2 * hyp_scale);
+        let poincare_out = tanh(v) * (0.5 + 0.5 * hyp_scale);
         cartan_vec_push_f32(out, (1.0 - m) * v + m * poincare_out);
         i = i + 1.0;
     }
 
-    // Stream 4: F4 x G2 Homology (4*stride..5*stride-1)
+    // Stream 4: F4 x G2 Simplicial Homology (4*stride..5*stride-1)
     let kw4 = geom_killing_form_dynkin_weight(4.0);
     let end4 = 5.0 * stride;
     while (i < end4) {
         let v = cartan_vec_get_f32(x, i);
-        let loop_density = v * v * v * 0.02 * kw4;
-        let hom_out = v * 0.9 + loop_density + sin(v * 2.0) * 0.1;
+        var prev = v;
+        if (i > 4.0 * stride) { prev = cartan_vec_get_f32(x, i - 1.0); }
+        var next_v = v;
+        if (i < end4 - 1.0) { next_v = cartan_vec_get_f32(x, i + 1.0); }
+        let lap = 2.0 * v - prev - next_v;
+        let hom_out = v - (lap / kw4);
         cartan_vec_push_f32(out, (1.0 - m) * v + m * hom_out);
         i = i + 1.0;
     }
 
-    // Stream 5: SO(10) x SU(4) Eikonal (5*stride..6*stride-1)
+    // Stream 5: SO(10) x SU(4) Visual Eikonal Retraction (5*stride..6*stride-1)
     let kw5 = geom_killing_form_dynkin_weight(5.0);
-    var speed_sq = 0.0;
-    k = 5.0 * stride;
     let end5 = 6.0 * stride;
-    while (k < end5) {
-        let val = cartan_vec_get_f32(x, k);
-        speed_sq = speed_sq + (val * val) * kw5;
-        k = k + 1.0;
-    }
-    var a = speed_sq * 0.01 + 0.1;
-    if (a < 0.001) { a = 0.001; }
-    let travel = sqrt(a);
     while (i < end5) {
         let v = cartan_vec_get_f32(x, i);
-        let eik_out = travel * 0.8 + v * 0.2;
+        let eik_out = v / sqrt(1.0 + kw5 * v * v);
         cartan_vec_push_f32(out, (1.0 - m) * v + m * eik_out);
         i = i + 1.0;
     }
 
-    // Stream 6: SU(5) x SU(5) Heat Kernel (6*stride..7*stride-1)
+    // Stream 6: SU(5) x SU(5) Heat Kernel Semigroup (6*stride..7*stride-1)
     let kw6 = geom_killing_form_dynkin_weight(6.0);
+    let tau6 = 0.1 / kw6;
     let end6 = 7.0 * stride;
     while (i < end6) {
         let v = cartan_vec_get_f32(x, i);
-        let laplacian = v * 0.5 * kw6;
-        let diff_out = v - (laplacian * 0.1) + (laplacian * laplacian * 0.005);
+        var prev = v;
+        if (i > 6.0 * stride) { prev = cartan_vec_get_f32(x, i - 1.0); }
+        var next_v = v;
+        if (i < end6 - 1.0) { next_v = cartan_vec_get_f32(x, i + 1.0); }
+        let lap = next_v - 2.0 * v + prev;
+        let diff_out = v + tau6 * lap;
         cartan_vec_push_f32(out, (1.0 - m) * v + m * diff_out);
         i = i + 1.0;
     }
 
-    // Stream 7: SU(3)^3 Triality (7*stride..8*stride-1)
+    // Stream 7: SU(3)^3 Triality Symplectic Rotation (7*stride..8*stride-1)
+    let cos_th7 = cos(1.04719755);
+    let sin_th7 = sin(1.04719755);
     let end7 = 8.0 * stride;
     while (i < end7) {
-        let t1 = cartan_vec_get_f32(x, i);
-        let t2 = t1 * 0.8660254;
-        let t3 = t2 * -0.5;
-        let tri_out = (t1 + t2 + t3) * (0.75 + 0.05 * cos(i * 1.047));
-        cartan_vec_push_f32(out, (1.0 - m) * t1 + m * tri_out);
+        let v = cartan_vec_get_f32(x, i);
+        var next_v = v;
+        if (i < end7 - 1.0) { next_v = cartan_vec_get_f32(x, i + 1.0); }
+        let tri_out = v * cos_th7 - next_v * sin_th7;
+        cartan_vec_push_f32(out, (1.0 - m) * v + m * tri_out);
         i = i + 1.0;
     }
 

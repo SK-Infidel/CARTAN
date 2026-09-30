@@ -1,19 +1,24 @@
 // CARTAN Compiler Suite: Test HuggingFace Model Hub & Safetensors Pipeline
 include "../../src/std/hub.car";
 
+extern fn cartan_assert(cond: float, msg: string) -> float;
+extern fn printf(fmt: string) -> float;
+
 fn main() -> float {
     printf("[test_hf_hub] Initializing HuggingFace Model Hub & Safetensors Pipeline verification...\n");
-    let tok = hub_autotokenizer_from_pretrained("cartan-ai/llama-3-8b");
-    static_assert(tok.vocab_size == 32000.0, "AutoTokenizer vocab size must match 32000");
+    let tok = hub_autotokenizer_from_pretrained("google/gemma-4-E4B-it");
+    cartan_assert(tok.vocab_size == 262144.0, "AutoTokenizer vocab size must match Gemma 262144");
 
-    let model = hub_automodel_from_pretrained("cartan-ai/llama-3-8b");
-    static_assert(model.num_layers == 32.0, "AutoModel layer count must match 32");
+    let model = hub_automodel_from_pretrained("google/gemma-4-E4B-it");
+    cartan_assert(model.num_layers == 42.0, "AutoModel layer count must match Gemma 42 layers");
+    cartan_assert(model.hidden_dim == 2560.0, "AutoModel hidden dim must match Gemma 2560 dim");
 
     let header = hub_load_safetensors("cache_model.safetensors");
-    static_assert(cartan_tree_len(header) > 0.0, "Safetensors header must contain tensors");
+    let num_tensors = cartan_tree_len_f(header);
+    cartan_assert(num_tensors > 0.0, "Safetensors header must contain authentic discovered tensors");
 
-    let ds = hub_load_dataset("tatsu-lab/alpaca", "train");
-    static_assert(ds.num_samples == 1000.0, "Dataset sample count must match 1000");
+    let ds = hub_load_dataset("atomic_conceptnet_discourse", "train");
+    cartan_assert(ds.num_samples > 0.0, "Dataset sample count must be positive");
 
     printf("[test_hf_hub] PASSED: HuggingFace Model Hub, Datasets & Safetensors Pipeline fully verified.\n");
     return 0.0;

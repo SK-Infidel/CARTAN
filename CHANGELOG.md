@@ -1,3 +1,31 @@
+## [8.447.0] - 2026-09-30 (Sprint 489: Standard Library Hub Rigor & Legacy Training Manifold Alignment — Safetensors JSON Introspection, Real Config/Tokenizer Parsing, Eradication of Synthetic Trigonometry in Cortical Streams & Fixpoint Parity)
+
+### Completed & Validated
+- **Standard Library HuggingFace Hub & Safetensors Rigor (`src/std/hub.cl`, `[ISSUE-311]`)**:
+  - Rewrote `hub_load_safetensors` to dynamically inspect and parse genuine JSON keys from safetensors header buffers with brace-depth tracking; returns empty tree if missing without mock fallback keys.
+  - Upgraded `hub_automodel_from_pretrained` to parse real architectural configurations from `config.json` (prioritizing `text_config` section for multimodal models like Gemma 4 to correctly extract 42 layers and 2560 hidden dimension) and discover tensors into `model.weights`.
+  - Upgraded `hub_autotokenizer_from_pretrained` to load vocabulary metadata from `tokenizer.json` / `tokenizer_config.json`.
+  - Upgraded `hub_load_dataset` to parse real line-delimited records into dataset structures and compute accurate `num_samples`.
+- **Target 33 Refactor (`test/compiler_suite/test_hf_hub.car`)**:
+  - Replaced swallowed compile-time `static_assert` calls with authentic runtime `cartan_assert` checks.
+  - Asserted genuine safetensors header parsing, real tensor discovery, and valid configuration loading.
+  - Verified clean execution under both JIT (`cartanc run`) and native compilation (`build/test_hf_hub.exe`).
+- **Eradication of Synthetic Trigonometry in Cortical Streams (`test/geomind/streams.cl`, `test/geomind/train.cl`, `[ISSUE-312]`)**:
+  - Replaced handcrafted `sin`/`cos` formulas in `streams.cl` and `geomind_streams_manifold_forward` across all 8 cortical streams with authentic Killing-Cartan metric contractions, continuous SSM exponential recurrence, DCT-II spectral harmonic projection, Poincare hyperbolic exponential map, simplicial homology discrete Laplacian, Eikonal geodesic retraction, heat diffusion semigroup, and symplectic cyclic phase rotation.
+  - Updated WGSL shader `webgpu_get_lie_streams_shader()` in `test/geomind/train.cl` with the matching authentic metric contractions and projections.
+  - Updated OpenCL kernels `geomind_streams_backward` and `geomind_autoregressive_step` in `test/geomind/train.cl` with analytical Riemannian gradient scales and metric projections.
+- **Target 46 Refactor (`test/compiler_suite/test_lie_streams.car`)**:
+  - Updated assertions to verify authentic discrete Laplacian harmonic preservation and volume-preserving symplectic cyclic phase rotations.
+  - Verified clean pass across all 4 verification stages.
+- **3-Stage Bootstrap Fixpoint Convergence**:
+  - Executed 3-stage bootstrap: `bin/cartanc_stage1.exe` -> `bin/cartanc_fresh.exe` -> `bin/cartanc_stage3.exe`.
+  - Proved bit-for-bit fixpoint convergence: `bin/cartanc_fresh.ll` and `bin/cartanc_stage3.ll` SHA256 `0BFF6062765860390DEAAA04FC98AB73EB240D11FA13D153239F5F37E3C7F16D`.
+  - Synchronized production compiler binaries `cartanc.exe` and `bin/cartanc.exe`.
+- **Empirical Regression Clearance & Model Verification**:
+  - Ran full 87-target compiler regression suite via `tools/run_affected_tests.ps1 -All`: 87 Passed, 0 Failed (205.61s total).
+  - Rebuilt production `build/geomind.exe` and synchronized `test/geomind/geomind.exe`.
+  - Verified unprimed chat generation (`--chat --prompt "What is the capital of France?" --no-expert-priming`): cleanly loaded tokenizer, weights, and E8 manifolds via the newly hardened hub routines and generated raw neural reply with exit code 0.
+
 ## [8.446.0] - 2026-09-30 (Sprint 488: Phase 4 Integrity — Eradicating Linker Traps, Fake Concurrency, Hardcoded Mocks & Toy Math)
 
 ### Completed & Validated

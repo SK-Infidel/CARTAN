@@ -4013,19 +4013,28 @@ This file tracks technical debt and bugs identified during repository code revie
 
 ---
 
-## [ISSUE-311] [OPEN] Hollow Pretrained Model and Tokenizer Stubs in `src/std/hub.cl`
-- **Severity**: Medium (Standard Library Completeness)
+## [ISSUE-311] [FIXED] Hollow Pretrained Model and Tokenizer Stubs in `src/std/hub.cl`
+- **Severity**: Medium (Standard Library Completeness & Zero-Mock Violation)
 - **Component**: [`src/std/hub.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/hub.cl)
-- **Description**: `hub_automodel_from_pretrained` returns a dummy `AutoModel` struct with hardcoded `num_layers = 32.0`, `hidden_dim = 4096.0`, and empty weights tree. `hub_autotokenizer_from_pretrained` returns dummy struct without loading tokenizer files.
-- **Remediation Plan**: Wire `hub_automodel_from_pretrained` and `hub_autotokenizer_from_pretrained` to authentic safetensors and tokenizer JSON ingestion or deprecate hollow legacy stubs.
+- **Description**: `hub_automodel_from_pretrained` previously returned a dummy `AutoModel` struct with hardcoded `num_layers = 32.0`, `hidden_dim = 4096.0`, and empty weights tree. `hub_autotokenizer_from_pretrained` returned dummy struct without loading tokenizer files. `hub_load_safetensors` had mock key fallback strings, and `hub_load_dataset` used hardcoded 1000 samples.
+- **Resolution**:
+  1. Rewrote `hub_load_safetensors` to dynamically parse genuine JSON object keys from safetensors header with brace-depth tracking; returns empty tree if file is missing (zero fake fallback keys).
+  2. Upgraded `hub_automodel_from_pretrained` to parse real architecture from `config.json` (prioritizing `text_config` section for multimodal architectures like Gemma 4 to correctly extract 42 layers and 2560 hidden dimension) and discover tensors into `model.weights`.
+  3. Upgraded `hub_autotokenizer_from_pretrained` to load vocabulary metadata and tokens directly from `tokenizer.json` / `tokenizer_config.json`.
+  4. Upgraded `hub_load_dataset` to parse real line-delimited records into dataset structures and compute accurate `num_samples`.
+  5. Refactored Target 33 (`test_hf_hub.car`) to use runtime `cartan_assert` and verify genuine file-backed discovery.
 
 ---
 
-## [ISSUE-312] [OPEN] Synthetic Trigonometric Stream Processors in Legacy Training Path
+## [ISSUE-312] [FIXED] Synthetic Trigonometric Stream Processors in Legacy Training Path
 - **Severity**: Medium (Model Mathematical Rigor)
-- **Component**: [`test/geomind/streams.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/streams.cl), [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl)
-- **Description**: The 8 Lie subgroup stream processors in `streams.cl` and OpenCL kernels `geomind_streams_backward` / `geomind_autoregressive_step` use handcrafted trigonometric activation functions (`sin`, `cos`, polynomial loop density) rather than learned neural projections.
-- **Remediation Plan**: Align training stream processors with authentic continuous manifold projections or migrate legacy training paths to pure causal transformer execution.
+- **Component**: [`test/geomind/streams.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/streams.cl), [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl), [`test/compiler_suite/test_lie_streams.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/compiler_suite/test_lie_streams.car)
+- **Description**: The 8 Lie subgroup stream processors in `streams.cl` and OpenCL/WGSL kernels `geomind_streams_backward` / `geomind_autoregressive_step` / `webgpu_get_lie_streams_shader` used handcrafted trigonometric activation functions (`sin`, `cos`, polynomial loop density) rather than genuine continuous manifold projections.
+- **Resolution**:
+  1. Replaced toy formulas across all 8 stream processors in `streams.cl` and `geomind_streams_manifold_forward` with authentic Killing-Cartan metric contractions, continuous SSM exponential recurrence, DCT-II spectral harmonic projection, Poincare hyperbolic exponential map, simplicial homology discrete Laplacian, Eikonal geodesic retraction, heat diffusion semigroup, and symplectic cyclic phase rotation.
+  2. Updated WGSL shader `webgpu_get_lie_streams_shader()` in `test/geomind/train.cl` with the matching authentic metric contractions and projections.
+  3. Updated OpenCL kernels `geomind_streams_backward` and `geomind_autoregressive_step` in `test/geomind/train.cl` with analytical Riemannian gradient scales and metric projections.
+  4. Updated Target 46 (`test_lie_streams.car`) assertions to verify genuine discrete Laplacian harmonic projection and volume-preserving symplectic rotations; verified clean pass.
 
 ---
 

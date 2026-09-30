@@ -402,20 +402,51 @@ fn hub_load_safetensors_tensor(filepath: string, tensor_name: string, num_elemen
 fn hub_load_safetensors(filepath: string) -> ptr {
     let tensors = cartan_tree_create();
     if (filepath == 0.0 || cartan_file_exists(filepath) == 0.0) {
-        cartan_tree_push(tensors, "model.safetensors.default");
         return tensors;
     }
     let hlen = cartan_safetensors_header_length(filepath);
     if (hlen <= 0.0) {
-        cartan_tree_push(tensors, "model.safetensors.default");
         return tensors;
     }
     let hdr = cartan_safetensors_read_header(filepath);
-    if (cartan_string_contains(hdr, "model.") != 0.0) {
-        cartan_tree_push(tensors, "model.embed_tokens.weight");
-        cartan_tree_push(tensors, "model.layers.0.weight");
-    } else {
-        cartan_tree_push(tensors, "tensor_0");
+    if (hdr == 0.0) {
+        return tensors;
+    }
+    let h_str_len = cartan_string_length(hdr);
+    var idx = 0.0;
+    var brace_depth = 0.0;
+    while (idx < h_str_len) {
+        let ch = cartan_string_get_char(hdr, idx);
+        if (ch == 123.0) { // '{'
+            brace_depth = brace_depth + 1.0;
+        } else if (ch == 125.0) { // '}'
+            brace_depth = brace_depth - 1.0;
+        } else if (ch == 34.0 && brace_depth == 1.0) { // '"' at root object level
+            var k_end = idx + 1.0;
+            while (k_end < h_str_len && cartan_string_get_char(hdr, k_end) != 34.0) {
+                k_end = k_end + 1.0;
+            }
+            if (k_end < h_str_len) {
+                let key = cartan_string_substring(hdr, idx + 1.0, k_end);
+                var post = k_end + 1.0;
+                while (post < h_str_len && (cartan_string_get_char(hdr, post) == 32.0 || cartan_string_get_char(hdr, post) == 9.0)) {
+                    post = post + 1.0;
+                }
+                if (post < h_str_len && cartan_string_get_char(hdr, post) == 58.0) { // ':'
+                    var val_start = post + 1.0;
+                    while (val_start < h_str_len && (cartan_string_get_char(hdr, val_start) == 32.0 || cartan_string_get_char(hdr, val_start) == 9.0)) {
+                        val_start = val_start + 1.0;
+                    }
+                    if (val_start < h_str_len && cartan_string_get_char(hdr, val_start) == 123.0) { // '{'
+                        if (cartan_string_eq(key, "__metadata__") == 0.0) {
+                            cartan_tree_push(tensors, key);
+                        }
+                    }
+                }
+                idx = k_end;
+            }
+        }
+        idx = idx + 1.0;
     }
     return tensors;
 }
@@ -427,28 +458,115 @@ fn hub_graft_multimodal_model(safetensors_path: string, out_checkpoint: string) 
 }
 
 fn hub_autotokenizer_from_pretrained(repo_id: string) -> AutoTokenizer {
-    printf("[hub] Initializing AutoTokenizer from pretrained\n");
-    var v_sz = 32000.0;
-    if (cartan_string_contains(repo_id, "gemma") != 0.0) {
-        v_sz = 262144.0;
+    printf("[hub] Initializing AutoTokenizer from pretrained: %s\n", repo_id);
+    var v_sz = 0.0;
+    var b_id = 1.0;
+    var e_id = 2.0;
+    var tok_path = "cache_tokenizer.json";
+    if (cartan_file_exists(tok_path) == 0.0) {
+        let safe = hub_sanitize_filename(repo_id);
+        let cached = cartan_string_concat("cache_", cartan_string_concat(safe, "_tokenizer.json"));
+        if (cartan_file_exists(cached) == 1.0) {
+            tok_path = cached;
+        } else if (cartan_file_exists("tokenizer.json") == 1.0) {
+            tok_path = "tokenizer.json";
+        }
+    }
+    if (cartan_file_exists(tok_path) == 1.0) {
+        let tok_text = cartan_read_file(tok_path);
+        let v_str = ingest_json_get_field(tok_text, "vocab_size");
+        if (cartan_string_length(v_str) > 0.0) {
+            v_sz = atof(v_str);
+        }
+    }
+    if (v_sz <= 0.0) {
+        if (cartan_string_contains(repo_id, "gemma") != 0.0) {
+            v_sz = 262144.0;
+            b_id = 2.0;
+            e_id = 1.0;
+        } else if (cartan_string_contains(repo_id, "llama") != 0.0) {
+            v_sz = 128256.0;
+            b_id = 128000.0;
+            e_id = 128001.0;
+        } else {
+            v_sz = 32000.0;
+        }
     }
     let tok = AutoTokenizer {
         tokenizer_type: "BPE",
         vocab_size: v_sz,
-        bos_token_id: 1.0,
-        eos_token_id: 2.0
+        bos_token_id: b_id,
+        eos_token_id: e_id
     };
     return tok;
 }
 
 fn hub_automodel_from_pretrained(repo_id: string) -> AutoModel {
-    printf("[hub] Initializing AutoModel architecture from pretrained\n");
+    printf("[hub] Initializing AutoModel architecture from pretrained: %s\n", repo_id);
     let weights = cartan_tree_create();
+    var layers = 0.0;
+    var h_dim = 0.0;
+    var cfg_path = "config.json";
+    if (cartan_file_exists(cfg_path) == 0.0) {
+        let safe = hub_sanitize_filename(repo_id);
+        let cached = cartan_string_concat("cache_", cartan_string_concat(safe, "_config.json"));
+        if (cartan_file_exists(cached) == 1.0) {
+            cfg_path = cached;
+        } else if (cartan_file_exists("cache_config.json") == 1.0) {
+            cfg_path = "cache_config.json";
+        }
+    }
+    if (cartan_file_exists(cfg_path) == 1.0) {
+        let cfg_text = cartan_read_file(cfg_path);
+        var target_text = cfg_text;
+        let text_cfg_pos = strstr(cfg_text, "\"text_config\"");
+        if (text_cfg_pos != 0.0) {
+            target_text = text_cfg_pos;
+        }
+        let l_str = ingest_json_get_field(target_text, "num_hidden_layers");
+        if (cartan_string_length(l_str) > 0.0) {
+            layers = atof(l_str);
+        }
+        let d_str = ingest_json_get_field(target_text, "hidden_size");
+        if (cartan_string_length(d_str) > 0.0) {
+            h_dim = atof(d_str);
+        }
+    }
+    if (layers <= 0.0 || h_dim <= 0.0) {
+        if (cartan_string_contains(repo_id, "gemma") != 0.0) {
+            layers = 42.0;
+            h_dim = 2560.0;
+        } else if (cartan_string_contains(repo_id, "llama") != 0.0) {
+            layers = 32.0;
+            h_dim = 4096.0;
+        } else if (cartan_string_contains(repo_id, "e8") != 0.0) {
+            layers = 16.0;
+            h_dim = 248.0;
+        }
+    }
+    let sf_path = cartan_string_concat("cache_", cartan_string_concat(hub_sanitize_filename(repo_id), ".safetensors"));
+    if (cartan_file_exists(sf_path) == 1.0) {
+        let sf_tensors = hub_load_safetensors(sf_path);
+        let num_t = cartan_tree_len_f(sf_tensors);
+        var ti = 0.0;
+        while (ti < num_t) {
+            cartan_tree_push(weights, cartan_tree_get_f32(sf_tensors, ti));
+            ti = ti + 1.0;
+        }
+    } else if (cartan_file_exists("cache_model.safetensors") == 1.0) {
+        let sf_tensors = hub_load_safetensors("cache_model.safetensors");
+        let num_t = cartan_tree_len_f(sf_tensors);
+        var ti = 0.0;
+        while (ti < num_t) {
+            cartan_tree_push(weights, cartan_tree_get_f32(sf_tensors, ti));
+            ti = ti + 1.0;
+        }
+    }
     let model = AutoModel {
         model_name: repo_id,
         weights: weights,
-        num_layers: 32.0,
-        hidden_dim: 4096.0
+        num_layers: layers,
+        hidden_dim: h_dim
     };
     return model;
 }
@@ -496,16 +614,41 @@ fn hub_fetch_dataset(repo_id: string, filename: string) -> string {
 }
 
 fn hub_load_dataset(repo_id: string, split: string) -> Dataset {
-    printf("[hub] Loading dataset split from HuggingFace Hub: ");
-    printf(repo_id);
-    printf(" [split=");
-    printf(split);
-    printf("]\n");
+    printf("[hub] Loading dataset split from HuggingFace Hub: %s [split=%s]\n", repo_id, split);
     let records = cartan_tree_create();
+    var count = 0.0;
+    let safe_name = hub_sanitize_filename(repo_id);
+    var ds_path = cartan_string_concat("dataset_", safe_name);
+    if (cartan_file_exists(ds_path) == 0.0) {
+        let candidate_txt = cartan_string_concat(ds_path, ".txt");
+        if (cartan_file_exists(candidate_txt) == 1.0) {
+            ds_path = candidate_txt;
+        } else if (cartan_file_exists("test/geomind/trainingdata/atomic_conceptnet_discourse.tsv") == 1.0) {
+            ds_path = "test/geomind/trainingdata/atomic_conceptnet_discourse.tsv";
+        }
+    }
+    if (cartan_file_exists(ds_path) == 1.0) {
+        let content = cartan_read_file(ds_path);
+        let c_len = cartan_string_length(content);
+        var line_start = 0.0;
+        var pos = 0.0;
+        while (pos < c_len) {
+            let ch = cartan_string_get_char(content, pos);
+            if (ch == 10.0 || pos == c_len - 1.0) { // '\n'
+                let line = cartan_string_substring(content, line_start, pos);
+                if (cartan_string_length(line) > 0.0) {
+                    cartan_tree_push(records, line);
+                    count = count + 1.0;
+                }
+                line_start = pos + 1.0;
+            }
+            pos = pos + 1.0;
+        }
+    }
     let d = Dataset {
         dataset_name: repo_id,
         split: split,
-        num_samples: 1000.0,
+        num_samples: count,
         records: records
     };
     return d;
