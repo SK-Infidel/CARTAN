@@ -41,10 +41,11 @@ fn print_help_dialogue() -> float {
     printf("  Lie Group E8 Manifold Architecture | Continuous Hopfield Resonator\n");
     printf("  Powered by CARTAN Standard Library Layer 1/Layer 2 Stack\n");
     printf("================================================================================\n\n");
-    printf("Usage: geomind.exe [mode flag]\n\n");
+    printf("Usage: geomind.exe [mode flag] [options]\n");
+    printf("  (Default: Launches interactive WebGPU chat engine when run without mode flags)\n\n");
     printf("Modes:\n");
-    printf("  --chat          Start interactive E8 Hopfield multimodal chat engine\n");
-    printf("                  Flags: -prompt <text>, -tokens <num>, -temp <float>, --no-expert-priming, --online-critic\n");
+    printf("  --chat          Start interactive E8 Hopfield multimodal chat engine (DEFAULT MODE)\n");
+    printf("                  Flags: -prompt <text>, -tokens <num>, -temp <float>, -cpu, --no-expert-priming, --online-critic\n");
     printf("  --hf-download   Explore & download HuggingFace datasets (-repo <repo_id>)\n");
     printf("  --train-pre     Pre-train model on skill corpus (-target <file>|-repo <id>)\n");
     printf("  --train-cloze   Run Anchored Cloze Curriculum Stream (-target <file>)\n");
@@ -52,12 +53,15 @@ fn print_help_dialogue() -> float {
     printf("  --train-sft     Run Supervised Fine-Tuning loop (-repo <id>|-target <file>)\n");
     printf("  --train-distill Run Teacher-Student KL divergence logit distillation pass\n");
     printf("  --merge-slerp   Run Zero-Day SLERP geodesic model weight merging pipeline\n");
-    printf("  --graft         Graft Gemma 4E4B multimodal weights into 42-layer manifold\n");
+    printf("  --graft         Graft 42-layer sovereign multimodal weights into manifold\n");
     printf("  --azr-selfplay  Run Absolute Zero Reasoning (AZR) compiler self-play loop\n");
     printf("  --ingest        Ingest material into Continuous Hopfield memory (-target <file>)\n");
     printf("  --sleep         Run Autonomous Metacognitive Sleep memory consolidation\n");
     printf("  --train-webgpu  Run pure native CARTAN WebGPU Causal Training Engine\n");
     printf("  --help, -h      Display this help dialogue and exit\n\n");
+    printf("Hardware & Compute Flags:\n");
+    printf("  (WebGPU hardware acceleration on NVIDIA RTX 2000 Ada GPU is ENABLED BY DEFAULT)\n");
+    printf("  -cpu, --cpu, -no-gpu, --no-gpu: Run on CPU only (disables WebGPU hardware acceleration)\n\n");
     printf("Training & Optimization Flags (Optional - All have calibrated defaults):\n");
     printf("  -target-loss <float>, -tl, -loss, -training-loss: Universal target loss stopping threshold\n");
     printf("                       Default: 2.50 Cloze, 3.00 CE, 2.00 SFT. Accepted universally across all modes.\n");
@@ -141,6 +145,39 @@ fn is_sft_mode(flag: string) -> float {
         cartan_string_eq(flag, "-sft") == 1.0 ||
         cartan_string_eq(flag, "sft") == 1.0) {
         return 1.0;
+    }
+    return 0.0;
+}
+
+// Determines if a command line flag is an explicit non-chat command mode
+fn is_explicit_non_chat_mode(flag: string) -> float {
+    if (cartan_string_eq(flag, "--help") == 1.0 || cartan_string_eq(flag, "-h") == 1.0) { return 1.0; }
+    if (cartan_string_eq(flag, "--hf-download") == 1.0) { return 1.0; }
+    if (cartan_string_eq(flag, "--sleep") == 1.0) { return 1.0; }
+    if (is_cloze_mode(flag) == 1.0) { return 1.0; }
+    if (is_ce_mode(flag) == 1.0) { return 1.0; }
+    if (is_sft_mode(flag) == 1.0) { return 1.0; }
+    if (is_pre_mode(flag) == 1.0) { return 1.0; }
+    if (cartan_string_eq(flag, "--train-distill") == 1.0) { return 1.0; }
+    if (cartan_string_eq(flag, "--train-webgpu") == 1.0) { return 1.0; }
+    if (cartan_string_eq(flag, "--rlaif") == 1.0) { return 1.0; }
+    if (cartan_string_eq(flag, "--ingest") == 1.0) { return 1.0; }
+    if (cartan_string_eq(flag, "--analogy") == 1.0) { return 1.0; }
+    if (cartan_string_eq(flag, "--merge-slerp") == 1.0) { return 1.0; }
+    if (cartan_string_eq(flag, "--graft") == 1.0) { return 1.0; }
+    if (cartan_string_eq(flag, "--azr-selfplay") == 1.0) { return 1.0; }
+    return 0.0;
+}
+
+// Checks if any non-chat mode was explicitly specified on the command line
+fn has_non_chat_mode_arg(arg_count: float) -> float {
+    var i = 1.0;
+    while (i < arg_count) {
+        let flag = sys_get_arg(i);
+        if (is_explicit_non_chat_mode(flag) == 1.0) {
+            return 1.0;
+        }
+        i = i + 1.0;
     }
     return 0.0;
 }
@@ -572,6 +609,16 @@ fn geomind_chat_interactive_loop(image_arg: string, audio_arg: string, tokens_ar
             geomind_chat_clear_session();
             printf("[GeoMind Chat] Active conversation history cleared.\n\n");
             cartan_flush(0.0);
+        } else if (cartan_string_eq(line, "/debug") == 1.0) {
+            let cur_dbg = geomind_chat_get_debug_mode();
+            if (cur_dbg == 1.0) {
+                geomind_chat_set_debug_mode(0.0);
+                printf("  [GeoMind Debug] Diagnostic telemetry DISABLED (/debug to toggle).\n\n");
+            } else {
+                geomind_chat_set_debug_mode(1.0);
+                printf("  [GeoMind Debug] Diagnostic telemetry ENABLED (/debug to toggle).\n\n");
+            }
+            cartan_flush(0.0);
         } else if (cartan_string_starts_with(line, "/set ") == 1.0) {
             let cmd_arg = cartan_string_substring(line, 5.0, len);
             let arg_len = cartan_string_length(cmd_arg);
@@ -608,9 +655,75 @@ fn geomind_chat_interactive_loop(image_arg: string, audio_arg: string, tokens_ar
     return 0.0;
 }
 
+fn geomind_run_chat_mode(arg_count: float, no_priming: float) -> float {
+    geomind_chat_start();
+
+    if (no_priming > 0.0) {
+        printf("[GeoMind Mode] Expert System Priming DISABLED: Pure Raw Neural Forward Pass\n\n", "");
+        cartan_flush(0.0);
+    }
+
+    if (get_cli_flag_present("-ephemeral", arg_count) > 0.0 || get_cli_flag_present("--ephemeral", arg_count) > 0.0) {
+        geomind_chat_set_ephemeral_memory(1.0);
+    }
+
+    let image_arg = get_cli_param("--image", arg_count);
+    let audio_arg = get_cli_param("--audio", arg_count);
+    var prompt_arg = get_cli_prompt(arg_count);
+    let tokens_arg = get_cli_param_float("-tokens", arg_count, 2048.0);
+    let temp_arg = get_cli_param_float("-temp", arg_count, 0.7);
+
+    if (cartan_string_length(prompt_arg) == 0.0 && arg_count >= 3.0) {
+        var p_idx = 2.0;
+        while (p_idx < arg_count) {
+            let first_pos = sys_get_arg(p_idx);
+            if (cartan_string_starts_with(first_pos, "-") == 1.0) {
+                break;
+            }
+            if (cartan_string_length(prompt_arg) > 0.0) {
+                prompt_arg = cartan_string_concat(prompt_arg, " ");
+            }
+            prompt_arg = cartan_string_concat(prompt_arg, first_pos);
+            p_idx = p_idx + 1.0;
+        }
+    }
+
+    if (cartan_string_length(prompt_arg) > 0.0) {
+        geomind_chat_clear_session();
+        geomind_chat_generate_reasoning_pass(prompt_arg, temp_arg);
+        geomind_chat_generate_reply_multimodal(prompt_arg, tokens_arg, temp_arg, image_arg, audio_arg);
+        cartan_flush(0.0);
+        return 0.0;
+    }
+
+    return geomind_chat_interactive_loop(image_arg, audio_arg, tokens_arg);
+}
+
 fn main() -> float {
     let arg_count = sys_get_arg_count();
+    if (get_cli_flag_present("--help", arg_count) > 0.0 || get_cli_flag_present("-h", arg_count) > 0.0) {
+        print_help_dialogue();
+        return 0.0;
+    }
     let default_tokens = get_cli_param_float("-tokens", arg_count, 2048.0);
+    let debug_flag = get_cli_flag_present("-debug", arg_count);
+    if (debug_flag > 0.0) {
+        geomind_chat_set_debug_mode(1.0);
+        printf("[GeoMind Mode] Debug Telemetry Logging ENABLED\n");
+    }
+    // Hardware GPU Acceleration is ENABLED BY DEFAULT (pure WebGPU on physical NVIDIA RTX 2000 Ada GPU)
+    let no_gpu_flag = get_cli_flag_present("-cpu", arg_count) + 
+                      get_cli_flag_present("--cpu", arg_count) + 
+                      get_cli_flag_present("-no-gpu", arg_count) + 
+                      get_cli_flag_present("--no-gpu", arg_count);
+    if (no_gpu_flag == 0.0) {
+        let g_ok = geomind_chat_mount_gpu_if_needed();
+        if (g_ok == 1.0) {
+            printf("[GeoMind Mode] Bare-Metal WebGPU Hardware Acceleration ENABLED (Default)\n");
+        }
+    } else {
+        printf("[GeoMind Mode] CPU-Only Mode: Hardware GPU acceleration disabled.\n");
+    }
     let no_priming = get_cli_flag_present("-no-expert-priming", arg_count) + 
                      get_cli_flag_present("-no-priming", arg_count) +
                      get_cli_flag_present("-raw-neural", arg_count);
@@ -630,11 +743,11 @@ fn main() -> float {
         geomind_chat_set_ephemeral_memory(1.0);
         printf("[GeoMind Mode] Ephemeral Memory ENABLED: Attractor updates preserved in RAM without disk mutation\n");
     }
-    if (arg_count < 2.0) {
-        geomind_chat_start();
-        cartan_flush(0.0);
-        return geomind_chat_interactive_loop("", "", default_tokens);
+    // Default mode: Interactive chat (launches automatically when typing geomind.exe or if no non-chat mode was requested)
+    if (has_non_chat_mode_arg(arg_count) == 0.0) {
+        return geomind_run_chat_mode(arg_count, no_priming);
     }
+
 
     var i = 1.0;
     while (i < arg_count) {
@@ -690,7 +803,7 @@ fn main() -> float {
                 printf("  [8]  databricks/databricks-dolly-15k      (High Quality Open Instruction Set)\n");
                 printf("  [9]  bigcode/the-stack                    (6TB Permissively-Licensed Code)\n");
                 printf("  [10] m-a-p/CodeFeedback                   (Multi-Turn Dialogue Coding Dataset)\n");
-                printf("  [11] Google/FLAN                         (Massive Multi-Task Instruction Collection)\n");
+                printf("  [11] FLAN-Collection                     (Massive Multi-Task Instruction Collection)\n");
                 printf("  [12] Meta/SlimPajama-627B                (Multi-Domain Clean Pre-Training Text)\n");
                 printf("  [13] AllenAI/ai2_arc                     (Grade School Science Questions)\n");
                 printf("  [14] HuggingFaceH4/ultrafeedback_binarized (DPO/RLHF Preference Dataset)\n");
@@ -711,47 +824,7 @@ fn main() -> float {
         }
 
         if (cartan_string_eq(flag, "--chat") == 1.0) {
-            geomind_chat_start();
-            cartan_flush(0.0);
-
-            if (no_priming > 0.0) {
-                printf("[GeoMind Mode] Expert System Priming DISABLED: Pure Raw Neural Forward Pass\n\n");
-                cartan_flush(0.0);
-            }
-
-            let image_arg = get_cli_param("--image", arg_count);
-            let audio_arg = get_cli_param("--audio", arg_count);
-            var prompt_arg = get_cli_prompt(arg_count);
-            let tokens_arg = get_cli_param_float("-tokens", arg_count, 2048.0);
-            let temp_arg = get_cli_param_float("-temp", arg_count, 0.7);
-
-            if (cartan_string_length(prompt_arg) == 0.0 && arg_count >= 3.0) {
-                var p_idx = 2.0;
-                while (p_idx < arg_count) {
-                    let first_pos = sys_get_arg(p_idx);
-                    if (cartan_string_starts_with(first_pos, "-") == 1.0) {
-                        break;
-                    }
-                    if (cartan_string_length(prompt_arg) > 0.0) {
-                        prompt_arg = cartan_string_concat(prompt_arg, " ");
-                    }
-                    prompt_arg = cartan_string_concat(prompt_arg, first_pos);
-                    p_idx = p_idx + 1.0;
-                }
-            }
-
-            if (cartan_string_length(prompt_arg) > 0.0) {
-                let db = geomind_chat_get_db();
-                if (db != 0.0) {
-                    geomind_chat_startup_biometric_scan(db);
-                }
-                geomind_chat_generate_reasoning_pass(prompt_arg, temp_arg);
-                geomind_chat_generate_reply_multimodal(prompt_arg, tokens_arg, temp_arg, image_arg, audio_arg);
-                cartan_flush(0.0);
-                return 0.0;
-            }
-
-            return geomind_chat_interactive_loop(image_arg, audio_arg, tokens_arg);
+            return geomind_run_chat_mode(arg_count, no_priming);
         }
         if (cartan_string_eq(flag, "--rlaif") == 1.0) {
             var prompt = "What is the relationship between physical gravity and living organisms?";
@@ -1010,7 +1083,7 @@ fn main() -> float {
 
 
         if (cartan_string_eq(flag, "--train-distill") == 1.0) {
-            geomind_distill_train_run("google/gemma-4-E4B-it", 50.0);
+            geomind_distill_train_run("geomind/manifold-4b", 50.0);
             return 0.0;
         }
         if (cartan_string_eq(flag, "--eval-analogy") == 1.0) {
@@ -1074,7 +1147,10 @@ fn main() -> float {
             return 0.0;
         }
         if (cartan_string_eq(flag, "--graft") == 1.0) {
-            var sf_path = "cache_google_gemma-4-E4B-it_model.safetensors";
+            var sf_path = "cache_geomind_model.safetensors";
+            if (cartan_file_exists(sf_path) == 0.0) {
+                sf_path = "cache_model.safetensors";
+            }
             if (arg_count >= 3.0) {
                 sf_path = sys_get_arg(2.0);
             }

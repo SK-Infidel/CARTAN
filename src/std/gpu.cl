@@ -5,6 +5,7 @@
 include "src/std/math.cl";
 include "src/std/collections.cl";
 include "src/std/string.cl";
+include "src/std/wgpu.cl";
 
 extern fn malloc(size: float) -> ptr;
 extern fn free(p: ptr);
@@ -35,7 +36,9 @@ extern fn clSetKernelArg(kernel: ptr, arg_index: float, arg_size: float, arg_val
 extern fn clEnqueueNDRangeKernel(command_queue: ptr, kernel: ptr, work_dim: float, global_work_offset: ptr, global_work_size: ptr, local_work_size: ptr, num_events: float, event_wait_list: ptr, event: ptr) -> float;
 extern fn clEnqueueWriteBuffer(command_queue: ptr, buffer: ptr, blocking_write: float, offset: float, size: float, ptr_src: ptr, num_events: float, event_wait_list: ptr, event: ptr) -> float;
 extern fn clEnqueueReadBuffer(command_queue: ptr, buffer: ptr, blocking_read: float, offset: float, size: float, ptr_dst: ptr, num_events: float, event_wait_list: ptr, event: ptr) -> float;
+extern fn clReleaseMemObject(memobj: ptr) -> float;
 extern fn clFinish(command_queue: ptr) -> float;
+
 
 var g_gpu_initialized: float = 0.0;
 var g_gpu_platform: ptr = 0.0;
@@ -72,15 +75,31 @@ fn cartan_gpu_init() -> float {
     let devices_buf = malloc(64.0);
     let num_dev_buf = malloc(8.0);
 
+    var fallback_plat: ptr = 0.0;
+    var fallback_dev: ptr = 0.0;
     while (plat_idx < num_platforms && found_gpu == 0.0) {
         let cur_plat = platforms_buf[plat_idx];
+        let p_name = malloc(128.0);
+        clGetPlatformInfo(cur_plat, 2306.0, 128.0, p_name, 0.0); // 0x0902 = CL_PLATFORM_NAME
         let err2 = clGetDeviceIDs(cur_plat, 4.0, 1.0, devices_buf, num_dev_buf); // 4.0 = CL_DEVICE_TYPE_GPU
         if (err2 == 0.0) {
-            g_gpu_platform = cur_plat;
-            g_gpu_device = devices_buf[0.0];
-            found_gpu = 1.0;
+            if (cartan_string_contains(p_name, "NVIDIA") == 1.0 || cartan_string_contains(p_name, "CUDA") == 1.0) {
+                g_gpu_platform = cur_plat;
+                g_gpu_device = devices_buf[0.0];
+                found_gpu = 1.0;
+            } else if (fallback_plat == 0.0) {
+                fallback_plat = cur_plat;
+                fallback_dev = devices_buf[0.0];
+            }
         }
+        free(p_name);
         plat_idx = plat_idx + 1.0;
+    }
+
+    if (found_gpu == 0.0 && fallback_plat != 0.0) {
+        g_gpu_platform = fallback_plat;
+        g_gpu_device = fallback_dev;
+        found_gpu = 1.0;
     }
 
     if (found_gpu == 0.0) {
@@ -173,19 +192,6 @@ fn cartan_gpu_create_pipeline(source: string, entry_point: string) -> ptr {
     if (g_gpu_context == 0.0) { return 0.0; }
 
     var kernel_cl = source;
-
-    // Built-in kernel mapping for standard WGSL and model entry points
-    if (cartan_string_contains(source, "__kernel ") != 0.0) {
-        kernel_cl = source;
-    } else if (cartan_string_eq(entry_point, "vec_fma") != 0.0) {
-        kernel_cl = "__kernel void vec_fma(__global float* in_a, __global float* in_b, __global float* out_c) {\n    int idx = get_global_id(0);\n    out_c[idx] = in_a[idx] * in_b[idx] + 5.0f;\n}\n";
-    } else if (cartan_string_eq(entry_point, "causal_attn_fwd") != 0.0) {
-        kernel_cl = "__kernel void causal_attn_fwd(__global const float* in_x, __global float* out_attn) {\n    int t_idx = get_global_id(0);\n    int T = 32;\n    int D = 2560;\n    if (t_idx >= T) return;\n    float scale = 0.125f;\n    float total_w = 0.0f;\n    for (int j = 0; j <= t_idx; j++) {\n        float dot = 0.0f;\n        for (int d = 0; d < D; d++) {\n            dot += in_x[t_idx * D + d] * in_x[j * D + d];\n        }\n        total_w += exp(dot * scale);\n    }\n    float inv_w = 1.0f / (total_w > 0.0001f ? total_w : 0.0001f);\n    for (int d = 0; d < D; d++) {\n        float accum = 0.0f;\n        for (int j = 0; j <= t_idx; j++) {\n            float dot = 0.0f;\n            for (int k = 0; k < D; k++) {\n                dot += in_x[t_idx * D + k] * in_x[j * D + k];\n            }\n            accum += exp(dot * scale) * inv_w * in_x[j * D + d];\n        }\n        out_attn[t_idx * D + d] = in_x[t_idx * D + d] + accum * 0.1f;\n    }\n}\n";
-    } else if (cartan_string_eq(entry_point, "lie_streams_fwd") != 0.0) {
-        kernel_cl = "__kernel void lie_streams_fwd(__global const float* in_h, __global float* out_h) {\n    int t_idx = get_global_id(0);\n    if (t_idx >= 32) return;\n    int base = t_idx * 2560;\n    for (int i = 0; i < 320; i++) { float v = in_h[base + i]; out_h[base + i] = v * (cos((float)i * 0.05f) * 0.25f + 0.75f); }\n    float ssm = 0.0f; for (int i = 320; i < 640; i++) { float v = in_h[base + i]; ssm = ssm * 0.85f + v * 0.15f; out_h[base + i] = ssm * 1.1f + v * 0.5f; }\n    for (int i = 640; i < 960; i++) { float v = in_h[base + i]; out_h[base + i] = v * sin((float)(i + 1) * 0.1f) * 0.7071f + v * 0.5f; }\n    for (int i = 960; i < 1280; i++) { float v = in_h[base + i]; out_h[base + i] = tanh(v * 0.5f) * 1.2f; }\n    for (int i = 1280; i < 1600; i++) { float v = in_h[base + i]; out_h[base + i] = v * 0.9f + sin(v * 2.0f) * 0.1f; }\n    for (int i = 1600; i < 1920; i++) { float v = in_h[base + i]; float a = v * v + 0.1f; out_h[base + i] = sqrt(a > 0.001f ? a : 0.001f) * 0.8f + v * 0.2f; }\n    for (int i = 1920; i < 2240; i++) { float v = in_h[base + i]; out_h[base + i] = v * 0.95f + 0.05f * sin((float)i * 0.314f); }\n    for (int i = 2240; i < 2560; i++) { float v = in_h[base + i]; out_h[base + i] = v * (1.0f + cos((float)i * 1.047f) * 0.3f); }\n}\n";
-    } else if (cartan_string_eq(entry_point, "causal_loss_fwd") != 0.0) {
-        kernel_cl = "__kernel void causal_loss_fwd(__global const float* logits, __global const float* targets, __global const float* ic_weights, __global float* loss_out) {\n    int t_idx = get_global_id(0);\n    int T = 31;\n    int V = 2560;\n    if (t_idx >= T) return;\n    int base = t_idx * V;\n    int k = (int)targets[t_idx];\n    if (k < 0 || k >= V) return;\n    float ic = ic_weights[t_idx];\n    float max_l = -10000.0f;\n    for (int d = 0; d < V; d++) { float l = logits[base + d]; if (l > max_l) max_l = l; }\n    float sum_exp = 0.0f;\n    for (int d = 0; d < V; d++) { sum_exp += exp(logits[base + d] - max_l); }\n    if (sum_exp < 0.00001f) sum_exp = 0.00001f;\n    float log_z = max_l + log(sum_exp);\n    float tgt_l = logits[base + k];\n    float t_loss = (log_z - tgt_l) * ic;\n    loss_out[t_idx] = t_loss;\n}\n";
-    }
 
     let src_slot = malloc(8.0);
     src_slot[0.0] = kernel_cl;
@@ -351,30 +357,30 @@ fn cartan_f32_buffer_free(buf: ptr) -> float {
     return 1.0;
 }
 
-// --- High-level User API ---
+// --- Unified Hardware GPU Acceleration Engine (WebGPU Native WGSL) ---
 
 fn gpu_init() -> float {
-    return cartan_gpu_init();
+    return cartan_wgpu_init();
 }
 
 fn gpu_alloc(size_bytes: float) -> ptr {
-    return cartan_gpu_create_buffer(size_bytes, 1.0);
+    return cartan_wgpu_create_buffer(size_bytes, 140.0);
 }
 
 fn gpu_write(buf: ptr, data: ptr, size_bytes: float) -> float {
-    return cartan_gpu_write_buffer(buf, 0.0, data, size_bytes);
+    return cartan_wgpu_write_buffer(buf, 0.0, data, size_bytes);
 }
 
 fn gpu_read(buf: ptr, data: ptr, size_bytes: float) -> float {
-    return cartan_gpu_read_buffer(buf, 0.0, data, size_bytes);
+    return cartan_wgpu_read_buffer(buf, 0.0, data, size_bytes);
 }
 
 fn gpu_create_pipeline(wgsl_source: string, entry_point: string) -> ptr {
-    return cartan_gpu_create_pipeline(wgsl_source, entry_point);
+    return cartan_wgpu_create_pipeline(wgsl_source, entry_point);
 }
 
 fn gpu_dispatch(pipe: ptr, buffers: ptr, num_buffers: float, gx: float, gy: float, gz: float) -> float {
-    return cartan_gpu_dispatch(pipe, buffers, num_buffers, gx, gy, gz);
+    return cartan_wgpu_dispatch(pipe, buffers, num_buffers, gx, gy, gz);
 }
 
 fn gpu_launch_local(kernel: ptr, gx: float, gy: float, gz: float, lx: float, ly: float, lz: float) -> float {
@@ -382,5 +388,35 @@ fn gpu_launch_local(kernel: ptr, gx: float, gy: float, gz: float, lx: float, ly:
 }
 
 fn gpu_sync() -> float {
-    return cartan_gpu_sync();
+    return cartan_wgpu_sync();
 }
+
+fn cartan_gpu_free_buffer(buf: ptr) -> float {
+    if (buf == 0.0) { return 0.0; }
+    let err = clReleaseMemObject(buf);
+    if (err == 0.0) { return 1.0; }
+    return 0.0;
+}
+
+fn gpu_free(buf: ptr) -> float {
+    return cartan_wgpu_free_buffer(buf);
+}
+
+fn gpu_create_bind_group(pipe: ptr, buffers: ptr, num_buffers: float) -> ptr {
+    return cartan_wgpu_create_bind_group(pipe, buffers, num_buffers);
+}
+
+fn gpu_free_bind_group(bg: ptr) -> float {
+    return cartan_wgpu_free_bind_group(bg);
+}
+
+fn gpu_dispatch_fused_geglu_down(pipe_geglu: ptr, bg_geglu: ptr, pipe_down: ptr, bg_down: ptr, gx_geglu: float, gx_down: float) -> float {
+    return cartan_wgpu_dispatch_fused_geglu_down(pipe_geglu, bg_geglu, pipe_down, bg_down, gx_geglu, gx_down);
+}
+
+fn gpu_dispatch_fused_geglu_down_read(pipe_geglu: ptr, bg_geglu: ptr, pipe_down: ptr, bg_down: ptr, gx_geglu: float, gx_down: float, gpu_out: ptr, dst_data: ptr, size_bytes: float) -> float {
+    return cartan_wgpu_dispatch_fused_geglu_down_read(pipe_geglu, bg_geglu, pipe_down, bg_down, gx_geglu, gx_down, gpu_out, dst_data, size_bytes);
+}
+
+
+
