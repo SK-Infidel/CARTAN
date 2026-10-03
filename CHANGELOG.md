@@ -1,3 +1,26 @@
+## [8.470.0] - 2026-10-02 (Sprint 514: Workspace & File Structure Normalization and Entropy Reduction)
+
+### Completed & Validated
+- **Root Directory Workspace Hygiene**:
+  - Purged transient build artifacts and compiler dumps (`geomind.exe/pdb/ll/lib`, `cartan_jit_run.*`, `out.ll`).
+  - Purged redundant root tool binary `capture_camera.exe` (canonical utility preserved at `tools/capture_camera.exe`).
+  - Purged all editor backups (`src/cartanc/*.bak`, `src/std/*.bak`, `tools/*.bak`, `scratch/*.tmp`).
+  - Consolidated root model weights: removed redundant hardlink aliases (`cache_geomind_model.safetensors`, `cache_google_gemma-4-E4B-it_model.safetensors`, `model.safetensors`), preserving single canonical root `cache_model.safetensors` alongside `test/geomind/cache_model.safetensors`.
+  - Purged redundant safetensors copies from transient directories (`bin/cache_model.safetensors`, `scratch/gemma4_hf/model.safetensors`).
+- **Test Hierarchy Normalization**:
+  - Relocated unversioned loose test files `test/test_add.car` and `test/test_enum.car` into `test/legacy/`.
+  - Cleaned `test/` root to strictly contain `compiler_suite/`, `geomind/`, and `legacy/`.
+  - Purged empty directory `test/geomind/scratch/` and redundant directory `test/geomind/tools/`.
+  - Purged transient build artifacts and 0-byte databases from `test/geomind/` (`geomind.*`, `capture_camera.exe`, `geomind_memory.db`).
+  - Renamed `test/geomind/Documentation/` to lowercase `test/geomind/docs/` and sanitized filenames (`maximal_subgroups_of_e8.mhtml`, `unified_geometrodynamics.docx`, `research/neural_symbolic_memory_expert_system_backend_db_schema.jpg`, `user_guide/conversation_builder.md`).
+  - Normalized `test/geomind/docs/Research/` to lowercase `test/geomind/docs/research/`.
+- **Tools & Docs Cleanup**:
+  - Cleaned intermediate build artifacts and compiler dumps from `tools/` (`quantize_manifold_int8.exe/exp/lib/ll/pdb`, `capture_camera.pdb`, `__pycache__`).
+  - Cleaned transient build dumps from `test/compiler_suite/` (`test_webgpu_compute.exe/ll/pdb`).
+  - Archived outdated historical `docs/CHANGELOG.md` to `docs/archive/historical_CHANGELOG_2026-07.md`.
+- **Empirical Regression Verification**:
+  - Executed compiler regression suite (`tools/run_affected_tests.ps1 -Sprint 513`): **5/5 passed** (Targets 58, 83, 84, 85, 86) in 28.88s with zero regressions.
+
 ## [8.469.0] - 2026-10-02 (Sprint 513: Configurable 128k Context Window Architecture & Biometric Slash Normalization)
 
 ### Completed & Validated
