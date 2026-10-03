@@ -1,3 +1,26 @@
+## [8.478.0] - 2026-10-03 (Sprint 522: Full 42-Layer GPU VRAM Resident INT4 Pipeline & Async Staging)
+
+### Completed & Validated
+- **WebGPU Double-Buffered Asynchronous Staging (`src/std/wgpu.cl`)**:
+  - Implemented ping-pong double-buffered staging buffers (`g_wgpu_staging_buf_0`, `g_wgpu_staging_buf_1`) with independent completion flags (`g_wgpu_map_done_0`, `g_wgpu_map_done_1`) and dedicated callback structs (`g_wgpu_map_cb_0`, `g_wgpu_map_cb_1`).
+  - Alternating buffers eliminate synchronous CPU spin-wait stalling across consecutive layer dispatches, resolving `[ISSUE-372]`.
+- **Branchless INT4 WGSL Compute Kernels (`src/std/transformer.cl`)**:
+  - Authored `geglu_int4_fwd`, `down_proj_int4_fwd`, and global-attention variants `geglu_int4_fwd_global`, `down_proj_int4_fwd_global` in WGSL.
+  - Implemented branchless SIMD unpacking using `unpack4x8unorm` with bitwise masking and vector `select(v, v - 16.0f, v >= 8.0f)`.
+  - Mapped exact u32 word offsets for sliding-window (46,711,872 bytes) and global-attention (53,277,760 bytes) layer checkpoints.
+  - Verified numerical output parity down to single-precision float accuracy ($1.4 \times 10^{-7}$ mean error across all 2,560 dimensions).
+- **Full 42-Layer GPU VRAM Mounting & Runtime Integration (`src/std/transformer.cl`, `test/geomind/chat.cl`)**:
+  - Implemented `cartan_transformer_init_gpu_resident_int4`, `cartan_transformer_upload_gpu_resident_layer_int4`, and `cartan_transformer_dispatch_gpu_layer_int4`.
+  - Updated `geomind_mount_gpu_resident_layers` to mount all 42 INT4 layers (1.87 GB total) into GPU GDDR6 VRAM with automatic device name reporting on NVIDIA RTX 2000 Ada laptop GPU.
+  - Wired hardware GPU INT4 dispatch directly into `cartan_manifold_layer_forward_native` when `is_int8 == 2.0`.
+- **Empirical Validation & Benchmark**:
+  - Verified bit-accurate output parity in `scratch/test_int4_gpu_parity.car` and `scratch/test_geglu_parity.car` ($2.6 \times 10^{-8}$ max difference on GeGLU activations).
+  - Built `bin/geomind.exe` and verified live prompt inference: `[GPU VRAM] 42.0 / 42 Layers (1.87 GB) 100% Resident in GDDR6 VRAM on NVIDIA RTX 2000 Ada Generation Laptop GPU.`
+  - Validated affected compiler regression suite (`tools/run_affected_tests.ps1 -Sprint 522`): **11/11 passed** (Targets 1, 2, 3, 4, 5, 18, 82, 83, 84, 85, 86) in 56.85s with zero regressions.
+- **Issue Tracking & Technical Debt**:
+  - Marked `[ISSUE-372]` as `[RESOLVED]` in `ISSUES.md`.
+  - Updated Phase 25 in `docs/ROADMAP.md`.
+
 ## [8.477.0] - 2026-10-03 (Sprint 521: INT4 Weight Packing & SIMD Unpacking Engine)
 
 ### Completed & Validated

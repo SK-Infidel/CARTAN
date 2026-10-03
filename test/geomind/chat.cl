@@ -2043,7 +2043,16 @@ var g_geomind_gpu_resident_mounted: float = 0.0;
 
 fn geomind_mount_gpu_resident_layers() -> float {
     if (g_geomind_gpu_resident_mounted == 1.0) { return 1.0; }
-    let ok = cartan_transformer_init_gpu_resident_int8();
+    let host_buf0 = geomind_get_layer_buffer(0.0);
+    if (host_buf0 == 0.0) { return 0.0; }
+    let layer_format = cartan_f32_at(host_buf0, 11.0);
+
+    var ok = 0.0;
+    if (layer_format == 2.0) {
+        ok = cartan_transformer_init_gpu_resident_int4();
+    } else if (layer_format == 1.0) {
+        ok = cartan_transformer_init_gpu_resident_int8();
+    }
     if (ok != 1.0) {
         printf("  [GPU VRAM] GPU resident engine not available. Running CPU SIMD fallback.\n");
         cartan_flush(0.0);
@@ -2056,7 +2065,12 @@ fn geomind_mount_gpu_resident_layers() -> float {
     while (l < 42.0) {
         let host_buf = geomind_get_layer_buffer(l);
         if (host_buf != 0.0) {
-            let u_ok = cartan_transformer_upload_gpu_resident_layer(l, host_buf);
+            var u_ok = 0.0;
+            if (layer_format == 2.0) {
+                u_ok = cartan_transformer_upload_gpu_resident_layer_int4(l, host_buf);
+            } else if (layer_format == 1.0) {
+                u_ok = cartan_transformer_upload_gpu_resident_layer(l, host_buf);
+            }
             if (u_ok == 1.0) {
                 mounted = mounted + 1.0;
             }
@@ -2065,10 +2079,12 @@ fn geomind_mount_gpu_resident_layers() -> float {
     }
     if (mounted > 0.0) {
         let dev_name = cartan_wgpu_get_device_name();
+        var mem_str = "1.87 GB";
+        if (layer_format == 1.0) { mem_str = "3.73 GB"; }
         if (dev_name != 0.0) {
-            printf("  [GPU VRAM] %s / 42 Layers (3.73 GB) 100%% Resident in GDDR6 VRAM on %s.\n", cartan_float_to_string(mounted), dev_name);
+            printf("  [GPU VRAM] %s / 42 Layers (%s) 100%% Resident in GDDR6 VRAM on %s.\n", cartan_float_to_string(mounted), mem_str, dev_name);
         } else {
-            printf("  [GPU VRAM] %s / 42 Layers (3.73 GB) 100%% Resident in GDDR6 VRAM.\n", cartan_float_to_string(mounted));
+            printf("  [GPU VRAM] %s / 42 Layers (%s) 100%% Resident in GDDR6 VRAM.\n", cartan_float_to_string(mounted), mem_str);
         }
     } else {
         printf("  [Host RAM] Ingested 42 INT4 Manifold Layers (1.87 GB) with AVX2 SIMD Unpacking Engine.\n");

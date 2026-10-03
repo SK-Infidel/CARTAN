@@ -110,6 +110,7 @@ $TargetCatalog = @{
 # Sprint Preset Mapping
 # -----------------------------------------------------------------------------
 $SprintMapping = @{
+    522 = @(1, 2, 3, 4, 5, 18, 82, 83, 84, 85, 86)
     521 = @(1, 2, 3, 4, 5, 82, 83, 84, 85, 86)
     520 = @(45, 54, 58, 83, 84, 85, 86)
     519 = @(1, 2, 3, 4, 5, 82, 86)
@@ -192,7 +193,7 @@ else {
                 }
             }
         }
-        if ($file -match 'transformer|hub|chat|cartan_native_io|manifold|critic|train') { $hasTransformerOrChat = $true }
+        if ($file -match 'wgpu|gpu|transformer|hub|chat|cartan_native_io|manifold|critic|train') { $hasTransformerOrChat = $true }
         if ($file -match 'tokenizer') { $hasTokenizer = $true }
         if ($file -match 'hebbian') { $hasHebbian = $true }
         if ($file -match 'geom|manifold|lie') { $hasGeom = $true }

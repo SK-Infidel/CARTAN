@@ -100,6 +100,23 @@ fn cartan_wgpu_on_map(status: ptr, message: ptr, ud1: ptr, ud2: ptr) -> void {
     g_wgpu_map_done = 1.0;
 }
 
+var g_wgpu_map_done_0: float = 0.0;
+var g_wgpu_map_done_1: float = 0.0;
+var g_wgpu_staging_buf_0: ptr = 0.0;
+var g_wgpu_staging_buf_1: ptr = 0.0;
+var g_wgpu_staging_size: float = 0.0;
+var g_wgpu_staging_idx: float = 0.0;
+var g_wgpu_map_cb_0: ptr = 0.0;
+var g_wgpu_map_cb_1: ptr = 0.0;
+
+fn cartan_wgpu_on_map_0(status: ptr, message: ptr, ud1: ptr, ud2: ptr) -> void {
+    g_wgpu_map_done_0 = 1.0;
+}
+
+fn cartan_wgpu_on_map_1(status: ptr, message: ptr, ud1: ptr, ud2: ptr) -> void {
+    g_wgpu_map_done_1 = 1.0;
+}
+
 // Native hardware WebGPU initialization hook
 fn cartan_wgpu_init() -> float {
     if (g_wgpu_initialized == 1.0) {
@@ -676,18 +693,59 @@ fn cartan_wgpu_dispatch_fused_geglu_down_read(
     var wx_down = gx_down;
     if (wx_down > 64.0) { wx_down = floor((wx_down + 63.0) / 64.0); } else { wx_down = 1.0; }
 
-    // Staging buffer management
-    if (g_wgpu_persistent_staging_buf == 0.0 || size_bytes > g_wgpu_persistent_staging_size) {
-        if (g_wgpu_persistent_staging_buf != 0.0) {
-            wgpuBufferDestroy(g_wgpu_persistent_staging_buf);
-            wgpuBufferRelease(g_wgpu_persistent_staging_buf);
+    // Double-buffered staging buffer management (1MB minimum per staging buffer)
+    var alloc_sz = size_bytes;
+    if (alloc_sz < 1048576.0) { alloc_sz = 1048576.0; }
+    if (g_wgpu_staging_buf_0 == 0.0 || alloc_sz > g_wgpu_staging_size) {
+        if (g_wgpu_staging_buf_0 != 0.0) {
+            wgpuBufferDestroy(g_wgpu_staging_buf_0);
+            wgpuBufferRelease(g_wgpu_staging_buf_0);
         }
-        var alloc_sz = size_bytes;
-        if (alloc_sz < 1048576.0) { alloc_sz = 1048576.0; }
-        g_wgpu_persistent_staging_buf = cartan_wgpu_create_buffer(alloc_sz, 9.0);
-        g_wgpu_persistent_staging_size = alloc_sz;
+        if (g_wgpu_staging_buf_1 != 0.0) {
+            wgpuBufferDestroy(g_wgpu_staging_buf_1);
+            wgpuBufferRelease(g_wgpu_staging_buf_1);
+        }
+        g_wgpu_staging_buf_0 = cartan_wgpu_create_buffer(alloc_sz, 9.0);
+        g_wgpu_staging_buf_1 = cartan_wgpu_create_buffer(alloc_sz, 9.0);
+        g_wgpu_staging_size = alloc_sz;
+        g_wgpu_staging_idx = 0.0;
+        g_wgpu_map_done_0 = 0.0;
+        g_wgpu_map_done_1 = 0.0;
     }
-    let staging_buf = g_wgpu_persistent_staging_buf;
+
+    if (g_wgpu_map_cb_0 == 0.0) {
+        g_wgpu_map_cb_0 = malloc(64.0);
+        g_wgpu_map_cb_0[0.0] = 0.0;
+        g_wgpu_map_cb_0[1.0] = 2.0; // AllowProcessEvents
+        g_wgpu_map_cb_0[2.0] = cartan_wgpu_on_map_0;
+        g_wgpu_map_cb_0[3.0] = 0.0;
+        g_wgpu_map_cb_0[4.0] = 0.0;
+
+        g_wgpu_map_cb_1 = malloc(64.0);
+        g_wgpu_map_cb_1[0.0] = 0.0;
+        g_wgpu_map_cb_1[1.0] = 2.0; // AllowProcessEvents
+        g_wgpu_map_cb_1[2.0] = cartan_wgpu_on_map_1;
+        g_wgpu_map_cb_1[3.0] = 0.0;
+        g_wgpu_map_cb_1[4.0] = 0.0;
+    }
+
+    // Ping-pong buffer selection
+    var staging_buf = g_wgpu_staging_buf_0;
+    var map_cb = g_wgpu_map_cb_0;
+    let cur_idx = g_wgpu_staging_idx;
+    if (cur_idx == 1.0) {
+        staging_buf = g_wgpu_staging_buf_1;
+        map_cb = g_wgpu_map_cb_1;
+        if (g_wgpu_map_done_1 == 1.0) {
+            wgpuBufferUnmap(staging_buf);
+            g_wgpu_map_done_1 = 0.0;
+        }
+    } else {
+        if (g_wgpu_map_done_0 == 1.0) {
+            wgpuBufferUnmap(staging_buf);
+            g_wgpu_map_done_0 = 0.0;
+        }
+    }
     if (staging_buf == 0.0) { return 0.0; }
 
     let cmd_encoder = wgpuDeviceCreateCommandEncoder(g_wgpu_device, 0.0);
@@ -722,27 +780,26 @@ fn cartan_wgpu_dispatch_fused_geglu_down_read(
     wgpuQueueSubmit(g_wgpu_queue, 1.0, g_wgpu_persistent_cmd_list);
     wgpuCommandBufferRelease(cmd_buf);
 
-    // Map staging buffer
-    g_wgpu_map_done = 0.0;
-    if (g_wgpu_persistent_map_cb == 0.0) {
-        g_wgpu_persistent_map_cb = malloc(64.0);
-        g_wgpu_persistent_map_cb[0.0] = 0.0;
-        g_wgpu_persistent_map_cb[1.0] = 2.0; // AllowProcessEvents
-        g_wgpu_persistent_map_cb[2.0] = cartan_wgpu_on_map;
-        g_wgpu_persistent_map_cb[3.0] = 0.0;
-        g_wgpu_persistent_map_cb[4.0] = 0.0;
+    // Map staging buffer asynchronously
+    if (cur_idx == 0.0) {
+        g_wgpu_map_done_0 = 0.0;
+    } else {
+        g_wgpu_map_done_1 = 0.0;
     }
-    wgpuBufferMapAsync(staging_buf, 1.0, 0.0, size_bytes, g_wgpu_persistent_map_cb);
+    wgpuBufferMapAsync(staging_buf, 1.0, 0.0, size_bytes, map_cb);
 
     // Poll until mapped
     var poll_loop = 0.0;
-    while (g_wgpu_map_done == 0.0 && poll_loop < 200.0) {
+    var done = 0.0;
+    if (cur_idx == 0.0) { done = g_wgpu_map_done_0; } else { done = g_wgpu_map_done_1; }
+    while (done == 0.0 && poll_loop < 200.0) {
         wgpuDevicePoll(g_wgpu_device, 1.0, 0.0);
         wgpuInstanceProcessEvents(g_wgpu_instance);
+        if (cur_idx == 0.0) { done = g_wgpu_map_done_0; } else { done = g_wgpu_map_done_1; }
         poll_loop = poll_loop + 1.0;
     }
 
-    if (g_wgpu_map_done == 0.0) {
+    if (done == 0.0) {
         return 0.0;
     }
 
@@ -750,10 +807,14 @@ fn cartan_wgpu_dispatch_fused_geglu_down_read(
     if (mapped_ptr != 0.0) {
         memcpy(dst_data, mapped_ptr, size_bytes);
         wgpuBufferUnmap(staging_buf);
+        if (cur_idx == 0.0) { g_wgpu_map_done_0 = 0.0; } else { g_wgpu_map_done_1 = 0.0; }
+        g_wgpu_staging_idx = 1.0 - cur_idx;
         return 1.0;
     }
 
     wgpuBufferUnmap(staging_buf);
+    if (cur_idx == 0.0) { g_wgpu_map_done_0 = 0.0; } else { g_wgpu_map_done_1 = 0.0; }
+    g_wgpu_staging_idx = 1.0 - cur_idx;
     return 0.0;
 }
 
