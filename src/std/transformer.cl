@@ -109,6 +109,41 @@ fn cartan_kv_cache_get_v(layer_idx: float) -> ptr {
     return cartan_f32_ptr_add(g_v_cache_arena, layer_idx * g_kv_cache_max_seq * 1024.0);
 }
 
+// Zero-allocation persistent block for high-throughput KV cache zeroing
+var g_kv_zero_block: ptr = 0.0;
+
+// Zero out key/value cache entries across all 24 active layers for rejected sequence positions
+fn cartan_kv_cache_clear_range(start_pos: float, end_pos: float) -> float {
+    if (g_k_cache_arena == 0.0 || g_v_cache_arena == 0.0) { return 0.0; }
+    var sp = start_pos;
+    var ep = end_pos;
+    if (sp < 0.0) { sp = 0.0; }
+    if (ep > g_kv_cache_max_seq) { ep = g_kv_cache_max_seq; }
+    if (sp >= ep) { return 0.0; }
+
+    if (g_kv_zero_block == 0.0) {
+        g_kv_zero_block = calloc(1024.0, 4.0); // 1 position = 1024 floats = 4096 bytes
+    }
+
+    var l = 0.0;
+    while (l < 24.0) {
+        let k_base = cartan_kv_cache_get_k(l);
+        let v_base = cartan_kv_cache_get_v(l);
+        if (k_base != 0.0 && v_base != 0.0) {
+            var p = sp;
+            while (p < ep) {
+                let k_ptr = cartan_f32_ptr_add(k_base, p * 1024.0);
+                let v_ptr = cartan_f32_ptr_add(v_base, p * 1024.0);
+                cartan_c_memcpy(k_ptr, g_kv_zero_block, 4096.0);
+                cartan_c_memcpy(v_ptr, g_kv_zero_block, 4096.0);
+                p = p + 1.0;
+            }
+        }
+        l = l + 1.0;
+    }
+    return ep - sp;
+}
+
 // -----------------------------------------------------------------------------
 // Thermodynamic Layer Early Exit State & Relative Delta Metric
 // -----------------------------------------------------------------------------

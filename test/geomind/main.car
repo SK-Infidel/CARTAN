@@ -728,7 +728,10 @@ fn geomind_run_chat_mode(arg_count: float, no_priming: float) -> float {
     let image_arg = get_cli_param("--image", arg_count);
     let audio_arg = get_cli_param("--audio", arg_count);
     var prompt_arg = get_cli_prompt(arg_count);
-    let tokens_arg = get_cli_param_float("-tokens", arg_count, 2048.0);
+    var tokens_arg = get_cli_param_float("-tokens", arg_count, 0.0);
+    if (tokens_arg <= 0.0) {
+        tokens_arg = get_cli_param_float("-max-tokens", arg_count, 2048.0);
+    }
     let temp_arg = get_cli_param_float("-temp", arg_count, 0.7);
     let cli_context = get_cli_param_float("-context", arg_count, 8192.0);
     geomind_chat_set_context_limit(cli_context);
@@ -808,13 +811,13 @@ fn main() -> float {
         geomind_chat_set_ephemeral_memory(1.0);
         printf("[GeoMind Mode] Ephemeral Memory ENABLED: Attractor updates preserved in RAM without disk mutation\n");
     }
-    let cli_ee_thresh = get_cli_param_float("-early-exit-threshold", arg_count, 0.16);
-    let cli_ee_min_l = get_cli_param_float("-early-exit-min-layer", arg_count, 30.0);
-    let no_ee = get_cli_flag_present("-no-early-exit", arg_count);
-    if (no_ee > 0.0) {
-        cartan_transformer_set_early_exit(0.0, 30.0, 0.16);
-    } else {
+    let cli_ee_thresh = get_cli_param_float("-early-exit-threshold", arg_count, 0.04);
+    let cli_ee_min_l = get_cli_param_float("-early-exit-min-layer", arg_count, 36.0);
+    let enable_ee = get_cli_flag_present("-early-exit", arg_count);
+    if (enable_ee > 0.0) {
         cartan_transformer_set_early_exit(1.0, cli_ee_min_l, cli_ee_thresh);
+    } else {
+        cartan_transformer_set_early_exit(0.0, 36.0, 0.04);
     }
 
     // Default mode: Interactive chat (launches automatically when typing geomind.exe or if no non-chat mode was requested)

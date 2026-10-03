@@ -1,3 +1,28 @@
+## [8.481.0] - 2026-10-03 (Sprint 525: Continuous Hopfield Speculative Burst Persistence & Latent State Sanitization)
+
+### Completed & Validated
+- **Continuous Hopfield Version 3 Persistence (`[ISSUE-383]`, `src/std/resonator.cl`)**:
+  - Upgraded `resonator_save_basins` and `resonator_load_basins` to Version 3 binary format, coupling per-basin candidate token sequences directly with 2560D attractor centroids.
+  - Implemented backward compatibility parser for Version 1 and Version 2 formats.
+  - Added atomic `cartan_hopfield_store_attractor_burst` and enforced thorough draft bank deallocation upon reload/clear.
+- **Speculative Candidate Rejection Rollback (`src/std/transformer.cl`, `test/geomind/chat.cl`)**:
+  - Implemented `cartan_kv_cache_clear_range` using static 4KB zero block to cleanly reset rejected candidate positions across all 24 active GQA layers.
+  - Wired rollback in speculative verification loop when $N_{\text{accepted}} < N_{\text{draft}}$, eliminating attention bleed.
+- **Latent State $\mathbf{h}$ Sanitization & Stream-Gated Logit Biasing (`test/geomind/chat.cl`)**:
+  - Removed all uncalibrated vector modifications from $\mathbf{h}$ during decode step (eliminated 10%–15% stream blending and layer bypass).
+  - Migrated cortical stream influence strictly to the LM head as stream-gated logit biasing (`geomind_apply_stream_gated_logit_bias`).
+  - Purified prefill and doubt rewind by removing raw embedding Hopfield relaxation (`cartan_hopfield_relax`) and fact vector blending into `cur_h`.
+- **CLI Flags & Early Exit Hardening (`test/geomind/main.car`)**:
+  - Added support for `--max-tokens` and `-tokens`.
+  - Made thermodynamic early exit opt-in via `-early-exit` with strict 0.04 threshold, preserving 100% 42-layer full fidelity by default.
+- **Empirical Verification**:
+  - Verified live prompt inference on Homer, Immanuel Kant, and factual geography queries, confirming 100% coherent, grammatical, and contextually grounded generation.
+  - Executed compiler regression test suite (`tools/run_affected_tests.ps1 -Sprint 525`): **16/16 passed** in 102.94s with zero regressions.
+- **Issue Tracking & Technical Debt**:
+  - Marked `[ISSUE-383]` as `[RESOLVED]` in `ISSUES.md`.
+  - Updated Phase 25 in `docs/ROADMAP.md`.
+  - Saved walkthrough to `docs/archive/sprint_525_walkthrough.md`.
+
 ## [8.480.0] - 2026-10-03 (Sprint 524: Invariant-Safe Sparse Cortical MoE Dynamic Routing & Live Hippocampal Fast Weights)
 
 ### Completed & Validated
