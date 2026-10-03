@@ -808,6 +808,15 @@ fn main() -> float {
         geomind_chat_set_ephemeral_memory(1.0);
         printf("[GeoMind Mode] Ephemeral Memory ENABLED: Attractor updates preserved in RAM without disk mutation\n");
     }
+    let cli_ee_thresh = get_cli_param_float("-early-exit-threshold", arg_count, 0.16);
+    let cli_ee_min_l = get_cli_param_float("-early-exit-min-layer", arg_count, 30.0);
+    let no_ee = get_cli_flag_present("-no-early-exit", arg_count);
+    if (no_ee > 0.0) {
+        cartan_transformer_set_early_exit(0.0, 30.0, 0.16);
+    } else {
+        cartan_transformer_set_early_exit(1.0, cli_ee_min_l, cli_ee_thresh);
+    }
+
     // Default mode: Interactive chat (launches automatically when typing geomind.exe or if no non-chat mode was requested)
     if (has_non_chat_mode_arg(arg_count) == 0.0) {
         return geomind_run_chat_mode(arg_count, no_priming);

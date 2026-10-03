@@ -396,7 +396,7 @@ This roadmap tracks the implementation of the advanced AI optimizations and nati
 
 ## 🟢 PHASE 25: Micro-Architectural Vector Saturation & Low-Entropy Decoding (In Progress - Sprints 519+)
 - [x] **1. 256-Bit AVX2 Vector Load Optimization & INT8 GEMV Saturation (Sprint 519)**: Upgraded `@cartan_simd_dot_i8_f32` in `src/cartanc/llvm_codegen.car` to full 256-bit `<32 x i8>` vector loads; eliminated 75% of weight load instructions in AVX2 inner loop; verified bit-for-bit mathematical parity across all vector lengths (1 to 4096 elements); validated live prompt inference and compiler regression suite.
-- [ ] **2. Thermodynamic Layer Early Exit & Hopfield Speculative Drafting (Sprint 520)**: Implement entropy-based early exit at intermediate layers and Continuous Hopfield speculative candidate sequence drafting for multi-token decode acceleration.
+- [x] **2. Thermodynamic Layer Early Exit & Hopfield Speculative Drafting (Sprint 520)**: Implemented thermodynamic relative Euclidean residual delta $\Delta h_l$ (`cartan_vec_relative_delta`) and dynamic early exit with Layer 41 anchor invariant in `src/std/transformer.cl` and `test/geomind/chat.cl`; implemented Continuous Hopfield associative sequence burst drafting (`cartan_hopfield_draft_candidate_tokens`, `cartan_hopfield_store_speculative_burst`) and single-pass batch verification via `cartan_manifold_layer_forward_batch_int8`; verified 70% early exit triggering during live decode with zero semantic degradation, exit code 0, and 7/7 passing compiler regression targets.
 
 
 

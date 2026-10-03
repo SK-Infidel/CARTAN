@@ -69,7 +69,7 @@ $TargetCatalog = @{
     51 = @{ Name = "test_model_grafting"; File = "test/compiler_suite/test_model_grafting.car"; Run = $false; Negative = $false }
     52 = @{ Name = "test_native_multimodal_io"; File = "test/compiler_suite/test_native_multimodal_io.car"; Run = $false; Negative = $false }
     53 = @{ Name = "test_sasaki_brainstem_routing"; File = "test/compiler_suite/test_sasaki_brainstem_routing.car"; Run = $false; Negative = $false }
-    54 = @{ Name = "test_continuous_hopfield_recall"; File = "test/compiler_suite/test_continuous_hopfield_recall.car"; Run = $false; Negative = $false }
+    54 = @{ Name = "test_continuous_hopfield_recall"; File = "test/compiler_suite/test_continuous_hopfield_recall.car"; Run = $true; Negative = $false }
     55 = @{ Name = "test_wordnet_taxonomy_dag"; File = "test/compiler_suite/test_wordnet_taxonomy_dag.car"; Run = $false; Negative = $false }
     56 = @{ Name = "test_doubt_reflective_rewind"; File = "test/compiler_suite/test_doubt_reflective_rewind.car"; Run = $false; Negative = $false }
     57 = @{ Name = "test_markov_conscious_agent"; File = "test/compiler_suite/test_markov_conscious_agent.car"; Run = $false; Negative = $false }
@@ -110,6 +110,9 @@ $TargetCatalog = @{
 # Sprint Preset Mapping
 # -----------------------------------------------------------------------------
 $SprintMapping = @{
+    520 = @(45, 54, 58, 83, 84, 85, 86)
+    519 = @(1, 2, 3, 4, 5, 82, 86)
+    518 = @(1, 2, 3, 4, 5, 23, 46, 59, 82, 83, 84, 85, 86, 87)
     513 = @(58, 83, 84, 85, 86)
     512 = @(58, 83, 84, 85, 86)
     508 = @(82, 83, 84, 86)
@@ -175,6 +178,7 @@ else {
     $hasHebbian = $false
     $hasGeom = $false
     $hasCompilerCore = $false
+    $hasHopfield = $false
 
     foreach ($file in $modifiedFiles) {
         if ($file -match 'test/compiler_suite/test_(\w+)\.car') {
@@ -192,11 +196,15 @@ else {
         if ($file -match 'hebbian') { $hasHebbian = $true }
         if ($file -match 'geom|manifold|lie') { $hasGeom = $true }
         if ($file -match 'nses|veto|critic') { $hasNSES = $true }
+        if ($file -match 'resonator|hopfield') { $hasHopfield = $true }
         if ($file -match 'src/cartanc/') { $hasCompilerCore = $true }
     }
 
     if ($hasTransformerOrChat) {
         @(83, 84, 85, 86, 87) | ForEach-Object { if (-not $SelectedTargetIDs.Contains($_)) { $SelectedTargetIDs.Add($_) } }
+    }
+    if ($hasHopfield) {
+        @(45, 54, 58) | ForEach-Object { if (-not $SelectedTargetIDs.Contains($_)) { $SelectedTargetIDs.Add($_) } }
     }
     if ($hasNSES) {
         @(71, 74, 87) | ForEach-Object { if (-not $SelectedTargetIDs.Contains($_)) { $SelectedTargetIDs.Add($_) } }

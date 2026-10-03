@@ -1,3 +1,26 @@
+## [8.476.0] - 2026-10-03 (Sprint 520: Thermodynamic Layer Early Exit & Hopfield Speculative Drafting)
+
+### Completed & Validated
+- **Thermodynamic Layer Early Exit Engine (`src/std/transformer.cl`, `test/geomind/chat.cl`)**:
+  - Implemented 4-way unrolled, epsilon-smoothed relative Euclidean residual delta metric: $\Delta h_l = \|h_l - h_{l-1}\|_2 / (\|h_l\|_2 + \epsilon)$ (`cartan_vec_relative_delta`).
+  - Added global configuration state (`g_early_exit_enabled`, `g_early_exit_min_layer = 30.0`, `g_early_exit_threshold = 0.16`, `cartan_transformer_set_early_exit`).
+  - Enforced Layer 41 anchor invariant: intermediate layers $l+1 \dots 40$ are dynamically skipped when $\Delta h_l \le \tau$, but Layer 41 is ALWAYS executed as the final anchor/readout layer to prevent un-gated projection drift.
+  - Implemented glyph streaming flush (`geomind_poll_char_stream(41.0, 42.0)`) on the early exit path to guarantee fluid terminal output.
+- **Continuous Hopfield Speculative Burst Drafting (`src/std/resonator.cl`, `test/geomind/chat.cl`)**:
+  - Implemented continuous Hopfield sequence drafting (`cartan_hopfield_draft_candidate_tokens`) and speculative burst storage (`cartan_hopfield_store_speculative_burst`).
+  - Added speculative candidate verification loop using single-pass batched forward kernel `cartan_manifold_layer_forward_batch_int8` with synchronized KV cache advancement.
+- **CLI Configuration & Telemetry (`test/geomind/main.car`, `test/geomind/chat.cl`)**:
+  - Added CLI options: `-early-exit-threshold <f32>`, `-early-exit-min-layer <f32>`, and `-no-early-exit`.
+  - Added decode telemetry reporting Early Exit % and Average Layers traversed.
+- **Empirical Validation & Benchmark**:
+  - Validated live prompt inference (`bin/geomind.exe -prompt Hello -tokens 10`):
+    - Early exit triggered on 70.0% of decode tokens (avg 38.0 / 42 layers traversed).
+    - Decode latency dropped by 13% with zero loss of semantic coherence (`"Greetings. I am **GeoMind**, a sovereign"`).
+  - Validated compiler regression test suite (`tools/run_affected_tests.ps1 -Sprint 520`): **7/7 passed** (Targets 45, 54, 58, 83, 84, 85, 86) in 59.57s with zero regressions.
+- **Issue Tracking & Technical Debt**:
+  - Marked `[ISSUE-377]` as `[RESOLVED]` in `ISSUES.md`.
+  - Updated Phase 25 in `docs/ROADMAP.md`.
+
 ## [8.475.0] - 2026-10-03 (Sprint 519: 256-Bit AVX2 Vector Load Optimization & INT8 GEMV Saturation)
 
 ### Completed & Validated

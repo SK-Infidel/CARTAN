@@ -108,6 +108,80 @@ fn cartan_kv_cache_get_v(layer_idx: float) -> ptr {
     return cartan_f32_ptr_add(g_v_cache_arena, layer_idx * g_kv_cache_max_seq * 1024.0);
 }
 
+// -----------------------------------------------------------------------------
+// Thermodynamic Layer Early Exit State & Relative Delta Metric
+// -----------------------------------------------------------------------------
+var g_early_exit_enabled: float = 1.0;
+var g_early_exit_min_layer: float = 30.0;
+var g_early_exit_threshold: float = 0.16;
+
+fn cartan_transformer_set_early_exit(enabled: float, min_layer: float, threshold: float) {
+    g_early_exit_enabled = enabled;
+    var ml = min_layer;
+    if (ml < 24.0) { ml = 24.0; } // Invariant: layers 0..23 write KV cache, clamped to >= 24
+    g_early_exit_min_layer = ml;
+    if (threshold > 0.0) {
+        g_early_exit_threshold = threshold;
+    }
+}
+
+fn cartan_transformer_get_early_exit_enabled() -> float {
+    return g_early_exit_enabled;
+}
+
+fn cartan_transformer_get_early_exit_min_layer() -> float {
+    return g_early_exit_min_layer;
+}
+
+fn cartan_transformer_get_early_exit_threshold() -> float {
+    return g_early_exit_threshold;
+}
+
+// Computes relative Euclidean residual delta: ||v1 - v2||_2 / (||v1||_2 + 1e-12)
+fn cartan_vec_relative_delta(v1: ptr, v2: ptr, dim: float) -> float {
+    if (v1 == 0.0 || v2 == 0.0 || dim <= 0.0) { return 1.0; }
+    var diff_sq = 0.0;
+    var norm_sq = 0.0;
+    var d = 0.0;
+    let limit = dim - 3.0;
+    while (d < limit) {
+        let a0 = cartan_vec_get_f32(v1, d);
+        let b0 = cartan_vec_get_f32(v2, d);
+        let diff0 = a0 - b0;
+        diff_sq = diff_sq + diff0 * diff0;
+        norm_sq = norm_sq + a0 * a0;
+
+        let a1 = cartan_vec_get_f32(v1, d + 1.0);
+        let b1 = cartan_vec_get_f32(v2, d + 1.0);
+        let diff1 = a1 - b1;
+        diff_sq = diff_sq + diff1 * diff1;
+        norm_sq = norm_sq + a1 * a1;
+
+        let a2 = cartan_vec_get_f32(v1, d + 2.0);
+        let b2 = cartan_vec_get_f32(v2, d + 2.0);
+        let diff2 = a2 - b2;
+        diff_sq = diff_sq + diff2 * diff2;
+        norm_sq = norm_sq + a2 * a2;
+
+        let a3 = cartan_vec_get_f32(v1, d + 3.0);
+        let b3 = cartan_vec_get_f32(v2, d + 3.0);
+        let diff3 = a3 - b3;
+        diff_sq = diff_sq + diff3 * diff3;
+        norm_sq = norm_sq + a3 * a3;
+
+        d = d + 4.0;
+    }
+    while (d < dim) {
+        let a = cartan_vec_get_f32(v1, d);
+        let b = cartan_vec_get_f32(v2, d);
+        let diff = a - b;
+        diff_sq = diff_sq + diff * diff;
+        norm_sq = norm_sq + a * a;
+        d = d + 1.0;
+    }
+    return sqrt(diff_sq) / (sqrt(norm_sq) + 0.000000000001);
+}
+
 fn cartan_set_embedding_buffer(buf: ptr) -> float {
     g_native_emb_buf = buf;
     return 1.0;

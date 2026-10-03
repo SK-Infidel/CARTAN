@@ -855,6 +855,106 @@ fn cartan_hopfield_ingest(path: string) -> float {
     return stored;
 }
 
+// -----------------------------------------------------------------------------
+// Continuous Hopfield Speculative Sequence Drafting
+// -----------------------------------------------------------------------------
+var g_hopfield_draft_token_bank: ptr = 0.0;
+
+fn cartan_hopfield_store_speculative_burst(latent_key: ptr, tokens_vec: ptr, num_tokens: float) -> float {
+    cartan_hopfield_init_if_needed();
+    if (g_hopfield_draft_token_bank == 0.0) {
+        g_hopfield_draft_token_bank = cartan_tree_create();
+    }
+    if (latent_key == 0.0 || tokens_vec == 0.0 || num_tokens <= 0.0) { return 0.0; }
+    var d = g_hopfield_dim;
+    if (latent_key[0] > 0.0) { d = latent_key[0]; }
+
+    // Store attractor key
+    resonator_add_attractor(g_hopfield_key_bank, latent_key, d);
+    resonator_add_attractor(g_hopfield_val_bank, latent_key, d);
+
+    // Store token sequence
+    let tok_copy = cartan_vec_create();
+    var ti = 0.0;
+    while (ti < num_tokens) {
+        let t_val = cartan_vec_get_f32(tokens_vec, ti);
+        cartan_vec_push_f32(tok_copy, t_val);
+        ti = ti + 1.0;
+    }
+    cartan_tree_push(g_hopfield_draft_token_bank, tok_copy);
+    return cartan_tree_len_f(g_hopfield_key_bank);
+}
+
+fn cartan_hopfield_draft_candidate_tokens(query_ptr: ptr, max_draft: float, min_resonance: float) -> ptr {
+    let out_draft = cartan_vec_create();
+    if (g_hopfield_key_bank == 0.0 || g_hopfield_draft_token_bank == 0.0 || query_ptr == 0.0) {
+        return out_draft;
+    }
+    let num_basins = cartan_tree_len_f(g_hopfield_key_bank);
+    let num_token_seqs = cartan_tree_len_f(g_hopfield_draft_token_bank);
+    if (num_basins == 0.0 || num_token_seqs == 0.0) {
+        return out_draft;
+    }
+
+    var q_dim = g_hopfield_dim;
+    if (query_ptr[0] > 0.0) { q_dim = query_ptr[0]; }
+
+    var q_sq = 0.0;
+    var d = 0.0;
+    while (d < q_dim) {
+        let q_val = cartan_vec_get_f32(query_ptr, d);
+        q_sq = q_sq + (q_val * q_val);
+        d = d + 1.0;
+    }
+    var inv_q = 1.0;
+    if (q_sq > 0.000001) { inv_q = 1.0 / sqrt(q_sq); }
+
+    var best_idx = -1.0;
+    var max_cos = -1.0;
+    var k = 0.0;
+    while (k < num_basins && k < num_token_seqs) {
+        let key_k = cartan_tree_get(g_hopfield_key_bank, k);
+        var dot = 0.0;
+        var k_sq = 0.0;
+        d = 0.0;
+        while (d < q_dim) {
+            let s_val = cartan_vec_get_f32(query_ptr, d) * inv_q;
+            let k_val = cartan_vec_get_f32(key_k, d);
+            dot = dot + (s_val * k_val);
+            k_sq = k_sq + (k_val * k_val);
+            d = d + 1.0;
+        }
+        if (k_sq > 0.000001) {
+            dot = dot / sqrt(k_sq);
+        }
+        if (dot > max_cos) {
+            max_cos = dot;
+            best_idx = k;
+        }
+        k = k + 1.0;
+    }
+
+    var thresh = 0.85;
+    if (min_resonance > 0.0) { thresh = min_resonance; }
+
+    if (max_cos >= thresh && best_idx >= 0.0) {
+        let seq = cartan_tree_get(g_hopfield_draft_token_bank, best_idx);
+        if (seq != 0.0) {
+            let s_len = cartan_vec_len(seq);
+            var limit = max_draft;
+            if (limit <= 0.0) { limit = 4.0; }
+            if (limit > s_len) { limit = s_len; }
+            var si = 0.0;
+            while (si < limit) {
+                cartan_vec_push_f32(out_draft, cartan_vec_get_f32(seq, si));
+                si = si + 1.0;
+            }
+        }
+    }
+    return out_draft;
+}
+
+
 
 
 
