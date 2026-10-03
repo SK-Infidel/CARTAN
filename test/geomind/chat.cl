@@ -2472,10 +2472,12 @@ var g_telemetry_stream_6: float = 0.0;
 var g_telemetry_stream_7: float = 0.0;
 
 var g_sasaki_stream_threshold: float = 0.35;
-var g_sasaki_bypass_enabled: float = 1.0;
+var g_sasaki_bypass_enabled: float = 0.0;
 
 var g_prev_decode_h: ptr = 0.0;
 var g_decode_vel_h: ptr = 0.0;
+var g_prev_layer24_h: ptr = 0.0;
+var g_layer24_vel_h: ptr = 0.0;
 
 fn geomind_clone_tensor(src: ptr, dim: float) -> ptr {
     if (src == 0.0 || dim <= 0.0) { return 0.0; }
@@ -2498,37 +2500,63 @@ fn geomind_execute_manifold_decode_step(sampled_tok: float, pos: float) -> ptr {
     let tok_str = bpe_decode_token(sampled_tok);
     geomind_init_char_stream(tok_str);
 
-    // Track tangent bundle state velocity (x, \dot{x})
-    if (g_decode_vel_h == 0.0) {
-        g_decode_vel_h = cartan_vec_create();
+    // Hard Invariant 1: Layers 0..23 execute unconditionally to populate the GQA KV cache
+    var l = 0.0;
+    while (l < 24.0) {
+        geomind_poll_char_stream(l, 42.0);
+        let layer_buf = geomind_get_layer_buffer(l);
+        if (layer_buf != 0.0) {
+            let next_h = cartan_manifold_layer_forward_raw(cur_h, layer_buf, pos, pos + 1.0, 0.0, 0.0);
+            if (next_h != 0.0) {
+                cartan_vec_free(cur_h);
+                cur_h = next_h;
+            }
+        }
+        l = l + 1.0;
+    }
+
+    // Layer 24 execution
+    geomind_poll_char_stream(24.0, 42.0);
+    let layer_24_buf = geomind_get_layer_buffer(24.0);
+    if (layer_24_buf != 0.0) {
+        let next_h = cartan_manifold_layer_forward_raw(cur_h, layer_24_buf, pos, pos + 1.0, 0.0, 0.0);
+        if (next_h != 0.0) {
+            cartan_vec_free(cur_h);
+            cur_h = next_h;
+        }
+    }
+
+    // Track tangent bundle state velocity (h_24, \dot{h}_24) on fully contextualized state
+    if (g_layer24_vel_h == 0.0) {
+        g_layer24_vel_h = cartan_vec_create();
         var vi = 0.0;
         while (vi < 2560.0) {
-            cartan_vec_push_f32(g_decode_vel_h, 0.0);
+            cartan_vec_push_f32(g_layer24_vel_h, 0.0);
             vi = vi + 1.0;
         }
     }
-    if (g_prev_decode_h != 0.0) {
+    if (g_prev_layer24_h != 0.0) {
         var vi = 0.0;
         while (vi < 2560.0) {
             let cur_v = cartan_vec_get_f32(cur_h, vi);
-            let prev_v = cartan_vec_get_f32(g_prev_decode_h, vi);
-            cartan_vec_set_f32(g_decode_vel_h, vi, cur_v - prev_v);
-            cartan_vec_set_f32(g_prev_decode_h, vi, cur_v);
+            let prev_v = cartan_vec_get_f32(g_prev_layer24_h, vi);
+            cartan_vec_set_f32(g_layer24_vel_h, vi, cur_v - prev_v);
+            cartan_vec_set_f32(g_prev_layer24_h, vi, cur_v);
             vi = vi + 1.0;
         }
     } else {
-        g_prev_decode_h = cartan_vec_create();
+        g_prev_layer24_h = cartan_vec_create();
         var vi = 0.0;
         while (vi < 2560.0) {
             let cur_v = cartan_vec_get_f32(cur_h, vi);
-            cartan_vec_push_f32(g_prev_decode_h, cur_v);
-            cartan_vec_set_f32(g_decode_vel_h, vi, 0.0);
+            cartan_vec_push_f32(g_prev_layer24_h, cur_v);
+            cartan_vec_set_f32(g_layer24_vel_h, vi, 0.0);
             vi = vi + 1.0;
         }
     }
 
-    // Evaluate Sasaki Brainstem Router in < 0.1ms
-    let route_res = cartan_sasaki_brainstem_route_top1(cur_h, g_decode_vel_h, 0.70);
+    // Evaluate Sasaki Brainstem Router on (h_24, \dot{h}_24) in < 0.1ms
+    let route_res = cartan_sasaki_brainstem_route_top1(cur_h, g_layer24_vel_h, 0.70);
     let dom_stream = cartan_vec_get_f32(route_res, 0.0);
     let dom_w = cartan_vec_get_f32(route_res, 1.0);
 
@@ -2542,25 +2570,15 @@ fn geomind_execute_manifold_decode_step(sampled_tok: float, pos: float) -> ptr {
     else if (dom_stream == 6.0) { g_telemetry_stream_6 = g_telemetry_stream_6 + 1.0; }
     else if (dom_stream == 7.0) { g_telemetry_stream_7 = g_telemetry_stream_7 + 1.0; }
 
-    // Fast Path: Conditional Layer Bypass (bypassing layers 0..40 directly into Anchor Layer 41)
+    // Fast Path: Conditional Layer Bypass (bypassing layers 25..40 directly into Anchor Layer 41)
     if (g_sasaki_bypass_enabled == 1.0 && dom_w >= g_sasaki_stream_threshold && pos > 0.0) {
         let stream_h = geomind_single_stream_forward(cur_h, dom_stream);
         var ci = 0.0;
         while (ci < 2560.0) {
-            cartan_vec_set_f32(cur_h, ci, cartan_vec_get_f32(stream_h, ci));
+            let orig_v = cartan_vec_get_f32(cur_h, ci);
+            let s_v = cartan_vec_get_f32(stream_h, ci);
+            cartan_vec_set_f32(cur_h, ci, 0.85 * orig_v + 0.15 * s_v);
             ci = ci + 1.0;
-        }
-
-        // Maintain continuous KV cache sequence for layers 0..23 (carry forward attention context)
-        var kl = 0.0;
-        while (kl < 24.0) {
-            let k_base = cartan_kv_cache_get_k(kl);
-            let v_base = cartan_kv_cache_get_v(kl);
-            if (k_base != 0.0 && v_base != 0.0 && pos < g_kv_cache_max_seq) {
-                cartan_c_memcpy(cartan_f32_ptr_add(k_base, pos * 1024.0), cartan_f32_ptr_add(k_base, (pos - 1.0) * 1024.0), 4096.0);
-                cartan_c_memcpy(cartan_f32_ptr_add(v_base, pos * 1024.0), cartan_f32_ptr_add(v_base, (pos - 1.0) * 1024.0), 4096.0);
-            }
-            kl = kl + 1.0;
         }
 
         // Execute final Anchor Layer 41
@@ -2574,7 +2592,7 @@ fn geomind_execute_manifold_decode_step(sampled_tok: float, pos: float) -> ptr {
         }
 
         g_telemetry_stream_bypass_count = g_telemetry_stream_bypass_count + 1.0;
-        g_telemetry_total_layers_executed = g_telemetry_total_layers_executed + 2.0;
+        g_telemetry_total_layers_executed = g_telemetry_total_layers_executed + 26.0;
         g_telemetry_total_decode_tokens = g_telemetry_total_decode_tokens + 1.0;
 
         geomind_poll_char_stream(41.0, 42.0);
@@ -2592,7 +2610,7 @@ fn geomind_execute_manifold_decode_step(sampled_tok: float, pos: float) -> ptr {
     }
 
     var early_exited = 0.0;
-    var l = 0.0;
+    l = 25.0;
     while (l < 41.0) {
         geomind_poll_char_stream(l, 42.0);
         let layer_buf = geomind_get_layer_buffer(l);
@@ -2647,6 +2665,18 @@ fn geomind_chat_clear_session() -> float {
     if (g_prev_decode_h != 0.0) {
         cartan_vec_free(g_prev_decode_h);
         g_prev_decode_h = 0.0;
+    }
+    if (g_decode_vel_h != 0.0) {
+        cartan_vec_free(g_decode_vel_h);
+        g_decode_vel_h = 0.0;
+    }
+    if (g_prev_layer24_h != 0.0) {
+        cartan_vec_free(g_prev_layer24_h);
+        g_prev_layer24_h = 0.0;
+    }
+    if (g_layer24_vel_h != 0.0) {
+        cartan_vec_free(g_layer24_vel_h);
+        g_layer24_vel_h = 0.0;
     }
     let db = geomind_chat_get_db();
     if (db != 0.0) {
@@ -2876,9 +2906,37 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
     if (vis_stream != 0.0) { cartan_vec_free(vis_stream); }
     if (aud_stream != 0.0) { cartan_vec_free(aud_stream); }
 
-    // Relax continuous state along Hopfield attractor basins (only for low-dimensional E8 latents)
-    if (g_expert_priming_enabled == 1.0 && cartan_vec_len(cur_h) < 2560.0 && cartan_hopfield_attractor_count() > 0.0) {
+    // Relax continuous state along Hopfield attractor basins with RMS scale preservation
+    if (g_expert_priming_enabled == 1.0 && cartan_vec_len(cur_h) <= 2560.0 && cartan_hopfield_attractor_count() > 0.0) {
+        let h_dim = cartan_vec_len(cur_h);
+        var orig_h_sq = 0.0;
+        var hi = 0.0;
+        while (hi < h_dim) {
+            let hv = cartan_vec_get_f32(cur_h, hi);
+            orig_h_sq = orig_h_sq + (hv * hv);
+            hi = hi + 1.0;
+        }
+        let orig_h_rms = sqrt((orig_h_sq / h_dim) + 0.000001);
+
         cartan_hopfield_relax(cur_h, 16.0, 2.0);
+
+        var new_h_sq = 0.0;
+        hi = 0.0;
+        while (hi < h_dim) {
+            let hv = cartan_vec_get_f32(cur_h, hi);
+            new_h_sq = new_h_sq + (hv * hv);
+            hi = hi + 1.0;
+        }
+        if (new_h_sq > 0.000001 && orig_h_sq > 0.000001) {
+            let new_h_rms = sqrt((new_h_sq / h_dim) + 0.000001);
+            let h_scale = orig_h_rms / new_h_rms;
+            hi = 0.0;
+            while (hi < h_dim) {
+                let hv = cartan_vec_get_f32(cur_h, hi);
+                cartan_vec_set_f32(cur_h, hi, hv * h_scale);
+                hi = hi + 1.0;
+            }
+        }
     }
 
     // Prime hidden state with factual attractor from Cognitive Memory if applicable
@@ -3266,9 +3324,9 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
     // 3. O(1) One-Shot Key-Value Attractor Basin Insertion: Ingest conversational context into persistent memory
     // Guard: Only insert uncompromised attractors (preserves Hopfield memory from contradiction poisoning)
     if (veto_res.is_vetoed == 0.0 && g_ephemeral_memory == 0.0) {
-        cartan_hopfield_store_pair_vec(hidden_state, cur_h);
+        cartan_hopfield_store_vector(cur_h, 2560.0);
         if (cartan_vec_len(response_burst_vec) > 0.0) {
-            cartan_hopfield_store_speculative_burst(hidden_state, response_burst_vec, cartan_vec_len(response_burst_vec));
+            cartan_hopfield_store_speculative_burst(cur_h, response_burst_vec, cartan_vec_len(response_burst_vec));
         }
         cartan_hopfield_save_basins(geomind_chat_resolve_path("test/geomind/trainingdata/hopfield_basins.bin"));
     }
@@ -3308,6 +3366,80 @@ fn geomind_chat_remember_fact(fact_text: string) -> float {
     cartan_vec_free(h_fact);
     cartan_vec_free(h_stepped);
     return total_count;
+}
+
+// Ingests an entire text corpus as 2560D semantic attractor basins via BPE tokenization and embedding pooling
+fn geomind_hopfield_ingest_semantic(path: string) -> float {
+    geomind_load_e8_assets_if_needed();
+    cartan_hopfield_init_if_needed();
+
+    let basins_path = geomind_chat_resolve_path("test/geomind/trainingdata/hopfield_basins.bin");
+    if (cartan_file_exists(basins_path) == 1.0) {
+        cartan_hopfield_load_basins(basins_path);
+    }
+
+    let content = cartan_read_file(path);
+    if (content == 0.0 || cartan_string_length(content) == 0.0) { return 0.0; }
+
+    let all_tokens = cartan_hub_encode_text_to_tokens(content);
+    if (all_tokens == 0.0) { return 0.0; }
+    let n_tokens = cartan_vec_len(all_tokens);
+    if (n_tokens <= 0.0) {
+        cartan_vec_free(all_tokens);
+        return 0.0;
+    }
+
+    var pos = 0.0;
+    var stored = 0.0;
+    let chunk_size = 32.0;
+    while (pos < n_tokens && stored < 1000.0) {
+        var chunk_end = pos + chunk_size;
+        if (chunk_end > n_tokens) { chunk_end = n_tokens; }
+        let c_len = chunk_end - pos;
+
+        if (c_len > 0.0) {
+            let v_mean = cartan_tensor_alloc(2560.0);
+            var valid_toks = 0.0;
+            var ti = pos;
+            while (ti < chunk_end) {
+                let tok_id = cartan_vec_get_f32(all_tokens, ti);
+                if (tok_id >= 0.0 && tok_id < 262144.0 && tok_id != 2.0 && tok_id != 105.0 && tok_id != 106.0 && tok_id != 107.0) {
+                    let emb = geomind_lookup_token_embedding(tok_id);
+                    if (emb != 0.0) {
+                        var d = 0.0;
+                        while (d < 2560.0) {
+                            let cur_acc = cartan_vec_get_f32(v_mean, d);
+                            let emb_val = cartan_vec_get_f32(emb, d);
+                            cartan_vec_set_f32(v_mean, d, cur_acc + emb_val);
+                            d = d + 1.0;
+                        }
+                        cartan_vec_free(emb);
+                        valid_toks = valid_toks + 1.0;
+                    }
+                }
+                ti = ti + 1.0;
+            }
+
+            if (valid_toks > 0.0) {
+                let inv_toks = 1.0 / valid_toks;
+                var d = 0.0;
+                while (d < 2560.0) {
+                    let acc = cartan_vec_get_f32(v_mean, d);
+                    cartan_vec_set_f32(v_mean, d, acc * inv_toks);
+                    d = d + 1.0;
+                }
+                cartan_hopfield_store_vector(v_mean, 2560.0);
+                stored = stored + 1.0;
+            }
+            cartan_vec_free(v_mean);
+        }
+
+        pos = pos + chunk_size;
+    }
+
+    cartan_vec_free(all_tokens);
+    cartan_hopfield_save_basins(basins_path);
+    return stored;
 }
 
 fn geomind_chat_generate_reply(prompt: string, max_tokens: float, temp: float) -> float {

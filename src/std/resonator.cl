@@ -240,7 +240,7 @@ fn resonator_continuous_hopfield_hetero_relax(key_bank: ptr, val_bank: ptr, stat
         while (d_idx < dim) {
             let cur_val = cartan_vec_get_f32(state_vec, d_idx);
             let rec_val = cartan_vec_get_f32(recall, d_idx);
-            let updated = cur_val * 0.35 + rec_val * 0.65;
+            let updated = cur_val * 0.90 + rec_val * 0.10;
             cartan_vec_set_f32(state_vec, d_idx, updated);
             sum_sq = sum_sq + (updated * updated);
             d_idx = d_idx + 1.0;
@@ -641,6 +641,7 @@ fn resonator_query(key_bank: ptr, val_bank: ptr, query_vec: ptr, dim: float, bet
         cartan_vec_push_f32(out_vec, recall_d);
         d_idx = d_idx + 1.0;
     }
+    cartan_vec_free(scores);
     return out_vec;
 }
 
@@ -849,6 +850,7 @@ fn cartan_hopfield_ingest(path: string) -> float {
             d = d + 1.0;
         }
         cartan_hopfield_store_vector(v, g_hopfield_dim);
+        cartan_vec_free(v);
         stored = stored + 1.0;
         pos = pos + g_hopfield_dim;
     }

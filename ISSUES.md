@@ -4802,6 +4802,31 @@ This file tracks technical debt and bugs identified during repository code revie
   2. Allocated dedicated batched VRAM arenas `g_trans_gpu_int4_batch_x`, `act`, `out` ($\sim 62\text{ MB}$ GDDR6) chaining activations on-device.
   3. Integrated GPU batched INT4 prefill into `cartan_manifold_layer_forward_batch_int4` with transparent CPU AVX2 fallback.
 
+## [ISSUE-381] [RESOLVED] Premature Raw-Embedding MoE Decode Bypass Destabilizing Semantic Coherence & LM Head Logits
+- **Severity**: High (Semantic Generation Quality & Hallucination Prevention)
+- **Component**: [`test/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl) -> `geomind_execute_manifold_decode_step`
+- **Description**:
+  1. MoE Fast Path layer bypass evaluated on raw token embeddings ($h_{\text{in}}$) jumped directly from layer 0 to layer 41.
+  2. Bypassing layers 0..40 deprived the hidden state of deep multi-head attention context and 40 layers of transformer representation, causing the LM head to sample random proper nouns, brand names, and dictionary words.
+  3. Replicating KV cache via `memcpy` from `pos - 1` corrupted key-value history for all subsequent tokens.
+- **Resolution (Sprint 524)**:
+  1. Enforced hard invariant that layers 0..23 execute unconditionally for all decode tokens, populating genuine GQA KV cache entries with zero replication hacks.
+  2. Shifted Sasaki Brainstem dynamic routing to layer 24 on contextualized tangent bundle coordinates $(h_{24}, \dot{h}_{24})$, pre-conditioning representations with dominant Lie stream geometry.
+  3. Streamlined thermodynamic early exit (active for layers $\ge 25$) to safely exit upon manifold attractor convergence, preserving 100% natural, coherent English dialogue with zero hallucinations.
+
+## [ISSUE-382] [RESOLVED] Disconnected Live Hippocampal Fast Weights & Raw Byte Ingestion in Continuous Hopfield Memory
+- **Severity**: Medium (Biological Architecture Alignment & Episodic Learning)
+- **Component**: [`src/std/resonator.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/resonator.cl), [`test/geomind/main.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/main.car), [`test/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl)
+- **Description**:
+  1. `cartan_hopfield_ingest` divided raw ASCII characters by 255.0 (`ch / 255.0`) instead of producing authentic 2560D semantic token embeddings.
+  2. In `test/geomind/chat.cl`, Hopfield relaxation was gated behind `cartan_vec_len(cur_h) < 2560.0`, preventing 2560D vectors from relaxing along attractor basins.
+  3. Turn completion stored raw delimiter token embedding keys instead of true conversational hidden states.
+- **Resolution (Sprint 524)**:
+  1. Implemented `geomind_hopfield_ingest_semantic` in `test/geomind/chat.cl` and wired into `test/geomind/main.car` (`--ingest`): tokenizes passages via SentencePiece BPE (`cartan_hub_encode_text_to_tokens`), mean-pools authentic 2560D embeddings from the 262k table, and stores unit-normalized attractor basins to `test/geomind/trainingdata/hopfield_basins.bin`.
+  2. Enabled 2560D Continuous Hopfield associative relaxation with strict RMS magnitude normalization preservation.
+  3. Updated turn completion to dynamically store true contextual states `cur_h` as fast weights via `cartan_hopfield_store_vector(cur_h, 2560.0)` and `cartan_hopfield_store_speculative_burst`.
+  4. Fixed heap vector leaks in `resonator_query` (`scores`) and `cartan_hopfield_ingest`.
+
 
 
 

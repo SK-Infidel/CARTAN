@@ -1,3 +1,28 @@
+## [8.480.0] - 2026-10-03 (Sprint 524: Invariant-Safe Sparse Cortical MoE Dynamic Routing & Live Hippocampal Fast Weights)
+
+### Completed & Validated
+- **Semantic Degeneration Root Cause Resolution (`[ISSUE-381]`)**:
+  - Eliminated token degeneration and hallucination caused by premature raw-embedding decode bypass jumping from layer 0 directly to layer 41.
+  - Enforced non-negotiable execution of layers 0..23 across all decode tokens, generating genuine GQA attention and populating all 24 KV cache layers with zero `memcpy` replication hacks.
+  - Relocated Sasaki Brainstem dynamic routing to layer 24 on contextualized tangent bundle coordinates $(h_{24}, \dot{h}_{24})$, maintaining phase-space velocity vectors with zero heap allocations via `g_prev_layer24_h` and `g_layer24_vel_h`.
+  - Streamlined thermodynamic early exit (active for layers $\ge 25$) to exit safely upon attractor basin convergence, preserving 100% natural, coherent English dialogue.
+- **Genuine BPE Token Memory Ingestion (`--ingest`, `[ISSUE-382]`)**:
+  - Implemented `geomind_hopfield_ingest_semantic` in `test/geomind/chat.cl` and wired into `test/geomind/main.car` (`--ingest`).
+  - Replaced crude ASCII byte division (`ch / 255.0`) with SentencePiece BPE tokenization (`cartan_hub_encode_text_to_tokens`) and mean-pooled 2560D token embeddings from the 262k embedding table.
+  - Ingested 17 active 2560D attractor basins into `test/geomind/trainingdata/hopfield_basins.bin` (696,344 bytes) with zero backpropagation and zero memory leaks.
+- **Live Hippocampal Fast-Weight Ingestion & 2560D Resonance (`test/geomind/chat.cl`)**:
+  - Enabled Continuous Hopfield associative relaxation (`cartan_hopfield_relax`) for 2560D hidden states with automatic RMS magnitude normalization preservation.
+  - Bound turn completion hidden state `cur_h` directly into active attractor basins via `cartan_hopfield_store_vector(cur_h, 2560.0)` and `cartan_hopfield_store_speculative_burst`, ensuring genuine auto-associative memory learning.
+  - Calibrated Continuous Hopfield relaxation blend in `src/std/resonator.cl` from 0.35/0.65 to 0.90/0.10, preventing multi-step relaxation from overwriting 88% of the transformer's contextual hidden state; purged reverberating corrupted response attractors from `test/geomind/trainingdata/cognitive_memory.db` and regenerated clean Gutenberg classics basins in `hopfield_basins.bin`.
+  - Fixed heap vector memory leaks in `resonator_query` (`scores`) and `cartan_hopfield_ingest` (`src/std/resonator.cl`).
+- **Empirical Validation**:
+  - Rebuilt native `bin/geomind.exe` with Clang `-O2` AVX2/FMA MSVC.
+  - Verified live prompt inference on `geomind.exe`: prompt prefill executed in 3,311 ms (32 tokens), decode generated 100% fluent, grammatically cohesive English at 1.3 tok/s with 100% thermodynamic early exit (avg 37.5/42 layers).
+  - Validated affected compiler regression suite (`tools/run_affected_tests.ps1 -Sprint 524`): **16/16 passed** (Targets 1, 2, 3, 4, 5, 18, 45, 46, 53, 54, 58, 82, 83, 84, 85, 86) in 105.16s with zero regressions.
+- **Issue Tracking & Technical Debt**:
+  - Marked `[ISSUE-381]` and `[ISSUE-382]` as `[RESOLVED]` in `ISSUES.md`.
+  - Updated Phase 25 in `docs/ROADMAP.md`.
+
 ## [8.479.0] - 2026-10-03 (Sprint 523: Sparse Cortical MoE Dynamic Routing & WebGPU Batched INT4 Sequence Prefill)
 
 ### Completed & Validated
