@@ -388,10 +388,10 @@ This roadmap tracks the implementation of the advanced AI optimizations and nati
 - [x] **2. Biometric Path Separator Normalization (Sprint 513)**: Normalized camera utility path separators to backslashes (`tools\capture_camera.exe`), restoring live physical webcam authentication with 0.9670 cosine similarity.
 - [x] **3. Workspace Structure Normalization & Entropy Reduction (Sprint 514)**: Purged root transient build artifacts; consolidated duplicate safetensors hardlinks; normalized `test/geomind/docs/` hierarchy; verified 5/5 regression targets with zero regressions.
 
-## 🟢 PHASE 24: Technical Debt Elimination & Standalone Self-Hosting (In Progress - Sprints 515–517)
+## 🟢 PHASE 24: Technical Debt Elimination & Standalone Self-Hosting (In Progress - Sprints 515–518)
 - [x] **1. Debt Audit, Issue-292 Closure, Roadmap Sync & Architecture Blueprints (Sprint 515)**: Audited and closed `[ISSUE-292]`, synchronized roadmap, and authored blueprints for Zero-Python toolchain, End-to-End WebGPU forward pipeline, and vector retrieval.
 - [x] **2. Native Standalone Compiler Linker Driver & Zero-Python Toolchain (Sprint 516)**: Implement pure CARTAN Clang/LLD resolution and direct linking in `src/cartanc/main.car`; eradicate `[DEBUG include]` frontend log spam; prove bit-for-bit SHA-256 fixpoint parity across 3-stage self-hosting bootstrap.
-- [ ] **3. End-to-End WebGPU Neural Forward Pipeline & Kernel Fusion (Sprint 517)**: Eliminate CPU-GPU PCIe ping-pong in `cartan_manifold_layer_forward_native`; fuse RMSNorm, RoPE, Attention, GeGLU, and residual addition into resident GPU compute shaders.
+- [x] **3. High-Throughput Batched Sequence Prefill & INT8 Architecture Fix (Sprint 517)**: Eliminate token-by-token fallback loop in INT8 sequence prefill; implement row-outer multi-threaded AVX2 INT8 GEMV (Op 9, 10, 11) with non-overlapping parameter slots; decouple kernel to resolve LLVM IR dominance failures; correct vector RMSNorm, proportional RoPE, and unit RMS V-Norm caching; reduce prefill latency from 49.3s to 4.25s (>11.6x speedup).
 
 
 

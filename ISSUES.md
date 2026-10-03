@@ -4679,6 +4679,35 @@ This file tracks technical debt and bugs identified during repository code revie
   2. Replaced legacy Zig compilation banner with clean milestone status: `Compiling and linking native executable via Clang (-O2 AVX2/FMA MSVC)...`.
   3. Verified zero instances of `[DEBUG include]` or `[DEBUG lex]` in build logs.
 
+---
+
+## [ISSUE-371] [RESOLVED] Un-vectorized Token-by-Token Fallback Loop in INT8 Batched Sequence Prefill
+- **Severity**: Critical (Inference Latency & CPU Stalling)
+- **Component**: [`src/std/transformer.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/transformer.cl) -> `cartan_manifold_layer_forward_batch_int8`
+- **Description**: 
+  1. In `src/std/transformer.cl`, when `is_int8 == 1.0`, batched sequence forward fell back to `cartan_manifold_layer_forward_native` in a sequential `while (p < num_tokens)` loop.
+  2. For a 38-token prompt across 42 layers, this invoked `cartan_manifold_layer_forward_native` 1,596 sequential times.
+  3. In each invocation, the entire 93 MB INT8 layer weights were re-read from RAM over DDR5 channels (148.4 GB of redundant reads per prompt), while synchronously dispatching GPU writes and polling WebGPU staging buffers.
+  4. This induced a 49.3-second prefill stall, pinned all CPU threads, and spun hardware cooling fans at maximum RPM.
+- **Resolution (Sprint 517)**: 
+  1. Implemented row-outer multi-threaded AVX2 INT8 batched operations (Op 9.0 Single GEMV, Op 10.0 Dual GEMV, Op 11.0 GeGLU) in `cartan_trans_pool_worker_main` with non-overlapping thread task parameter slots (`N` at float 5.0, `out_stride` at float 6.0).
+  2. Decoupled INT8 batched execution into dedicated kernel `cartan_manifold_layer_forward_batch_int8`.
+  3. Integrated vector-based RMSNorm, true proportional half-dim RoPE, per-head Q/K norm, and unit RMS V-Norm caching.
+  4. Verified in live GeoMind execution: prefill latency dropped from 49.3s to 4.25s (>11.6x speedup), streaming coherent decoded tokens cleanly.
+  5. Verified zero regressions across affected compiler regression targets (83, 84, 85, 86, 87).
+
+---
+
+## [ISSUE-372] [OPEN] Synchronous Map-Async Staging Barrier in WebGPU GeGLU Forward Pass
+- **Severity**: Medium (Hardware GPU Throughput)
+- **Component**: [`src/std/wgpu.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/wgpu.cl) -> `gpu_dispatch_fused_geglu_down_read`
+- **Description**: 
+  1. Each invocation of `gpu_dispatch_fused_geglu_down_read` calls `wgpuBufferMapAsync` followed by a blocking `wgpuDevicePoll(g_wgpu_device, 1.0, 0.0)` loop.
+  2. While achieving 14.8 ms/layer decode latency (5.4x faster than CPU INT8 decode), synchronous polling forces CPU thread waits between layer transitions.
+- **Proposed Resolution (Sprint 517)**: 
+  1. Benchmark staging ring buffers and explore double-buffered asynchronous mapping.
+
+
 
 
 

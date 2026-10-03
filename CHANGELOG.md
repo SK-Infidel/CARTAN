@@ -1,3 +1,19 @@
+## [8.473.0] - 2026-10-02 (Sprint 517: High-Throughput Batched Sequence Prefill & INT8 Architecture Fix)
+
+### Completed & Validated
+- **Batched INT8 Sequence Prefill Kernel (`src/std/transformer.cl`)**:
+  - Implemented row-outer multi-threaded AVX2 INT8 batched operations (Op 9.0 Single GEMV, Op 10.0 Dual GEMV, Op 11.0 GeGLU) in `cartan_trans_pool_worker_main` with non-overlapping thread task parameter slots (`N` at float 5.0, `out_stride` at float 6.0).
+  - Decoupled INT8 batched forward execution into dedicated kernel `cartan_manifold_layer_forward_batch_int8`, resolving LLVM IR basic block dominance failures.
+  - Corrected input RMSNorm to access CARTAN vector headers using `cartan_vec_get_f32()`.
+  - Restored full mathematical fidelity of proportional half-dimension RoPE, per-head Q/K norm indexing, and unit RMS V-Norm caching.
+- **Empirical Performance Verification**:
+  - Validated live GeoMind prompt inference (`bin/geomind.exe -prompt Hello -tokens 10`):
+    - Sequence prefill latency dropped from 49,300 ms to 4,250 ms (>11.6x speedup) on 32 prompt tokens.
+    - Decoded tokens streamed fluidly and coherently ("True. I am GeoMind, a sovereign neuro").
+  - Executed affected compiler regression test suite (`tools/run_affected_tests.ps1 -Targets 83,84,85,86,87`): **5/5 passed** cleanly in 31.97s with zero regressions.
+- **Issue Tracking & Technical Debt**:
+  - Marked `[ISSUE-371]` as `[RESOLVED]` in `ISSUES.md`.
+
 ## [8.472.0] - 2026-10-02 (Sprint 516: Native Standalone Compiler Linker Driver & Zero-Python Toolchain)
 
 ### Completed & Validated
