@@ -3540,15 +3540,16 @@ fn cartan_manifold_layer_forward_batch_int8(
 
     // 3. Batched K & V Projections (Row-Outer Multi-Threaded AVX2 INT8 Dual GEMV Engine)
     let is_kv_shared = (layer_idx >= 24.0);
-    if (is_kv_shared == 1.0) {
-        let prev_k = cartan_kv_cache_get_k(layer_idx - 1.0);
-        let prev_v = cartan_kv_cache_get_v(layer_idx - 1.0);
-        let cur_k = cartan_kv_cache_get_k(layer_idx);
-        let cur_v = cartan_kv_cache_get_v(layer_idx);
-        let kv_bytes = g_kv_cache_max_seq * kv_dim * 4.0;
-        memcpy(cur_k, prev_k, kv_bytes);
-        memcpy(cur_v, prev_v, kv_bytes);
-    } else {
+    var kv_source_layer = layer_idx;
+    if (is_kv_shared > 0.0) {
+        if (is_global > 0.0) {
+            kv_source_layer = 23.0;
+        } else {
+            kv_source_layer = 22.0;
+        }
+    }
+
+    if (is_kv_shared == 0.0) {
         cartan_trans_pool_dispatch_batch_int8_dual_gemv(kv_dim, dim, k_scales, w_k_bytes, v_scales, w_v_bytes, b_norm_h1, b_k, b_v, N, kv_dim);
     }
 
@@ -3556,8 +3557,8 @@ fn cartan_manifold_layer_forward_batch_int8(
     let qh_norm_limit = q_dim - 3.0;
     var q_dot = 0.0;
     let inv_scale = 1.0 / sqrt(head_dim);
-    let k_cache = cartan_kv_cache_get_k(layer_idx);
-    let v_cache = cartan_kv_cache_get_v(layer_idx);
+    let k_cache = cartan_kv_cache_get_k(kv_source_layer);
+    let v_cache = cartan_kv_cache_get_v(kv_source_layer);
     let max_seq = g_kv_cache_max_seq;
     let scores_buf = g_trans_scores;
 

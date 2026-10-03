@@ -62,7 +62,7 @@ fn print_help_dialogue() -> float {
     printf("Hardware & Compute Flags:\n");
     printf("  (WebGPU hardware acceleration on NVIDIA RTX 2000 Ada GPU is ENABLED BY DEFAULT)\n");
     printf("  -cpu, --cpu, -no-gpu, --no-gpu: Run on CPU only (disables WebGPU hardware acceleration)\n");
-    printf("  -context <num>, --context <num>: Set max context window capacity in tokens (Default: 131072 [128k])\n");
+    printf("  -context <num>, --context <num>: Set max context window capacity in tokens (Default: 8192 [8k], up to 131072 [128k])\n");
     printf("                                   Accepted values: 2048, 8192, 32768, 65536, 131072\n\n");
     printf("Training & Optimization Flags (Optional - All have calibrated defaults):\n");
     printf("  -target-loss <float>, -tl, -loss, -training-loss: Universal target loss stopping threshold\n");
@@ -730,21 +730,24 @@ fn geomind_run_chat_mode(arg_count: float, no_priming: float) -> float {
     var prompt_arg = get_cli_prompt(arg_count);
     let tokens_arg = get_cli_param_float("-tokens", arg_count, 2048.0);
     let temp_arg = get_cli_param_float("-temp", arg_count, 0.7);
-    let cli_context = get_cli_param_float("-context", arg_count, 131072.0);
+    let cli_context = get_cli_param_float("-context", arg_count, 8192.0);
     geomind_chat_set_context_limit(cli_context);
 
     if (cartan_string_length(prompt_arg) == 0.0 && arg_count >= 3.0) {
-        var p_idx = 2.0;
-        while (p_idx < arg_count) {
-            let first_pos = sys_get_arg(p_idx);
-            if (cartan_string_starts_with(first_pos, "-") == 1.0) {
-                break;
+        let first_arg = sys_get_arg(1.0);
+        if (cartan_string_eq(first_arg, "--chat") == 1.0 || cartan_string_eq(first_arg, "-chat") == 1.0) {
+            var p_idx = 2.0;
+            while (p_idx < arg_count) {
+                let first_pos = sys_get_arg(p_idx);
+                if (cartan_string_starts_with(first_pos, "-") == 1.0) {
+                    break;
+                }
+                if (cartan_string_length(prompt_arg) > 0.0) {
+                    prompt_arg = cartan_string_concat(prompt_arg, " ");
+                }
+                prompt_arg = cartan_string_concat(prompt_arg, first_pos);
+                p_idx = p_idx + 1.0;
             }
-            if (cartan_string_length(prompt_arg) > 0.0) {
-                prompt_arg = cartan_string_concat(prompt_arg, " ");
-            }
-            prompt_arg = cartan_string_concat(prompt_arg, first_pos);
-            p_idx = p_idx + 1.0;
         }
     }
 
@@ -766,7 +769,7 @@ fn main() -> float {
         return 0.0;
     }
     let default_tokens = get_cli_param_float("-tokens", arg_count, 2048.0);
-    let cli_context = get_cli_param_float("-context", arg_count, 131072.0);
+    let cli_context = get_cli_param_float("-context", arg_count, 8192.0);
     geomind_chat_set_context_limit(cli_context);
     let debug_flag = get_cli_flag_present("-debug", arg_count);
     if (debug_flag > 0.0) {

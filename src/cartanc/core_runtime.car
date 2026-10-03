@@ -829,20 +829,25 @@ fn cartan_read_line() -> string {
     let buf = calloc(cap, 1.0);
     var len = 0.0;
     var done = 0.0;
+    var is_eof = 0.0;
 
     while (done == 0.0 && len < cap - 1.0) {
         let ch = getchar();
         if (ch < 0.0) {
             done = 1.0;
+            is_eof = 1.0;
         } else if (ch == 10.0 || ch == 13.0) {
-            done = 1.0;
+            if (len > 0.0) {
+                done = 1.0;
+            }
         } else {
             cartan_set_byte(buf, len, ch);
             len = len + 1.0;
         }
     }
 
-    if (len == 0.0 && done == 1.0) {
+    if (is_eof == 1.0 && len == 0.0) {
+        free(buf);
         return "exit";
     }
 

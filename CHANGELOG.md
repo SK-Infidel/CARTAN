@@ -1,3 +1,25 @@
+## [8.474.0] - 2026-10-03 (Sprint 518: Interactive REPL Terminal Stream Hygiene & Zero-Copy KV Sharing Optimization)
+
+### Completed & Validated
+- **Core Runtime Stdin Stream Hygiene (`src/cartanc/core_runtime.car`)**:
+  - Resolved REPL premature exit bug caused by leftover Windows CRLF `\n` in stdin buffer.
+  - Updated `cartan_read_line()` to discard leading newlines (`\r`, `\n`) when `len == 0.0`.
+  - Restricted `"exit"` return strictly to genuine EOF conditions (`ch < 0.0`).
+  - Handled blank lines cleanly by returning `""`, allowing continuous multi-turn interactive REPL sessions.
+- **Transformer Zero-Copy Shared KV Layer Optimization (`src/std/transformer.cl`)**:
+  - Eliminated 18.44 GB of redundant `memcpy` operations per sequence prefill across shared layers 24..41 in `cartan_manifold_layer_forward_batch_int8`.
+  - Routed `kv_source_layer` to layer 23.0 (if global attention) or layer 22.0 (if sliding window) when `layer_idx >= 24.0`.
+  - Pointed `k_cache` and `v_cache` directly to `kv_source_layer`, matching FP32 batch and single-token decode architectures with zero memory copying.
+- **Context Horizon & Memory Footprint Normalization (`test/geomind/chat.cl`, `test/geomind/main.car`)**:
+  - Balanced default context window from 131,072 to 8,192 tokens (8k), reducing KV cache host RAM footprint from 25.76 GB to 1.50 GB.
+  - Maintained full dynamic expansion capability up to 131,072 tokens on demand via `-context 131072` CLI argument and `/context 131072` REPL command.
+  - Fixed CLI positional prompt parsing in `main.car` to only treat `argv[2..]` as prompt when `argv[1]` is `-chat` or `--chat`.
+- **Empirical Regression Verification**:
+  - Validated multi-turn interactive session on `bin/geomind.exe`: verified continuous multi-turn execution (Turn 1 -> Turn 2 -> Exit) with biometric face recognition (0.9646 similarity) and clean thread pool teardown.
+  - Executed compiler regression test suite (`tools/run_affected_tests.ps1`): **14/14 passed** (Targets 1, 2, 3, 4, 5, 23, 46, 59, 82, 83, 84, 85, 86, 87) in 45.23s with zero regressions.
+- **Issue Tracking & Technical Debt**:
+  - Marked `[ISSUE-373]`, `[ISSUE-374]`, and `[ISSUE-375]` as `[RESOLVED]` in `ISSUES.md`.
+
 ## [8.473.0] - 2026-10-02 (Sprint 517: High-Throughput Batched Sequence Prefill & INT8 Architecture Fix)
 
 ### Completed & Validated

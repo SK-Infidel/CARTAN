@@ -4704,8 +4704,42 @@ This file tracks technical debt and bugs identified during repository code revie
 - **Description**: 
   1. Each invocation of `gpu_dispatch_fused_geglu_down_read` calls `wgpuBufferMapAsync` followed by a blocking `wgpuDevicePoll(g_wgpu_device, 1.0, 0.0)` loop.
   2. While achieving 14.8 ms/layer decode latency (5.4x faster than CPU INT8 decode), synchronous polling forces CPU thread waits between layer transitions.
-- **Proposed Resolution (Sprint 517)**: 
+- **Proposed Resolution (Sprint 519+)**: 
   1. Benchmark staging ring buffers and explore double-buffered asynchronous mapping.
+
+## [ISSUE-373] [RESOLVED] Stdin CRLF / Empty Input REPL Premature Termination Bug in `cartan_read_line()`
+- **Severity**: High (Terminal Interactive Usability)
+- **Component**: [`src/cartanc/core_runtime.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/core_runtime.car) -> `cartan_read_line`
+- **Description**:
+  1. On Windows, pressing Enter produces `\r\n` (13, 10). `cartan_read_line()` terminated at `\r` (13.0), leaving `\n` (10.0) in the stdin buffer.
+  2. Upon printing the `User>` prompt for Turn 2, `cartan_read_line()` read the leftover `\n`, observed `len == 0.0 && done == 1.0`, and returned `"exit"`.
+  3. `test/geomind/main.car` received `"exit"` and immediately aborted the REPL session after Turn 1.
+- **Resolution (Sprint 518)**:
+  1. Updated `cartan_read_line()` to discard leading `\r` and `\n` characters when `len == 0.0`.
+  2. Restricted `"exit"` return strictly to genuine EOF conditions (`ch < 0.0`).
+  3. Validated multi-turn continuous interactive REPL input across multiple turns without premature exit.
+
+## [ISSUE-374] [RESOLVED] 18.4 GB Redundant `memcpy` on Shared KV Layers 24..41 in Batched INT8 Forward Pass
+- **Severity**: High (Memory Bus Latency & Prefill Churn)
+- **Component**: [`src/std/transformer.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/transformer.cl) -> `cartan_manifold_layer_forward_batch_int8`
+- **Description**:
+  1. For layers 24..41 (`is_kv_shared == 1.0`), the batched INT8 kernel previously executed `memcpy(cur_k, prev_k, kv_bytes)` and `memcpy(cur_v, prev_v, kv_bytes)`.
+  2. At 128k context, `kv_bytes` is 512 MB per layer, transferring 18.44 GB of redundant host RAM copies on every sequence prefill.
+- **Resolution (Sprint 518)**:
+  1. Removed `memcpy` calls entirely from `cartan_manifold_layer_forward_batch_int8`.
+  2. Routed `kv_source_layer` to layer 23.0 (if global attention) or layer 22.0 (if sliding window) when `layer_idx >= 24.0`.
+  3. Retrieved `k_cache` and `v_cache` directly from `kv_source_layer` with zero memory copies.
+
+## [ISSUE-375] [RESOLVED] Unbounded 128k Default Context Memory Footprint (25.76 GB RAM) Causing Bus Contention
+- **Severity**: Medium (Resource Footprint & Token Generation Speed)
+- **Component**: [`test/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl), [`test/geomind/main.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/main.car)
+- **Description**:
+  1. Default context limit defaulted to 131,072 tokens across 24 KV layers, allocating 25.76 GB of host RAM upon startup.
+  2. High memory footprint resulted in cache line evictions, page table overhead, and reduced token generation throughput.
+- **Resolution (Sprint 518)**:
+  1. Changed default context limit to 8,192 tokens (8k, 1.50 GB RAM) in `chat.cl` and `main.car`.
+  2. Maintained dynamic scaling up to 131,072 tokens via CLI argument `-context 131072` and REPL command `/context 131072`.
+
 
 
 

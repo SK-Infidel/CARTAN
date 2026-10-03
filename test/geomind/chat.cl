@@ -2084,7 +2084,7 @@ var g_manifold_v_caches: ptr = 0.0;
 var g_manifold_kv_init: float = 0.0;
 var g_ephemeral_memory: float = 0.0;
 var g_chat_session_pos: float = 0.0;
-var g_chat_context_limit: float = 131072.0;
+var g_chat_context_limit: float = 8192.0;
 
 fn geomind_chat_get_context_limit() -> float {
     return g_chat_context_limit;
