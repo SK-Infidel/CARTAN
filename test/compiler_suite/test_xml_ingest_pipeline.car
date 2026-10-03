@@ -31,7 +31,7 @@ fn main(argc: float, argv: ptr) -> float {
     cartan_assert(f2 == 20.0, "queue FIFO order check 2");
 
     // 2. Authentic XML DOM Parsing & Attribute Extraction
-    let xml_sample = "<catalog><book id=\"42\"><title>Cartan Architecture</title><author>Google DeepMind</author></book></catalog>";
+    let xml_sample = "<catalog><book id=\"42\"><title>Cartan Architecture</title><author>Cartan Mind</author></book></catalog>";
     let root = xml::parse(xml_sample);
     cartan_assert(root != 0.0, "xml::parse root creation");
 
@@ -39,7 +39,7 @@ fn main(argc: float, argv: ptr) -> float {
     cartan_assert(cartan_string_eq(title_text, "Cartan Architecture") == 1.0, "xml::get_text title mismatch");
 
     let author_text = xml::get_text(root, "author");
-    cartan_assert(cartan_string_eq(author_text, "Google DeepMind") == 1.0, "xml::get_text author mismatch");
+    cartan_assert(cartan_string_eq(author_text, "Cartan Mind") == 1.0, "xml::get_text author mismatch");
 
     let book_elem = xml::get_element(root, "book");
     let book_id = xml::get_attribute(book_elem, "id");

@@ -1068,44 +1068,51 @@ fn geomind_chat_learn_conversational_turn(speaker: string, text: string) -> floa
         }
         if (cartan_string_length(cand_user) > 1.0 && cartan_string_length(cand_user) < 40.0) {
             let lower_u = veto_string_to_lower(cand_user);
+            var target_user_id = "";
             if (cartan_string_contains(lower_u, "rick") == 1.0) {
-                g_active_user_id = "User:Rick";
+                target_user_id = "User:Rick";
+                g_active_user_id = target_user_id;
                 g_active_user_verified = 1.0;
                 sqlite_vec_set_user_attr(db, "User:Rick", "preferred_name", cand_user);
+                sqlite_vec_set_user_attr(db, "User:Rick", "role", "Creator & Architect");
+                sqlite_vec_set_user_attr(db, "User:Rick", "relationship", "Father / Primary Creator");
+                sqlite_vec_set_user_attr(db, "User:Rick", "permission_tier", "root");
                 printf("[Cognitive Memory] Identified interlocutor: User:Rick (Creator & Architect, Domain 10)\n");
             } else {
-                let u_id = cartan_string_concat("User:", cand_user);
-                g_active_user_id = u_id;
+                target_user_id = cartan_string_concat("User:", cand_user);
+                g_active_user_id = target_user_id;
                 g_active_user_verified = 1.0;
-                sqlite_vec_set_user_attr(db, u_id, "preferred_name", cand_user);
-                sqlite_vec_set_user_attr(db, u_id, "role", "Visitor");
-                sqlite_vec_set_user_attr(db, u_id, "relationship", "Conversational Partner");
-                sqlite_vec_set_user_attr(db, u_id, "permission_tier", "guest");
-                printf("[Cognitive Memory] Registered new interlocutor: %s in Domain 10 (USERS_AND_RELATIONSHIPS)\n", u_id);
-
-                // Handle guest face enrollment if an unrecognized snapshot is pending
-                if (g_pending_guest_face == 1.0 && g_active_face_embedding != 0.0) {
-                    let lower_txt = veto_string_to_lower(text);
-                    var has_refusal = 0.0;
-                    if (cartan_string_contains(lower_txt, "no") == 1.0 ||
-                        cartan_string_contains(lower_txt, "don't") == 1.0 ||
-                        cartan_string_contains(lower_txt, "do not") == 1.0 ||
-                        cartan_string_contains(lower_txt, "never") == 1.0 ||
-                        cartan_string_contains(lower_txt, "refuse") == 1.0) {
-                        has_refusal = 1.0;
-                    }
-                    if (has_refusal == 0.0) {
-                        let csv_face = vision_serialize_vector_csv(g_active_face_embedding, 320.0);
-                        sqlite_vec_save_user_face_embedding(db, u_id, csv_face);
-                        printf("[GeoMind Biometrics] Consensual enrollment: Saved 320-D eikonal face map for '%s' in Domain 10 (USERS_AND_RELATIONSHIPS).\n", u_id);
-                    } else {
-                        printf("[GeoMind Biometrics] Consent declined: Interlocutor requested NOT to be remembered. Discarding pending face map.\n");
-                    }
-                    g_pending_guest_face = 0.0;
-                    free(lower_txt);
-                }
+                sqlite_vec_set_user_attr(db, target_user_id, "preferred_name", cand_user);
+                sqlite_vec_set_user_attr(db, target_user_id, "role", "Visitor");
+                sqlite_vec_set_user_attr(db, target_user_id, "relationship", "Conversational Partner");
+                sqlite_vec_set_user_attr(db, target_user_id, "permission_tier", "guest");
+                printf("[Cognitive Memory] Registered new interlocutor: %s in Domain 10 (USERS_AND_RELATIONSHIPS)\n", target_user_id);
             }
-            free(lower_u);
+
+            // Handle face enrollment for ALL users (including User:Rick) if an unrecognized snapshot is pending
+            if (g_pending_guest_face == 1.0 && g_active_face_embedding != 0.0) {
+                let lower_txt = veto_string_to_lower(text);
+                var has_refusal = 0.0;
+                if (cartan_string_contains(lower_txt, "no") == 1.0 ||
+                    cartan_string_contains(lower_txt, "don't") == 1.0 ||
+                    cartan_string_contains(lower_txt, "do not") == 1.0 ||
+                    cartan_string_contains(lower_txt, "never") == 1.0 ||
+                    cartan_string_contains(lower_txt, "refuse") == 1.0) {
+                    has_refusal = 1.0;
+                }
+                if (has_refusal == 0.0) {
+                    let csv_face = vision_serialize_vector_csv(g_active_face_embedding, 320.0);
+                    sqlite_vec_save_user_face_embedding(db, target_user_id, csv_face);
+                    sqlite_vec_set_user_attr(db, target_user_id, "face_registered", "1");
+                    printf("[GeoMind Biometrics] Consensual enrollment: Saved 320-D eikonal face map for '%s' in Domain 10 (USERS_AND_RELATIONSHIPS).\n", target_user_id);
+                } else {
+                    printf("[GeoMind Biometrics] Consent declined: Interlocutor requested NOT to be remembered. Discarding pending face map.\n");
+                }
+                g_pending_guest_face = 0.0;
+                if (cartan_string_length(lower_txt) > 0.0) { free(lower_txt); }
+            }
+
+            if (cartan_string_length(lower_u) > 0.0) { free(lower_u); }
             cartan_flush(0.0);
             learned = learned + 1.0;
         }
@@ -1152,13 +1159,20 @@ fn geomind_chat_learn_conversational_turn(speaker: string, text: string) -> floa
                     } else if (cartan_string_contains(lower_a, "me") == 0.0) {
                         target_enroll_user = cartan_string_concat("User:", cand_assoc);
                     }
-                    free(lower_a);
+                    if (cartan_string_length(lower_a) > 0.0) { free(lower_a); }
                 }
                 if (cartan_string_eq(target_enroll_user, "User:Guest") == 1.0) {
                     target_enroll_user = "User:Rick"; // Default to owner profile on explicit camera association request
                 }
                 let csv_emb = vision_serialize_vector_csv(cam_emb, 320.0);
                 sqlite_vec_save_user_face_embedding(db, target_enroll_user, csv_emb);
+                sqlite_vec_set_user_attr(db, target_enroll_user, "face_registered", "1");
+                if (cartan_string_eq(target_enroll_user, "User:Rick") == 1.0) {
+                    sqlite_vec_set_user_attr(db, target_enroll_user, "preferred_name", "Rick");
+                    sqlite_vec_set_user_attr(db, target_enroll_user, "role", "Creator & Architect");
+                    sqlite_vec_set_user_attr(db, target_enroll_user, "relationship", "Father / Primary Creator");
+                    sqlite_vec_set_user_attr(db, target_enroll_user, "permission_tier", "root");
+                }
                 g_active_user_id = target_enroll_user;
                 g_active_user_verified = 1.0;
                 g_pending_guest_face = 0.0;
@@ -1167,7 +1181,7 @@ fn geomind_chat_learn_conversational_turn(speaker: string, text: string) -> floa
                 learned = learned + 1.0;
             }
         }
-        free(lower_cam);
+        if (cartan_string_length(lower_cam) > 0.0) { free(lower_cam); }
 
         // 3. User teaching the model creator
         var cand_creator = geomind_extract_pattern_value(text, "your creator is ");
@@ -1226,7 +1240,7 @@ fn geomind_chat_learn_conversational_turn(speaker: string, text: string) -> floa
                     cartan_flush(0.0);
                     learned = learned + 1.0;
                 }
-                free(lower_m);
+                if (cartan_string_length(lower_m) > 0.0) { free(lower_m); }
             }
         }
     }
@@ -1246,8 +1260,21 @@ fn geomind_chat_build_cognitive_preamble(db: ptr) -> string {
     pre = cartan_string_concat(pre, s_creator);
     pre = cartan_string_concat(pre, ".");
 
-    if (cartan_string_eq(g_active_user_id, "User:Rick") == 1.0 && g_active_user_verified == 1.0) {
-        pre = cartan_string_concat(pre, " The user speaking with you is Rick (Creator & Architect).");
+    if (g_active_user_verified == 1.0) {
+        let p_name = sqlite_vec_get_user_attr(db, g_active_user_id, "preferred_name");
+        let p_role = sqlite_vec_get_user_attr(db, g_active_user_id, "role");
+        pre = cartan_string_concat(pre, " The user speaking with you is ");
+        if (cartan_string_length(p_name) > 0.0) {
+            pre = cartan_string_concat(pre, p_name);
+        } else {
+            pre = cartan_string_concat(pre, g_active_user_id);
+        }
+        if (cartan_string_length(p_role) > 0.0) {
+            pre = cartan_string_concat(pre, " (");
+            pre = cartan_string_concat(pre, p_role);
+            pre = cartan_string_concat(pre, ")");
+        }
+        pre = cartan_string_concat(pre, ".");
     } else if (g_pending_guest_face == 1.0) {
         pre = cartan_string_concat(pre, " The person speaking with you is a guest observed via camera. Greet them politely.");
     }
@@ -1261,6 +1288,55 @@ fn geomind_chat_retrieve_factual_attractor(prompt: string, domain_id: float) -> 
     let matched_attr = cartan_sqlite_find_entity_attribute_in_prompt(db, prompt);
     if (cartan_string_length(matched_attr) > 0.0) {
         return cartan_string_concat(" ", matched_attr);
+    }
+    return "";
+}
+
+// Scans prompt for semantic triggers requesting recall of prior topics/statements
+fn geomind_chat_detect_associative_trigger(prompt: string) -> float {
+    if (cartan_string_length(prompt) == 0.0) { return 0.0; }
+    if (cartan_string_contains(prompt, "remember") == 1.0 ||
+        cartan_string_contains(prompt, "Remember") == 1.0 ||
+        cartan_string_contains(prompt, "recall") == 1.0 ||
+        cartan_string_contains(prompt, "Recall") == 1.0 ||
+        cartan_string_contains(prompt, "earlier") == 1.0 ||
+        cartan_string_contains(prompt, "Earlier") == 1.0 ||
+        cartan_string_contains(prompt, "you said") == 1.0 ||
+        cartan_string_contains(prompt, "You said") == 1.0 ||
+        cartan_string_contains(prompt, "we were talking") == 1.0 ||
+        cartan_string_contains(prompt, "a while back") == 1.0 ||
+        cartan_string_contains(prompt, "past conversation") == 1.0 ||
+        cartan_string_contains(prompt, "do you know") == 1.0 ||
+        cartan_string_contains(prompt, "Do you know") == 1.0) {
+        return 1.0;
+    }
+    return 0.0;
+}
+
+// Retrieves concise 1-line episodic abstracts on demand from Cognitive Memory
+fn geomind_chat_retrieve_episodic_recall(prompt: string) -> string {
+    let db = geomind_chat_get_db();
+    if (db == 0.0) { return ""; }
+    let sql = "SELECT speaker, content FROM episodes WHERE session_id = 'session_active' ORDER BY episode_id DESC LIMIT 4;";
+    let stmt = sqlite_vec_prepare(db, sql);
+    if (stmt == 0.0) { return ""; }
+    var recalled = "";
+    while (cartan_sqlite_step(stmt) == 100.0) {
+        let spk = cartan_sqlite_column_text(stmt, 0.0);
+        let cnt = cartan_sqlite_column_text(stmt, 1.0);
+        if (cartan_string_length(cnt) > 0.0) {
+            var r_len = cartan_string_length(cnt);
+            if (r_len > 80.0) { r_len = 80.0; }
+            let summary_sub = cartan_string_substring(cnt, 0.0, r_len);
+            let line = cartan_string_concat(spk, ": ");
+            let line2 = cartan_string_concat(line, summary_sub);
+            let line3 = cartan_string_concat(line2, " | ");
+            recalled = cartan_string_concat(recalled, line3);
+        }
+    }
+    cartan_sqlite_finalize(stmt);
+    if (cartan_string_length(recalled) > 0.0) {
+        return cartan_string_concat("Relevant Prior Context: ", recalled);
     }
     return "";
 }
@@ -1398,16 +1474,60 @@ fn geomind_chat_switch_user(user_id: string) {
 fn geomind_chat_capture_face_frame() -> ptr {
     printf("[GeoMind Vision] Activating hardware camera...\n");
     cartan_flush(0.0);
-    if (cartan_file_exists("scratch/camera_frame.bmp") == 1.0) {
-        remove("scratch/camera_frame.bmp");
+
+    // 1. Resolve capture_camera executable location
+    var cam_exe = geomind_chat_resolve_path("tools/capture_camera.exe");
+    if (cartan_file_exists(cam_exe) == 0.0) {
+        if (cartan_file_exists("capture_camera.exe") == 1.0) {
+            cam_exe = "capture_camera.exe";
+        } else if (cartan_file_exists("bin/capture_camera.exe") == 1.0) {
+            cam_exe = "bin/capture_camera.exe";
+        } else if (cartan_file_exists("../capture_camera.exe") == 1.0) {
+            cam_exe = "../capture_camera.exe";
+        }
     }
-    let ret = system("tools\\capture_camera.exe scratch/camera_frame.bmp 640 480");
-    if (ret != 0.0 || cartan_file_exists("scratch/camera_frame.bmp") == 0.0) {
+
+    // 2. Resolve temporary scratch output path
+    var bmp_path = "scratch/camera_frame.bmp";
+    if (cartan_file_exists("scratch") == 0.0) {
+        if (cartan_file_exists("../scratch") == 1.0) {
+            bmp_path = "../scratch/camera_frame.bmp";
+        } else if (cartan_file_exists("../../scratch") == 1.0) {
+            bmp_path = "../../scratch/camera_frame.bmp";
+        } else {
+            bmp_path = "camera_frame.bmp";
+        }
+    }
+
+    if (cartan_file_exists(bmp_path) == 1.0) {
+        remove(bmp_path);
+    }
+
+    if (cartan_file_exists(cam_exe) == 0.0) {
+        printf("[GeoMind Vision] Error: capture_camera utility not found (looked for %s). Continuing in text mode.\n", cam_exe);
+        return 0.0;
+    }
+
+    // 3. Assemble Windows-safe command with backslashes
+    let win_cam = cartan_string_replace(cam_exe, "/", "\\");
+    let win_bmp = cartan_string_replace(bmp_path, "/", "\\");
+    var cmd = cartan_string_concat(win_cam, " ");
+    cmd = cartan_string_concat(cmd, win_bmp);
+    cmd = cartan_string_concat(cmd, " 640 480");
+    if (cartan_string_contains(win_cam, " ") == 1.0 || cartan_string_contains(win_bmp, " ") == 1.0) {
+        cmd = cartan_string_concat("\"\"", win_cam);
+        cmd = cartan_string_concat(cmd, "\" \"");
+        cmd = cartan_string_concat(cmd, win_bmp);
+        cmd = cartan_string_concat(cmd, "\" 640 480\"");
+    }
+
+    let ret = system(cmd);
+    if (ret != 0.0 || cartan_file_exists(bmp_path) == 0.0) {
         printf("[GeoMind Vision] Camera unavailable or not detected (code %s). Continuing in text mode.\n", cartan_float_to_string(ret));
         return 0.0;
     }
-    let img = vision_load_bmp("scratch/camera_frame.bmp");
-    remove("scratch/camera_frame.bmp");
+    let img = vision_load_bmp(bmp_path);
+    remove(bmp_path);
     if (img.width <= 0.0 || img.height <= 0.0) {
         printf("[GeoMind Vision] Error: Could not decode captured camera BMP frame.\n");
         return 0.0;
@@ -1439,6 +1559,13 @@ fn geomind_chat_register_face(user_id: string) -> float {
     let csv = vision_serialize_vector_csv(emb, 320.0);
     let ok = sqlite_vec_save_user_face_embedding(db, user_id, csv);
     if (ok == 1.0) {
+        sqlite_vec_set_user_attr(db, user_id, "face_registered", "1");
+        if (cartan_string_eq(user_id, "User:Rick") == 1.0) {
+            sqlite_vec_set_user_attr(db, user_id, "preferred_name", "Rick");
+            sqlite_vec_set_user_attr(db, user_id, "role", "Creator & Architect");
+            sqlite_vec_set_user_attr(db, user_id, "relationship", "Father / Primary Creator");
+            sqlite_vec_set_user_attr(db, user_id, "permission_tier", "root");
+        }
         printf("[GeoMind Biometrics] Successfully enrolled face map for '%s' in Domain 10 (USERS_AND_RELATIONSHIPS).\n\n", user_id);
         g_active_user_id = user_id;
         g_active_user_verified = 1.0;
@@ -1502,10 +1629,82 @@ fn geomind_chat_startup_biometric_scan(db: ptr) -> float {
     }
 
     if (best_sim > 0.0) {
-        printf("\n[GeoMind Biometrics] Interlocutor not recognized (best similarity %.4f < 0.85). Initiating Guest onboarding session.\n\n", best_sim);
+        printf("\n[GeoMind Biometrics] Interlocutor not recognized (best similarity %.4f < 0.85).\n", best_sim);
     } else {
-        printf("\n[GeoMind Biometrics] No enrolled face maps in Domain 10. Initiating Guest onboarding session.\n\n");
+        printf("\n[GeoMind Biometrics] No enrolled face maps in Domain 10.\n");
     }
+
+    // Interactive Onboarding Prompt
+    printf("[GeoMind Biometrics] Unregistered interlocutor detected.\n");
+    printf("Would you like to register your biometric face map and configure your profile? (y/n): ");
+    cartan_flush(0.0);
+
+    cartan_trans_pool_enter_standby();
+    let resp = cartan_read_line();
+    cartan_trans_pool_resume_active();
+    let lower_resp = veto_string_to_lower(resp);
+
+    var is_affirmative = 0.0;
+    if (cartan_string_starts_with(lower_resp, "y") == 1.0 && cartan_string_eq(resp, "exit") == 0.0) {
+        is_affirmative = 1.0;
+    }
+    if (cartan_string_length(lower_resp) > 0.0) { free(lower_resp); }
+
+    if (is_affirmative == 1.0) {
+        printf("Enter your name [default: Rick]: ");
+        cartan_flush(0.0);
+        cartan_trans_pool_enter_standby();
+        var in_name = cartan_read_line();
+        cartan_trans_pool_resume_active();
+        if (cartan_string_length(in_name) == 0.0 || cartan_string_eq(in_name, "exit") == 1.0) {
+            in_name = "Rick";
+        }
+
+        printf("Enter your role / relationship [default: Creator & Architect]: ");
+        cartan_flush(0.0);
+        cartan_trans_pool_enter_standby();
+        var in_role = cartan_read_line();
+        cartan_trans_pool_resume_active();
+        if (cartan_string_length(in_role) == 0.0 || cartan_string_eq(in_role, "exit") == 1.0) {
+            in_role = "Creator & Architect";
+        }
+
+        let lower_name = veto_string_to_lower(in_name);
+        var target_id = "";
+        var rel = "";
+        var tier = "";
+
+        if (cartan_string_contains(lower_name, "rick") == 1.0) {
+            target_id = "User:Rick";
+            rel = "Father / Primary Creator";
+            tier = "root";
+        } else {
+            target_id = cartan_string_concat("User:", in_name);
+            rel = in_role;
+            tier = "user";
+        }
+        if (cartan_string_length(lower_name) > 0.0) { free(lower_name); }
+
+        let csv = vision_serialize_vector_csv(live_emb, 320.0);
+        sqlite_vec_save_user_face_embedding(db, target_id, csv);
+        sqlite_vec_set_user_attr(db, target_id, "preferred_name", in_name);
+        sqlite_vec_set_user_attr(db, target_id, "role", in_role);
+        sqlite_vec_set_user_attr(db, target_id, "relationship", rel);
+        sqlite_vec_set_user_attr(db, target_id, "permission_tier", tier);
+        sqlite_vec_set_user_attr(db, target_id, "face_registered", "1");
+
+        g_active_user_id = target_id;
+        g_active_user_verified = 1.0;
+        g_pending_guest_face = 0.0;
+        g_active_face_embedding = live_emb;
+
+        printf("\n[GeoMind Biometrics] Successfully enrolled face profile for '%s' (%s) in Domain 10.\n", in_name, in_role);
+        printf("[GeoMind Biometrics] 320-D eikonal unit vector on S^319 linked to %s. Session authenticated!\n\n", target_id);
+        cartan_flush(0.0);
+        return 1.0;
+    }
+
+    printf("[GeoMind Biometrics] Onboarding deferred. Continuing in unverified Guest mode.\n\n");
     g_active_user_id = "User:Guest";
     g_active_user_verified = 0.0;
     g_pending_guest_face = 1.0;
@@ -1648,6 +1847,8 @@ fn geomind_chat_start() -> float {
     geomind_warm_all_layer_buffers();
     geomind_load_ple_assets_if_needed();
     printf("[GeoMind Chat] Pinned 42-Layer Sovereign Manifold in host memory (15.6 GB resident).\n");
+    printf("[GeoMind Chat] Active Context Window: %.0f tokens (KV Cache: 24 active layers, %.2f GB resident).\n",
+        g_chat_context_limit, (24.0 * g_chat_context_limit * 1024.0 * 8.0) / 1073741824.0);
     cartan_flush(0.0);
     return 0.0;
 }
@@ -1882,6 +2083,40 @@ var g_manifold_k_caches: ptr = 0.0;
 var g_manifold_v_caches: ptr = 0.0;
 var g_manifold_kv_init: float = 0.0;
 var g_ephemeral_memory: float = 0.0;
+var g_chat_session_pos: float = 0.0;
+var g_chat_context_limit: float = 131072.0;
+
+fn geomind_chat_get_context_limit() -> float {
+    return g_chat_context_limit;
+}
+
+fn geomind_chat_set_context_limit(limit: float) -> float {
+    if (limit <= 0.0) { return 0.0; }
+    let ok = cartan_kv_cache_set_capacity(limit);
+    if (ok == 1.0) {
+        g_chat_context_limit = limit;
+        return limit;
+    }
+    printf("  [GeoMind Context] Warning: Failed to allocate KV arena for %.0f tokens. Attempting fallback...\n", limit);
+    var fallback = 32768.0;
+    if (limit <= 32768.0) { fallback = 8192.0; }
+    if (limit <= 8192.0) { fallback = 2048.0; }
+    let fb_ok = cartan_kv_cache_set_capacity(fallback);
+    if (fb_ok == 1.0) {
+        g_chat_context_limit = fallback;
+        printf("  [GeoMind Context] Fallback KV arena successfully allocated: %.0f tokens.\n", fallback);
+        return fallback;
+    }
+    return 0.0;
+}
+
+fn geomind_chat_get_session_pos() -> float {
+    return g_chat_session_pos;
+}
+
+fn geomind_chat_set_session_pos(pos: float) {
+    g_chat_session_pos = pos;
+}
 
 fn geomind_chat_set_ephemeral_memory(flag: float) {
     g_ephemeral_memory = flag;
@@ -2132,15 +2367,19 @@ fn geomind_chat_mount_gpu_if_needed() -> float {
 
 // Full multi-token causal prompt sequence prefill across all 42 Sovereign Manifold layers
 // Layer-outer execution: Streams each 372MB layer from RAM exactly ONCE (<1s latency)
-fn geomind_execute_manifold_sequence_prefill(prompt_tokens: ptr) -> ptr {
+fn geomind_execute_manifold_sequence_prefill(prompt_tokens: ptr, start_pos: float) -> ptr {
     cartan_manifold_set_decode_mode(0.0);
-    geomind_reset_kv_caches();
+    if (start_pos == 0.0) {
+        geomind_reset_kv_caches();
+    }
     geomind_load_ple_assets_if_needed();
     geomind_warm_all_layer_buffers();
     let num_tokens = cartan_vec_len(prompt_tokens);
     if (num_tokens <= 0.0) { return 0.0; }
-    printf("[PREFILL] Starting prefill for %s tokens...\n", cartan_float_to_string(num_tokens));
-    cartan_flush(0.0);
+    if (g_chat_debug_mode == 1.0 || start_pos == 0.0) {
+        printf("[PREFILL] Starting prefill for %s tokens at position %s...\n", cartan_float_to_string(num_tokens), cartan_float_to_string(start_pos));
+        cartan_flush(0.0);
+    }
 
     let token_states = cartan_tree_create();
     var p = 0.0;
@@ -2159,7 +2398,7 @@ fn geomind_execute_manifold_sequence_prefill(prompt_tokens: ptr) -> ptr {
     while (l < 42.0) {
         let layer_buf = geomind_get_layer_buffer(l);
         if (layer_buf != 0.0) {
-            cartan_manifold_layer_forward_batch(token_states, layer_buf, prompt_tokens, num_tokens);
+            cartan_manifold_layer_forward_batch(token_states, layer_buf, prompt_tokens, num_tokens, start_pos);
         }
         l = l + 1.0;
     }
@@ -2210,6 +2449,8 @@ fn geomind_execute_manifold_decode_step(sampled_tok: float, pos: float) -> ptr {
 }
 
 fn geomind_chat_clear_session() -> float {
+    g_chat_session_pos = 0.0;
+    geomind_reset_kv_caches();
     let db = geomind_chat_get_db();
     if (db != 0.0) {
         cartan_sqlite_exec(db, "DELETE FROM episodes WHERE session_id = 'session_active';");
@@ -2281,11 +2522,21 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
     let db = geomind_chat_get_db();
     let preamble = geomind_chat_build_cognitive_preamble(db);
 
+    // FIFO Context Window Guard: dynamic horizon protection
+    var guard = 512.0;
+    if (g_chat_context_limit <= 2048.0) { guard = 128.0; }
+    if (g_chat_session_pos + guard >= g_chat_context_limit) {
+        printf("[GeoMind Memory] Context window horizon reached (%.0f / %.0f tokens). Cycling KV cache into episodic memory.\n", g_chat_session_pos, g_chat_context_limit);
+        cartan_flush(0.0);
+        g_chat_session_pos = 0.0;
+        geomind_reset_kv_caches();
+    }
+
     var prompt_tokens: ptr = 0.0;
     if (cartan_string_starts_with(prompt, "<|turn>") == 1.0) {
         prompt_tokens = cartan_hub_encode_text_to_tokens(prompt);
-    } else {
-        // Authentic Sovereign GeoMind Instruction Chat Turn Delimiters:
+    } else if (g_chat_session_pos == 0.0) {
+        // --- Turn 1: Initial Session Prompt Assembly ---
         prompt_tokens = cartan_vec_create();
         cartan_vec_push_f32(prompt_tokens, 2.0); // <bos>
 
@@ -2307,35 +2558,49 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
             cartan_vec_push_f32(prompt_tokens, 107.0);
         }
 
-        // Multi-Turn Conversational Dialogue History from Cognitive Memory:
-        if (db != 0.0 && g_ephemeral_memory == 0.0) {
-            let ep_stmt = cartan_sqlite_prepare_prior_episodes(db, "session_active", 4.0);
-            if (ep_stmt != 0.0) {
-                var hist_turns = 0.0;
-                while (cartan_sqlite_step(ep_stmt) == 100.0) {
-                    let ep_spk = cartan_sqlite_column_text(ep_stmt, 0.0);
-                    let ep_cnt = cartan_sqlite_column_text(ep_stmt, 1.0);
-                    if (cartan_string_length(ep_cnt) > 0.0) {
-                        var role_tok = 4368.0; // model
-                        if (cartan_string_eq(ep_spk, "user") == 1.0 || cartan_string_eq(ep_spk, "User") == 1.0) {
-                            role_tok = 2364.0; // user
-                        }
-                        geomind_chat_append_turn_tokens(prompt_tokens, role_tok, ep_cnt);
-                        hist_turns = hist_turns + 1.0;
-                    }
-                }
-                cartan_sqlite_finalize(ep_stmt);
-                if (hist_turns > 0.0 && g_chat_debug_mode == 1.0) {
-                    printf("[GeoMind Dialogue] Ingested %s prior conversational turn(s) into active session context.\n", cartan_float_to_string(hist_turns));
-                }
-            }
-        }
-
         // Native Sovereign GeoMind Current User Turn:
         geomind_chat_append_turn_tokens(prompt_tokens, 2364.0, prompt);
 
         // Model Generation Starter:
         // <|turn> (105) model (4368) \n (107)
+        cartan_vec_push_f32(prompt_tokens, 105.0);
+        cartan_vec_push_f32(prompt_tokens, 4368.0);
+        cartan_vec_push_f32(prompt_tokens, 107.0);
+    } else {
+        // --- Turn N > 1: Incremental Turn Prompt Assembly ---
+        // Dialogue history remains resident in persistent KV cache arenas
+        prompt_tokens = cartan_vec_create();
+
+        // Ingest previous turn's model delimiters into KV cache: <turn|> (106) \n (107)
+        cartan_vec_push_f32(prompt_tokens, 106.0);
+        cartan_vec_push_f32(prompt_tokens, 107.0);
+
+        // On-Demand Triggered Associative Recall from Long-Term Episodic Memory
+        if (geomind_chat_detect_associative_trigger(prompt) == 1.0) {
+            let recalled_mem = geomind_chat_retrieve_episodic_recall(prompt);
+            if (cartan_string_length(recalled_mem) > 0.0) {
+                printf("[GeoMind Associative Recall] Triggered memory outline retrieval: \"%s\"\n", recalled_mem);
+                cartan_flush(0.0);
+                cartan_vec_push_f32(prompt_tokens, 105.0);
+                cartan_vec_push_f32(prompt_tokens, 9731.0);
+                cartan_vec_push_f32(prompt_tokens, 107.0);
+                let rec_toks = cartan_hub_encode_text_to_tokens(recalled_mem);
+                let n_rec = cartan_vec_len(rec_toks);
+                var r_idx = 0.0;
+                while (r_idx < n_rec) {
+                    cartan_vec_push_f32(prompt_tokens, cartan_vec_get_f32(rec_toks, r_idx));
+                    r_idx = r_idx + 1.0;
+                }
+                cartan_vec_free(rec_toks);
+                cartan_vec_push_f32(prompt_tokens, 106.0);
+                cartan_vec_push_f32(prompt_tokens, 107.0);
+            }
+        }
+
+        // Native Sovereign GeoMind Incremental User Turn:
+        geomind_chat_append_turn_tokens(prompt_tokens, 2364.0, prompt);
+
+        // Model Generation Starter:
         cartan_vec_push_f32(prompt_tokens, 105.0);
         cartan_vec_push_f32(prompt_tokens, 4368.0);
         cartan_vec_push_f32(prompt_tokens, 107.0);
@@ -2395,7 +2660,7 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
 
     // 42-Layer Sovereign Manifold Causal Sequence Prefill with KV Caching
     let t_prefill_start = clock();
-    var cur_h = geomind_execute_manifold_sequence_prefill(prompt_tokens);
+    var cur_h = geomind_execute_manifold_sequence_prefill(prompt_tokens, g_chat_session_pos);
     let t_prefill_end = clock();
     let dt_prefill = t_prefill_end - t_prefill_start;
     if (cur_h == 0.0) {
@@ -2488,6 +2753,7 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
     var step = 0.0;
     var max_t = 2048.0;
     if (max_tokens > 0.0) { max_t = max_tokens; }
+    if (max_t > g_chat_context_limit) { max_t = g_chat_context_limit; }
 
     cartan_doubt_checkpoint(cur_h, mom, history, 0.0, temp);
     var current_temp = temp;
@@ -2596,7 +2862,7 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
 
             // Genuine 42-Layer Sovereign Manifold Causal Decode Step with Fluid Interleaved Character Streaming
             let t_d0 = clock();
-            let next_decode_h = geomind_execute_manifold_decode_step(sampled_tok, num_prompt_toks + step);
+            let next_decode_h = geomind_execute_manifold_decode_step(sampled_tok, g_chat_session_pos + num_prompt_toks + step);
             let t_d1 = clock();
             if (step == 0.0 && g_chat_debug_mode == 1.0) {
                 printf("\n[Step 0 Timing Probe] LM Head: %.0f ms | Sample: %.0f ms | 42 Layers: %.0f ms\n",
@@ -2624,9 +2890,10 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
         if (dt_decode > 0.0 && step > 0.0) {
             tok_per_sec = (step * 1000.0) / dt_decode;
         }
-        printf("[GeoMind Telemetry] Prefill: %.0f ms (%s tokens) | Decode: %.0f ms (%s tokens, %.1f tok/s)\n",
-               dt_prefill, cartan_float_to_string(num_prompt_toks), dt_decode, cartan_float_to_string(step), tok_per_sec);
+        printf("[GeoMind Telemetry] Prefill: %.0f ms (%s tokens) | Decode: %.0f ms (%s tokens, %.1f tok/s) | Context Horizon: %.0f\n",
+               dt_prefill, cartan_float_to_string(num_prompt_toks), dt_decode, cartan_float_to_string(step), tok_per_sec, g_chat_session_pos + num_prompt_toks + step);
         cartan_flush(0.0);
+        g_chat_session_pos = g_chat_session_pos + num_prompt_toks + step;
         cartan_vec_free(mom);
         cartan_vec_free(history);
 

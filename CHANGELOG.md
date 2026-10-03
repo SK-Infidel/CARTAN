@@ -1,3 +1,94 @@
+## [8.469.0] - 2026-10-02 (Sprint 513: Configurable 128k Context Window Architecture & Biometric Slash Normalization)
+
+### Completed & Validated
+- **Configurable 128k Context Window Architecture (`src/std/transformer.cl`, `[ISSUE-367]`)**:
+  - Implemented `cartan_kv_cache_set_capacity(max_seq)` and `cartan_kv_cache_get_capacity()` with atomic buffer reallocation and graceful fallback.
+  - Sized KV arena to 24 active layers ($0..23$), taking advantage of sovereign manifold KV projection sharing on layers 24..41. Reduced 128k memory footprint from 45.09 GB to **24.00 GB** (12.00 GB K + 12.00 GB V), preserving >18 GB free RAM headroom on 64 GB host machines.
+  - Sized `g_trans_scores` attention buffer dynamically to `g_kv_cache_max_seq * 4.0` bytes (512 KB at 128k), eliminating the 4,096-token heap smash bug.
+  - Sized `g_trans_b_k` and `g_trans_b_v` batch prefill scratch buffers to 2048 floats per token ($8 \times 256$) to handle 8 KV heads without overflow.
+  - Implemented dynamic RoPE base frequency scaling $\theta' = \theta \times (\text{max\_seq} / 2048.0)$ in both decode and batch prefill forward passes.
+- **Dynamic Context Controls & REPL Commands (`test/geomind/chat.cl`, `test/geomind/main.car`, `[ISSUE-367]`)**:
+  - Added `geomind_chat_get_context_limit()` and `geomind_chat_set_context_limit(limit)` with fallback memory allocation validation.
+  - Updated FIFO context guard with dynamic horizon: cycles KV cache only when `pos + guard >= g_chat_context_limit`.
+  - Added `-context <N>` / `--context <N>` CLI flags (supporting both space and `=` syntax) defaulting to 131,072 tokens (128k).
+  - Added interactive REPL commands `/context` (queries tokens and utilization) and `/context <N>` (dynamically resizes context window on the fly).
+  - Updated help dialogue and startup logging with active context capacity and resident RAM statistics.
+- **Windows Subprocess Slash Normalization for Biometrics (`test/geomind/chat.cl`, `[ISSUE-368]`)**:
+  - Converted path separators in `cam_exe` and `bmp_path` to native backslashes (`\`) for Windows `cmd.exe /c` execution.
+  - Fixed `'tools' is not recognized as an internal or external command` error.
+  - Verified live hardware camera capture: extracted 320-D eikonal embedding from physical webcam, matched Rick's face map with **0.9670 cosine similarity**, and automatically authenticated Rick's root session at startup.
+- **Empirical Hardware & Regression Verification**:
+  - Validated live 128k inference: `geomind.exe -context 131072 -prompt "What is the speed of light?" -tokens 5` allocated 24.00 GB KV cache, prefilled 38 tokens in 49.3s, and generated coherent text at 1.2 tok/s via WebGPU.
+  - Validated REPL commands via live test: `/context` reported 131,072 tokens, `/context 32768` resized dynamically to 6.00 GB resident, and subsequent query confirmed 32,768 tokens.
+  - Executed Sprint 513 affected regression suite (`tools/run_affected_tests.ps1 -Sprint 513`): **5/5 passed** (Targets 58, 83, 84, 85, 86).
+
+## [8.468.0] - 2026-10-02 (Sprint 512: Thread Pool Idle Standby & Silent REPL Operation)
+
+### Completed & Validated
+- **Dual Standby Architecture (`src/std/transformer.cl`, `[ISSUE-366]`)**:
+  - Implemented `cartan_trans_pool_enter_standby()`, `cartan_trans_pool_resume_active()`, and `cartan_trans_pool_is_standby()`.
+  - Added Win32 `Sleep(10.0)` in worker thread loop during standby (`g_trans_pool_standby == 1.0`), dropping host CPU from ~40% to 0.00% during terminal wait.
+  - Implemented decoupled dual spin-counters: cooperative yield `SwitchToThread()` every 5,000 spins, and adaptive backoff `Sleep(2.0)` upon exceeding 500,000 idle spins.
+  - Added defensive auto-resume in all dispatch routines (`cartan_trans_pool_dispatch*`) ensuring zero lockup on unforeseen inference paths.
+  - Implemented clean teardown `cartan_trans_pool_shutdown()` joining worker threads with `WaitForSingleObject` and closing kernel handles with `CloseHandle`.
+- **REPL & Biometric Standby Integration (`test/geomind/main.car`, `test/geomind/chat.cl`)**:
+  - Wrapped primary `User> ` prompt `cartan_read_line()` in `main.car` with standby enter and resume hooks.
+  - Wrapped all 3 interactive biometric onboarding `cartan_read_line()` calls in `chat.cl` with standby enter and resume hooks.
+  - Hooked `cartan_trans_pool_shutdown()` upon session termination (`exit` / `quit`), guaranteeing zero orphan OS threads.
+- **Empirical Hardware & Regression Verification**:
+  - Verified sustained idle REPL CPU utilization: dropped from ~40% to **0.00%** (empirically measured 0 CPU seconds over 5.02s wall time via `scratch/test_standby_cpu.ps1`). Cooling fans remain completely silent at prompt.
+  - Verified zero degradation in active token decode throughput during generation passes.
+  - Executed Sprint 512 affected regression suite (`tools/run_affected_tests.ps1 -Sprint 512`): 5/5 targets passed cleanly (Targets 58, 83, 84, 85, 86).
+
+## [8.467.0] - 2026-10-02 (Sprint 511: Real-Time Biometric Onboarding & Interlocutor Recognition)
+
+### Completed & Validated
+- **Interactive Startup Biometric Onboarding (`test/geomind/chat.cl`, `[ISSUE-364]`)**:
+  - Implemented interactive onboarding prompt in `geomind_chat_startup_biometric_scan` querying unmapped interlocutors detected via webcam (`y/n`).
+  - Added user configuration for Name (`User:Rick` default) and Relationship (`Creator & Architect` default) with Enter-key fallback handling (`cartan_read_line()` contract).
+  - Serialized live 320-D eikonal unit vector on $S^{319}$ to CSV and persisted to Domain 10 in `cognitive_memory.db` with `face_registered = '1'`, `verified = '1'`, and `permission_tier = 'root'`.
+  - Guarded `veto_string_to_lower` against freeing static string constants `""` to eliminate heap deallocation faults.
+  - Dynamically resolved `capture_camera.exe` and scratch directories across root, `bin/`, and `test/geomind/` execution contexts (`[ISSUE-365]`), eliminating `"The system cannot find the path specified"` failure when launched from subdirectories.
+- **Conversational Enrollment & Dynamic Cognitive Preamble (`test/geomind/chat.cl`, `[ISSUE-364]`)**:
+  - Unified pending face enrollment across all names in `geomind_chat_learn_conversational_turn`, eliminating the exclusion of `User:Rick`.
+  - Generalized `geomind_chat_build_cognitive_preamble` to query Domain 10 and dynamically condition identity preamble on recognized users.
+- **REPL Command Suite Polish (`test/geomind/main.car`)**:
+  - Added `/help` listing all interactive commands: `/whoami`, `/who`, `/identity`, `/state`, `/clear`, `/new`, `/reset`, `/debug`, `/sleep`, `/register-face`, `/verify-face`, and `/capture-face`.
+  - Upgraded `/register-face [user]` to auto-prefix `"User:"` and trigger immediate live webcam ingestion.
+- **Compiler 3-Stage Bootstrap Fixpoint Convergence (`src/cartanc/llvm_codegen.car`)**:
+  - Recompiled and bootstrapped `bin/cartanc.exe` with `@cartan_simd_dot_i8_f32` intrinsic support, achieving bit-for-bit SHA-256 fixpoint parity between Stage 3 and Stage 4 LLVM IR.
+  - Successfully compiled `bin/geomind.exe` with zero linkage errors.
+- **Empirical Hardware & Subsystem Verification**:
+  - Verified unit test suites: `test_face_mapping_and_user_domain.car` (4/4 gates passed) and `test_startup_biometric_onboarding.car` (4/4 gates passed).
+  - Captured authentic 640x480 frame from Rick's physical webcam, extracted 320-D eikonal embedding, registered `User:Rick`, and verified subsequent startup recognized Rick with 0.9975 cosine similarity and authenticated session with 0 prompts.
+
+## [8.466.0] - 2026-10-01 (Sprint 510: Sovereign Cognitive Memory Architecture & Multi-Turn KV Continuity)
+
+### Completed & Validated
+- **Positional Parameterization in Batch Layer Forward (`src/std/transformer.cl`, `[ISSUE-363]`)**:
+  - Parameterized `cartan_manifold_layer_forward_batch` with `start_pos: float`.
+  - Updated RoPE rotary frequency angles for Q and K heads to $\theta = (\text{start\_pos} + p) \times \text{freq}$.
+  - Updated KV cache writes to index physical destination `(start_pos + p) * kv_dim` with physical boundary check `(start_pos + p) < 2048.0`.
+  - Extended causal GQA attention lookback span to `max_seq = start_pos + p + 1.0` (capped at 2048.0), enabling subsequent turns to attend directly to dialogue history resident in the KV cache.
+  - Updated INT8 fallback loop to pass `start_pos + p` and `start_pos + num_tokens` to `cartan_manifold_layer_forward_native`.
+- **Persistent Multi-Turn KV Continuity (`test/geomind/chat.cl`, `test/geomind/main.car`, `[ISSUE-363]`)**:
+  - Introduced global session position tracker `g_chat_session_pos` and gated `geomind_reset_kv_caches()` strictly to `start_pos == 0.0`.
+  - Separated Turn 1 initial prompt assembly (`<bos>`, system preamble, user turn) from Turn $N > 1$ incremental prompt assembly (`[106.0, 107.0]`, user turn, model starter), eliminating SQLite raw episode prefilling.
+  - Slashed Turn 2+ prefill tokens from $400+$ tokens down to **16 tokens** and prefill latency from >25s down to **312 ms** (sub-second fluid turnaround).
+  - Evaluated autoregressive decode at `g_chat_session_pos + num_prompt_toks + step` and advanced session position at turn completion.
+  - Integrated `/reset` in `main.car` alongside `/clear` and `/new` to reset session position to 0.0 and clear KV cache.
+- **Triggered Associative Recall & FIFO Horizon Protection (`test/geomind/chat.cl`, `[ISSUE-363]`)**:
+  - Implemented `geomind_chat_detect_associative_trigger(prompt)` scanning for recall cues (*"remember"*, *"recall"*, *"earlier you said"*, *"we were talking"*, *"do you recall"*).
+  - Implemented `geomind_chat_retrieve_episodic_recall(prompt)`: on-demand retrieval of 1-line episodic abstracts from SQLite `episodes` table when triggers fire, injecting a concise background outline without raw prompt bloat.
+  - Implemented FIFO Context Window Guard: when `g_chat_session_pos + 128.0 >= 2000.0`, safely consolidates active dialogue into episodic memory and cycles the KV cache back to position 0.
+- **Empirical Multi-Turn Verification & Regression Clearance**:
+  - Validated 5-gate multi-turn coherence test suite (`bin/test_multiturn_conversational_coherence.exe`): 100% pass across entity grounding, episode retrieval, token packaging, session clearing, and associative triggers.
+  - Live interactive chat verification (`bin/geomind.exe`):
+    - Turn 1 (`"Hello! My name is Rick."`): Prefill 1,152 ms (59 tokens), Decode 4,945 ms (27 tokens).
+    - Turn 2 (`"What is my name?"`): Incremental Prefill **312 ms (16 tokens at position 86.0)**, Decode 2,364 ms -> **`"Your name is Rick. You just told me a moment ago."`**
+    - Turn 3 (`"Do you recall what compiler we are using?"`): Triggered memory retrieval -> **`"You are using the CARTAN compiler."`**
+  - Full compiler regression test suite (`tools/run_affected_tests.ps1 -All`): **88/88 targets passed** (100.0%, 246.33s).
+
 ## [8.465.0] - 2026-10-01 (Sprint 509: Full-VRAM Resident INT8 Manifold on RTX 2000 Ada)
 
 ### Completed & Validated

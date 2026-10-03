@@ -4,6 +4,7 @@
 include "src/std/tensor.cl";
 include "src/std/math.cl";
 include "src/std/string.cl";
+include "src/std/collections.cl";
 include "src/std/fs.cl";
 
 extern fn cartan_byte_at(buf: ptr, offset: float) -> float;
@@ -590,6 +591,8 @@ fn vision_deserialize_vector_csv(str_val: string, dim: float) -> ptr {
         cartan_vec_set_f32(vec, i, num_val);
         i = i + 1.0;
     }
+    cartan_tree_free(parts);
     return vec;
 }
+
 

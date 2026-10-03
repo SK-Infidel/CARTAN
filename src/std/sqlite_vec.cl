@@ -244,6 +244,21 @@ fn sqlite_vec_get_entity_state(db: ptr, domain_id: float, entity_name: string, a
     return res;
 }
 
+// Delete an entity state from a domain
+fn sqlite_vec_delete_entity_state(db: ptr, domain_id: float, entity_name: string) -> float {
+    if (db == 0.0 || entity_name == 0.0) { return 0.0; }
+    let sql = "DELETE FROM entity_states WHERE domain_id = ? AND entity_name = ?;";
+    let stmt = sqlite_vec_prepare(db, sql);
+    if (stmt == 0.0) { return 0.0; }
+    sqlite3_bind_int64(stmt, 1.0, domain_id);
+    sqlite3_bind_text(stmt, 2.0, entity_name, -1.0, -1.0);
+    let rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc == 101.0) { return 1.0; }
+    return 0.0;
+}
+
+
 // Query count of active rules in a domain
 fn sqlite_vec_get_rule_count(db: ptr, domain_id: float) -> float {
     if (db == 0.0) { return 0.0; }
@@ -612,7 +627,9 @@ fn cartan_sqlite_add_dependency(db: ptr, src_id: float, tgt_id: float, rel_type:
 fn cartan_sqlite_add_randomicity_fragment(db: ptr, domain_id: float, text: string, entropy: float) -> float { return sqlite_vec_add_randomicity_fragment(db, domain_id, text, entropy); }
 fn cartan_sqlite_add_episode(db: ptr, session_id: string, domain_id: float, speaker: string, content: string) -> float { return sqlite_vec_add_episode(db, session_id, domain_id, speaker, content); }
 fn cartan_sqlite_get_entity_state(db: ptr, domain_id: float, entity: string, attr: string) -> string { return sqlite_vec_get_entity_state(db, domain_id, entity, attr); }
+fn cartan_sqlite_delete_entity_state(db: ptr, domain_id: float, entity: string) -> float { return sqlite_vec_delete_entity_state(db, domain_id, entity); }
 fn cartan_sqlite_get_rule_count(db: ptr, domain_id: float) -> float { return sqlite_vec_get_rule_count(db, domain_id); }
+
 fn cartan_sqlite_get_entity_count(db: ptr, domain_id: float) -> float { return sqlite_vec_get_entity_count(db, domain_id); }
 fn cartan_sqlite_prepare_domain_rules(db: ptr, domain_id: float) -> ptr { return sqlite_vec_prepare_domain_rules(db, domain_id); }
 fn cartan_sqlite_prepare_domain_entities(db: ptr, domain_id: float) -> ptr { return sqlite_vec_prepare_domain_entities(db, domain_id); }

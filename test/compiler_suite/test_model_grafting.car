@@ -102,7 +102,10 @@ fn main() -> float {
 
     // [3/5] Safetensors Multi-Tower Header & Tensor Offset Discovery
     printf("[3/5] Verifying Safetensors Multi-Tower Header & Tensor Discovery...\n");
-    let sf_path = "cache_google_gemma-4-E4B-it_model.safetensors";
+    var sf_path = "cache_geomind_model.safetensors";
+    if (cartan_file_exists(sf_path) == 0.0) {
+        sf_path = "cache_model.safetensors";
+    }
     if (cartan_file_exists(sf_path) == 1.0) {
         let h_len = cartan_safetensors_header_length(sf_path);
         cartan_assert(h_len > 0.0, "Safetensors header length must be positive");

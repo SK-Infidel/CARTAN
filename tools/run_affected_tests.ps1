@@ -73,7 +73,7 @@ $TargetCatalog = @{
     55 = @{ Name = "test_wordnet_taxonomy_dag"; File = "test/compiler_suite/test_wordnet_taxonomy_dag.car"; Run = $false; Negative = $false }
     56 = @{ Name = "test_doubt_reflective_rewind"; File = "test/compiler_suite/test_doubt_reflective_rewind.car"; Run = $false; Negative = $false }
     57 = @{ Name = "test_markov_conscious_agent"; File = "test/compiler_suite/test_markov_conscious_agent.car"; Run = $false; Negative = $false }
-    58 = @{ Name = "test_hybrid_resonant_transformer"; File = "test/compiler_suite/test_hybrid_resonant_transformer.car"; Run = $false; Negative = $false }
+    58 = @{ Name = "test_hybrid_resonant_transformer"; File = "test/compiler_suite/test_hybrid_resonant_transformer.car"; Run = $true; Negative = $false }
     59 = @{ Name = "test_finsler_randers"; File = "test/compiler_suite/test_finsler_randers.car"; Run = $false; Negative = $false }
     60 = @{ Name = "test_core_builtins"; File = "test/compiler_suite/test_core_builtins.car"; Run = $false; Negative = $false }
     61 = @{ Name = "test_language_primitives"; File = "test/compiler_suite/test_language_primitives.car"; Run = $false; Negative = $false }
@@ -98,10 +98,10 @@ $TargetCatalog = @{
     80 = @{ Name = "test_nses_universal_cognitive_domains"; File = "test/compiler_suite/test_nses_universal_cognitive_domains.car"; Run = $true; Negative = $false }
     81 = @{ Name = "test_nses_software_engineering_domain"; File = "test/compiler_suite/test_nses_software_engineering_domain.car"; Run = $true; Negative = $false }
     82 = @{ Name = "test_compiler_simd_tensor_math"; File = "test/compiler_suite/test_compiler_simd_tensor_math.car"; Run = $true; Negative = $false }
-    83 = @{ Name = "test_gemma4_layer_alignment"; File = "test/compiler_suite/test_gemma4_layer_alignment.car"; Run = $true; Negative = $false }
-    84 = @{ Name = "test_gemma4_full_model_execution"; File = "test/compiler_suite/test_gemma4_full_model_execution.car"; Run = $true; Negative = $false }
+    83 = @{ Name = "test_manifold_layer_alignment"; File = "test/compiler_suite/test_manifold_layer_alignment.car"; Run = $true; Negative = $false }
+    84 = @{ Name = "test_manifold_full_model_execution"; File = "test/compiler_suite/test_manifold_full_model_execution.car"; Run = $true; Negative = $false }
     85 = @{ Name = "test_model_config_decoupling"; File = "test/compiler_suite/test_model_config_decoupling.car"; Run = $true; Negative = $false }
-    86 = @{ Name = "test_gemma4_layer_streaming_pipeline"; File = "test/compiler_suite/test_gemma4_layer_streaming_pipeline.car"; Run = $true; Negative = $false }
+    86 = @{ Name = "test_manifold_layer_streaming_pipeline"; File = "test/compiler_suite/test_manifold_layer_streaming_pipeline.car"; Run = $true; Negative = $false }
     87 = @{ Name = "test_ns_gradient_supervision"; File = "test/compiler_suite/test_ns_gradient_supervision.car"; Run = $true; Negative = $false }
     88 = @{ Name = "test_autodiff_backward_syntax"; File = "test/compiler_suite/test_autodiff_backward_syntax.car"; Run = $true; Negative = $false }
 }
@@ -110,6 +110,9 @@ $TargetCatalog = @{
 # Sprint Preset Mapping
 # -----------------------------------------------------------------------------
 $SprintMapping = @{
+    513 = @(58, 83, 84, 85, 86)
+    512 = @(58, 83, 84, 85, 86)
+    508 = @(82, 83, 84, 86)
     488 = @(18, 66, 68, 88)
     484 = @(1, 23, 71, 74, 82, 83, 84, 85, 86, 87)
     483 = @(83, 84, 85, 86, 87)
@@ -184,7 +187,7 @@ else {
                 }
             }
         }
-        if ($file -match 'transformer|hub|chat|cartan_native_io|gemma|critic|train') { $hasTransformerOrChat = $true }
+        if ($file -match 'transformer|hub|chat|cartan_native_io|manifold|critic|train') { $hasTransformerOrChat = $true }
         if ($file -match 'tokenizer') { $hasTokenizer = $true }
         if ($file -match 'hebbian') { $hasHebbian = $true }
         if ($file -match 'geom|manifold|lie') { $hasGeom = $true }

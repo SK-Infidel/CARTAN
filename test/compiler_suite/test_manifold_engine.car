@@ -1,5 +1,5 @@
-// test/compiler_suite/test_gemma_engine.car
-// Verify Native Gemma 4 Engine Bridge Linking & Generation
+// test/compiler_suite/test_manifold_engine.car
+// Verify Native Sovereign Manifold Engine Bridge Linking & Generation
 
 extern fn printf(fmt: string) -> float;
 extern fn cartan_flush(v: float) -> float;
@@ -8,11 +8,11 @@ extern fn cartan_ollama_generate_stream(prompt: string, temp: float) -> string;
 
 fn main(argc: float, argv: ptr) -> float {
     printf("================================================================================\n");
-    printf("  CARTAN TEST: NATIVE GEMMA 4 STREAMING ENGINE BRIDGE\n");
+    printf("  CARTAN TEST: SOVEREIGN MANIFOLD STREAMING ENGINE BRIDGE\n");
     printf("================================================================================\n\n");
 
     let is_avail = cartan_ollama_is_available();
-    printf("Ollama Gemma 4 Daemon Available: ");
+    printf("Ollama Manifold Daemon Available: ");
     if (is_avail == 1.0) {
         printf("YES (Active)\n\n");
     } else {

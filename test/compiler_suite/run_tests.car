@@ -523,15 +523,15 @@ fn main(argc: float, argv: ptr) -> float {
     cartan_flush(0.0);
     run_step(t82_cmd);
 
-    // [83/84] Positive test: test_gemma4_layer_alignment
-    let t83_cmd = "cartanc.exe build test/compiler_suite/test_gemma4_layer_alignment.car -o build/test_gemma4_layer_alignment.exe && build\\test_gemma4_layer_alignment.exe";
-    printf("[83/84] [// run-pass] Building and Executing Gemma 4 Transformer Layer Alignment & Primitives: %s\n", t83_cmd);
+    // [83/84] Positive test: test_manifold_layer_alignment
+    let t83_cmd = "cartanc.exe build test/compiler_suite/test_manifold_layer_alignment.car -o build/test_manifold_layer_alignment.exe && build\\test_manifold_layer_alignment.exe";
+    printf("[83/84] [// run-pass] Building and Executing Sovereign Manifold Transformer Layer Alignment & Primitives: %s\n", t83_cmd);
     cartan_flush(0.0);
     run_step(t83_cmd);
 
-    // [84/85] Positive test: test_gemma4_full_model_execution
-    let t84_cmd = "cartanc.exe build test/compiler_suite/test_gemma4_full_model_execution.car -o build/test_gemma4_full_model_execution.exe && build\\test_gemma4_full_model_execution.exe";
-    printf("[84/85] [// run-pass] Building and Executing Gemma 4 Full Model Weight Cloning & 3-Tier Execution: %s\n", t84_cmd);
+    // [84/85] Positive test: test_manifold_full_model_execution
+    let t84_cmd = "cartanc.exe build test/compiler_suite/test_manifold_full_model_execution.car -o build/test_manifold_full_model_execution.exe && build\\test_manifold_full_model_execution.exe";
+    printf("[84/85] [// run-pass] Building and Executing Sovereign Manifold Full Model Weight Cloning & 3-Tier Execution: %s\n", t84_cmd);
     cartan_flush(0.0);
     run_step(t84_cmd);
 
@@ -541,9 +541,9 @@ fn main(argc: float, argv: ptr) -> float {
     cartan_flush(0.0);
     run_step(t85_cmd);
 
-    // [86/87] Positive test: test_gemma4_layer_streaming_pipeline
-    let t86_cmd = "cartanc.exe build test/compiler_suite/test_gemma4_layer_streaming_pipeline.car -o build/test_gemma4_layer_streaming_pipeline.exe && build\\test_gemma4_layer_streaming_pipeline.exe";
-    printf("[86/87] [// run-pass] Building and Executing Gemma 4 Layer Streaming & LM Head Pipeline: %s\n", t86_cmd);
+    // [86/87] Positive test: test_manifold_layer_streaming_pipeline
+    let t86_cmd = "cartanc.exe build test/compiler_suite/test_manifold_layer_streaming_pipeline.car -o build/test_manifold_layer_streaming_pipeline.exe && build\\test_manifold_layer_streaming_pipeline.exe";
+    printf("[86/87] [// run-pass] Building and Executing Sovereign Manifold Layer Streaming & LM Head Pipeline: %s\n", t86_cmd);
     cartan_flush(0.0);
     run_step(t86_cmd);
 

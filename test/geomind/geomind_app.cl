@@ -119,7 +119,7 @@ fn main() -> float {
                 printf("  [8]  databricks/databricks-dolly-15k      (High Quality Open Instruction Set)\n");
                 printf("  [9]  bigcode/the-stack                    (6TB Permissively-Licensed Code)\n");
                 printf("  [10] m-a-p/CodeFeedback                   (Multi-Turn Dialogue Coding Dataset)\n");
-                printf("  [11] Google/FLAN                         (Massive Multi-Task Instruction Collection)\n");
+                printf("  [11] FLAN-Collection                     (Massive Multi-Task Instruction Collection)\n");
                 printf("  [12] Meta/SlimPajama-627B                (Multi-Domain Clean Pre-Training Text)\n");
                 printf("  [13] AllenAI/ai2_arc                     (Grade School Science Questions)\n");
                 printf("  [14] HuggingFaceH4/ultrafeedback_binarized (DPO/RLHF Preference Dataset)\n");
@@ -145,7 +145,7 @@ fn main() -> float {
             return 0.0;
         }
         if (strcmp(flag, "--train-distill") == 0) {
-            geomind_distill_train_run("google/gemma-4-E4B-it", 50.0);
+            geomind_distill_train_run("geomind/manifold-4b", 50.0);
             return 0.0;
         }
         if (strcmp(flag, "--merge-slerp") == 0) {

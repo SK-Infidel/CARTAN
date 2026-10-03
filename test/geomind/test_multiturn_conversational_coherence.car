@@ -126,9 +126,12 @@ fn main() -> float {
     cartan_vec_free(test_tokens);
 
     // --- GATE 4: Session Clear Verification ---
-    printf("\n--- Gate 4: Session Clearing (/clear /new) ---\n");
+    printf("\n--- Gate 4: Session Clearing (/clear /new /reset) ---\n");
+    geomind_chat_set_session_pos(120.0);
+    test_assert(geomind_chat_get_session_pos() == 120.0, "Session position successfully set to 120.0");
     let clr_ok = geomind_chat_clear_session();
     test_assert(clr_ok == 1.0, "Executed geomind_chat_clear_session()");
+    test_assert(geomind_chat_get_session_pos() == 0.0, "Session position reset to 0.0 upon session clear");
 
     let ep_stmt3 = cartan_sqlite_prepare_prior_episodes(db, "session_active", 6.0);
     var post_clr_count = 0.0;
@@ -137,6 +140,20 @@ fn main() -> float {
     }
     cartan_sqlite_finalize(ep_stmt3);
     test_assert(post_clr_count == 0.0, "Active session history cleanly cleared");
+
+    // --- GATE 5: Triggered Associative Recall & Memory Cues ---
+    printf("\n--- Gate 5: Triggered Associative Memory Cues ---\n");
+    let trig_rem = geomind_chat_detect_associative_trigger("Remember when we were talking about the starship Odyssey?");
+    test_assert(trig_rem == 1.0, "Triggered associative recall on 'Remember when...'");
+
+    let trig_earlier = geomind_chat_detect_associative_trigger("Earlier you said something about Berlin.");
+    test_assert(trig_earlier == 1.0, "Triggered associative recall on 'Earlier you said...'");
+
+    let trig_recall = geomind_chat_detect_associative_trigger("Do you recall what we discussed a while back?");
+    test_assert(trig_recall == 1.0, "Triggered associative recall on 'Do you recall...'");
+
+    let trig_none = geomind_chat_detect_associative_trigger("Calculate the square root of 144.");
+    test_assert(trig_none == 0.0, "Negative trigger correctly ignored on standard calculation prompt");
 
     sqlite_vec_close(db);
     remove(test_db_path);

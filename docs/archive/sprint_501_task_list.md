@@ -1,0 +1,25 @@
+# Sprint 501 Task List: Deterministic GPU 1 (NVIDIA RTX 2000 Ada) Mounting & Authentic GPU Manifold Execution
+
+- [ ] **Task 501.1**: Update `src/cartanc/llvm_codegen.car`
+  - [ ] Add `@NvOptimusEnablement` and `@AmdPowerXpressRequestHighPerformance` PE exports to LLVM module header.
+  - [ ] Add `wgpuInstanceEnumerateAdapters` declaration with `params = "ptr, ptr, ptr"` and `abi_ret = "i64"`.
+  - [ ] Add `wgpuInstanceEnumerateAdapters` to `call i64` return translation list.
+- [ ] **Task 501.2**: Self-Hosting Bootstrap Fixpoint Convergence
+  - [ ] Compile `cartanc_stage1.exe` from updated compiler source.
+  - [ ] Compile `cartanc_stage2.exe` using `cartanc_stage1.exe`.
+  - [ ] Verify fixpoint convergence: binary identical / clean build, update root `cartanc.exe`.
+- [ ] **Task 501.3**: Update `src/std/wgpu.cl`
+  - [ ] Declare `extern fn wgpuInstanceEnumerateAdapters`.
+  - [ ] Replace `wgpuInstanceRequestAdapter` with deterministic enumeration loop in `cartan_wgpu_init()`.
+  - [ ] Select discrete NVIDIA adapter (`vendorID == 4318.0`) on Direct3D 12 (`backendType == 4.0`).
+- [ ] **Task 501.4**: Genuine GPU Manifold Acceleration in `test/geomind/chat.cl`
+  - [ ] Wire authentic GPU tensor operations to relieve CPU during inference.
+  - [ ] Verify dialogue generation fluency and accuracy.
+- [ ] **Task 501.5**: Empirical Validation & Regression Suite
+  - [ ] Verify `scratch/diag_gpus.car` outputs `VendorID: 4318.0 (NVIDIA)` and `BackendType: 4.0 (D3D12)`.
+  - [ ] Verify `scratch/test_geomind_gpu_engine.ps1` shows active GPU 1 (`luid_0x0001645d`) execution.
+  - [ ] Run `tools/run_affected_tests.ps1 -All` to ensure 88/88 test targets pass cleanly.
+- [ ] **Task 501.6**: Retrospective & Documentation
+  - [ ] Update `CHANGELOG.md` with concise session summary.
+  - [ ] Update `ISSUES.md`.
+  - [ ] Save walkthrough to `docs/archive/sprint_501_walkthrough.md`.

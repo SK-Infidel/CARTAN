@@ -269,22 +269,39 @@ fn geomind_get_base_prefix() -> string {
     return "";
 }
 
-// Resolves relative path across repo root and test/geomind working directories
+// Resolves relative path across repo root, bin/, and test/geomind working directories
 fn geomind_resolve_path(path: string) -> string {
     if (cartan_string_length(path) == 0.0) { return ""; }
+
+    // 1. Direct path exists in current working directory
     if (cartan_file_exists(path) == 1.0) { return path; }
-    let pfx = geomind_get_base_prefix();
-    if (cartan_string_length(pfx) > 0.0) {
-        if (cartan_string_starts_with(path, "trainingdata/") == 1.0) {
-            let full = cartan_string_concat(pfx, path);
-            if (cartan_file_exists(full) == 1.0) { return full; }
-        }
-    } else {
-        if (cartan_string_starts_with(path, "test/geomind/") == 1.0) {
-            let sub = cartan_string_substring(path, 13.0, cartan_string_length(path));
-            if (cartan_file_exists(sub) == 1.0) { return sub; }
-        }
+
+    // 2. Parent directory (e.g. running from bin/ or scratch/)
+    let p_up = cartan_string_concat("../", path);
+    if (cartan_file_exists(p_up) == 1.0) { return p_up; }
+
+    // 3. Two levels up (e.g. running from test/compiler_suite/ or deep subdirs)
+    let p_up2 = cartan_string_concat("../../", path);
+    if (cartan_file_exists(p_up2) == 1.0) { return p_up2; }
+
+    // 4. If path starts with "test/geomind/", try stripping it (when running from test/geomind/)
+    if (cartan_string_starts_with(path, "test/geomind/") == 1.0) {
+        let sub = cartan_string_substring(path, 13.0, cartan_string_length(path));
+        if (cartan_file_exists(sub) == 1.0) { return sub; }
+        let sub_up = cartan_string_concat("../", sub);
+        if (cartan_file_exists(sub_up) == 1.0) { return sub_up; }
     }
+
+    // 5. If path starts with "trainingdata/", try prepending "test/geomind/" or "../test/geomind/"
+    if (cartan_string_starts_with(path, "trainingdata/") == 1.0) {
+        let tg = cartan_string_concat("test/geomind/", path);
+        if (cartan_file_exists(tg) == 1.0) { return tg; }
+        let up_tg = cartan_string_concat("../test/geomind/", path);
+        if (cartan_file_exists(up_tg) == 1.0) { return up_tg; }
+        let up2_tg = cartan_string_concat("../../test/geomind/", path);
+        if (cartan_file_exists(up2_tg) == 1.0) { return up2_tg; }
+    }
+
     return path;
 }
 
@@ -2046,13 +2063,13 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
             let p9 = geomind_resolve_path("test/geomind/trainingdata/sft/alpaca_instructions.txt");
             if (cartan_file_exists(p9) == 1.0) { cartan_tree_push(datasets_list, p9); }
         } else if (stage_mode == 3.0) {
-            let s1 = geomind_resolve_path("test/geomind/trainingdata/sft/reddit_casual_dialogues_gemma.jsonl");
+            let s1 = geomind_resolve_path("test/geomind/trainingdata/sft/reddit_casual_dialogues_manifold.jsonl");
             if (cartan_file_exists(s1) == 1.0) { cartan_tree_push(datasets_list, s1); }
-            let s2 = geomind_resolve_path("test/geomind/trainingdata/sft/reddit_qa_discourse_gemma.jsonl");
+            let s2 = geomind_resolve_path("test/geomind/trainingdata/sft/reddit_qa_discourse_manifold.jsonl");
             if (cartan_file_exists(s2) == 1.0) { cartan_tree_push(datasets_list, s2); }
-            let s3 = geomind_resolve_path("test/geomind/trainingdata/sft/oasst1_dialogues_gemma.jsonl");
+            let s3 = geomind_resolve_path("test/geomind/trainingdata/sft/oasst1_dialogues_manifold.jsonl");
             if (cartan_file_exists(s3) == 1.0) { cartan_tree_push(datasets_list, s3); }
-            let s4 = geomind_resolve_path("test/geomind/trainingdata/sft/alpaca_instructions_gemma.jsonl");
+            let s4 = geomind_resolve_path("test/geomind/trainingdata/sft/alpaca_instructions_manifold.jsonl");
             if (cartan_file_exists(s4) == 1.0) { cartan_tree_push(datasets_list, s4); }
             let s5 = geomind_resolve_path("test/geomind/trainingdata/sft/fineweb_edu_curated.txt");
             if (cartan_file_exists(s5) == 1.0) { cartan_tree_push(datasets_list, s5); }

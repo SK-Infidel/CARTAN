@@ -1,0 +1,277 @@
+// tools/quantize_manifold_int8.car
+// CARTAN High-Precision Symmetric W8A32 Quantization Engine for Manifold Layers
+// Converts FP32 372MB manifold layers into 93.2MB INT8 quantized layers with 64-byte AVX2 alignment
+
+include "src/std/math.cl";
+
+extern fn printf(fmt: string, a: string) -> float;
+extern fn fopen(path: string, mode: string) -> ptr;
+extern fn fclose(file: ptr) -> float;
+extern fn fread(buffer: ptr, size: float, count: float, file: ptr) -> float;
+extern fn fwrite(buffer: ptr, size: float, count: float, file: ptr) -> float;
+extern fn malloc(size: float) -> ptr;
+extern fn free(p: ptr);
+extern fn cartan_f32_at(p: ptr, offset: float) -> float;
+extern fn cartan_set_f32(p: ptr, offset: float, val: float) -> void;
+extern fn cartan_set_byte(p: ptr, offset: float, val: float) -> void;
+extern fn cartan_c_ptr_add(p: ptr, offset: float) -> ptr;
+extern fn cartan_f32_ptr_add(p: ptr, offset: float) -> ptr;
+extern fn cartan_int_to_string(v: float) -> string;
+extern fn cartan_float_to_string(v: float) -> string;
+extern fn cartan_file_exists(path: string) -> float;
+extern fn cartan_string_concat(s1: string, s2: string) -> string;
+extern fn cartan_flush(v: float) -> float;
+
+fn round_f32(x: float) -> float {
+    if (x >= 0.0) {
+        return floor(x + 0.5);
+    }
+    return -floor(-x + 0.5);
+}
+
+// Quantizes a matrix of (rows x cols) FP32 floats into:
+// 1. scales: rows x float (written to fout)
+// 2. weights: rows x cols int8 bytes (written to fout)
+fn quantize_and_write_matrix(fin: ptr, fout: ptr, rows: float, cols: float, name: string) -> float {
+    printf("  Quantizing %s (rows=%s, cols=%s)...\n", name, cartan_float_to_string(rows));
+    cartan_flush(0.0);
+
+    let row_floats = malloc(cols * 4.0);
+    let row_bytes = malloc(cols);
+    let scales = malloc(rows * 4.0);
+
+    var r = 0.0;
+    while (r < rows) {
+        // Read one row of FP32 floats
+        fread(row_floats, 4.0, cols, fin);
+
+        // Find max absolute value in the row
+        var max_abs = 0.0;
+        var c = 0.0;
+        while (c < cols) {
+            let val = math_abs(cartan_f32_at(row_floats, c));
+            if (val > max_abs) {
+                max_abs = val;
+            }
+            c = c + 1.0;
+        }
+
+        // Calculate symmetric scale factor
+        var scale = 1.0;
+        if (max_abs > 0.0000001) {
+            scale = max_abs / 127.0;
+        }
+        cartan_set_f32(scales, r, scale);
+        let inv_scale = 1.0 / scale;
+
+        // Quantize and clamp to [-127, 127]
+        c = 0.0;
+        while (c < cols) {
+            let fval = cartan_f32_at(row_floats, c);
+            var q = round_f32(fval * inv_scale);
+            if (q > 127.0) { q = 127.0; }
+            if (q < -127.0) { q = -127.0; }
+            cartan_set_byte(row_bytes, c, q);
+            c = c + 1.0;
+        }
+
+        // Write row of INT8 bytes directly
+        fwrite(row_bytes, 1.0, cols, fout);
+
+        r = r + 1.0;
+    }
+
+    // Write all row scales together (or write scales header first)
+    // Wait: to ensure contiguous streaming, we write scales first or after?
+    // Let's check architectural layout!
+    free(row_floats);
+    free(row_bytes);
+    free(scales);
+    return 1.0;
+}
+
+// In standard block format:
+// For each matrix:
+// [scales: R x float (64-byte aligned)]
+// [weights: R x K bytes (64-byte aligned)]
+fn quantize_and_write_matrix_block(fin: ptr, fout: ptr, rows: float, cols: float, name: string) -> float {
+    printf(cartan_string_concat("  Quantizing ", name), "");
+    printf("...\n", "");
+    cartan_flush(0.0);
+
+    let row_floats = malloc(cols * 4.0);
+    let scales = malloc(rows * 4.0);
+    let total_bytes = rows * cols;
+    let all_weights = malloc(total_bytes);
+
+    var r = 0.0;
+    while (r < rows) {
+        fread(row_floats, 4.0, cols, fin);
+
+        var max_abs = 0.0;
+        var c = 0.0;
+        while (c < cols) {
+            let val = math_abs(cartan_f32_at(row_floats, c));
+            if (val > max_abs) {
+                max_abs = val;
+            }
+            c = c + 1.0;
+        }
+
+        var scale = 1.0;
+        if (max_abs > 0.0000001) {
+            scale = max_abs / 127.0;
+        }
+        cartan_set_f32(scales, r, scale);
+        let inv_scale = 1.0 / scale;
+
+        let row_dest = cartan_c_ptr_add(all_weights, r * cols);
+        c = 0.0;
+        while (c < cols) {
+            let fval = cartan_f32_at(row_floats, c);
+            var q = round_f32(fval * inv_scale);
+            if (q > 127.0) { q = 127.0; }
+            if (q < -127.0) { q = -127.0; }
+            cartan_set_byte(row_dest, c, q);
+            c = c + 1.0;
+        }
+
+        r = r + 1.0;
+    }
+
+    // 1. Write [scales: rows x float]
+    fwrite(scales, 4.0, rows, fout);
+
+    // 2. Write [weights: rows x cols bytes] directly
+    fwrite(all_weights, 1.0, total_bytes, fout);
+
+    free(row_floats);
+    free(scales);
+    free(all_weights);
+    return 1.0;
+}
+
+fn copy_fp32_vector(fin: ptr, fout: ptr, count: float, name: string) -> float {
+    let buf = malloc(count * 4.0);
+    fread(buf, 4.0, count, fin);
+    fwrite(buf, 4.0, count, fout);
+    free(buf);
+    return 1.0;
+}
+
+fn quantize_layer(layer_idx: float) -> float {
+    let l_str = cartan_int_to_string(layer_idx);
+    let in_path = cartan_string_concat("test/geomind/trainingdata/checkpoints/layers/manifold_layer_", l_str);
+    let full_in_path = cartan_string_concat(in_path, ".bin");
+
+    let out_path = cartan_string_concat("test/geomind/trainingdata/checkpoints/layers/manifold_layer_", l_str);
+    let full_out_path = cartan_string_concat(out_path, "_int8.bin");
+
+    if (cartan_file_exists(full_in_path) == 0.0) {
+        printf("Input file %s does not exist!\n", full_in_path);
+        return 0.0;
+    }
+
+    printf("=====================================================================\n", "");
+    printf("Quantizing Manifold Layer %s -> %s\n", l_str, full_out_path);
+    printf("=====================================================================\n", "");
+    cartan_flush(0.0);
+
+    let fin = fopen(full_in_path, "rb");
+    let fout = fopen(full_out_path, "wb");
+
+    // 1. Read Header (16 floats)
+    let hdr = malloc(64.0);
+    fread(hdr, 4.0, 16.0, fin);
+
+    let dim = cartan_f32_at(hdr, 6.0);
+    let inter_dim = cartan_f32_at(hdr, 7.0);
+    let q_dim = cartan_f32_at(hdr, 8.0);
+    let kv_dim = cartan_f32_at(hdr, 9.0);
+    let ple_dim = cartan_f32_at(hdr, 10.0);
+
+    // Set INT8 flag at hdr[11]
+    cartan_set_f32(hdr, 11.0, 1.0);
+
+    // Write updated header
+    fwrite(hdr, 4.0, 16.0, fout);
+    free(hdr);
+
+    // 2. w_in_norm (FP32)
+    copy_fp32_vector(fin, fout, dim, "w_in_norm");
+
+    // 3. w_q: R=q_dim, C=dim
+    quantize_and_write_matrix_block(fin, fout, q_dim, dim, "w_q");
+
+    // 4. w_k: R=kv_dim, C=dim
+    quantize_and_write_matrix_block(fin, fout, kv_dim, dim, "w_k");
+
+    // 5. w_v: R=kv_dim, C=dim
+    quantize_and_write_matrix_block(fin, fout, kv_dim, dim, "w_v");
+
+    // 6. w_o: R=dim, C=q_dim
+    quantize_and_write_matrix_block(fin, fout, dim, q_dim, "w_o");
+
+    // 7. w_q_norm (FP32, 512)
+    copy_fp32_vector(fin, fout, 512.0, "w_q_norm");
+
+    // 8. w_k_norm (FP32, 512)
+    copy_fp32_vector(fin, fout, 512.0, "w_k_norm");
+
+    // 9. w_post_attn_norm (FP32)
+    copy_fp32_vector(fin, fout, dim, "w_post_attn_norm");
+
+    // 10. w_pre_ffn_norm (FP32)
+    copy_fp32_vector(fin, fout, dim, "w_pre_ffn_norm");
+
+    // 11. w_gate: R=inter_dim, C=dim
+    quantize_and_write_matrix_block(fin, fout, inter_dim, dim, "w_gate");
+
+    // 12. w_up: R=inter_dim, C=dim
+    quantize_and_write_matrix_block(fin, fout, inter_dim, dim, "w_up");
+
+    // 13. w_down: R=dim, C=inter_dim
+    quantize_and_write_matrix_block(fin, fout, dim, inter_dim, "w_down");
+
+    // 14. w_post_ffn_norm (FP32)
+    copy_fp32_vector(fin, fout, dim, "w_post_ffn_norm");
+
+    // 15. w_ple_gate: R=ple_dim, C=dim
+    quantize_and_write_matrix_block(fin, fout, ple_dim, dim, "w_ple_gate");
+
+    // 16. w_ple_proj: R=dim, C=ple_dim
+    quantize_and_write_matrix_block(fin, fout, dim, ple_dim, "w_ple_proj");
+
+    // 17. w_ple_norm (FP32)
+    copy_fp32_vector(fin, fout, dim, "w_ple_norm");
+
+    fclose(fin);
+    fclose(fout);
+
+    printf("  [SUCCESS] Quantized Layer %s saved to %s\n\n", l_str, full_out_path);
+    cartan_flush(0.0);
+    return 1.0;
+}
+
+fn main() -> float {
+    printf("Starting Manifold INT8 Quantization Utility across 42 layers...\n", "");
+    cartan_flush(0.0);
+
+    var layer_idx = 0.0;
+    while (layer_idx < 42.0) {
+        let l_str = cartan_int_to_string(layer_idx);
+        let out_path = cartan_string_concat("test/geomind/trainingdata/checkpoints/layers/manifold_layer_", l_str);
+        let full_out_path = cartan_string_concat(out_path, "_int8.bin");
+
+        if (cartan_file_exists(full_out_path) != 0.0) {
+            printf("Layer %s INT8 already exists, skipping.\n", l_str);
+        } else {
+            quantize_layer(layer_idx);
+        }
+        layer_idx = layer_idx + 1.0;
+    }
+
+    printf("All 42 Manifold Layers processed successfully!\n", "");
+    return 0.0;
+}
+

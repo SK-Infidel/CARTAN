@@ -43,14 +43,14 @@ fn main() -> float {
     cartan_assert(cfg_custom.q_heads == 4.0, "Custom q_heads must equal 4.0");
     cartan_assert(cfg_custom.kv_heads == 2.0, "Custom kv_heads must equal 2.0");
 
-    let cfg_gemma = model_config_gemma4_e4b();
-    printf("  -> Gemma 4 E4B Preset: Dim %s | Vocab %s | Inter %s | Layers %s\n",
-        cartan_float_to_string(cfg_gemma.dim), cartan_float_to_string(cfg_gemma.vocab_size),
-        cartan_float_to_string(cfg_gemma.inter_dim), cartan_float_to_string(cfg_gemma.num_layers));
-    cartan_assert(cfg_gemma.dim == 2560.0, "Gemma dim must be 2560");
-    cartan_assert(cfg_gemma.vocab_size == 262144.0, "Gemma vocab must be 262144");
-    cartan_assert(cfg_gemma.inter_dim == 10240.0, "Gemma inter_dim must be 10240");
-    cartan_assert(cfg_gemma.num_layers == 42.0, "Gemma layers must be 42");
+    let cfg_manifold = model_config_manifold_4b();
+    printf("  -> Sovereign Manifold 4B Preset: Dim %s | Vocab %s | Inter %s | Layers %s\n",
+        cartan_float_to_string(cfg_manifold.dim), cartan_float_to_string(cfg_manifold.vocab_size),
+        cartan_float_to_string(cfg_manifold.inter_dim), cartan_float_to_string(cfg_manifold.num_layers));
+    cartan_assert(cfg_manifold.dim == 2560.0, "Manifold dim must be 2560");
+    cartan_assert(cfg_manifold.vocab_size == 262144.0, "Manifold vocab must be 262144");
+    cartan_assert(cfg_manifold.inter_dim == 10240.0, "Manifold inter_dim must be 10240");
+    cartan_assert(cfg_manifold.num_layers == 42.0, "Manifold layers must be 42");
 
     let cfg_e8 = model_config_e8_root();
     printf("  -> E8 Root Preset: Dim %s | Vocab %s | Inter %s | Layers %s\n",
@@ -315,7 +315,7 @@ fn main() -> float {
         i = i + 1.0;
     }
 
-    let dec_out = cartan_gemma_layer_forward(
+    let dec_out = cartan_manifold_layer_forward(
         h_dec_in,
         wq, wk, wv, wo,
         qk_norm, qk_norm,

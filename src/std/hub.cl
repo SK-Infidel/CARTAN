@@ -63,8 +63,8 @@ fn model_config_create(dim: float, vocab: float, inter: float, layers: float, q_
     return cfg;
 }
 
-// Gemma 4 E4B Donor Configuration (2560-D, 262k Vocab, 42 Layers)
-fn model_config_gemma4_e4b() -> ModelConfig {
+// Sovereign GeoMind Manifold 4B Configuration (2560-D, 262k Vocab, 42 Layers)
+fn model_config_manifold_4b() -> ModelConfig {
     return model_config_create(2560.0, 262144.0, 10240.0, 42.0, 16.0, 8.0, 160.0, 10000.0, 30.0);
 }
 
@@ -73,7 +73,7 @@ fn model_config_e8_root() -> ModelConfig {
     return model_config_create(248.0, 262144.0, 992.0, 16.0, 8.0, 4.0, 31.0, 10000.0, 30.0);
 }
 
-// Standard 4096-D LLM Configuration (e.g. Llama 8B / Gemma 27B)
+// Standard 4096-D LLM Configuration (e.g. Llama 8B / 27B)
 fn model_config_llama_standard() -> ModelConfig {
     return model_config_create(4096.0, 128256.0, 14336.0, 32.0, 32.0, 8.0, 128.0, 500000.0, 0.0);
 }
@@ -464,12 +464,25 @@ fn hub_autotokenizer_from_pretrained(repo_id: string) -> AutoTokenizer {
     var e_id = 2.0;
     var tok_path = "cache_tokenizer.json";
     if (cartan_file_exists(tok_path) == 0.0) {
-        let safe = hub_sanitize_filename(repo_id);
-        let cached = cartan_string_concat("cache_", cartan_string_concat(safe, "_tokenizer.json"));
-        if (cartan_file_exists(cached) == 1.0) {
-            tok_path = cached;
-        } else if (cartan_file_exists("tokenizer.json") == 1.0) {
-            tok_path = "tokenizer.json";
+        if (cartan_file_exists("cache_geomind_tokenizer.json") == 1.0) {
+            tok_path = "cache_geomind_tokenizer.json";
+        } else if (cartan_file_exists("../cache_geomind_tokenizer.json") == 1.0) {
+            tok_path = "../cache_geomind_tokenizer.json";
+        } else if (cartan_file_exists("../cache_tokenizer.json") == 1.0) {
+            tok_path = "../cache_tokenizer.json";
+        } else {
+            let safe = hub_sanitize_filename(repo_id);
+            let cached = cartan_string_concat("cache_", cartan_string_concat(safe, "_tokenizer.json"));
+            let up_cached = cartan_string_concat("../", cached);
+            if (cartan_file_exists(cached) == 1.0) {
+                tok_path = cached;
+            } else if (cartan_file_exists(up_cached) == 1.0) {
+                tok_path = up_cached;
+            } else if (cartan_file_exists("tokenizer.json") == 1.0) {
+                tok_path = "tokenizer.json";
+            } else if (cartan_file_exists("../tokenizer.json") == 1.0) {
+                tok_path = "../tokenizer.json";
+            }
         }
     }
     if (cartan_file_exists(tok_path) == 1.0) {
@@ -480,7 +493,7 @@ fn hub_autotokenizer_from_pretrained(repo_id: string) -> AutoTokenizer {
         }
     }
     if (v_sz <= 0.0) {
-        if (cartan_string_contains(repo_id, "gemma") != 0.0) {
+        if (cartan_string_contains(repo_id, "manifold") != 0.0 || cartan_string_contains(repo_id, "geomind") != 0.0) {
             v_sz = 262144.0;
             b_id = 2.0;
             e_id = 1.0;
@@ -508,12 +521,25 @@ fn hub_automodel_from_pretrained(repo_id: string) -> AutoModel {
     var h_dim = 0.0;
     var cfg_path = "config.json";
     if (cartan_file_exists(cfg_path) == 0.0) {
-        let safe = hub_sanitize_filename(repo_id);
-        let cached = cartan_string_concat("cache_", cartan_string_concat(safe, "_config.json"));
-        if (cartan_file_exists(cached) == 1.0) {
-            cfg_path = cached;
-        } else if (cartan_file_exists("cache_config.json") == 1.0) {
-            cfg_path = "cache_config.json";
+        if (cartan_file_exists("cache_geomind_config.json") == 1.0) {
+            cfg_path = "cache_geomind_config.json";
+        } else if (cartan_file_exists("../cache_geomind_config.json") == 1.0) {
+            cfg_path = "../cache_geomind_config.json";
+        } else if (cartan_file_exists("../config.json") == 1.0) {
+            cfg_path = "../config.json";
+        } else {
+            let safe = hub_sanitize_filename(repo_id);
+            let cached = cartan_string_concat("cache_", cartan_string_concat(safe, "_config.json"));
+            let up_cached = cartan_string_concat("../", cached);
+            if (cartan_file_exists(cached) == 1.0) {
+                cfg_path = cached;
+            } else if (cartan_file_exists(up_cached) == 1.0) {
+                cfg_path = up_cached;
+            } else if (cartan_file_exists("cache_config.json") == 1.0) {
+                cfg_path = "cache_config.json";
+            } else if (cartan_file_exists("../cache_config.json") == 1.0) {
+                cfg_path = "../cache_config.json";
+            }
         }
     }
     if (cartan_file_exists(cfg_path) == 1.0) {
@@ -533,7 +559,7 @@ fn hub_automodel_from_pretrained(repo_id: string) -> AutoModel {
         }
     }
     if (layers <= 0.0 || h_dim <= 0.0) {
-        if (cartan_string_contains(repo_id, "gemma") != 0.0) {
+        if (cartan_string_contains(repo_id, "manifold") != 0.0 || cartan_string_contains(repo_id, "geomind") != 0.0) {
             layers = 42.0;
             h_dim = 2560.0;
         } else if (cartan_string_contains(repo_id, "llama") != 0.0) {
@@ -544,7 +570,14 @@ fn hub_automodel_from_pretrained(repo_id: string) -> AutoModel {
             h_dim = 248.0;
         }
     }
-    let sf_path = cartan_string_concat("cache_", cartan_string_concat(hub_sanitize_filename(repo_id), ".safetensors"));
+    var sf_path = cartan_string_concat("cache_", cartan_string_concat(hub_sanitize_filename(repo_id), ".safetensors"));
+    if (cartan_file_exists(sf_path) == 0.0) {
+        if (cartan_file_exists("cache_geomind_model.safetensors") == 1.0) {
+            sf_path = "cache_geomind_model.safetensors";
+        } else if (cartan_file_exists("cache_model.safetensors") == 1.0) {
+            sf_path = "cache_model.safetensors";
+        }
+    }
     if (cartan_file_exists(sf_path) == 1.0) {
         let sf_tensors = hub_load_safetensors(sf_path);
         let num_t = cartan_tree_len_f(sf_tensors);
@@ -579,21 +612,66 @@ struct Dataset {
 }
 
 fn hub_fetch_weights(repo_id: string, filename: string) -> string {
-    printf("[hub] Fetching model weights from Hub repository: ");
+    printf("[hub] Fetching model weights for repository: ");
     printf(repo_id);
     printf("/");
     printf(filename);
     printf("\n");
     let safe_file = hub_sanitize_filename(filename);
     let cached_path = cartan_string_concat("cache_", safe_file);
-    if (cartan_file_exists(cached_path) == 1.0) {
+    let geomind_cached = cartan_string_concat("cache_geomind_", safe_file);
+    let default_sf = "cache_model.safetensors";
+
+    // 1. Current directory (validate > 1 MB to prevent loading error stubs)
+    if (cartan_file_exists(cached_path) == 1.0 && cartan_get_binary_file_size(cached_path) > 1000000.0) {
         printf("[hub] Found local cached model weight file\n");
         return cached_path;
     }
+    if (cartan_file_exists(geomind_cached) == 1.0 && cartan_get_binary_file_size(geomind_cached) > 1000000.0) {
+        printf("[hub] Found sovereign GeoMind model weight file: %s\n", geomind_cached);
+        return geomind_cached;
+    }
+    if (cartan_file_exists(default_sf) == 1.0 && cartan_get_binary_file_size(default_sf) > 1000000.0) {
+        printf("[hub] Found sovereign default model weight file: %s\n", default_sf);
+        return default_sf;
+    }
+
+    // 2. Parent directory (when run from bin/ or scratch/)
+    let up_cached = cartan_string_concat("../", cached_path);
+    if (cartan_file_exists(up_cached) == 1.0 && cartan_get_binary_file_size(up_cached) > 1000000.0) {
+        printf("[hub] Found local cached model weight file in parent dir: %s\n", up_cached);
+        return up_cached;
+    }
+    let up_geomind = cartan_string_concat("../", geomind_cached);
+    if (cartan_file_exists(up_geomind) == 1.0 && cartan_get_binary_file_size(up_geomind) > 1000000.0) {
+        printf("[hub] Found sovereign GeoMind model weight file in parent dir: %s\n", up_geomind);
+        return up_geomind;
+    }
+    let up_default = "../cache_model.safetensors";
+    if (cartan_file_exists(up_default) == 1.0 && cartan_get_binary_file_size(up_default) > 1000000.0) {
+        printf("[hub] Found sovereign default model weight file in parent dir: %s\n", up_default);
+        return up_default;
+    }
+
+    // 3. test/geomind subdirectory
+    let tg_sf = "test/geomind/cache_model.safetensors";
+    if (cartan_file_exists(tg_sf) == 1.0 && cartan_get_binary_file_size(tg_sf) > 1000000.0) {
+        printf("[hub] Found sovereign model weight file in test/geomind: %s\n", tg_sf);
+        return tg_sf;
+    }
+    let up_tg_sf = "../test/geomind/cache_model.safetensors";
+    if (cartan_file_exists(up_tg_sf) == 1.0 && cartan_get_binary_file_size(up_tg_sf) > 1000000.0) {
+        printf("[hub] Found sovereign model weight file in ../test/geomind: %s\n", up_tg_sf);
+        return up_tg_sf;
+    }
+
     let url = cartan_string_concat("https://huggingface.co/", repo_id);
     url = cartan_string_concat(url, "/resolve/main/");
     url = cartan_string_concat(url, filename);
     cartan_http_download_file(url, cached_path);
+    if (cartan_file_exists(cached_path) == 1.0 && cartan_get_binary_file_size(cached_path) < 1000000.0) {
+        remove(cached_path);
+    }
     return cached_path;
 }
 

@@ -16,12 +16,18 @@ tensor_runtime/target/
 *.lib
 
 # Cartan Build & Local Run Artifacts
+bin/
+**/bin/
 build/
 **/build/
 release/
 **/release/
 Scratch/
 scratch/
+*.exp
+cache_*.json
+*.db
+*.dll
 *.py
 *.txt
 *.bin

@@ -1,8 +1,8 @@
-// test/compiler_suite/test_gemma4_layer_streaming_pipeline.car
-// Target [86]: Gemma 4-E4B 42-Layer Streaming Execution & LM Head Projection Pipeline
+// test/compiler_suite/test_manifold_layer_streaming_pipeline.car
+// Target [86]: Sovereign Manifold 42-Layer Streaming Execution & LM Head Projection Pipeline
 // Verification Gates:
-//   Gate 1: Layer Binary Header Validation ($GEM4 magic, sliding vs global dims)
-//   Gate 2: Fast Binary Buffer Layer Forward Pass (cartan_gemma_layer_forward_raw)
+//   Gate 1: Layer Binary Header Validation (sliding vs global dims)
+//   Gate 2: Fast Binary Buffer Layer Forward Pass (cartan_manifold_layer_forward_raw)
 //   Gate 3: Dual-Theta RoPE Dispatch (10,000 sliding vs 1,000,000 global base frequency)
 //   Gate 4: Sequential Multi-Layer Chaining & Buffer Lifecycle
 //   Gate 5: Unmasked Full-Range LM Head Projection with [-30.0, 30.0] Soft-Capping
@@ -27,17 +27,17 @@ extern fn cartan_set_f32(p: ptr, offset: float, val: float) -> void;
 
 fn main() -> float {
     printf("=================================================================================\n");
-    printf("  CARTAN TEST SUITE: GEMMA 4 LAYER STREAMING & LM HEAD PIPELINE (TARGET 86)\n");
+    printf("  CARTAN TEST SUITE: SOVEREIGN MANIFOLD LAYER STREAMING & LM HEAD PIPELINE (TARGET 86)\n");
     printf("  Header Auth, Fast Raw Buffer Forward, Dual RoPE, Chaining, LM Head Softcap\n");
     printf("=================================================================================\n\n");
     cartan_flush(0.0);
 
     // -------------------------------------------------------------------------
-    // Gate 1: Layer Binary Header Validation ($GEM4 magic, sliding vs global dims)
+    // Gate 1: Layer Binary Header Validation (sliding vs global dims)
     // -------------------------------------------------------------------------
     printf("[1/5] Verifying Layer Binary Headers for Sliding and Global Layers...\n");
-    let l0_path = "test/geomind/trainingdata/checkpoints/layers/gemma4_layer_0.bin";
-    let l5_path = "test/geomind/trainingdata/checkpoints/layers/gemma4_layer_5.bin";
+    let l0_path = "test/geomind/trainingdata/checkpoints/layers/manifold_layer_0.bin";
+    let l5_path = "test/geomind/trainingdata/checkpoints/layers/manifold_layer_5.bin";
 
     cartan_assert(cartan_file_exists(l0_path) == 1.0, "Layer 0 checkpoint must exist on disk");
     cartan_assert(cartan_file_exists(l5_path) == 1.0, "Layer 5 checkpoint must exist on disk");
@@ -97,7 +97,7 @@ fn main() -> float {
     printf("  -> [PASS] Gate 1: Sliding and Global layer headers verified.\n\n");
 
     // -------------------------------------------------------------------------
-    // Gate 2: Fast Binary Buffer Layer Forward Pass (cartan_gemma_layer_forward_raw)
+    // Gate 2: Fast Binary Buffer Layer Forward Pass (cartan_manifold_layer_forward_raw)
     // -------------------------------------------------------------------------
     printf("[2/5] Verifying Fast Binary Buffer Layer Forward Pass (AVX2 GEMV)...\n");
     let test_dim = 32.0;
@@ -106,7 +106,7 @@ fn main() -> float {
     let test_kvdim = 16.0;
     let test_hdim = 8.0;
 
-    // Allocate synthetic layer buffer layout matching cartan_gemma_layer_forward_raw
+    // Allocate synthetic layer buffer layout matching cartan_manifold_layer_forward_raw
     // Header: 16 floats
     // in_norm: 32 floats
     // w_q: 32 * 32 = 1024 floats
@@ -160,8 +160,8 @@ fn main() -> float {
         di = di + 1.0;
     }
 
-    let h_out = cartan_gemma_layer_forward_raw(h_test, test_layer_buf, 0.0, 1.0, 0.0, 0.0);
-    cartan_assert(h_out != 0.0, "cartan_gemma_layer_forward_raw must return non-null output vector");
+    let h_out = cartan_manifold_layer_forward_raw(h_test, test_layer_buf, 0.0, 1.0, 0.0, 0.0);
+    cartan_assert(h_out != 0.0, "cartan_manifold_layer_forward_raw must return non-null output vector");
     let out_len = cartan_vec_len(h_out);
     printf("  Output vector dimension: %s (expected %s)\n",
         cartan_float_to_string(out_len), cartan_float_to_string(test_dim));
@@ -257,11 +257,11 @@ fn main() -> float {
     }
 
     // Step A: Feed input through Layer A
-    let chain_mid = cartan_gemma_layer_forward_raw(chain_in, buf_A, 0.0, 1.0, 0.0, 0.0);
+    let chain_mid = cartan_manifold_layer_forward_raw(chain_in, buf_A, 0.0, 1.0, 0.0, 0.0);
     cartan_assert(chain_mid != 0.0, "Layer A forward pass must succeed");
 
     // Step B: Chain Layer A output directly into Layer B
-    let chain_final = cartan_gemma_layer_forward_raw(chain_mid, buf_B, 1.0, 2.0, 0.0, 0.0);
+    let chain_final = cartan_manifold_layer_forward_raw(chain_mid, buf_B, 1.0, 2.0, 0.0, 0.0);
     cartan_assert(chain_final != 0.0, "Layer B forward pass must succeed");
 
     // Ensure state transformation occurred across both layers
@@ -318,7 +318,7 @@ fn main() -> float {
     printf("  -> [PASS] Gate 5: LM head soft-capping verified within [-30.0, 30.0].\n\n");
 
     printf("=================================================================================\n");
-    printf("  TARGET [86] GEMMA 4 LAYER STREAMING & LM HEAD PIPELINE: ALL 5 GATES PASSED!\n");
+    printf("  TARGET [86] SOVEREIGN MANIFOLD LAYER STREAMING & LM HEAD PIPELINE: ALL 5 GATES PASSED!\n");
     printf("=================================================================================\n");
     return 0.0;
 }

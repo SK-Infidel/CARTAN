@@ -66,7 +66,7 @@ fn main() -> float {
 
     // Test 3: Byte Pair Encoding Tokenizer (tokenize_bpe)
     printf("Test 3: Byte Pair Encoding tokenizer execution...\n", "");
-    let tokens = tokenize_bpe("test/geomind/trainingdata/gemma_vocab_256k.txt", "CARTAN");
+    let tokens = tokenize_bpe("test/geomind/trainingdata/geomind_vocab_256k.txt", "CARTAN");
     let tok_count = cartan_vec_len(tokens);
     assert_true(tok_count == 6.0, "BPE tokenized character length");
     let t0 = cartan_vec_get_f32(tokens, 0.0);

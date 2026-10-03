@@ -30,6 +30,7 @@ extern fn CreateThread(lpThreadAttributes: ptr, dwStackSize: float, lpStartAddre
 extern fn WaitForSingleObject(hHandle: ptr, dwMilliseconds: float) -> float;
 extern fn CloseHandle(hObject: ptr) -> float;
 extern fn SwitchToThread() -> float;
+extern fn Sleep(dwMilliseconds: float) -> void;
 extern fn cartan_simd_dot_i8_f32(w_i8: ptr, x_f32: ptr, scale: float, count: float) -> float;
 extern fn cartan_c_ptr_add(p: ptr, offset: float) -> ptr;
 
@@ -45,10 +46,39 @@ var g_ple_proj_norm_ptr: ptr = 0.0;
 var s_cached_pli: ptr = 0.0;
 var s_cached_proj_all: ptr = 0.0;
 var s_cached_pli_token: float = -1.0;
+var g_kv_cache_max_seq: float = 2048.0;
+
+fn cartan_kv_cache_set_capacity(max_seq: float) -> float {
+    if (max_seq <= 0.0) { return 0.0; }
+    if (g_k_cache_arena != 0.0 && g_kv_cache_max_seq == max_seq) { return 1.0; }
+    let total_floats = 24.0 * max_seq * 1024.0;
+    let new_k = calloc(total_floats, 4.0);
+    let new_v = calloc(total_floats, 4.0);
+    if (new_k == 0.0 || new_v == 0.0) {
+        if (new_k != 0.0) { free(new_k); }
+        if (new_v != 0.0) { free(new_v); }
+        return 0.0;
+    }
+    if (g_k_cache_arena != 0.0) { free(g_k_cache_arena); }
+    if (g_v_cache_arena != 0.0) { free(g_v_cache_arena); }
+    g_k_cache_arena = new_k;
+    g_v_cache_arena = new_v;
+    g_kv_cache_max_seq = max_seq;
+    if (g_trans_scores != 0.0) {
+        free(g_trans_scores);
+        g_trans_scores = malloc(max_seq * 4.0);
+    }
+    s_cached_pli_token = -1.0;
+    return 1.0;
+}
+
+fn cartan_kv_cache_get_capacity() -> float {
+    return g_kv_cache_max_seq;
+}
 
 fn cartan_kv_cache_init() -> float {
     if (g_k_cache_arena == 0.0) {
-        let total_floats = 88080384.0; // 42 layers * 2048 positions * 1024 floats
+        let total_floats = 24.0 * g_kv_cache_max_seq * 1024.0;
         g_k_cache_arena = calloc(total_floats, 4.0);
         g_v_cache_arena = calloc(total_floats, 4.0);
     }
@@ -69,13 +99,13 @@ fn cartan_kv_cache_reset() -> float {
 }
 
 fn cartan_kv_cache_get_k(layer_idx: float) -> ptr {
-    if (g_k_cache_arena == 0.0 || layer_idx < 0.0 || layer_idx >= 42.0) { return 0.0; }
-    return cartan_f32_ptr_add(g_k_cache_arena, layer_idx * 2097152.0);
+    if (g_k_cache_arena == 0.0 || layer_idx < 0.0 || layer_idx >= 24.0) { return 0.0; }
+    return cartan_f32_ptr_add(g_k_cache_arena, layer_idx * g_kv_cache_max_seq * 1024.0);
 }
 
 fn cartan_kv_cache_get_v(layer_idx: float) -> ptr {
-    if (g_v_cache_arena == 0.0 || layer_idx < 0.0 || layer_idx >= 42.0) { return 0.0; }
-    return cartan_f32_ptr_add(g_v_cache_arena, layer_idx * 2097152.0);
+    if (g_v_cache_arena == 0.0 || layer_idx < 0.0 || layer_idx >= 24.0) { return 0.0; }
+    return cartan_f32_ptr_add(g_v_cache_arena, layer_idx * g_kv_cache_max_seq * 1024.0);
 }
 
 fn cartan_set_embedding_buffer(buf: ptr) -> float {
@@ -1221,6 +1251,7 @@ var g_trans_h3: ptr = 0.0;
 var g_trans_thread_tasks: ptr = 0.0;
 var g_trans_thread_handles: ptr = 0.0;
 var g_trans_pool_running: float = 1.0;
+var g_trans_pool_standby: float = 0.0;
 var g_trans_null_ptr: ptr = 0.0;
 var g_trans_b_scratch_init: float = 0.0;
 var g_trans_b_norm_h1: ptr = 0.0;
@@ -1235,8 +1266,40 @@ var g_trans_b_ffn: ptr = 0.0;
 var g_trans_b_ple_act: ptr = 0.0;
 var g_trans_b_ple_proj: ptr = 0.0;
 
+fn cartan_trans_pool_enter_standby() -> float {
+    g_trans_pool_standby = 1.0;
+    return 1.0;
+}
+
+fn cartan_trans_pool_resume_active() -> float {
+    g_trans_pool_standby = 0.0;
+    return 1.0;
+}
+
+fn cartan_trans_pool_is_standby() -> float {
+    return g_trans_pool_standby;
+}
+
+fn cartan_trans_pool_shutdown() -> float {
+    if (g_trans_scratch_init == 0.0 || g_trans_pool_running == 0.0) { return 1.0; }
+    g_trans_pool_running = 0.0;
+    g_trans_pool_standby = 0.0;
+    var ti = 1.0;
+    while (ti < 8.0) {
+        let h = cartan_ptr_at(g_trans_thread_handles, ti);
+        if (h != 0.0) {
+            WaitForSingleObject(h, 1000.0);
+            CloseHandle(h);
+            cartan_set_ptr(g_trans_thread_handles, ti, 0.0);
+        }
+        ti = ti + 1.0;
+    }
+    return 1.0;
+}
+
 fn cartan_trans_pool_worker_main(param: ptr) -> float {
     var spin = 0.0;
+    var spin_yield = 0.0;
     var state = 0.0;
     var j = 0.0;
     var r = 0.0;
@@ -1245,13 +1308,23 @@ fn cartan_trans_pool_worker_main(param: ptr) -> float {
 
     while (g_trans_pool_running == 1.0) {
         spin = 0.0;
+        spin_yield = 0.0;
         state = cartan_f32_at(param, 24.0);
         while (state != 1.0) {
             if (g_trans_pool_running == 0.0) { return 0.0; }
-            spin = spin + 1.0;
-            if (spin > 5000.0) {
-                SwitchToThread();
-                spin = 0.0;
+            if (g_trans_pool_standby == 1.0) {
+                Sleep(10.0);
+            } else {
+                spin = spin + 1.0;
+                if (spin > 500000.0) {
+                    Sleep(2.0);
+                } else {
+                    spin_yield = spin_yield + 1.0;
+                    if (spin_yield > 5000.0) {
+                        SwitchToThread();
+                        spin_yield = 0.0;
+                    }
+                }
             }
             state = cartan_f32_at(param, 24.0);
         }
@@ -1624,6 +1697,7 @@ fn cartan_trans_pool_worker_main(param: ptr) -> float {
 }
 
 fn cartan_trans_pool_dispatch(op: float, total_rows: float, in_dim: float, w_mat1: ptr, w_mat2: ptr, in_vec: ptr, out_vec: ptr) {
+    if (g_trans_pool_standby == 1.0) { g_trans_pool_standby = 0.0; }
     let chunk = total_rows / 8.0;
     var ti = 0.0;
     var j = 0.0;
@@ -1781,6 +1855,7 @@ fn cartan_trans_pool_dispatch_int8_geglu(
     in_vec: ptr,
     out_vec: ptr
 ) {
+    if (g_trans_pool_standby == 1.0) { g_trans_pool_standby = 0.0; }
     let chunk = total_rows / 8.0;
     var ti = 1.0;
     var j = 0.0;
@@ -1886,6 +1961,7 @@ fn cartan_trans_pool_dispatch_batch(
     out_mat1: ptr,
     out_mat2: ptr
 ) {
+    if (g_trans_pool_standby == 1.0) { g_trans_pool_standby = 0.0; }
     let chunk = total_rows / 8.0;
     var ti = 0.0;
     var j = 0.0;
@@ -2075,6 +2151,7 @@ fn cartan_trans_pool_dispatch_lm_head(
     out_logits: ptr,
     mask: ptr
 ) {
+    if (g_trans_pool_standby == 1.0) { g_trans_pool_standby = 0.0; }
     cartan_init_transformer_scratch_buffers();
     let chunk = vocab_size / 8.0;
     var ti = 0.0;
@@ -2154,7 +2231,7 @@ fn cartan_init_transformer_scratch_buffers() -> float {
     g_trans_k_rot = malloc(4096.0 * 4.0);
     g_trans_v_raw = malloc(4096.0 * 4.0);
     g_trans_attn_out = malloc(4096.0 * 4.0);
-    g_trans_scores = malloc(4096.0 * 4.0);
+    g_trans_scores = malloc(g_kv_cache_max_seq * 4.0);
     g_trans_o_raw = malloc(4096.0 * 4.0);
     g_trans_h1 = malloc(4096.0 * 4.0);
     g_trans_norm_h2 = malloc(4096.0 * 4.0);
@@ -2221,6 +2298,9 @@ fn cartan_manifold_layer_forward_native(
     if (head_dim <= 0.0) { head_dim = 256.0; }
     var rope_theta = cartan_f32_at(layer_buf, 3.0);
     if (rope_theta <= 0.0) { rope_theta = 10000.0; }
+    if (g_kv_cache_max_seq > 2048.0) {
+        rope_theta = rope_theta * (g_kv_cache_max_seq / 2048.0);
+    }
     var layer_scalar = cartan_f32_at(layer_buf, 4.0);
     if (layer_scalar == 0.0) { layer_scalar = 1.0; }
     let has_ple = cartan_f32_at(layer_buf, 5.0);
@@ -2492,7 +2572,7 @@ fn cartan_manifold_layer_forward_native(
         // 5. Append to Contiguous KV Cache Arena
         let k_layer_base = cartan_kv_cache_get_k(layer_idx);
         let v_layer_base = cartan_kv_cache_get_v(layer_idx);
-        if (k_layer_base != 0.0 && v_layer_base != 0.0 && layer_idx >= 0.0 && layer_idx < 42.0 && pos >= 0.0 && pos < 2048.0) {
+        if (k_layer_base != 0.0 && v_layer_base != 0.0 && layer_idx >= 0.0 && layer_idx < 24.0 && pos >= 0.0 && pos < g_kv_cache_max_seq) {
             let k_dst = cartan_f32_ptr_add(k_layer_base, pos * kv_dim);
             let v_dst = cartan_f32_ptr_add(v_layer_base, pos * kv_dim);
             cartan_c_memcpy(k_dst, g_trans_k_rot, kv_dim * 4.0);
@@ -2520,7 +2600,7 @@ fn cartan_manifold_layer_forward_native(
     let k_cache = cartan_kv_cache_get_k(kv_source_layer);
     let v_cache = cartan_kv_cache_get_v(kv_source_layer);
     var max_seq = pos + 1.0;
-    if (max_seq > 4096.0) { max_seq = 4096.0; }
+    if (max_seq > g_kv_cache_max_seq) { max_seq = g_kv_cache_max_seq; }
 
     qh = 0.0;
     while (qh < q_heads) {
@@ -2759,7 +2839,8 @@ fn cartan_manifold_layer_forward_batch(
     token_states: ptr,
     layer_buf: ptr,
     prompt_tokens: ptr,
-    num_tokens: float
+    num_tokens: float,
+    start_pos: float
 ) -> float {
     if (token_states == 0.0 || layer_buf == 0.0 || prompt_tokens == 0.0 || num_tokens <= 0.0) {
         return 0.0;
@@ -2772,6 +2853,9 @@ fn cartan_manifold_layer_forward_batch(
     if (head_dim <= 0.0) { head_dim = 256.0; }
     var rope_theta = cartan_f32_at(layer_buf, 3.0);
     if (rope_theta <= 0.0) { rope_theta = 10000.0; }
+    if (g_kv_cache_max_seq > 2048.0) {
+        rope_theta = rope_theta * (g_kv_cache_max_seq / 2048.0);
+    }
     var layer_scalar = cartan_f32_at(layer_buf, 4.0);
     if (layer_scalar == 0.0) { layer_scalar = 1.0; }
     let has_ple = cartan_f32_at(layer_buf, 5.0);
@@ -2787,7 +2871,7 @@ fn cartan_manifold_layer_forward_batch(
         while (p < num_tokens) {
             let h_p = cartan_tree_get_f32(token_states, p);
             let tok_p = cartan_vec_get_f32(prompt_tokens, p);
-            cartan_manifold_layer_forward_native(h_p, h_p, layer_buf, p, num_tokens, tok_p);
+            cartan_manifold_layer_forward_native(h_p, h_p, layer_buf, start_pos + p, start_pos + num_tokens, tok_p);
             p = p + 1.0;
         }
         return 1.0;
@@ -2970,7 +3054,7 @@ fn cartan_manifold_layer_forward_batch(
                 if (k < rope_angles) {
                     let exponent = (k * 2.0) / head_dim;
                     let freq = 1.0 / pow(rope_theta, exponent);
-                    let theta = p * freq;
+                    let theta = (start_pos + p) * freq;
                     c = cos(theta);
                     s = sin(theta);
                 }
@@ -2982,11 +3066,11 @@ fn cartan_manifold_layer_forward_batch(
         }
 
         // K-Norm, RoPE, and append to KV Cache (only for non-shared layers)
-        if (is_kv_shared == 0.0 && k_cache != 0.0 && v_cache != 0.0) {
+        if (is_kv_shared == 0.0 && k_cache != 0.0 && v_cache != 0.0 && (start_pos + p) < g_kv_cache_max_seq) {
             let k_p = cartan_f32_ptr_add(b_k, p * kv_dim);
             let v_p = cartan_f32_ptr_add(b_v, p * kv_dim);
-            let k_dst = cartan_f32_ptr_add(k_cache, p * kv_dim);
-            let v_dst = cartan_f32_ptr_add(v_cache, p * kv_dim);
+            let k_dst = cartan_f32_ptr_add(k_cache, (start_pos + p) * kv_dim);
+            let v_dst = cartan_f32_ptr_add(v_cache, (start_pos + p) * kv_dim);
 
             kvh = 0.0;
             while (kvh < kv_heads) {
@@ -3011,7 +3095,7 @@ fn cartan_manifold_layer_forward_batch(
                     if (k < rope_angles) {
                         let exponent = (k * 2.0) / head_dim;
                         let freq = 1.0 / pow(rope_theta, exponent);
-                        let theta = p * freq;
+                        let theta = (start_pos + p) * freq;
                         c = cos(theta);
                         s = sin(theta);
                     }
@@ -3034,10 +3118,10 @@ fn cartan_manifold_layer_forward_batch(
             }
         }
 
-        // Causal GQA Attention for token p (attending to positions t = 0..p)
+        // Causal GQA Attention for token p (attending to positions t = 0 .. start_pos + p)
         let out_p = cartan_f32_ptr_add(b_attn_out, p * q_dim);
-        max_seq = p + 1.0;
-        if (max_seq > 4096.0) { max_seq = 4096.0; }
+        max_seq = start_pos + p + 1.0;
+        if (max_seq > g_kv_cache_max_seq) { max_seq = g_kv_cache_max_seq; }
 
         qh = 0.0;
         while (qh < q_heads) {

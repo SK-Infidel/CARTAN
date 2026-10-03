@@ -7,6 +7,9 @@ include "src/std/math.cl";
 extern fn malloc(size: float) -> ptr;
 extern fn free(p: ptr);
 extern fn printf(fmt: string, a: string) -> float;
+extern fn cartan_simd_dot_i8_f32(w_i8: ptr, x_f32: ptr, scale: float, count: float) -> float;
+extern fn cartan_set_byte(p: ptr, offset: float, val: float) -> void;
+extern fn cartan_set_f32(p: ptr, offset: float, val: float) -> void;
 
 fn assert_true(cond: float, msg: string) {
     if (cond == 0.0) {
@@ -23,6 +26,38 @@ fn assert_close(val: float, expected: float, eps: float, msg: string) {
         cartan_flush(0.0);
         exit(1.0);
     }
+}
+
+fn test_simd_dot_i8_size(n_dim: float) {
+    let w_raw = malloc(n_dim);
+    let x_raw = malloc(n_dim * 4.0);
+    let scale_val = 0.005;
+
+    var i_fill = 0.0;
+    var ref_sum = 0.0;
+    while (i_fill < n_dim) {
+        var i8_val = 0.0;
+        let m_val = math_mod(i_fill, 30.0);
+        if (m_val < 15.0) {
+            i8_val = m_val * 4.0 - 30.0;
+        } else {
+            i8_val = 30.0 - (m_val - 15.0) * 4.0;
+        }
+        cartan_set_byte(w_raw, i_fill, i8_val);
+
+        let f_val = math_mod(i_fill, 10.0) * 0.2 - 1.0;
+        cartan_set_f32(x_raw, i_fill, f_val);
+
+        ref_sum = ref_sum + i8_val * f_val;
+        i_fill = i_fill + 1.0;
+    }
+    let ref_dot = ref_sum * scale_val;
+
+    let simd_dot = cartan_simd_dot_i8_f32(w_raw, x_raw, scale_val, n_dim);
+    assert_close(simd_dot, ref_dot, 0.001, "cartan_simd_dot_i8_f32 size match");
+
+    free(w_raw);
+    free(x_raw);
 }
 
 fn main() -> float {
@@ -265,6 +300,19 @@ fn main() -> float {
     assert_close(dummy_acc, 32.0, 0.001, "Benchmark accumulator correctness");
     free(bA); free(bB);
     printf("  [PASS] GEMM Benchmark executed cleanly with accumulator: %s\n\n", cartan_float_to_string(dummy_acc));
+
+    // =========================================================================
+    // Phase 6: INT8 AVX2 SIMD Dot Product with FP32 Scaling (@cartan_simd_dot_i8_f32)
+    // =========================================================================
+    printf("Phase 6: Validating INT8 AVX2 SIMD Dot Product (N=7, 8, 31, 32, 2560)...\n", "");
+    cartan_flush(0.0);
+    test_simd_dot_i8_size(7.0);
+    test_simd_dot_i8_size(8.0);
+    test_simd_dot_i8_size(31.0);
+    test_simd_dot_i8_size(32.0);
+    test_simd_dot_i8_size(2560.0);
+    printf("  [PASS] INT8 AVX2 SIMD Dot Product verified across all vector and remainder boundaries.\n\n", "");
+    cartan_flush(0.0);
 
     printf("=====================================================================\n", "");
     printf("  TARGET 82 PASSED: Core Runtime SIMD & Tensor Math Validated\n", "");

@@ -1,0 +1,9 @@
+- `[ ]` Task 1: Rewrite **Lattice Wave SSM** in pure C++ OpenCL (`kernels.cl.h`, `modules.h/cpp`).
+- `[x]` Task 2: Rewrite **Spectral Memory** in pure C++ OpenCL.
+- `[x]` Task 3: Rewrite **Dual Routed** attention in pure C++ OpenCL.
+- `[x]` Task 4: Implement the **Inverse Riemannian** mapping in the backward passes (least action path).
+- `[x]` Task 5: Add `forward_all_streams()` to `GeoMindHybridEngine` and expose via `bindings.cpp` to return the 7 stream tensors independently.
+- `[x]` Task 6: Create the 5 small domain datasets (Logic, Math, Physics, Code, Literature).
+- `[x]` Develop `routing_experiment.py` test script.
+- `[x]` Task 7: Create `routing_experiment.py` to run the 28-combination evaluation loop (calculating Loss, Perplexity, Surprise).
+- `[x]` Task 8: Run the experiment and analyze results.

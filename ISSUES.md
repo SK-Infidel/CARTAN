@@ -4556,6 +4556,104 @@ This file tracks technical debt and bugs identified during repository code revie
   1. Compiled dual WGSL pipelines (`pipe_geglu_global` and `pipe_down_global`) with calibrated global layer word offsets (`w_gate = 6,581,264u`, `w_up = 13,145,104u`, `w_down = 19,701,264u`) and dynamic 106.3 MB VRAM buffer allocation.
   2. Integrated auto-clearing of `session_active` episodes on standalone CLI `-prompt` runs, dropping prefill sequence from 378 tokens to 32 tokens (12x reduction).
 
+---
+
+## [ISSUE-363] [FIXED] Multi-Turn KV Cache Wiping, Raw SQLite Re-Encoding, and Prefill Latency Ballooning
+- **Severity**: Critical (Architectural Inefficiency & Latency Degradation)
+- **Component**: [`src/std/transformer.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/transformer.cl), [`test/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl), [`test/geomind/main.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/main.car)
+- **Description**: 
+  1. On every interactive chat turn, `geomind_execute_manifold_sequence_prefill` explicitly wiped the entire 2048-token KV cache arena to position 0 (`geomind_reset_kv_caches()`).
+  2. Concurrently, prior episodes were re-queried from SQLite, prepended into `prompt_tokens`, and re-prefilled from scratch. This caused prefill token count to balloon ($55 \to 120 \to 250 \to 400+$ tokens) and prefill latency to spike to tens of seconds, leading to severe context drift and context decay.
+  3. `cartan_manifold_layer_forward_batch` lacked a `start_pos` parameter, hardcoding RoPE angles to $p \times \text{freq}$, KV cache destination to $p \times kv\_dim$, and causal attention horizon to $p + 1.0$.
+- **Resolution**: 
+  1. Parameterized `cartan_manifold_layer_forward_batch` with `start_pos: float`. Updated RoPE rotary frequencies for Q and K to $(start\_pos + p) \times freq$, KV cache writes to index physical destination $(start\_pos + p) \times kv\_dim$, and causal GQA attention horizon to $max\_seq = start\_pos + p + 1.0$ (capped at 2048.0).
+  2. Introduced `g_chat_session_pos` in `test/geomind/chat.cl` and gated `geomind_reset_kv_caches()` strictly to `start_pos == 0.0`.
+  3. Implemented incremental prompt token formatting for Turn $N > 1$ (closing delimiter `[106.0, 107.0]`, user turn, model starter), eliminating raw SQLite re-encoding during active dialogue. Turn 2 prefill dropped from $400+$ tokens to 16 tokens and latency dropped from >25s to 312 ms.
+  4. Implemented triggered associative recall (`geomind_chat_detect_associative_trigger` and `geomind_chat_retrieve_episodic_recall`) and 2,048-token FIFO context horizon eviction.
+
+---
+
+## [ISSUE-364] [FIXED] Missing Startup Biometric Onboarding Prompt & Rick Face Association Exclusion
+- **Severity**: High (Subsystem Integration Gap & Onboarding Deadlock)
+- **Component**: [`test/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl), [`test/geomind/main.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/main.car)
+- **Description**: 
+  1. In `geomind_chat_startup_biometric_scan`, when an unrecognized face or no enrolled face was detected via live webcam, the function passively printed `"Initiating Guest onboarding session"` and returned `0.0` without prompting the user to register their face or create a profile.
+  2. The REPL loop in `main.car` immediately entered normal chat mode without offering onboarding or documenting the `/register-face` command.
+  3. In `geomind_chat_learn_conversational_turn`, the pending face enrollment logic was exclusively nested in the `else` branch of `cand_user` matching, causing Rick's face map to be discarded whenever the user said *"My name is Rick"*.
+- **Resolution**: 
+  1. Implemented interactive onboarding in `geomind_chat_startup_biometric_scan` (`test/geomind/chat.cl`): detects unregistered faces via live Media Foundation capture, actively queries the user via terminal (`y/n`), configures Name (`User:Rick` default) and Relationship (`Creator & Architect` default), projects the 320-D eikonal embedding on $S^{319}$, and persists to Domain 10 in `cognitive_memory.db` with `face_registered = '1'` and `permission_tier = 'root'`.
+  2. Handled `cartan_read_line()` empty line contract (`len == 0.0` returns static `"exit"`), defaulting inputs cleanly on Enter press without hanging. Guarded `veto_string_to_lower` against freeing static string constants `""` to prevent heap corruption.
+  3. Unified pending face enrollment across all names in `geomind_chat_learn_conversational_turn`, eliminating the exclusion of `User:Rick`.
+  4. Generalized `geomind_chat_build_cognitive_preamble` to query Domain 10 and dynamically condition identity preamble on recognized users.
+  5. Added `/help`, `/register-face`, and `/verify-face` commands to the REPL loop in `test/geomind/main.car`.
+  6. Recompiled `bin/cartanc.exe` with SIMD fixpoint convergence and rebuilt `bin/geomind.exe`.
+  7. Empirically validated with real hardware: enrolled Rick's face via live webcam capture; subsequent startup instantly recognized Rick with 0.9975 cosine similarity and authenticated session with 0 prompts.
+
+---
+
+## [ISSUE-365] [FIXED] Relative Path Resolution Failure for 'capture_camera.exe' When Launched from Subdirectories
+- **Severity**: High (Hardware Tool Ingestion Failure & Biometric Fallback)
+- **Component**: [`test/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl)
+- **Description**: 
+  1. In `geomind_chat_capture_face_frame`, the hardware camera utility was called with a hardcoded relative path: `system("tools\\capture_camera.exe scratch/camera_frame.bmp 640 480")`.
+  2. When `geomind.exe` was executed from subdirectories such as `bin/` or `test/geomind/`, the relative paths `tools\` and `scratch\` did not exist relative to the working directory.
+  3. Windows `cmd.exe` failed with `"The system cannot find the path specified."` and return code `1.0`, causing the biometric subsystem to abort camera capture and silently fall back to unverified Guest mode.
+- **Resolution**: 
+  1. Updated `geomind_chat_capture_face_frame` in `test/geomind/chat.cl` to dynamically resolve `capture_camera.exe` across candidate locations using `geomind_chat_resolve_path("tools/capture_camera.exe")` with fallbacks for local `capture_camera.exe`, `bin/`, and `../capture_camera.exe`.
+  2. Dynamically resolved the scratch BMP path to a valid existing scratch directory (`scratch/`, `../scratch/`, `../../scratch/`, or local `camera_frame.bmp`).
+  3. Wrapped executable and argument paths in escaped quotes (`"\"" + exe + "\" \"" + bmp + "\" 640 480"`) for safe Windows command execution.
+  4. Deployed `capture_camera.exe` alongside all production binaries (`bin/`, `test/geomind/`, `./`).
+  5. Created directory compatibility mirrors `bin/tools` and `bin/scratch` to allow in-flight REPL sessions to succeed immediately.
+
+---
+
+## [ISSUE-366] [FIXED] Continuous Thread Pool Spin-Wait Idle Load (~40% CPU) & Thermal Fan Ramping
+- **Severity**: Medium (Power Consumption & Acoustic Ergonomics)
+- **Component**: [`src/std/transformer.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/transformer.cl), [`test/geomind/main.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/main.car), [`test/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl)
+- **Description**: 
+  1. The 7 CPU worker threads in `cartan_trans_pool_worker_main` spin-wait on `param[24.0]` using `SwitchToThread()` continuously while GeoMind sits idle waiting for user input at `User> `.
+  2. Because `SwitchToThread()` immediately returns when no other ready threads compete on those cores, all 7 worker threads ran at 100% core load, generating continuous ~40% host CPU utilization and driving laptop cooling fans to high RPM indefinitely.
+- **Resolution (Sprint 512)**: 
+  1. Implemented Dual Standby Architecture: `cartan_trans_pool_enter_standby()`, `cartan_trans_pool_resume_active()`, and `cartan_trans_pool_shutdown()` in `src/std/transformer.cl`.
+  2. Workers execute Win32 `Sleep(10.0)` in 10 ms slices during standby (`g_trans_pool_standby == 1.0`), dropping REPL idle CPU utilization from ~40% to 0.00% and allowing fans to spin down silently.
+  3. Integrated adaptive backoff: idle intervals >500,000 spins automatically throttle to `Sleep(2.0)`. Added defensive auto-resume in all dispatch routines.
+  4. Wrapped all 4 interactive `cartan_read_line()` sites (`main.car` REPL and `chat.cl` biometric onboarding). Added clean thread join and handle release on session exit.
+  5. Empirically validated in `scratch/test_standby_cpu.ps1`: sustained REPL prompt CPU measured 0.00% across 32 cores with clean exit code 0. Affected targets 58, 83, 84, 85, 86 all passed (5/5).
+
+---
+
+## [ISSUE-367] [FIXED] Configurable 128k Context Window Architecture & Dynamic KV Cache Scaling
+- **Severity**: High (Context Horizon Constraint & Memory Scaling)
+- **Component**: [`src/std/transformer.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/transformer.cl), [`test/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl), [`test/geomind/main.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/main.car)
+- **Description**: 
+  1. GeoMind context window was hardcoded to 2,048 tokens across multiple subsystems. Reaching token 2,048 forced full conversational purge back into episodic memory.
+  2. Attention scores scratch buffer `g_trans_scores` was hardcoded to 4,096 floats (16 KB), causing deterministic memory corruption on any sequence exceeding 4k tokens.
+  3. Pre-allocating 42 full KV layers at 128k required 45.09 GB RAM, risking host exhaustion on 64 GB workstations.
+  4. Rotary Position Embeddings (RoPE) base frequency (10,000.0) experienced catastrophic high-frequency phase drift at sequence lengths >> 2,048.
+- **Resolution (Sprint 513)**: 
+  1. **24 Active KV Layers Optimization**: Exploited sovereign manifold architecture where layers 24..41 share KV projections from layers 22/23. Sizing the KV arena to 24 layers ($0..23$) reduced 128k host memory footprint from 45.09 GB to **24.00 GB** (12.00 GB for K, 12.00 GB for V), leaving >18 GB free RAM headroom.
+  2. **Dynamic Capacity API**: Implemented `cartan_kv_cache_set_capacity(max_seq)` and `cartan_kv_cache_get_capacity()` in `src/std/transformer.cl` with atomic buffer reallocation and graceful fallback to 32k/8k/2k if system commit limits are reached.
+  3. **Heap Overflow Resolution**: Dynamically sized `g_trans_scores` scratch buffer to `g_kv_cache_max_seq * 4.0` bytes (512 KB at 128k), eliminating the 4,096-token heap smash bug.
+  4. **Adaptive RoPE Frequency Scaling**: Implemented dynamic base scaling $\theta' = \theta \times (\text{max\_seq} / 2048.0)$ in both decode step and batched prefill passes, preserving rotational orthogonality out to 131,072 tokens.
+  5. **CLI & Interactive REPL Control**: Added `-context <N>` / `--context <N>` (with `=` syntax support) CLI arguments defaulting to 131,072 tokens (128k), plus live REPL `/context` query and `/context <N>` dynamic resizing.
+  6. **Empirical Verification**: Validated 128k inference live: 131,072 tokens allocated (24.00 GB resident), 38-token prefill completed cleanly in 49.3s, 5-token decode completed in 4.0s (1.2 tok/s) on WebGPU. All 5 affected regression test suite targets passed (5/5).
+
+---
+
+## [ISSUE-368] [FIXED] Windows cmd.exe Slash Normalization for Biometric Camera Subprocess
+- **Severity**: Medium (Hardware Camera Ingestion Error)
+- **Component**: [`test/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl)
+- **Description**: 
+  1. In `geomind_chat_capture_face_frame`, the camera subprocess command was assembled with forward slashes: `"tools/capture_camera.exe" ...`.
+  2. Windows `cmd.exe /c` stripped outer quotes and misinterpreted `/capture_camera.exe` as a switch on the non-existent command `tools`, returning `'tools' is not recognized as an internal or external command`.
+  3. The camera failed with code 1.0, forcing biometric authentication to abort and fall back to Guest session.
+- **Resolution (Sprint 513)**: 
+  1. Converted all path separators in `cam_exe` and `bmp_path` to native Windows backslashes (`\`) before assembly.
+  2. Emitted standard unquoted command format when paths contain no whitespace (`tools\capture_camera.exe scratch\camera_frame.bmp 640 480`).
+  3. Empirically validated with real hardware: live camera successfully captured a 640x480 frame from the 2560x1440 sensor, extracted the 320-D eikonal embedding on $S^{319}$, matched Rick's enrolled face map with 0.9670 cosine similarity, and authenticated Rick's root session automatically at startup.
+
+
+
 
 
 

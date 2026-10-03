@@ -1,9 +1,9 @@
-// test/compiler_suite/test_gemma4_full_model_execution.car
-// Target [84]: Full Gemma 4 Model Weight Cloning & 3-Tier Memory Execution
+// test/compiler_suite/test_manifold_full_model_execution.car
+// Target [84]: Full Sovereign Manifold Model Weight Cloning & 3-Tier Memory Execution
 // Verification Gates:
 //   Gate 1: Authenticated Checkpoint Header Verification & Legacy 12-byte Stub Rejection
-//   Gate 2: Full 262k Vocabulary Embedding Lookup (2560-dim, Gemma sqrt(2560) scaling)
-//   Gate 3: Genuine Gemma Decoder Layer Execution (cartan_gemma_layer_forward)
+//   Gate 2: Full 262k Vocabulary Embedding Lookup (2560-dim, Manifold sqrt(2560) scaling)
+//   Gate 3: Genuine Sovereign Manifold Decoder Layer Execution (cartan_manifold_layer_forward)
 //   Gate 4: Tied-Embedding LM Head Projection with [-30.0, 30.0] Soft-Capping
 //   Gate 5: Tier 3 Cognitive Warehouse Associative Retrieval upon Reflective Doubt
 
@@ -31,7 +31,7 @@ extern fn remove(path: string) -> float;
 
 fn main() -> float {
     printf("=================================================================================\n");
-    printf("  CARTAN TEST SUITE: GEMMA 4 FULL MODEL EXECUTION & 3-TIER MEMORY (TARGET 84)\n");
+    printf("  CARTAN TEST SUITE: SOVEREIGN MANIFOLD FULL MODEL EXECUTION & 3-TIER MEMORY (TARGET 84)\n");
     printf("  Header Auth, 2560-D Embeddings, Layer Forward, Soft-Capped Head, Tier 3 Recall\n");
     printf("=================================================================================\n\n");
 
@@ -84,7 +84,7 @@ fn main() -> float {
     printf("  -> [PASS] Gate 1: Checkpoint authentication and stub rejection verified.\n\n");
 
     // -------------------------------------------------------------------------
-    // Gate 2: Full 262k Vocabulary Embedding Lookup (2560-dim, Gemma sqrt(2560))
+    // Gate 2: Full 262k Vocabulary Embedding Lookup (2560-dim, Manifold sqrt(2560))
     // -------------------------------------------------------------------------
     printf("[2/5] Verifying Full 262k Vocabulary Embedding Lookup (2560-D)...\n");
     let emb_path = "test/geomind/trainingdata/checkpoints/geomind_embeddings_full_262k.bin";
@@ -104,9 +104,9 @@ fn main() -> float {
     cartan_assert(read_count == 2560.0, "Must read exactly 2560 float32 elements");
     fclose(f_emb);
 
-    // Apply Gemma 4 input scaling factor: sqrt(2560) ~ 50.59644256
+    // Apply Manifold input scaling factor: sqrt(2560) ~ 50.59644256
     let sqrt_d = sqrt(2560.0);
-    printf("  -> Gemma embedding scale sqrt(2560): %s\n", cartan_float_to_string(sqrt_d));
+    printf("  -> Manifold embedding scale sqrt(2560): %s\n", cartan_float_to_string(sqrt_d));
     cartan_assert(sqrt_d > 50.59 && sqrt_d < 50.60, "sqrt(2560) must equal ~50.59644");
 
     let emb_vec = cartan_vec_create();
@@ -130,9 +130,9 @@ fn main() -> float {
     printf("  -> [PASS] Gate 2: Full 2560-D embedding lookup and scaling verified.\n\n");
 
     // -------------------------------------------------------------------------
-    // Gate 3: Genuine Gemma Decoder Layer Execution (cartan_gemma_layer_forward)
+    // Gate 3: Genuine Sovereign Manifold Decoder Layer Execution (cartan_manifold_layer_forward)
     // -------------------------------------------------------------------------
-    printf("[3/5] Verifying Gemma Decoder Layer Execution (cartan_gemma_layer_forward)...\n");
+    printf("[3/5] Verifying Sovereign Manifold Decoder Layer Execution (cartan_manifold_layer_forward)...\n");
     let dim = 32.0;
     let inter_dim = 64.0;
     let q_heads = 4.0;
@@ -237,7 +237,7 @@ fn main() -> float {
         i = i + 1.0;
     }
 
-    let h_out = cartan_gemma_layer_forward(
+    let h_out = cartan_manifold_layer_forward(
         h_in,
         w_q, w_k, w_v, w_o,
         qk_norm_w, qk_norm_w,
@@ -251,8 +251,8 @@ fn main() -> float {
         k_cache, v_cache
     );
 
-    cartan_assert(h_out != 0.0, "Gemma layer forward output must not be null");
-    cartan_assert(cartan_vec_len(h_out) == dim, "Gemma layer forward output length must match dim");
+    cartan_assert(h_out != 0.0, "Manifold layer forward output must not be null");
+    cartan_assert(cartan_vec_len(h_out) == dim, "Manifold layer forward output length must match dim");
 
     var out_energy = 0.0;
     var delta_sum = 0.0;
@@ -289,7 +289,7 @@ fn main() -> float {
     cartan_vec_free(k_cache);
     cartan_vec_free(v_cache);
     cartan_vec_free(h_out);
-    printf("  -> [PASS] Gate 3: Complete Gemma decoder layer forward pass verified.\n\n");
+    printf("  -> [PASS] Gate 3: Complete Sovereign Manifold decoder layer forward pass verified.\n\n");
 
     // -------------------------------------------------------------------------
     // Gate 4: Tied-Embedding LM Head Projection with 30.0 Soft-Capping

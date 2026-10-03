@@ -1,5 +1,5 @@
-// test/compiler_suite/test_gemma4_layer_alignment.car
-// Target [83]: Verification of Gemma 4 Transformer Decoder Layer Alignment & Primitives
+// test/compiler_suite/test_manifold_layer_alignment.car
+// Target [83]: Verification of Sovereign Manifold Transformer Decoder Layer Alignment & Primitives
 // Tests:
 //   Gate 1: Per-Head QK-Norm (RMSNorm per Head)
 //   Gate 2: Sliding Attention Layer Alignment (d_head = 8, theta = 10,000)
@@ -15,7 +15,7 @@ extern fn cartan_assert(cond: float, msg: string) -> float;
 
 fn main() -> float {
     printf("=================================================================================\n");
-    printf("  CARTAN TEST SUITE: GEMMA 4 LAYER ALIGNMENT & PRIMITIVES (TARGET 83)\n");
+    printf("  CARTAN TEST SUITE: SOVEREIGN MANIFOLD LAYER ALIGNMENT & PRIMITIVES (TARGET 83)\n");
     printf("  Per-Head QK-Norm, Sliding vs Global Attention, PLE Gating & Soft-Capping\n");
     printf("=================================================================================\n\n");
 
@@ -151,7 +151,7 @@ fn main() -> float {
         i = i + 1.0;
     }
 
-    let h_out_sliding = cartan_gemma_layer_forward(
+    let h_out_sliding = cartan_manifold_layer_forward(
         h_in,
         w_q_sliding, w_k_sliding, w_v_sliding, w_o_sliding,
         qk_norm_w, qk_norm_w,
@@ -226,7 +226,7 @@ fn main() -> float {
         i = i + 1.0;
     }
 
-    let h_out_global = cartan_gemma_layer_forward(
+    let h_out_global = cartan_manifold_layer_forward(
         h_in,
         w_q_global, w_k_global, w_v_global, w_o_global,
         qk_norm_w_global, qk_norm_w_global,
@@ -333,7 +333,7 @@ fn main() -> float {
     printf("  -> [PASS] Gate 4: PLE gating & logit soft-capping verified.\n\n");
 
     printf("=================================================================================\n");
-    printf("  ALL 4 GATES PASSED: GEMMA 4 LAYER ALIGNMENT MATHEMATICALLY PROVED (TARGET 83)!\n");
+    printf("  ALL 4 GATES PASSED: SOVEREIGN MANIFOLD LAYER ALIGNMENT MATHEMATICALLY PROVED (TARGET 83)!\n");
     printf("=================================================================================\n");
     return 0.0;
 }

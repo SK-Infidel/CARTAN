@@ -1,5 +1,5 @@
 // src/std/tokenizer.cl
-// CARTAN Standard Library: Google Gemma SentencePiece BPE Trie & Tokenizer Engine
+// CARTAN Standard Library: Sovereign GeoMind SentencePiece BPE Trie & Tokenizer Engine
 
 extern fn malloc(size: float) -> ptr;
 extern fn free(p: ptr);
@@ -52,21 +52,21 @@ var g_bpe_trie_initialized: float = 0.0;
 fn cartan_hub_init_bpe_trie_if_needed() -> float {
     if (g_bpe_trie_initialized == 1.0) { return 1.0; }
 
-    var bin_path = "test/geomind/trainingdata/gemma_vocab_262k.bin";
+    var bin_path = "test/geomind/trainingdata/geomind_vocab_262k.bin";
     if (cartan_file_exists(bin_path) == 0.0) {
-        bin_path = "../test/geomind/trainingdata/gemma_vocab_262k.bin";
+        bin_path = "../test/geomind/trainingdata/geomind_vocab_262k.bin";
     }
     if (cartan_file_exists(bin_path) == 0.0) {
-        bin_path = "trainingdata/gemma_vocab_262k.bin";
+        bin_path = "trainingdata/geomind_vocab_262k.bin";
     }
     if (cartan_file_exists(bin_path) == 0.0) {
-        bin_path = "test/geomind/trainingdata/gemma_vocab_65k.bin";
+        bin_path = "test/geomind/trainingdata/geomind_vocab_65k.bin";
     }
     if (cartan_file_exists(bin_path) == 0.0) {
-        bin_path = "../test/geomind/trainingdata/gemma_vocab_65k.bin";
+        bin_path = "../test/geomind/trainingdata/geomind_vocab_65k.bin";
     }
     if (cartan_file_exists(bin_path) == 0.0) {
-        bin_path = "trainingdata/gemma_vocab_65k.bin";
+        bin_path = "trainingdata/geomind_vocab_65k.bin";
     }
     if (cartan_file_exists(bin_path) == 0.0) {
         return 0.0;
@@ -116,7 +116,7 @@ fn bpe_decode_token(token_id: float) -> string {
         return s;
     }
 
-    // Official Gemma raw byte fallback range: 238 to 493
+    // Canonical raw byte fallback range: 238 to 493
     if (token_id >= 238.0 && token_id <= 493.0) {
         let ch_code = token_id - 238.0;
         let buf = malloc(2.0);
