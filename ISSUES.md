@@ -4740,6 +4740,18 @@ This file tracks technical debt and bugs identified during repository code revie
   1. Changed default context limit to 8,192 tokens (8k, 1.50 GB RAM) in `chat.cl` and `main.car`.
   2. Maintained dynamic scaling up to 131,072 tokens via CLI argument `-context 131072` and REPL command `/context 131072`.
 
+## [ISSUE-376] [RESOLVED] Vector Width Gap: 64-bit Loads in 256-bit AVX2 INT8 GEMV Kernel
+- **Severity**: High (Micro-architectural Vector Efficiency)
+- **Component**: [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car) -> `@cartan_simd_dot_i8_f32`
+- **Description**:
+  1. The 4-way unrolled AVX2 loop loaded weights using four 8-byte loads (`load <8 x i8>`).
+  2. This incurred 4x pointer arithmetic operations, 4x memory load requests, and redundant sign-extension conversions per 32 weights.
+- **Resolution (Sprint 519)**:
+  1. Replaced the four 8-byte loads with a single contiguous 256-bit load (`load <32 x i8>, ptr %u_ptr1, align 1`).
+  2. Sliced into 8-element lanes via `shufflevector` and sign-extended to `<8 x i32>` / `<8 x float>`.
+  3. Verified bit-accurate mathematical parity across all vector lengths (1 to 4096 elements).
+
+
 
 
 

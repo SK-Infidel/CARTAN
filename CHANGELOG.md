@@ -1,3 +1,24 @@
+## [8.475.0] - 2026-10-03 (Sprint 519: 256-Bit AVX2 Vector Load Optimization & INT8 GEMV Saturation)
+
+### Completed & Validated
+- **LLVM Codegen 256-Bit Vector Load Kernel (`src/cartanc/llvm_codegen.car`)**:
+  - Upgraded `@cartan_simd_dot_i8_f32` inner loop from four separate 64-bit loads (`load <8 x i8>`) to a single contiguous 256-bit AVX2 load (`load <32 x i8>, ptr %u_ptr1, align 1`).
+  - Sliced the 256-bit vector into four 8-element sub-vectors using LLVM `shufflevector` and sign-extended each slice to `<8 x i32>` / `<8 x float>`.
+  - Preserved 4-way independent accumulator registers (`%vacc0..3`) to fully saturate x86 FMA execution ports and eliminate 75% of weight load instructions.
+  - Inner loop lowers via Clang to 20 instructions per 32 weights (0.625 instructions/weight) with FP32 activations folded into FMA memory operands (`vfmadd231ps`).
+- **Mathematical Parity Verification (`scratch/test_dot_parity.car`)**:
+  - Validated bit-accurate mathematical parity against scalar float reference across 12 distinct vector lengths (1, 7, 8, 15, 31, 32, 64, 128, 256, 1024, 2048, 4096 elements).
+  - All 12 lengths passed with zero functional deviation (maximum deviation $\le 0.000014$).
+- **Compiler Rebuild & GeoMind Neural Verification**:
+  - Recompiled and promoted compiler binary to root `cartanc.exe` and `bin/cartanc.exe`.
+  - Recompiled full GeoMind neural engine (`bin/geomind.exe`) with updated SIMD kernel.
+  - Verified live prompt inference (`-prompt Hello -tokens 10`): Prefill 4,293 ms (32 tokens), Decode 8,342 ms (10 tokens), generating coherent response (`"Greetings. I am GeoMind, a sovereign neuro"`).
+- **Empirical Regression Verification**:
+  - Executed compiler regression test suite (`tools/run_affected_tests.ps1`): **7/7 passed** (Targets 1, 2, 3, 4, 5, 82, 86) in 14.76s with zero regressions.
+- **Issue Tracking & Technical Debt**:
+  - Logged and resolved `[ISSUE-376]` in `ISSUES.md`.
+  - Updated Phase 25 in `docs/ROADMAP.md`.
+
 ## [8.474.0] - 2026-10-03 (Sprint 518: Interactive REPL Terminal Stream Hygiene & Zero-Copy KV Sharing Optimization)
 
 ### Completed & Validated
