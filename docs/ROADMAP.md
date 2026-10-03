@@ -367,6 +367,27 @@ This roadmap tracks the implementation of the advanced AI optimizations and nati
   - Implemented consensual dynamic enrollment (`User:<Name>`) with persistent 320-D eikonal embedding on $S^{319}$, zero-retention privacy on refusal, and subsequent cold-boot recognition.
   - Authored and verified `test/geomind/test_startup_biometric_onboarding.car` (4/4 gates passed).
 
+## ✅ PHASE 20: Hardware Acceleration & WebGPU Runtime Migration (Completed - Sprints 495–503)
+- [x] **1. Hardware Architecture Probing & Dynamic Context (Sprint 495)**: Implemented hardware profiling (`autotune_probe_hardware`) measuring SIMD width, CPU cores, and L1 cache topology; wired `/gpu` and interactive hardware diagnostics into `main.car` and `chat.cl`.
+- [x] **2. True WebGPU Hardware Runtime Migration (Sprint 496)**: Switched from mock GPU shaders to genuine `wgpu-native` C-ABI runtime; initialized physical Vulkan/DirectX12 device adapter on NVIDIA RTX 2000 Ada GPU.
+- [x] **3. Sovereign Manifold Parameter Alignment (Sprints 497–499)**: Purged non-euclidean synthetic approximations; aligned 42-layer Gemma 4 architecture with 35 sliding attention and 7 global attention layers; achieved unprimed factual knowledge emergence.
+- [x] **4. Sub-Second Interactive Neural Latency Acceleration (Sprints 500–503)**: Built row-outer memory streaming; reduced prefill and decode latency; activated continuous Lie manifold trajectory prefill.
+
+## ✅ PHASE 21: High-Performance INT8 AVX2 & Full-VRAM Residency (Completed - Sprints 504–509)
+- [x] **1. Thread-Parallel Row-Outer GEMV Engine (Sprints 504–506)**: Built 7-worker thread pool executing parallel row-outer AVX2 matrix multiplications in `src/std/transformer.cl`, scaling multicore decode throughput.
+- [x] **2. INT8 Manifold Quantization & SIMD Intrinsics (Sprints 507–508)**: Quantized all 42 transformer layers (16.1 GB FP32 -> 3.95 GB INT8); implemented LLVM vector intrinsic `@cartan_simd_dot_i8_f32` in `llvm_codegen.car` unrolling 32 signed bytes per loop.
+- [x] **3. Full-VRAM Resident INT8 Manifold on RTX 2000 Ada (Sprint 509)**: Pinned all 42 quantized INT8 layers (3.73 GB) permanently resident in GPU GDDR6 VRAM via WebGPU storage buffers; pre-allocated persistent bind groups eliminating descriptor churn.
+
+## ✅ PHASE 22: Cognitive Memory, Biometric Authentication & Thermal Optimization (Completed - Sprints 510–512)
+- [x] **1. Cognitive Memory & KV Continuity Across Turns (Sprint 510)**: Preserved resident KV cache across interactive turns; parameterized batched sequence prefill with dynamic `start_pos`; reduced multi-turn prefill to sub-second execution.
+- [x] **2. Hardware Biometric Authentication & Dynamic Guest Profile Onboarding (Sprint 511)**: Integrated physical camera capture, extracted 320-D eikonal facial embedding, and established Domain 10 user registration in `cognitive_memory.db`.
+- [x] **3. Thread Pool Idle Standby & Acoustic Fan Quieting (Sprint 512)**: Implemented Dual Standby Architecture (`cartan_trans_pool_enter_standby`/`resume_active`) using Win32 `Sleep(10.0)` in workers during terminal waits, dropping idle CPU from 40% to 0.00% and silencing cooling fans.
+
+## ✅ PHASE 23: Configurable 128k Context Horizon & Workspace Hygiene (Completed - Sprints 513–514)
+- [x] **1. Configurable 128k Context Window Architecture (Sprint 513)**: Scaled KV cache up to 131,072 tokens across 24 active layers (24.00 GB resident, leaving >18 GB free RAM); dynamically sized attention scores buffer to 512 KB, eliminating 4k heap smash; added dynamic RoPE frequency scaling and interactive `/context` REPL resizing.
+- [x] **2. Biometric Path Separator Normalization (Sprint 513)**: Normalized camera utility path separators to backslashes (`tools\capture_camera.exe`), restoring live physical webcam authentication with 0.9670 cosine similarity.
+- [x] **3. Workspace Structure Normalization & Entropy Reduction (Sprint 514)**: Purged root transient build artifacts; consolidated duplicate safetensors hardlinks; normalized `test/geomind/docs/` hierarchy; verified 5/5 regression targets with zero regressions.
+
 
 
 

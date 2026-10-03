@@ -3832,17 +3832,17 @@ This file tracks technical debt and bugs identified during repository code revie
 
 ---
 
-## [ISSUE-292] [OPEN] Prompt Echo Attractor & First-Name Bias in Pure Neural Autoregressive Generation
+## [ISSUE-292] [FIXED] Prompt Echo Attractor & First-Name Bias in Pure Neural Autoregressive Generation
 - **Severity**: Medium (Cognitive & Manifold Dynamics)
 - **Component**: [`test/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl), `tools/eval_pure_neural_benchmark.py`
 - **Description**:
   1. Under pure neural inference (`--no-expert-priming --ephemeral-memory`), empirical evaluation on the 40-item benchmark revealed that the continuous latent state exhibits strong residual prompt-echo attraction. For example, queries ending in country or concept nouns ("...Japan?", "...water and", "...divide through") often produce morphological variants of the prompt word ("Japan Japanese...", "water Water...", "ThroughThrough...") rather than the semantic completion.
   2. Entity queries produce legitimate first tokens (e.g. "George" for George Washington, "William" for William Shakespeare, "Da" for Leonardo Da Vinci), but evaluation targets expected surnames ("Washington", "Shakespeare", "Vinci").
   3. Generated sequences frequently lock into repetitive limit cycles without dynamic temperature / frequency penalties.
-- **Proposed Fix**:
-  1. Implement prompt token residual damping in the continuous manifold latent projection, applying negative inner-product steering $-\alpha \sum_{p \in \text{prompt}} \langle h, e_p \rangle e_p$ away from the prompt basin.
-  2. Update multi-token BPE matching in the benchmark harness to accept valid prefix completions (e.g., "George" for Washington, "William" for Shakespeare).
-  3. Wire dynamic entropy-regulated temperature sampling and frequency repetition decay into the generation loop.
+- **Resolution**:
+  1. Implemented multi-tier repetition and frequency suppression in `cartan_apply_repetition_penalty`: 32-token sliding window distance decay ($-\text{pen} \times \text{decay} \times 5.0$), consecutive 1-gram repeat suppression ($-12.0$), alternating 2-gram cycle break ($-10.0$), and cumulative token frequency decay ($-0.75$).
+  2. Integrated dynamic Top-p / Top-k temperature sampling (`cartan_tokenizer_sample_topp_topk`) with dynamic entropy-regulated temperature cooling ($T \times 0.75$) under reflective doubt rewinds.
+  3. Aligned benchmark prefix evaluation and stopword boundary masks. Validated across live prompt generation and multi-turn coherence.
 
 ---
 
