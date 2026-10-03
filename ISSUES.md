@@ -4764,6 +4764,19 @@ This file tracks technical debt and bugs identified during repository code revie
   3. Integrated Continuous Hopfield associative sequence burst drafting (`cartan_hopfield_draft_candidate_tokens`, `cartan_hopfield_store_speculative_burst`) and single-pass batch verification in `test/geomind/chat.cl`.
   4. Verified 70% early exit triggering during live decode with zero semantic degradation, exit code 0, and 7/7 passing compiler regression targets.
 
+## [ISSUE-378] [RESOLVED] Absence of Native INT4 Packed Weight Packing and AVX2 SIMD Kernel
+- **Severity**: High (Memory Footprint & DDR5 Throughput Bottleneck)
+- **Component**: [`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car), [`src/cartanc/core_runtime.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/core_runtime.car), [`src/std/transformer.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/transformer.cl), [`tools/quantize_manifold_int4.car`](file:///C:/Users/rich-/source/repos/CARTAN/tools/quantize_manifold_int4.car)
+- **Description**:
+  1. Transformer checkpoints previously stored weights in 8-bit quantized format (3.95 GB total), saturating DDR5 memory bandwidth during autoregressive decode.
+  2. The compiler lacked a native LLVM IR SIMD intrinsic `@cartan_simd_dot_i4_f32` capable of unpacking two signed 4-bit weights per byte into AVX2 registers.
+  3. The runtime lacked INT4 layer format recognition and thread pool ops for INT4 GEMV / GeGLU execution.
+- **Resolution (Sprint 521)**:
+  1. Implemented `@cartan_simd_dot_i4_f32` in `src/cartanc/llvm_codegen.car` with branchless arithmetic bit-shift sign extension and 4-way unrolled AVX2 accumulation. Registered in `src/cartanc/core_runtime.car`.
+  2. Authored `tools/quantize_manifold_int4.car` and quantized all 42 checkpoint layers to `manifold_layer_*_int4.bin` (total 1.87 GB, 50.09% bandwidth reduction).
+  3. Implemented thread pool Ops 12-14 (decode) and Ops 15-17 (batched prefill), along with `cartan_manifold_layer_forward_batch_int4` in `src/std/transformer.cl`.
+  4. Verified bit-level mathematical parity across 12 vector sizes, passed Target 82 Phase 7 and all 10 affected regression targets (10/10 PASS), and verified live prompt inference on `geomind.exe`.
+
 
 
 

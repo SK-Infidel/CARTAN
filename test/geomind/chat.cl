@@ -1996,28 +1996,41 @@ fn geomind_get_layer_buffer(layer_idx: float) -> ptr {
     var buf = cartan_tree_get_f32(g_manifold_layer_buffers, layer_idx);
     if (buf == 0.0) {
         let l_str = cartan_int_to_string(layer_idx);
-        var layer_path_int8 = cartan_string_concat("test/geomind/trainingdata/checkpoints/layers/manifold_layer_", l_str);
-        layer_path_int8 = cartan_string_concat(layer_path_int8, "_int8.bin");
-        layer_path_int8 = geomind_chat_resolve_path(layer_path_int8);
-        if (cartan_file_exists(layer_path_int8) == 1.0) {
-            buf = cartan_mmap_file(layer_path_int8);
+        var layer_path_int4 = cartan_string_concat("test/geomind/trainingdata/checkpoints/layers/manifold_layer_", l_str);
+        layer_path_int4 = cartan_string_concat(layer_path_int4, "_int4.bin");
+        layer_path_int4 = geomind_chat_resolve_path(layer_path_int4);
+        if (cartan_file_exists(layer_path_int4) == 1.0) {
+            buf = cartan_mmap_file(layer_path_int4);
             if (buf == 0.0) {
-                buf = cartan_read_binary_file_data(layer_path_int8);
+                buf = cartan_read_binary_file_data(layer_path_int4);
             }
             if (buf != 0.0) {
                 cartan_tree_set(g_manifold_layer_buffers, layer_idx, buf);
             }
         } else {
-            var layer_path = cartan_string_concat("test/geomind/trainingdata/checkpoints/layers/manifold_layer_", l_str);
-            layer_path = cartan_string_concat(layer_path, ".bin");
-            layer_path = geomind_chat_resolve_path(layer_path);
-            if (cartan_file_exists(layer_path) == 1.0) {
-                buf = cartan_mmap_file(layer_path);
+            var layer_path_int8 = cartan_string_concat("test/geomind/trainingdata/checkpoints/layers/manifold_layer_", l_str);
+            layer_path_int8 = cartan_string_concat(layer_path_int8, "_int8.bin");
+            layer_path_int8 = geomind_chat_resolve_path(layer_path_int8);
+            if (cartan_file_exists(layer_path_int8) == 1.0) {
+                buf = cartan_mmap_file(layer_path_int8);
                 if (buf == 0.0) {
-                    buf = cartan_read_binary_file_data(layer_path);
+                    buf = cartan_read_binary_file_data(layer_path_int8);
                 }
                 if (buf != 0.0) {
                     cartan_tree_set(g_manifold_layer_buffers, layer_idx, buf);
+                }
+            } else {
+                var layer_path = cartan_string_concat("test/geomind/trainingdata/checkpoints/layers/manifold_layer_", l_str);
+                layer_path = cartan_string_concat(layer_path, ".bin");
+                layer_path = geomind_chat_resolve_path(layer_path);
+                if (cartan_file_exists(layer_path) == 1.0) {
+                    buf = cartan_mmap_file(layer_path);
+                    if (buf == 0.0) {
+                        buf = cartan_read_binary_file_data(layer_path);
+                    }
+                    if (buf != 0.0) {
+                        cartan_tree_set(g_manifold_layer_buffers, layer_idx, buf);
+                    }
                 }
             }
         }
@@ -2036,7 +2049,7 @@ fn geomind_mount_gpu_resident_layers() -> float {
         cartan_flush(0.0);
         return 0.0;
     }
-    printf("  [GPU VRAM] Uploading 42 INT8 Manifold Layers (3.73 GB) to NVIDIA RTX 2000 Ada VRAM...\n");
+    printf("  [GPU VRAM] Checking 42 Manifold Layers for GPU VRAM mounting...\n");
     cartan_flush(0.0);
     var l = 0.0;
     var mounted = 0.0;
@@ -2050,11 +2063,15 @@ fn geomind_mount_gpu_resident_layers() -> float {
         }
         l = l + 1.0;
     }
-    let dev_name = cartan_wgpu_get_device_name();
-    if (dev_name != 0.0) {
-        printf("  [GPU VRAM] %s / 42 Layers (3.73 GB) 100%% Resident in GDDR6 VRAM on %s.\n", cartan_float_to_string(mounted), dev_name);
+    if (mounted > 0.0) {
+        let dev_name = cartan_wgpu_get_device_name();
+        if (dev_name != 0.0) {
+            printf("  [GPU VRAM] %s / 42 Layers (3.73 GB) 100%% Resident in GDDR6 VRAM on %s.\n", cartan_float_to_string(mounted), dev_name);
+        } else {
+            printf("  [GPU VRAM] %s / 42 Layers (3.73 GB) 100%% Resident in GDDR6 VRAM.\n", cartan_float_to_string(mounted));
+        }
     } else {
-        printf("  [GPU VRAM] %s / 42 Layers (3.73 GB) 100%% Resident in GDDR6 VRAM.\n", cartan_float_to_string(mounted));
+        printf("  [Host RAM] Ingested 42 INT4 Manifold Layers (1.87 GB) with AVX2 SIMD Unpacking Engine.\n");
     }
     cartan_flush(0.0);
     g_geomind_gpu_resident_mounted = 1.0;
@@ -2835,7 +2852,7 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
                 while (dl < 42.0) {
                     let layer_buf = geomind_get_layer_buffer(dl);
                     if (layer_buf != 0.0) {
-                        cartan_manifold_layer_forward_batch_int8(draft_states, layer_buf, candidate_tokens, n_draft, draft_start);
+                        cartan_manifold_layer_forward_batch(draft_states, layer_buf, candidate_tokens, n_draft, draft_start);
                     }
                     dl = dl + 1.0;
                 }

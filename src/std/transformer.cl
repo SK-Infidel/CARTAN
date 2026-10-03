@@ -32,6 +32,7 @@ extern fn CloseHandle(hObject: ptr) -> float;
 extern fn SwitchToThread() -> float;
 extern fn Sleep(dwMilliseconds: float) -> void;
 extern fn cartan_simd_dot_i8_f32(w_i8: ptr, x_f32: ptr, scale: float, count: float) -> float;
+extern fn cartan_simd_dot_i4_f32(w_i4: ptr, x_f32: ptr, scale: float, count: float) -> float;
 extern fn cartan_c_ptr_add(p: ptr, offset: float) -> ptr;
 
 // 42-Layer Pinned Contiguous KV Cache Arena in pure CARTAN heap
@@ -1957,6 +1958,368 @@ fn cartan_trans_pool_worker_main(param: ptr) -> float {
                 }
                 j = j + 1.0;
             }
+        } else if (op == 12.0) {
+            let in_dim = cartan_f32_at(param, 2.0);
+            let scales = cartan_ptr_at(param, 4.0);
+            let w_bytes = cartan_ptr_at(param, 5.0);
+            let in_vec = cartan_ptr_at(param, 6.0);
+            let out_vec = cartan_ptr_at(param, 7.0);
+            let stride_bytes = in_dim * 0.5;
+
+            r = start_row;
+            let r_limit = end_row - 3.0;
+            while (r < r_limit) {
+                let r1 = r + 1.0;
+                let r2 = r + 2.0;
+                let r3 = r + 3.0;
+                let s0 = cartan_f32_at(scales, r);
+                let s1 = cartan_f32_at(scales, r1);
+                let s2 = cartan_f32_at(scales, r2);
+                let s3 = cartan_f32_at(scales, r3);
+                let row0 = cartan_c_ptr_add(w_bytes, r * stride_bytes);
+                let row1 = cartan_c_ptr_add(w_bytes, r1 * stride_bytes);
+                let row2 = cartan_c_ptr_add(w_bytes, r2 * stride_bytes);
+                let row3 = cartan_c_ptr_add(w_bytes, r3 * stride_bytes);
+
+                let d0 = cartan_simd_dot_i4_f32(row0, in_vec, s0, in_dim);
+                let d1 = cartan_simd_dot_i4_f32(row1, in_vec, s1, in_dim);
+                let d2 = cartan_simd_dot_i4_f32(row2, in_vec, s2, in_dim);
+                let d3 = cartan_simd_dot_i4_f32(row3, in_vec, s3, in_dim);
+
+                cartan_set_f32(out_vec, r, d0);
+                cartan_set_f32(out_vec, r1, d1);
+                cartan_set_f32(out_vec, r2, d2);
+                cartan_set_f32(out_vec, r3, d3);
+                r = r + 4.0;
+            }
+            while (r < end_row) {
+                let row_scale = cartan_f32_at(scales, r);
+                let row = cartan_c_ptr_add(w_bytes, r * stride_bytes);
+                let dot = cartan_simd_dot_i4_f32(row, in_vec, row_scale, in_dim);
+                cartan_set_f32(out_vec, r, dot);
+                r = r + 1.0;
+            }
+        } else if (op == 13.0) {
+            let in_dim = cartan_f32_at(param, 2.0);
+            let k_scales = cartan_ptr_at(param, 4.0);
+            let w_k_bytes = cartan_ptr_at(param, 5.0);
+            let in_vec = cartan_ptr_at(param, 6.0);
+            let out_k = cartan_ptr_at(param, 7.0);
+            let v_scales = cartan_ptr_at(param, 8.0);
+            let w_v_bytes = cartan_ptr_at(param, 9.0);
+            let out_v = cartan_ptr_at(param, 10.0);
+            let stride_bytes = in_dim * 0.5;
+
+            r = start_row;
+            let r_limit = end_row - 3.0;
+            while (r < r_limit) {
+                let r1 = r + 1.0;
+                let r2 = r + 2.0;
+                let r3 = r + 3.0;
+                let ks0 = cartan_f32_at(k_scales, r);
+                let ks1 = cartan_f32_at(k_scales, r1);
+                let ks2 = cartan_f32_at(k_scales, r2);
+                let ks3 = cartan_f32_at(k_scales, r3);
+                let vs0 = cartan_f32_at(v_scales, r);
+                let vs1 = cartan_f32_at(v_scales, r1);
+                let vs2 = cartan_f32_at(v_scales, r2);
+                let vs3 = cartan_f32_at(v_scales, r3);
+
+                let k0 = cartan_c_ptr_add(w_k_bytes, r * stride_bytes);
+                let k1 = cartan_c_ptr_add(w_k_bytes, r1 * stride_bytes);
+                let k2 = cartan_c_ptr_add(w_k_bytes, r2 * stride_bytes);
+                let k3 = cartan_c_ptr_add(w_k_bytes, r3 * stride_bytes);
+                let v0 = cartan_c_ptr_add(w_v_bytes, r * stride_bytes);
+                let v1 = cartan_c_ptr_add(w_v_bytes, r1 * stride_bytes);
+                let v2 = cartan_c_ptr_add(w_v_bytes, r2 * stride_bytes);
+                let v3 = cartan_c_ptr_add(w_v_bytes, r3 * stride_bytes);
+
+                let dk0 = cartan_simd_dot_i4_f32(k0, in_vec, ks0, in_dim);
+                let dv0 = cartan_simd_dot_i4_f32(v0, in_vec, vs0, in_dim);
+                let dk1 = cartan_simd_dot_i4_f32(k1, in_vec, ks1, in_dim);
+                let dv1 = cartan_simd_dot_i4_f32(v1, in_vec, vs1, in_dim);
+                let dk2 = cartan_simd_dot_i4_f32(k2, in_vec, ks2, in_dim);
+                let dv2 = cartan_simd_dot_i4_f32(v2, in_vec, vs2, in_dim);
+                let dk3 = cartan_simd_dot_i4_f32(k3, in_vec, ks3, in_dim);
+                let dv3 = cartan_simd_dot_i4_f32(v3, in_vec, vs3, in_dim);
+
+                cartan_set_f32(out_k, r, dk0);
+                cartan_set_f32(out_v, r, dv0);
+                cartan_set_f32(out_k, r1, dk1);
+                cartan_set_f32(out_v, r1, dv1);
+                cartan_set_f32(out_k, r2, dk2);
+                cartan_set_f32(out_v, r2, dv2);
+                cartan_set_f32(out_k, r3, dk3);
+                cartan_set_f32(out_v, r3, dv3);
+                r = r + 4.0;
+            }
+            while (r < end_row) {
+                let ks = cartan_f32_at(k_scales, r);
+                let vs = cartan_f32_at(v_scales, r);
+                let k_row = cartan_c_ptr_add(w_k_bytes, r * stride_bytes);
+                let v_row = cartan_c_ptr_add(w_v_bytes, r * stride_bytes);
+                let dk = cartan_simd_dot_i4_f32(k_row, in_vec, ks, in_dim);
+                let dv = cartan_simd_dot_i4_f32(v_row, in_vec, vs, in_dim);
+                cartan_set_f32(out_k, r, dk);
+                cartan_set_f32(out_v, r, dv);
+                r = r + 1.0;
+            }
+        } else if (op == 14.0) {
+            let in_dim = cartan_f32_at(param, 2.0);
+            let g_scales = cartan_ptr_at(param, 4.0);
+            let u_scales = cartan_ptr_at(param, 5.0);
+            let in_vec = cartan_ptr_at(param, 6.0);
+            let out_vec = cartan_ptr_at(param, 7.0);
+            let w_g_bytes = cartan_ptr_at(param, 8.0);
+            let w_u_bytes = cartan_ptr_at(param, 9.0);
+            let stride_bytes = in_dim * 0.5;
+
+            j = start_row;
+            let j_limit = end_row - 3.0;
+            while (j < j_limit) {
+                let j1 = j + 1.0;
+                let j2 = j + 2.0;
+                let j3 = j + 3.0;
+                let gs0 = cartan_f32_at(g_scales, j);
+                let gs1 = cartan_f32_at(g_scales, j1);
+                let gs2 = cartan_f32_at(g_scales, j2);
+                let gs3 = cartan_f32_at(g_scales, j3);
+                let us0 = cartan_f32_at(u_scales, j);
+                let us1 = cartan_f32_at(u_scales, j1);
+                let us2 = cartan_f32_at(u_scales, j2);
+                let us3 = cartan_f32_at(u_scales, j3);
+
+                let grow0 = cartan_c_ptr_add(w_g_bytes, j * stride_bytes);
+                let grow1 = cartan_c_ptr_add(w_g_bytes, j1 * stride_bytes);
+                let grow2 = cartan_c_ptr_add(w_g_bytes, j2 * stride_bytes);
+                let grow3 = cartan_c_ptr_add(w_g_bytes, j3 * stride_bytes);
+                let urow0 = cartan_c_ptr_add(w_u_bytes, j * stride_bytes);
+                let urow1 = cartan_c_ptr_add(w_u_bytes, j1 * stride_bytes);
+                let urow2 = cartan_c_ptr_add(w_u_bytes, j2 * stride_bytes);
+                let urow3 = cartan_c_ptr_add(w_u_bytes, j3 * stride_bytes);
+
+                let dg0 = cartan_simd_dot_i4_f32(grow0, in_vec, gs0, in_dim);
+                let du0 = cartan_simd_dot_i4_f32(urow0, in_vec, us0, in_dim);
+                let dg1 = cartan_simd_dot_i4_f32(grow1, in_vec, gs1, in_dim);
+                let du1 = cartan_simd_dot_i4_f32(urow1, in_vec, us1, in_dim);
+                let dg2 = cartan_simd_dot_i4_f32(grow2, in_vec, gs2, in_dim);
+                let du2 = cartan_simd_dot_i4_f32(urow2, in_vec, us2, in_dim);
+                let dg3 = cartan_simd_dot_i4_f32(grow3, in_vec, gs3, in_dim);
+                let du3 = cartan_simd_dot_i4_f32(urow3, in_vec, us3, in_dim);
+
+                cartan_set_f32(out_vec, j, cartan_fast_gelu_tanh(dg0) * du0);
+                cartan_set_f32(out_vec, j1, cartan_fast_gelu_tanh(dg1) * du1);
+                cartan_set_f32(out_vec, j2, cartan_fast_gelu_tanh(dg2) * du2);
+                cartan_set_f32(out_vec, j3, cartan_fast_gelu_tanh(dg3) * du3);
+                j = j + 4.0;
+            }
+            while (j < end_row) {
+                let gs = cartan_f32_at(g_scales, j);
+                let us = cartan_f32_at(u_scales, j);
+                let grow = cartan_c_ptr_add(w_g_bytes, j * stride_bytes);
+                let urow = cartan_c_ptr_add(w_u_bytes, j * stride_bytes);
+                let dg = cartan_simd_dot_i4_f32(grow, in_vec, gs, in_dim);
+                let du = cartan_simd_dot_i4_f32(urow, in_vec, us, in_dim);
+                cartan_set_f32(out_vec, j, cartan_fast_gelu_tanh(dg) * du);
+                j = j + 1.0;
+            }
+        } else if (op == 15.0) {
+            let in_dim = cartan_f32_at(param, 2.0);
+            let scales = cartan_ptr_at(param, 4.0);
+            let w_bytes = cartan_ptr_at(param, 5.0);
+            let in_mat = cartan_ptr_at(param, 6.0);
+            let out_mat = cartan_ptr_at(param, 7.0);
+            let N = cartan_f32_at(param, 5.0);
+            let out_stride = cartan_f32_at(param, 6.0);
+            let stride_bytes = in_dim * 0.5;
+
+            r = start_row;
+            let r_limit = end_row - 3.0;
+            while (r < r_limit) {
+                let r1 = r + 1.0;
+                let r2 = r + 2.0;
+                let r3 = r + 3.0;
+                let s0 = cartan_f32_at(scales, r);
+                let s1 = cartan_f32_at(scales, r1);
+                let s2 = cartan_f32_at(scales, r2);
+                let s3 = cartan_f32_at(scales, r3);
+                let row0 = cartan_c_ptr_add(w_bytes, r * stride_bytes);
+                let row1 = cartan_c_ptr_add(w_bytes, r1 * stride_bytes);
+                let row2 = cartan_c_ptr_add(w_bytes, r2 * stride_bytes);
+                let row3 = cartan_c_ptr_add(w_bytes, r3 * stride_bytes);
+                p = 0.0;
+                while (p < N) {
+                    let in_p = cartan_f32_ptr_add(in_mat, p * in_dim);
+                    let d0 = cartan_simd_dot_i4_f32(row0, in_p, s0, in_dim);
+                    let d1 = cartan_simd_dot_i4_f32(row1, in_p, s1, in_dim);
+                    let d2 = cartan_simd_dot_i4_f32(row2, in_p, s2, in_dim);
+                    let d3 = cartan_simd_dot_i4_f32(row3, in_p, s3, in_dim);
+                    let base_out = p * out_stride + r;
+                    cartan_set_f32(out_mat, base_out, d0);
+                    cartan_set_f32(out_mat, base_out + 1.0, d1);
+                    cartan_set_f32(out_mat, base_out + 2.0, d2);
+                    cartan_set_f32(out_mat, base_out + 3.0, d3);
+                    p = p + 1.0;
+                }
+                r = r + 4.0;
+            }
+            while (r < end_row) {
+                let row_scale = cartan_f32_at(scales, r);
+                let row = cartan_c_ptr_add(w_bytes, r * stride_bytes);
+                p = 0.0;
+                while (p < N) {
+                    let in_p = cartan_f32_ptr_add(in_mat, p * in_dim);
+                    let dot = cartan_simd_dot_i4_f32(row, in_p, row_scale, in_dim);
+                    cartan_set_f32(out_mat, p * out_stride + r, dot);
+                    p = p + 1.0;
+                }
+                r = r + 1.0;
+            }
+        } else if (op == 16.0) {
+            let in_dim = cartan_f32_at(param, 2.0);
+            let k_scales = cartan_ptr_at(param, 4.0);
+            let w_k_bytes = cartan_ptr_at(param, 5.0);
+            let in_mat = cartan_ptr_at(param, 6.0);
+            let out_k = cartan_ptr_at(param, 7.0);
+            let v_scales = cartan_ptr_at(param, 8.0);
+            let w_v_bytes = cartan_ptr_at(param, 9.0);
+            let out_v = cartan_ptr_at(param, 10.0);
+            let N = cartan_f32_at(param, 5.0);
+            let out_stride = cartan_f32_at(param, 6.0);
+            let stride_bytes = in_dim * 0.5;
+
+            r = start_row;
+            let r_limit = end_row - 3.0;
+            while (r < r_limit) {
+                let r1 = r + 1.0;
+                let r2 = r + 2.0;
+                let r3 = r + 3.0;
+                let ks0 = cartan_f32_at(k_scales, r);
+                let ks1 = cartan_f32_at(k_scales, r1);
+                let ks2 = cartan_f32_at(k_scales, r2);
+                let ks3 = cartan_f32_at(k_scales, r3);
+                let vs0 = cartan_f32_at(v_scales, r);
+                let vs1 = cartan_f32_at(v_scales, r1);
+                let vs2 = cartan_f32_at(v_scales, r2);
+                let vs3 = cartan_f32_at(v_scales, r3);
+                let k0 = cartan_c_ptr_add(w_k_bytes, r * stride_bytes);
+                let k1 = cartan_c_ptr_add(w_k_bytes, r1 * stride_bytes);
+                let k2 = cartan_c_ptr_add(w_k_bytes, r2 * stride_bytes);
+                let k3 = cartan_c_ptr_add(w_k_bytes, r3 * stride_bytes);
+                let v0 = cartan_c_ptr_add(w_v_bytes, r * stride_bytes);
+                let v1 = cartan_c_ptr_add(w_v_bytes, r1 * stride_bytes);
+                let v2 = cartan_c_ptr_add(w_v_bytes, r2 * stride_bytes);
+                let v3 = cartan_c_ptr_add(w_v_bytes, r3 * stride_bytes);
+                p = 0.0;
+                while (p < N) {
+                    let in_p = cartan_f32_ptr_add(in_mat, p * in_dim);
+                    let dk0 = cartan_simd_dot_i4_f32(k0, in_p, ks0, in_dim);
+                    let dv0 = cartan_simd_dot_i4_f32(v0, in_p, vs0, in_dim);
+                    let dk1 = cartan_simd_dot_i4_f32(k1, in_p, ks1, in_dim);
+                    let dv1 = cartan_simd_dot_i4_f32(v1, in_p, vs1, in_dim);
+                    let dk2 = cartan_simd_dot_i4_f32(k2, in_p, ks2, in_dim);
+                    let dv2 = cartan_simd_dot_i4_f32(v2, in_p, vs2, in_dim);
+                    let dk3 = cartan_simd_dot_i4_f32(k3, in_p, ks3, in_dim);
+                    let dv3 = cartan_simd_dot_i4_f32(v3, in_p, vs3, in_dim);
+                    let base_out = p * out_stride + r;
+                    cartan_set_f32(out_k, base_out, dk0);
+                    cartan_set_f32(out_v, base_out, dv0);
+                    cartan_set_f32(out_k, base_out + 1.0, dk1);
+                    cartan_set_f32(out_v, base_out + 1.0, dv1);
+                    cartan_set_f32(out_k, base_out + 2.0, dk2);
+                    cartan_set_f32(out_v, base_out + 2.0, dv2);
+                    cartan_set_f32(out_k, base_out + 3.0, dk3);
+                    cartan_set_f32(out_v, base_out + 3.0, dv3);
+                    p = p + 1.0;
+                }
+                r = r + 4.0;
+            }
+            while (r < end_row) {
+                let ks = cartan_f32_at(k_scales, r);
+                let vs = cartan_f32_at(v_scales, r);
+                let k_row = cartan_c_ptr_add(w_k_bytes, r * stride_bytes);
+                let v_row = cartan_c_ptr_add(w_v_bytes, r * stride_bytes);
+                p = 0.0;
+                while (p < N) {
+                    let in_p = cartan_f32_ptr_add(in_mat, p * in_dim);
+                    let dk = cartan_simd_dot_i4_f32(k_row, in_p, ks, in_dim);
+                    let dv = cartan_simd_dot_i4_f32(v_row, in_p, vs, in_dim);
+                    let base_out = p * out_stride + r;
+                    cartan_set_f32(out_k, base_out, dk);
+                    cartan_set_f32(out_v, base_out, dv);
+                    p = p + 1.0;
+                }
+                r = r + 1.0;
+            }
+        } else if (op == 17.0) {
+            let in_dim = cartan_f32_at(param, 2.0);
+            let g_scales = cartan_ptr_at(param, 4.0);
+            let u_scales = cartan_ptr_at(param, 5.0);
+            let in_mat = cartan_ptr_at(param, 6.0);
+            let out_act = cartan_ptr_at(param, 7.0);
+            let w_g_bytes = cartan_ptr_at(param, 8.0);
+            let w_u_bytes = cartan_ptr_at(param, 9.0);
+            let N = cartan_f32_at(param, 5.0);
+            let out_stride = cartan_f32_at(param, 6.0);
+            let stride_bytes = in_dim * 0.5;
+
+            j = start_row;
+            let j_limit = end_row - 3.0;
+            while (j < j_limit) {
+                let j1 = j + 1.0;
+                let j2 = j + 2.0;
+                let j3 = j + 3.0;
+                let gs0 = cartan_f32_at(g_scales, j);
+                let gs1 = cartan_f32_at(g_scales, j1);
+                let gs2 = cartan_f32_at(g_scales, j2);
+                let gs3 = cartan_f32_at(g_scales, j3);
+                let us0 = cartan_f32_at(u_scales, j);
+                let us1 = cartan_f32_at(u_scales, j1);
+                let us2 = cartan_f32_at(u_scales, j2);
+                let us3 = cartan_f32_at(u_scales, j3);
+                let grow0 = cartan_c_ptr_add(w_g_bytes, j * stride_bytes);
+                let grow1 = cartan_c_ptr_add(w_g_bytes, j1 * stride_bytes);
+                let grow2 = cartan_c_ptr_add(w_g_bytes, j2 * stride_bytes);
+                let grow3 = cartan_c_ptr_add(w_g_bytes, j3 * stride_bytes);
+                let urow0 = cartan_c_ptr_add(w_u_bytes, j * stride_bytes);
+                let urow1 = cartan_c_ptr_add(w_u_bytes, j1 * stride_bytes);
+                let urow2 = cartan_c_ptr_add(w_u_bytes, j2 * stride_bytes);
+                let urow3 = cartan_c_ptr_add(w_u_bytes, j3 * stride_bytes);
+                p = 0.0;
+                while (p < N) {
+                    let in_p = cartan_f32_ptr_add(in_mat, p * in_dim);
+                    let dg0 = cartan_simd_dot_i4_f32(grow0, in_p, gs0, in_dim);
+                    let du0 = cartan_simd_dot_i4_f32(urow0, in_p, us0, in_dim);
+                    let dg1 = cartan_simd_dot_i4_f32(grow1, in_p, gs1, in_dim);
+                    let du1 = cartan_simd_dot_i4_f32(urow1, in_p, us1, in_dim);
+                    let dg2 = cartan_simd_dot_i4_f32(grow2, in_p, gs2, in_dim);
+                    let du2 = cartan_simd_dot_i4_f32(urow2, in_p, us2, in_dim);
+                    let dg3 = cartan_simd_dot_i4_f32(grow3, in_p, gs3, in_dim);
+                    let du3 = cartan_simd_dot_i4_f32(urow3, in_p, us3, in_dim);
+                    let base_out = p * out_stride + j;
+                    cartan_set_f32(out_act, base_out, cartan_fast_gelu_tanh(dg0) * du0);
+                    cartan_set_f32(out_act, base_out + 1.0, cartan_fast_gelu_tanh(dg1) * du1);
+                    cartan_set_f32(out_act, base_out + 2.0, cartan_fast_gelu_tanh(dg2) * du2);
+                    cartan_set_f32(out_act, base_out + 3.0, cartan_fast_gelu_tanh(dg3) * du3);
+                    p = p + 1.0;
+                }
+                j = j + 4.0;
+            }
+            while (j < end_row) {
+                let gs = cartan_f32_at(g_scales, j);
+                let us = cartan_f32_at(u_scales, j);
+                let grow = cartan_c_ptr_add(w_g_bytes, j * stride_bytes);
+                let urow = cartan_c_ptr_add(w_u_bytes, j * stride_bytes);
+                p = 0.0;
+                while (p < N) {
+                    let in_p = cartan_f32_ptr_add(in_mat, p * in_dim);
+                    let dg = cartan_simd_dot_i4_f32(grow, in_p, gs, in_dim);
+                    let du = cartan_simd_dot_i4_f32(urow, in_p, us, in_dim);
+                    cartan_set_f32(out_act, p * out_stride + j, cartan_fast_gelu_tanh(dg) * du);
+                    p = p + 1.0;
+                }
+                j = j + 1.0;
+            }
         }
 
         cartan_set_f32(param, 24.0, 2.0);
@@ -2093,6 +2456,41 @@ fn cartan_trans_pool_dispatch(op: float, total_rows: float, in_dim: float, w_mat
             cartan_set_f32(out_vec, r, dot);
             r = r + 1.0;
         }
+    } else if (op == 12.0) {
+        let stride_bytes = in_dim * 0.5;
+        r = 0.0;
+        let r_limit = chunk - 3.0;
+        while (r < r_limit) {
+            let r1 = r + 1.0;
+            let r2 = r + 2.0;
+            let r3 = r + 3.0;
+            let s0 = cartan_f32_at(w_mat1, r);
+            let s1 = cartan_f32_at(w_mat1, r1);
+            let s2 = cartan_f32_at(w_mat1, r2);
+            let s3 = cartan_f32_at(w_mat1, r3);
+            let row0 = cartan_c_ptr_add(w_mat2, r * stride_bytes);
+            let row1 = cartan_c_ptr_add(w_mat2, r1 * stride_bytes);
+            let row2 = cartan_c_ptr_add(w_mat2, r2 * stride_bytes);
+            let row3 = cartan_c_ptr_add(w_mat2, r3 * stride_bytes);
+
+            let d0 = cartan_simd_dot_i4_f32(row0, in_vec, s0, in_dim);
+            let d1 = cartan_simd_dot_i4_f32(row1, in_vec, s1, in_dim);
+            let d2 = cartan_simd_dot_i4_f32(row2, in_vec, s2, in_dim);
+            let d3 = cartan_simd_dot_i4_f32(row3, in_vec, s3, in_dim);
+
+            cartan_set_f32(out_vec, r, d0);
+            cartan_set_f32(out_vec, r1, d1);
+            cartan_set_f32(out_vec, r2, d2);
+            cartan_set_f32(out_vec, r3, d3);
+            r = r + 4.0;
+        }
+        while (r < chunk) {
+            let row_scale = cartan_f32_at(w_mat1, r);
+            let row = cartan_c_ptr_add(w_mat2, r * stride_bytes);
+            let dot = cartan_simd_dot_i4_f32(row, in_vec, row_scale, in_dim);
+            cartan_set_f32(out_vec, r, dot);
+            r = r + 1.0;
+        }
     }
 
     ti = 1.0;
@@ -2197,6 +2595,223 @@ fn cartan_trans_pool_dispatch_int8_geglu(
         let du = cartan_simd_dot_i8_f32(urow, in_vec, us, in_dim);
         cartan_set_f32(out_vec, j, cartan_fast_gelu_tanh(dg) * du);
         j = j + 1.0;
+    }
+
+    ti = 1.0;
+    while (ti < 8.0) {
+        let tp = cartan_f32_ptr_add(g_trans_thread_tasks, ti * 64.0);
+        spin = 0.0;
+        s = cartan_f32_at(tp, 24.0);
+        while (s != 2.0) {
+            spin = spin + 1.0;
+            if (spin > 5000.0) {
+                SwitchToThread();
+                spin = 0.0;
+            }
+            s = cartan_f32_at(tp, 24.0);
+        }
+        cartan_set_f32(tp, 24.0, 0.0);
+        ti = ti + 1.0;
+    }
+}
+
+fn cartan_trans_pool_dispatch_int4_geglu(
+    total_rows: float,
+    in_dim: float,
+    g_scales: ptr,
+    u_scales: ptr,
+    w_g_bytes: ptr,
+    w_u_bytes: ptr,
+    in_vec: ptr,
+    out_vec: ptr
+) {
+    if (g_trans_pool_standby == 1.0) { g_trans_pool_standby = 0.0; }
+    let chunk = total_rows / 8.0;
+    var ti = 1.0;
+    var j = 0.0;
+    var end_r = 0.0;
+    var spin = 0.0;
+    var s = 0.0;
+
+    while (ti < 8.0) {
+        let tp = cartan_f32_ptr_add(g_trans_thread_tasks, ti * 64.0);
+        cartan_set_f32(tp, 0.0, ti * chunk);
+        end_r = (ti + 1.0) * chunk;
+        if (ti == 7.0) { end_r = total_rows; }
+        cartan_set_f32(tp, 1.0, end_r);
+        cartan_set_f32(tp, 2.0, in_dim);
+        cartan_set_f32(tp, 3.0, 14.0);
+        cartan_set_ptr(tp, 4.0, g_scales);
+        cartan_set_ptr(tp, 5.0, u_scales);
+        cartan_set_ptr(tp, 6.0, in_vec);
+        cartan_set_ptr(tp, 7.0, out_vec);
+        cartan_set_ptr(tp, 8.0, w_g_bytes);
+        cartan_set_ptr(tp, 9.0, w_u_bytes);
+        cartan_set_f32(tp, 24.0, 1.0);
+        ti = ti + 1.0;
+    }
+
+    let stride_bytes = in_dim * 0.5;
+    j = 0.0;
+    let j_limit = chunk - 3.0;
+    while (j < j_limit) {
+        let j1 = j + 1.0;
+        let j2 = j + 2.0;
+        let j3 = j + 3.0;
+        let gs0 = cartan_f32_at(g_scales, j);
+        let gs1 = cartan_f32_at(g_scales, j1);
+        let gs2 = cartan_f32_at(g_scales, j2);
+        let gs3 = cartan_f32_at(g_scales, j3);
+        let us0 = cartan_f32_at(u_scales, j);
+        let us1 = cartan_f32_at(u_scales, j1);
+        let us2 = cartan_f32_at(u_scales, j2);
+        let us3 = cartan_f32_at(u_scales, j3);
+
+        let grow0 = cartan_c_ptr_add(w_g_bytes, j * stride_bytes);
+        let grow1 = cartan_c_ptr_add(w_g_bytes, j1 * stride_bytes);
+        let grow2 = cartan_c_ptr_add(w_g_bytes, j2 * stride_bytes);
+        let grow3 = cartan_c_ptr_add(w_g_bytes, j3 * stride_bytes);
+        let urow0 = cartan_c_ptr_add(w_u_bytes, j * stride_bytes);
+        let urow1 = cartan_c_ptr_add(w_u_bytes, j1 * stride_bytes);
+        let urow2 = cartan_c_ptr_add(w_u_bytes, j2 * stride_bytes);
+        let urow3 = cartan_c_ptr_add(w_u_bytes, j3 * stride_bytes);
+
+        let dg0 = cartan_simd_dot_i4_f32(grow0, in_vec, gs0, in_dim);
+        let du0 = cartan_simd_dot_i4_f32(urow0, in_vec, us0, in_dim);
+        let dg1 = cartan_simd_dot_i4_f32(grow1, in_vec, gs1, in_dim);
+        let du1 = cartan_simd_dot_i4_f32(urow1, in_vec, us1, in_dim);
+        let dg2 = cartan_simd_dot_i4_f32(grow2, in_vec, gs2, in_dim);
+        let du2 = cartan_simd_dot_i4_f32(urow2, in_vec, us2, in_dim);
+        let dg3 = cartan_simd_dot_i4_f32(grow3, in_vec, gs3, in_dim);
+        let du3 = cartan_simd_dot_i4_f32(urow3, in_vec, us3, in_dim);
+
+        cartan_set_f32(out_vec, j, cartan_fast_gelu_tanh(dg0) * du0);
+        cartan_set_f32(out_vec, j1, cartan_fast_gelu_tanh(dg1) * du1);
+        cartan_set_f32(out_vec, j2, cartan_fast_gelu_tanh(dg2) * du2);
+        cartan_set_f32(out_vec, j3, cartan_fast_gelu_tanh(dg3) * du3);
+        j = j + 4.0;
+    }
+    while (j < chunk) {
+        let gs = cartan_f32_at(g_scales, j);
+        let us = cartan_f32_at(u_scales, j);
+        let grow = cartan_c_ptr_add(w_g_bytes, j * stride_bytes);
+        let urow = cartan_c_ptr_add(w_u_bytes, j * stride_bytes);
+        let dg = cartan_simd_dot_i4_f32(grow, in_vec, gs, in_dim);
+        let du = cartan_simd_dot_i4_f32(urow, in_vec, us, in_dim);
+        cartan_set_f32(out_vec, j, cartan_fast_gelu_tanh(dg) * du);
+        j = j + 1.0;
+    }
+
+    ti = 1.0;
+    while (ti < 8.0) {
+        let tp = cartan_f32_ptr_add(g_trans_thread_tasks, ti * 64.0);
+        spin = 0.0;
+        s = cartan_f32_at(tp, 24.0);
+        while (s != 2.0) {
+            spin = spin + 1.0;
+            if (spin > 5000.0) {
+                SwitchToThread();
+                spin = 0.0;
+            }
+            s = cartan_f32_at(tp, 24.0);
+        }
+        cartan_set_f32(tp, 24.0, 0.0);
+        ti = ti + 1.0;
+    }
+}
+
+fn cartan_trans_pool_dispatch_int4_dual_gemv(
+    total_rows: float,
+    in_dim: float,
+    k_scales: ptr,
+    w_k_bytes: ptr,
+    v_scales: ptr,
+    w_v_bytes: ptr,
+    in_vec: ptr,
+    out_k: ptr,
+    out_v: ptr
+) {
+    if (g_trans_pool_standby == 1.0) { g_trans_pool_standby = 0.0; }
+    let chunk = total_rows / 8.0;
+    var ti = 1.0;
+    var r = 0.0;
+    var end_r = 0.0;
+    var spin = 0.0;
+    var s = 0.0;
+
+    while (ti < 8.0) {
+        let tp = cartan_f32_ptr_add(g_trans_thread_tasks, ti * 64.0);
+        cartan_set_f32(tp, 0.0, ti * chunk);
+        end_r = (ti + 1.0) * chunk;
+        if (ti == 7.0) { end_r = total_rows; }
+        cartan_set_f32(tp, 1.0, end_r);
+        cartan_set_f32(tp, 2.0, in_dim);
+        cartan_set_f32(tp, 3.0, 13.0);
+        cartan_set_ptr(tp, 4.0, k_scales);
+        cartan_set_ptr(tp, 5.0, w_k_bytes);
+        cartan_set_ptr(tp, 6.0, in_vec);
+        cartan_set_ptr(tp, 7.0, out_k);
+        cartan_set_ptr(tp, 8.0, v_scales);
+        cartan_set_ptr(tp, 9.0, w_v_bytes);
+        cartan_set_ptr(tp, 10.0, out_v);
+        cartan_set_f32(tp, 24.0, 1.0);
+        ti = ti + 1.0;
+    }
+
+    let stride_bytes = in_dim * 0.5;
+    r = 0.0;
+    let r_limit = chunk - 3.0;
+    while (r < r_limit) {
+        let r1 = r + 1.0;
+        let r2 = r + 2.0;
+        let r3 = r + 3.0;
+        let ks0 = cartan_f32_at(k_scales, r);
+        let ks1 = cartan_f32_at(k_scales, r1);
+        let ks2 = cartan_f32_at(k_scales, r2);
+        let ks3 = cartan_f32_at(k_scales, r3);
+        let vs0 = cartan_f32_at(v_scales, r);
+        let vs1 = cartan_f32_at(v_scales, r1);
+        let vs2 = cartan_f32_at(v_scales, r2);
+        let vs3 = cartan_f32_at(v_scales, r3);
+
+        let k0 = cartan_c_ptr_add(w_k_bytes, r * stride_bytes);
+        let k1 = cartan_c_ptr_add(w_k_bytes, r1 * stride_bytes);
+        let k2 = cartan_c_ptr_add(w_k_bytes, r2 * stride_bytes);
+        let k3 = cartan_c_ptr_add(w_k_bytes, r3 * stride_bytes);
+        let v0 = cartan_c_ptr_add(w_v_bytes, r * stride_bytes);
+        let v1 = cartan_c_ptr_add(w_v_bytes, r1 * stride_bytes);
+        let v2 = cartan_c_ptr_add(w_v_bytes, r2 * stride_bytes);
+        let v3 = cartan_c_ptr_add(w_v_bytes, r3 * stride_bytes);
+
+        let dk0 = cartan_simd_dot_i4_f32(k0, in_vec, ks0, in_dim);
+        let dv0 = cartan_simd_dot_i4_f32(v0, in_vec, vs0, in_dim);
+        let dk1 = cartan_simd_dot_i4_f32(k1, in_vec, ks1, in_dim);
+        let dv1 = cartan_simd_dot_i4_f32(v1, in_vec, vs1, in_dim);
+        let dk2 = cartan_simd_dot_i4_f32(k2, in_vec, ks2, in_dim);
+        let dv2 = cartan_simd_dot_i4_f32(v2, in_vec, vs2, in_dim);
+        let dk3 = cartan_simd_dot_i4_f32(k3, in_vec, ks3, in_dim);
+        let dv3 = cartan_simd_dot_i4_f32(v3, in_vec, vs3, in_dim);
+
+        cartan_set_f32(out_k, r, dk0);
+        cartan_set_f32(out_v, r, dv0);
+        cartan_set_f32(out_k, r1, dk1);
+        cartan_set_f32(out_v, r1, dv1);
+        cartan_set_f32(out_k, r2, dk2);
+        cartan_set_f32(out_v, r2, dv2);
+        cartan_set_f32(out_k, r3, dk3);
+        cartan_set_f32(out_v, r3, dv3);
+        r = r + 4.0;
+    }
+    while (r < chunk) {
+        let ks = cartan_f32_at(k_scales, r);
+        let vs = cartan_f32_at(v_scales, r);
+        let k_row = cartan_c_ptr_add(w_k_bytes, r * stride_bytes);
+        let v_row = cartan_c_ptr_add(w_v_bytes, r * stride_bytes);
+        let dk = cartan_simd_dot_i4_f32(k_row, in_vec, ks, in_dim);
+        let dv = cartan_simd_dot_i4_f32(v_row, in_vec, vs, in_dim);
+        cartan_set_f32(out_k, r, dk);
+        cartan_set_f32(out_v, r, dv);
+        r = r + 1.0;
     }
 
     ti = 1.0;
@@ -2753,6 +3368,352 @@ fn cartan_trans_pool_dispatch_batch_int8_geglu(
     }
 }
 
+fn cartan_trans_pool_dispatch_batch_int4_gemv(
+    total_rows: float,
+    in_dim: float,
+    scales: ptr,
+    w_bytes: ptr,
+    in_mat: ptr,
+    out_mat: ptr,
+    N: float,
+    out_stride: float
+) {
+    if (g_trans_pool_standby == 1.0) { g_trans_pool_standby = 0.0; }
+    let chunk = total_rows / 8.0;
+    var ti = 0.0;
+    var r = 0.0;
+    var p = 0.0;
+    var spin = 0.0;
+    var end_r = 0.0;
+    var s = 0.0;
+
+    ti = 1.0;
+    while (ti < 8.0) {
+        let tp = cartan_f32_ptr_add(g_trans_thread_tasks, ti * 64.0);
+        cartan_set_f32(tp, 0.0, ti * chunk);
+        end_r = (ti + 1.0) * chunk;
+        if (ti == 7.0) { end_r = total_rows; }
+        cartan_set_f32(tp, 1.0, end_r);
+        cartan_set_f32(tp, 2.0, in_dim);
+        cartan_set_f32(tp, 3.0, 15.0);
+        cartan_set_ptr(tp, 4.0, scales);
+        cartan_set_ptr(tp, 5.0, w_bytes);
+        cartan_set_ptr(tp, 6.0, in_mat);
+        cartan_set_ptr(tp, 7.0, out_mat);
+        cartan_set_f32(tp, 5.0, N);
+        cartan_set_f32(tp, 6.0, out_stride);
+        cartan_set_f32(tp, 24.0, 1.0);
+        ti = ti + 1.0;
+    }
+
+    let stride_bytes = in_dim * 0.5;
+    r = 0.0;
+    let r_limit = chunk - 3.0;
+    while (r < r_limit) {
+        let r1 = r + 1.0;
+        let r2 = r + 2.0;
+        let r3 = r + 3.0;
+        let s0 = cartan_f32_at(scales, r);
+        let s1 = cartan_f32_at(scales, r1);
+        let s2 = cartan_f32_at(scales, r2);
+        let s3 = cartan_f32_at(scales, r3);
+        let row0 = cartan_c_ptr_add(w_bytes, r * stride_bytes);
+        let row1 = cartan_c_ptr_add(w_bytes, r1 * stride_bytes);
+        let row2 = cartan_c_ptr_add(w_bytes, r2 * stride_bytes);
+        let row3 = cartan_c_ptr_add(w_bytes, r3 * stride_bytes);
+        p = 0.0;
+        while (p < N) {
+            let in_p = cartan_f32_ptr_add(in_mat, p * in_dim);
+            let d0 = cartan_simd_dot_i4_f32(row0, in_p, s0, in_dim);
+            let d1 = cartan_simd_dot_i4_f32(row1, in_p, s1, in_dim);
+            let d2 = cartan_simd_dot_i4_f32(row2, in_p, s2, in_dim);
+            let d3 = cartan_simd_dot_i4_f32(row3, in_p, s3, in_dim);
+            let base_out = p * out_stride + r;
+            cartan_set_f32(out_mat, base_out, d0);
+            cartan_set_f32(out_mat, base_out + 1.0, d1);
+            cartan_set_f32(out_mat, base_out + 2.0, d2);
+            cartan_set_f32(out_mat, base_out + 3.0, d3);
+            p = p + 1.0;
+        }
+        r = r + 4.0;
+    }
+    while (r < chunk) {
+        let row_scale = cartan_f32_at(scales, r);
+        let row = cartan_c_ptr_add(w_bytes, r * stride_bytes);
+        p = 0.0;
+        while (p < N) {
+            let in_p = cartan_f32_ptr_add(in_mat, p * in_dim);
+            let dot = cartan_simd_dot_i4_f32(row, in_p, row_scale, in_dim);
+            cartan_set_f32(out_mat, p * out_stride + r, dot);
+            p = p + 1.0;
+        }
+        r = r + 1.0;
+    }
+
+    ti = 1.0;
+    while (ti < 8.0) {
+        let tp = cartan_f32_ptr_add(g_trans_thread_tasks, ti * 64.0);
+        spin = 0.0;
+        s = cartan_f32_at(tp, 24.0);
+        while (s != 2.0) {
+            spin = spin + 1.0;
+            if (spin > 5000.0) {
+                SwitchToThread();
+                spin = 0.0;
+            }
+            s = cartan_f32_at(tp, 24.0);
+        }
+        cartan_set_f32(tp, 24.0, 0.0);
+        ti = ti + 1.0;
+    }
+}
+
+fn cartan_trans_pool_dispatch_batch_int4_dual_gemv(
+    total_rows: float,
+    in_dim: float,
+    k_scales: ptr,
+    w_k_bytes: ptr,
+    v_scales: ptr,
+    w_v_bytes: ptr,
+    in_mat: ptr,
+    out_k: ptr,
+    out_v: ptr,
+    N: float,
+    out_stride: float
+) {
+    if (g_trans_pool_standby == 1.0) { g_trans_pool_standby = 0.0; }
+    let chunk = total_rows / 8.0;
+    var ti = 0.0;
+    var r = 0.0;
+    var p = 0.0;
+    var spin = 0.0;
+    var end_r = 0.0;
+    var s = 0.0;
+
+    ti = 1.0;
+    while (ti < 8.0) {
+        let tp = cartan_f32_ptr_add(g_trans_thread_tasks, ti * 64.0);
+        cartan_set_f32(tp, 0.0, ti * chunk);
+        end_r = (ti + 1.0) * chunk;
+        if (ti == 7.0) { end_r = total_rows; }
+        cartan_set_f32(tp, 1.0, end_r);
+        cartan_set_f32(tp, 2.0, in_dim);
+        cartan_set_f32(tp, 3.0, 16.0);
+        cartan_set_ptr(tp, 4.0, k_scales);
+        cartan_set_ptr(tp, 5.0, w_k_bytes);
+        cartan_set_ptr(tp, 6.0, in_mat);
+        cartan_set_ptr(tp, 7.0, out_k);
+        cartan_set_ptr(tp, 8.0, v_scales);
+        cartan_set_ptr(tp, 9.0, w_v_bytes);
+        cartan_set_ptr(tp, 10.0, out_v);
+        cartan_set_f32(tp, 5.0, N);
+        cartan_set_f32(tp, 6.0, out_stride);
+        cartan_set_f32(tp, 24.0, 1.0);
+        ti = ti + 1.0;
+    }
+
+    let stride_bytes = in_dim * 0.5;
+    r = 0.0;
+    let r_limit = chunk - 3.0;
+    while (r < r_limit) {
+        let r1 = r + 1.0;
+        let r2 = r + 2.0;
+        let r3 = r + 3.0;
+        let ks0 = cartan_f32_at(k_scales, r);
+        let ks1 = cartan_f32_at(k_scales, r1);
+        let ks2 = cartan_f32_at(k_scales, r2);
+        let ks3 = cartan_f32_at(k_scales, r3);
+        let vs0 = cartan_f32_at(v_scales, r);
+        let vs1 = cartan_f32_at(v_scales, r1);
+        let vs2 = cartan_f32_at(v_scales, r2);
+        let vs3 = cartan_f32_at(v_scales, r3);
+        let k0 = cartan_c_ptr_add(w_k_bytes, r * stride_bytes);
+        let k1 = cartan_c_ptr_add(w_k_bytes, r1 * stride_bytes);
+        let k2 = cartan_c_ptr_add(w_k_bytes, r2 * stride_bytes);
+        let k3 = cartan_c_ptr_add(w_k_bytes, r3 * stride_bytes);
+        let v0 = cartan_c_ptr_add(w_v_bytes, r * stride_bytes);
+        let v1 = cartan_c_ptr_add(w_v_bytes, r1 * stride_bytes);
+        let v2 = cartan_c_ptr_add(w_v_bytes, r2 * stride_bytes);
+        let v3 = cartan_c_ptr_add(w_v_bytes, r3 * stride_bytes);
+        p = 0.0;
+        while (p < N) {
+            let in_p = cartan_f32_ptr_add(in_mat, p * in_dim);
+            let dk0 = cartan_simd_dot_i4_f32(k0, in_p, ks0, in_dim);
+            let dv0 = cartan_simd_dot_i4_f32(v0, in_p, vs0, in_dim);
+            let dk1 = cartan_simd_dot_i4_f32(k1, in_p, ks1, in_dim);
+            let dv1 = cartan_simd_dot_i4_f32(v1, in_p, vs1, in_dim);
+            let dk2 = cartan_simd_dot_i4_f32(k2, in_p, ks2, in_dim);
+            let dv2 = cartan_simd_dot_i4_f32(v2, in_p, vs2, in_dim);
+            let dk3 = cartan_simd_dot_i4_f32(k3, in_p, ks3, in_dim);
+            let dv3 = cartan_simd_dot_i4_f32(v3, in_p, vs3, in_dim);
+            let base_out = p * out_stride + r;
+            cartan_set_f32(out_k, base_out, dk0);
+            cartan_set_f32(out_v, base_out, dv0);
+            cartan_set_f32(out_k, base_out + 1.0, dk1);
+            cartan_set_f32(out_v, base_out + 1.0, dv1);
+            cartan_set_f32(out_k, base_out + 2.0, dk2);
+            cartan_set_f32(out_v, base_out + 2.0, dv2);
+            cartan_set_f32(out_k, base_out + 3.0, dk3);
+            cartan_set_f32(out_v, base_out + 3.0, dv3);
+            p = p + 1.0;
+        }
+        r = r + 4.0;
+    }
+    while (r < chunk) {
+        let ks = cartan_f32_at(k_scales, r);
+        let vs = cartan_f32_at(v_scales, r);
+        let k_row = cartan_c_ptr_add(w_k_bytes, r * stride_bytes);
+        let v_row = cartan_c_ptr_add(w_v_bytes, r * stride_bytes);
+        p = 0.0;
+        while (p < N) {
+            let in_p = cartan_f32_ptr_add(in_mat, p * in_dim);
+            let dk = cartan_simd_dot_i4_f32(k_row, in_p, ks, in_dim);
+            let dv = cartan_simd_dot_i4_f32(v_row, in_p, vs, in_dim);
+            let base_out = p * out_stride + r;
+            cartan_set_f32(out_k, base_out, dk);
+            cartan_set_f32(out_v, base_out, dv);
+            p = p + 1.0;
+        }
+        r = r + 1.0;
+    }
+
+    ti = 1.0;
+    while (ti < 8.0) {
+        let tp = cartan_f32_ptr_add(g_trans_thread_tasks, ti * 64.0);
+        spin = 0.0;
+        s = cartan_f32_at(tp, 24.0);
+        while (s != 2.0) {
+            spin = spin + 1.0;
+            if (spin > 5000.0) {
+                SwitchToThread();
+                spin = 0.0;
+            }
+            s = cartan_f32_at(tp, 24.0);
+        }
+        cartan_set_f32(tp, 24.0, 0.0);
+        ti = ti + 1.0;
+    }
+}
+
+fn cartan_trans_pool_dispatch_batch_int4_geglu(
+    total_rows: float,
+    in_dim: float,
+    g_scales: ptr,
+    u_scales: ptr,
+    w_g_bytes: ptr,
+    w_u_bytes: ptr,
+    in_mat: ptr,
+    out_act: ptr,
+    N: float,
+    out_stride: float
+) {
+    if (g_trans_pool_standby == 1.0) { g_trans_pool_standby = 0.0; }
+    let chunk = total_rows / 8.0;
+    var ti = 0.0;
+    var j = 0.0;
+    var p = 0.0;
+    var spin = 0.0;
+    var end_r = 0.0;
+    var s = 0.0;
+
+    ti = 1.0;
+    while (ti < 8.0) {
+        let tp = cartan_f32_ptr_add(g_trans_thread_tasks, ti * 64.0);
+        cartan_set_f32(tp, 0.0, ti * chunk);
+        end_r = (ti + 1.0) * chunk;
+        if (ti == 7.0) { end_r = total_rows; }
+        cartan_set_f32(tp, 1.0, end_r);
+        cartan_set_f32(tp, 2.0, in_dim);
+        cartan_set_f32(tp, 3.0, 17.0);
+        cartan_set_ptr(tp, 4.0, g_scales);
+        cartan_set_ptr(tp, 5.0, u_scales);
+        cartan_set_ptr(tp, 6.0, in_mat);
+        cartan_set_ptr(tp, 7.0, out_act);
+        cartan_set_ptr(tp, 8.0, w_g_bytes);
+        cartan_set_ptr(tp, 9.0, w_u_bytes);
+        cartan_set_f32(tp, 5.0, N);
+        cartan_set_f32(tp, 6.0, out_stride);
+        cartan_set_f32(tp, 24.0, 1.0);
+        ti = ti + 1.0;
+    }
+
+    let stride_bytes = in_dim * 0.5;
+    j = 0.0;
+    let j_limit = chunk - 3.0;
+    while (j < j_limit) {
+        let j1 = j + 1.0;
+        let j2 = j + 2.0;
+        let j3 = j + 3.0;
+        let gs0 = cartan_f32_at(g_scales, j);
+        let gs1 = cartan_f32_at(g_scales, j1);
+        let gs2 = cartan_f32_at(g_scales, j2);
+        let gs3 = cartan_f32_at(g_scales, j3);
+        let us0 = cartan_f32_at(u_scales, j);
+        let us1 = cartan_f32_at(u_scales, j1);
+        let us2 = cartan_f32_at(u_scales, j2);
+        let us3 = cartan_f32_at(u_scales, j3);
+        let grow0 = cartan_c_ptr_add(w_g_bytes, j * stride_bytes);
+        let grow1 = cartan_c_ptr_add(w_g_bytes, j1 * stride_bytes);
+        let grow2 = cartan_c_ptr_add(w_g_bytes, j2 * stride_bytes);
+        let grow3 = cartan_c_ptr_add(w_g_bytes, j3 * stride_bytes);
+        let urow0 = cartan_c_ptr_add(w_u_bytes, j * stride_bytes);
+        let urow1 = cartan_c_ptr_add(w_u_bytes, j1 * stride_bytes);
+        let urow2 = cartan_c_ptr_add(w_u_bytes, j2 * stride_bytes);
+        let urow3 = cartan_c_ptr_add(w_u_bytes, j3 * stride_bytes);
+        p = 0.0;
+        while (p < N) {
+            let in_p = cartan_f32_ptr_add(in_mat, p * in_dim);
+            let dg0 = cartan_simd_dot_i4_f32(grow0, in_p, gs0, in_dim);
+            let du0 = cartan_simd_dot_i4_f32(urow0, in_p, us0, in_dim);
+            let dg1 = cartan_simd_dot_i4_f32(grow1, in_p, gs1, in_dim);
+            let du1 = cartan_simd_dot_i4_f32(urow1, in_p, us1, in_dim);
+            let dg2 = cartan_simd_dot_i4_f32(grow2, in_p, gs2, in_dim);
+            let du2 = cartan_simd_dot_i4_f32(urow2, in_p, us2, in_dim);
+            let dg3 = cartan_simd_dot_i4_f32(grow3, in_p, gs3, in_dim);
+            let du3 = cartan_simd_dot_i4_f32(urow3, in_p, us3, in_dim);
+            let base_out = p * out_stride + j;
+            cartan_set_f32(out_act, base_out, cartan_fast_gelu_tanh(dg0) * du0);
+            cartan_set_f32(out_act, base_out + 1.0, cartan_fast_gelu_tanh(dg1) * du1);
+            cartan_set_f32(out_act, base_out + 2.0, cartan_fast_gelu_tanh(dg2) * du2);
+            cartan_set_f32(out_act, base_out + 3.0, cartan_fast_gelu_tanh(dg3) * du3);
+            p = p + 1.0;
+        }
+        j = j + 4.0;
+    }
+    while (j < chunk) {
+        let gs = cartan_f32_at(g_scales, j);
+        let us = cartan_f32_at(u_scales, j);
+        let grow = cartan_c_ptr_add(w_g_bytes, j * stride_bytes);
+        let urow = cartan_c_ptr_add(w_u_bytes, j * stride_bytes);
+        p = 0.0;
+        while (p < N) {
+            let in_p = cartan_f32_ptr_add(in_mat, p * in_dim);
+            let dg = cartan_simd_dot_i4_f32(grow, in_p, gs, in_dim);
+            let du = cartan_simd_dot_i4_f32(urow, in_p, us, in_dim);
+            cartan_set_f32(out_act, p * out_stride + j, cartan_fast_gelu_tanh(dg) * du);
+            p = p + 1.0;
+        }
+        j = j + 1.0;
+    }
+
+    ti = 1.0;
+    while (ti < 8.0) {
+        let tp = cartan_f32_ptr_add(g_trans_thread_tasks, ti * 64.0);
+        spin = 0.0;
+        s = cartan_f32_at(tp, 24.0);
+        while (s != 2.0) {
+            spin = spin + 1.0;
+            if (spin > 5000.0) {
+                SwitchToThread();
+                spin = 0.0;
+            }
+            s = cartan_f32_at(tp, 24.0);
+        }
+        cartan_set_f32(tp, 24.0, 0.0);
+        ti = ti + 1.0;
+    }
+}
+
 fn cartan_trans_pool_dispatch_lm_head(
     vocab_size: float,
     dim: float,
@@ -2951,29 +3912,33 @@ fn cartan_manifold_layer_forward_native(
     var w_gate = 0.0; var w_up = 0.0; var w_down = 0.0;
     var w_ple_gate = 0.0; var w_ple_proj = 0.0;
 
-    if (is_int8 == 1.0) {
+    if (is_int8 == 1.0 || is_int8 == 2.0) {
+        var w_stride = 1.0;
+        if (is_int8 == 2.0) {
+            w_stride = 0.5;
+        }
         w_in_norm = cartan_c_ptr_add(layer_buf, 64.0);
         var bo = 64.0 + dim * 4.0;
 
         q_scales = cartan_c_ptr_add(layer_buf, bo);
         bo = bo + q_dim * 4.0;
         w_q_bytes = cartan_c_ptr_add(layer_buf, bo);
-        bo = bo + q_dim * dim;
+        bo = bo + q_dim * dim * w_stride;
 
         k_scales = cartan_c_ptr_add(layer_buf, bo);
         bo = bo + kv_dim * 4.0;
         w_k_bytes = cartan_c_ptr_add(layer_buf, bo);
-        bo = bo + kv_dim * dim;
+        bo = bo + kv_dim * dim * w_stride;
 
         v_scales = cartan_c_ptr_add(layer_buf, bo);
         bo = bo + kv_dim * 4.0;
         w_v_bytes = cartan_c_ptr_add(layer_buf, bo);
-        bo = bo + kv_dim * dim;
+        bo = bo + kv_dim * dim * w_stride;
 
         o_scales = cartan_c_ptr_add(layer_buf, bo);
         bo = bo + dim * 4.0;
         w_o_bytes = cartan_c_ptr_add(layer_buf, bo);
-        bo = bo + dim * q_dim;
+        bo = bo + dim * q_dim * w_stride;
 
         w_q_norm = cartan_c_ptr_add(layer_buf, bo);
         bo = bo + 512.0 * 4.0;
@@ -2988,17 +3953,17 @@ fn cartan_manifold_layer_forward_native(
         gate_scales = cartan_c_ptr_add(layer_buf, bo);
         bo = bo + inter_dim * 4.0;
         w_gate_bytes = cartan_c_ptr_add(layer_buf, bo);
-        bo = bo + inter_dim * dim;
+        bo = bo + inter_dim * dim * w_stride;
 
         up_scales = cartan_c_ptr_add(layer_buf, bo);
         bo = bo + inter_dim * 4.0;
         w_up_bytes = cartan_c_ptr_add(layer_buf, bo);
-        bo = bo + inter_dim * dim;
+        bo = bo + inter_dim * dim * w_stride;
 
         down_scales = cartan_c_ptr_add(layer_buf, bo);
         bo = bo + dim * 4.0;
         w_down_bytes = cartan_c_ptr_add(layer_buf, bo);
-        bo = bo + dim * inter_dim;
+        bo = bo + dim * inter_dim * w_stride;
 
         w_post_ffn = cartan_c_ptr_add(layer_buf, bo);
         bo = bo + dim * 4.0;
@@ -3006,12 +3971,12 @@ fn cartan_manifold_layer_forward_native(
         ple_gate_scales = cartan_c_ptr_add(layer_buf, bo);
         bo = bo + ple_dim * 4.0;
         w_ple_gate_bytes = cartan_c_ptr_add(layer_buf, bo);
-        bo = bo + ple_dim * dim;
+        bo = bo + ple_dim * dim * w_stride;
 
         ple_proj_scales = cartan_c_ptr_add(layer_buf, bo);
         bo = bo + dim * 4.0;
         w_ple_proj_bytes = cartan_c_ptr_add(layer_buf, bo);
-        bo = bo + dim * ple_dim;
+        bo = bo + dim * ple_dim * w_stride;
 
         w_ple_norm = cartan_c_ptr_add(layer_buf, bo);
     } else {
@@ -3069,7 +4034,9 @@ fn cartan_manifold_layer_forward_native(
     }
 
     // 2. Q Projections (Persistent Worker Thread Pool GEMV)
-    if (is_int8 == 1.0) {
+    if (is_int8 == 2.0) {
+        cartan_trans_pool_dispatch(12.0, q_dim, dim, q_scales, w_q_bytes, g_trans_norm_h1, g_trans_q_raw);
+    } else if (is_int8 == 1.0) {
         cartan_trans_pool_dispatch(7.0, q_dim, dim, q_scales, w_q_bytes, g_trans_norm_h1, g_trans_q_raw);
     } else {
         cartan_trans_pool_dispatch(2.0, q_dim, dim, w_q, g_trans_null_ptr, g_trans_norm_h1, g_trans_q_raw);
@@ -3133,7 +4100,9 @@ fn cartan_manifold_layer_forward_native(
     }
 
     if (is_kv_shared == 0.0) {
-        if (is_int8 == 1.0) {
+        if (is_int8 == 2.0) {
+            cartan_trans_pool_dispatch_int4_dual_gemv(kv_dim, dim, k_scales, w_k_bytes, v_scales, w_v_bytes, g_trans_norm_h1, g_trans_k_raw, g_trans_v_raw);
+        } else if (is_int8 == 1.0) {
             cartan_trans_pool_dispatch(7.0, kv_dim, dim, k_scales, w_k_bytes, g_trans_norm_h1, g_trans_k_raw);
             cartan_trans_pool_dispatch(7.0, kv_dim, dim, v_scales, w_v_bytes, g_trans_norm_h1, g_trans_v_raw);
         } else {
@@ -3284,7 +4253,9 @@ fn cartan_manifold_layer_forward_native(
     }
 
     // 7. Output Projection W_o (Persistent Worker Thread Pool GEMV)
-    if (is_int8 == 1.0) {
+    if (is_int8 == 2.0) {
+        cartan_trans_pool_dispatch(12.0, dim, q_dim, o_scales, w_o_bytes, g_trans_attn_out, g_trans_o_raw);
+    } else if (is_int8 == 1.0) {
         cartan_trans_pool_dispatch(7.0, dim, q_dim, o_scales, w_o_bytes, g_trans_attn_out, g_trans_o_raw);
     } else {
         cartan_trans_pool_dispatch(2.0, dim, q_dim, w_o, g_trans_null_ptr, g_trans_attn_out, g_trans_o_raw);
@@ -3317,7 +4288,10 @@ fn cartan_manifold_layer_forward_native(
         gpu_done = cartan_transformer_dispatch_gpu_layer_int8(layer_idx, g_trans_norm_h2, g_trans_ffn_raw, dim, inter_dim);
     }
     if (gpu_done == 0.0) {
-        if (is_int8 == 1.0) {
+        if (is_int8 == 2.0) {
+            cartan_trans_pool_dispatch_int4_geglu(inter_dim, dim, gate_scales, up_scales, w_gate_bytes, w_up_bytes, g_trans_norm_h2, g_trans_act_buf);
+            cartan_trans_pool_dispatch(12.0, dim, inter_dim, down_scales, w_down_bytes, g_trans_act_buf, g_trans_ffn_raw);
+        } else if (is_int8 == 1.0) {
             cartan_trans_pool_dispatch_int8_geglu(inter_dim, dim, gate_scales, up_scales, w_gate_bytes, w_up_bytes, g_trans_norm_h2, g_trans_act_buf);
             cartan_trans_pool_dispatch(7.0, dim, inter_dim, down_scales, w_down_bytes, g_trans_act_buf, g_trans_ffn_raw);
         } else {
@@ -3341,7 +4315,38 @@ fn cartan_manifold_layer_forward_native(
     if (has_ple > 0.0 && tok_id >= 0.0 && tok_id < 262144.0) {
         let pli_l = cartan_get_cached_pli(layer_idx, tok_id);
         if (pli_l != 0.0) {
-            if (is_int8 == 1.0) {
+            if (is_int8 == 2.0) {
+                var p = 0.0;
+                let ple_stride = dim * 0.5;
+                while (p < ple_dim) {
+                    let ps = cartan_f32_at(ple_gate_scales, p);
+                    let g_row = cartan_c_ptr_add(w_ple_gate_bytes, p * ple_stride);
+                    let dot_gate = cartan_simd_dot_i4_f32(g_row, g_trans_h2, ps, dim);
+                    let pli_val = cartan_f32_at(pli_l, p);
+                    cartan_set_f32(g_trans_ple_act, p, cartan_fast_gelu_tanh(dot_gate) * pli_val);
+                    p = p + 1.0;
+                }
+                var ple_sq = 0.0;
+                d = 0.0;
+                let ple_proj_stride = ple_dim * 0.5;
+                while (d < dim) {
+                    let ps = cartan_f32_at(ple_proj_scales, d);
+                    let p_row = cartan_c_ptr_add(w_ple_proj_bytes, d * ple_proj_stride);
+                    let dot_p = cartan_simd_dot_i4_f32(p_row, g_trans_ple_act, ps, ple_dim);
+                    cartan_set_f32(g_trans_ple_proj, d, dot_p);
+                    ple_sq = ple_sq + dot_p * dot_p;
+                    d = d + 1.0;
+                }
+                let inv_ple_rms = 1.0 / sqrt((ple_sq / dim) + 0.000001);
+                d = 0.0;
+                while (d < dim) {
+                    let h2_val = cartan_f32_at(g_trans_h2, d);
+                    let proj_val = cartan_f32_at(g_trans_ple_proj, d);
+                    let norm_val = cartan_f32_at(w_ple_norm, d);
+                    cartan_set_f32(g_trans_h3, d, h2_val + proj_val * inv_ple_rms * norm_val);
+                    d = d + 1.0;
+                }
+            } else if (is_int8 == 1.0) {
                 var p = 0.0;
                 while (p < ple_dim) {
                     let ps = cartan_f32_at(ple_gate_scales, p);
@@ -3950,6 +4955,508 @@ fn cartan_manifold_layer_forward_batch_int8(
 }
 
 // -----------------------------------------------------------------------------
+// Batched Sequence Prefill Layer Forward Kernel for INT4 Weights
+// -----------------------------------------------------------------------------
+fn cartan_manifold_layer_forward_batch_int4(
+    token_states: ptr,
+    layer_buf: ptr,
+    prompt_tokens: ptr,
+    num_tokens: float,
+    start_pos: float
+) -> float {
+    let layer_idx = cartan_f32_at(layer_buf, 1.0);
+    var head_dim = cartan_f32_at(layer_buf, 2.0);
+    if (head_dim <= 0.0) { head_dim = 256.0; }
+    var rope_theta = cartan_f32_at(layer_buf, 3.0);
+    if (rope_theta <= 0.0) { rope_theta = 10000.0; }
+    if (g_kv_cache_max_seq > 2048.0) {
+        rope_theta = rope_theta * (g_kv_cache_max_seq / 2048.0);
+    }
+    var layer_scalar = cartan_f32_at(layer_buf, 4.0);
+    if (layer_scalar == 0.0) { layer_scalar = 1.0; }
+    let has_ple = cartan_f32_at(layer_buf, 5.0);
+    let dim = cartan_f32_at(layer_buf, 6.0);
+    let inter_dim = cartan_f32_at(layer_buf, 7.0);
+    let q_dim = cartan_f32_at(layer_buf, 8.0);
+    let kv_dim = cartan_f32_at(layer_buf, 9.0);
+    let ple_dim = cartan_f32_at(layer_buf, 10.0);
+
+    let q_heads = q_dim / head_dim;
+    var kv_heads = kv_dim / head_dim;
+    if (kv_heads <= 0.0) { kv_heads = 1.0; }
+    let heads_per_kv = q_heads / kv_heads;
+
+    let half = head_dim * 0.5;
+    var rope_angles = half;
+    var is_global = 1.0;
+    let mod6 = layer_idx - floor(layer_idx / 6.0) * 6.0;
+    if (mod6 != 0.0) {
+        is_global = 0.0;
+        rope_angles = 64.0;
+    }
+
+    let w_in_norm = cartan_c_ptr_add(layer_buf, 64.0);
+    var bo = 64.0 + dim * 4.0;
+
+    let q_scales = cartan_c_ptr_add(layer_buf, bo);
+    bo = bo + q_dim * 4.0;
+    let w_q_bytes = cartan_c_ptr_add(layer_buf, bo);
+    bo = bo + q_dim * dim * 0.5;
+
+    let k_scales = cartan_c_ptr_add(layer_buf, bo);
+    bo = bo + kv_dim * 4.0;
+    let w_k_bytes = cartan_c_ptr_add(layer_buf, bo);
+    bo = bo + kv_dim * dim * 0.5;
+
+    let v_scales = cartan_c_ptr_add(layer_buf, bo);
+    bo = bo + kv_dim * 4.0;
+    let w_v_bytes = cartan_c_ptr_add(layer_buf, bo);
+    bo = bo + kv_dim * dim * 0.5;
+
+    let o_scales = cartan_c_ptr_add(layer_buf, bo);
+    bo = bo + dim * 4.0;
+    let w_o_bytes = cartan_c_ptr_add(layer_buf, bo);
+    bo = bo + dim * q_dim * 0.5;
+
+    let w_q_norm = cartan_c_ptr_add(layer_buf, bo);
+    bo = bo + 512.0 * 4.0;
+    let w_k_norm = cartan_c_ptr_add(layer_buf, bo);
+    bo = bo + 512.0 * 4.0;
+
+    let w_post_attn = cartan_c_ptr_add(layer_buf, bo);
+    bo = bo + dim * 4.0;
+    let w_pre_ffn = cartan_c_ptr_add(layer_buf, bo);
+    bo = bo + dim * 4.0;
+
+    let gate_scales = cartan_c_ptr_add(layer_buf, bo);
+    bo = bo + inter_dim * 4.0;
+    let w_gate_bytes = cartan_c_ptr_add(layer_buf, bo);
+    bo = bo + inter_dim * dim * 0.5;
+
+    let up_scales = cartan_c_ptr_add(layer_buf, bo);
+    bo = bo + inter_dim * 4.0;
+    let w_up_bytes = cartan_c_ptr_add(layer_buf, bo);
+    bo = bo + inter_dim * dim * 0.5;
+
+    let down_scales = cartan_c_ptr_add(layer_buf, bo);
+    bo = bo + dim * 4.0;
+    let w_down_bytes = cartan_c_ptr_add(layer_buf, bo);
+    bo = bo + dim * inter_dim * 0.5;
+
+    let w_post_ffn = cartan_c_ptr_add(layer_buf, bo);
+    bo = bo + dim * 4.0;
+
+    let ple_gate_scales = cartan_c_ptr_add(layer_buf, bo);
+    bo = bo + ple_dim * 4.0;
+    let w_ple_gate_bytes = cartan_c_ptr_add(layer_buf, bo);
+    bo = bo + ple_dim * dim * 0.5;
+
+    let ple_proj_scales = cartan_c_ptr_add(layer_buf, bo);
+    bo = bo + dim * 4.0;
+    let w_ple_proj_bytes = cartan_c_ptr_add(layer_buf, bo);
+    bo = bo + dim * ple_dim * 0.5;
+
+    let w_ple_norm = cartan_c_ptr_add(layer_buf, bo);
+
+    let N = num_tokens;
+    var b_norm_h1 = g_trans_b_norm_h1;
+    var b_q = g_trans_b_q;
+    var b_k = g_trans_b_k;
+    var b_v = g_trans_b_v;
+    var b_attn_out = g_trans_b_attn_out;
+    var b_h1 = g_trans_b_h1;
+    var b_norm_h2 = g_trans_b_norm_h2;
+    var b_act = g_trans_b_act;
+    var b_ffn = g_trans_b_ffn;
+
+    var is_dynamic = 0.0;
+    if (N > 1024.0 || b_norm_h1 == 0.0) {
+        is_dynamic = 1.0;
+        b_norm_h1 = malloc(N * dim * 4.0);
+        b_q = malloc(N * q_dim * 4.0);
+        b_k = malloc(N * kv_dim * 4.0);
+        b_v = malloc(N * kv_dim * 4.0);
+        b_attn_out = malloc(N * q_dim * 4.0);
+        b_h1 = malloc(N * dim * 4.0);
+        b_norm_h2 = malloc(N * dim * 4.0);
+        b_act = malloc(N * inter_dim * 4.0);
+        b_ffn = malloc(N * dim * 4.0);
+    }
+
+    var p = 0.0;
+    var d = 0.0;
+    var sq_sum = 0.0;
+    var h1_sq_sum = 0.0;
+    var ffn_sq_sum = 0.0;
+    var pli_l: ptr = 0.0;
+    var pl = 0.0;
+    var ple_sq = 0.0;
+    var pli_val = 1.0;
+
+    // 1. Batched Input RMSNorm
+    p = 0.0;
+    while (p < N) {
+        let h_in_vec = cartan_tree_get_f32(token_states, p);
+        let norm_dst = cartan_f32_ptr_add(b_norm_h1, p * dim);
+        sq_sum = 0.0;
+        d = 0.0;
+        while (d < dim) {
+            let val = cartan_vec_get_f32(h_in_vec, d);
+            sq_sum = sq_sum + val * val;
+            d = d + 1.0;
+        }
+        let inv_rms = 1.0 / sqrt((sq_sum / dim) + 0.000001);
+        d = 0.0;
+        while (d < dim) {
+            let val = cartan_vec_get_f32(h_in_vec, d);
+            let w = cartan_f32_at(w_in_norm, d);
+            cartan_set_f32(norm_dst, d, val * inv_rms * w);
+            d = d + 1.0;
+        }
+        p = p + 1.0;
+    }
+
+    // 2. Batched Q Projections (Row-Outer Multi-Threaded AVX2 INT4 GEMV Engine)
+    cartan_trans_pool_dispatch_batch_int4_gemv(q_dim, dim, q_scales, w_q_bytes, b_norm_h1, b_q, N, q_dim);
+
+    // 3. Batched K & V Projections (Row-Outer Multi-Threaded AVX2 INT4 Dual GEMV Engine)
+    let is_kv_shared = (layer_idx >= 24.0);
+    var kv_source_layer = layer_idx;
+    if (is_kv_shared > 0.0) {
+        if (is_global > 0.0) {
+            kv_source_layer = 23.0;
+        } else {
+            kv_source_layer = 22.0;
+        }
+    }
+
+    if (is_kv_shared == 0.0) {
+        cartan_trans_pool_dispatch_batch_int4_dual_gemv(kv_dim, dim, k_scales, w_k_bytes, v_scales, w_v_bytes, b_norm_h1, b_k, b_v, N, kv_dim);
+    }
+
+    // 4. Per-Head Q-Norm, RoPE, Store KV, and Causal GQA Attention across all sequence positions
+    let qh_norm_limit = q_dim - 3.0;
+    var q_dot = 0.0;
+    let inv_scale = 1.0 / sqrt(head_dim);
+    let k_cache = cartan_kv_cache_get_k(kv_source_layer);
+    let v_cache = cartan_kv_cache_get_v(kv_source_layer);
+    let max_seq = g_kv_cache_max_seq;
+    let scores_buf = g_trans_scores;
+
+    p = 0.0;
+    while (p < N) {
+        let cur_pos = start_pos + p;
+        let q_p = cartan_f32_ptr_add(b_q, p * q_dim);
+        let k_p = cartan_f32_ptr_add(b_k, p * kv_dim);
+        let v_p = cartan_f32_ptr_add(b_v, p * kv_dim);
+        let out_p = cartan_f32_ptr_add(b_attn_out, p * q_dim);
+
+        // Q RMSNorm across each 256-dim head
+        var qh = 0.0;
+        while (qh < q_dim) {
+            let q_head_ptr = cartan_f32_ptr_add(q_p, qh);
+            q_dot = cartan_simd_dot_f32(q_head_ptr, q_head_ptr, head_dim);
+            let inv_q_rms = 1.0 / sqrt((q_dot / head_dim) + 0.000001);
+            var hd = 0.0;
+            while (hd < head_dim) {
+                let q_val = cartan_f32_at(q_head_ptr, hd);
+                let w = cartan_f32_at(w_q_norm, hd);
+                cartan_set_f32(q_head_ptr, hd, q_val * inv_q_rms * w);
+                hd = hd + 1.0;
+            }
+            qh = qh + head_dim;
+        }
+
+        // RoPE on Q heads
+        qh = 0.0;
+        while (qh < q_heads) {
+            let qh_base = qh * head_dim;
+            var k = 0.0;
+            while (k < half) {
+                let x0 = cartan_f32_at(q_p, qh_base + k);
+                let x1 = cartan_f32_at(q_p, qh_base + k + half);
+                var c = 1.0;
+                var s = 0.0;
+                if (k < rope_angles) {
+                    let exponent = (k * 2.0) / head_dim;
+                    let freq = 1.0 / pow(rope_theta, exponent);
+                    let theta = cur_pos * freq;
+                    c = cos(theta);
+                    s = sin(theta);
+                }
+                cartan_set_f32(q_p, qh_base + k, x0 * c - x1 * s);
+                cartan_set_f32(q_p, qh_base + k + half, x1 * c + x0 * s);
+                k = k + 1.0;
+            }
+            qh = qh + 1.0;
+        }
+
+        // K-Norm, RoPE, and append to KV Cache (only for non-shared layers)
+        if (is_kv_shared == 0.0 && k_cache != 0.0 && v_cache != 0.0 && cur_pos < g_kv_cache_max_seq) {
+            let k_dst = cartan_f32_ptr_add(k_cache, cur_pos * kv_dim);
+            let v_dst = cartan_f32_ptr_add(v_cache, cur_pos * kv_dim);
+
+            var kvh = 0.0;
+            while (kvh < kv_heads) {
+                let kh_base = kvh * head_dim;
+                let k_head_ptr = cartan_f32_ptr_add(k_p, kh_base);
+                let kh_sq = cartan_simd_dot_f32(k_head_ptr, k_head_ptr, head_dim);
+                let inv_k_rms = 1.0 / sqrt((kh_sq / head_dim) + 0.000001);
+                var hd = 0.0;
+                while (hd < head_dim) {
+                    let v = cartan_f32_at(k_p, kh_base + hd);
+                    let w = cartan_f32_at(w_k_norm, hd);
+                    cartan_set_f32(k_p, kh_base + hd, v * inv_k_rms * w);
+                    hd = hd + 1.0;
+                }
+
+                var k = 0.0;
+                while (k < half) {
+                    let x0 = cartan_f32_at(k_p, kh_base + k);
+                    let x1 = cartan_f32_at(k_p, kh_base + k + half);
+                    var c = 1.0;
+                    var s = 0.0;
+                    if (k < rope_angles) {
+                        let exponent = (k * 2.0) / head_dim;
+                        let freq = 1.0 / pow(rope_theta, exponent);
+                        let theta = cur_pos * freq;
+                        c = cos(theta);
+                        s = sin(theta);
+                    }
+                    cartan_set_f32(k_dst, kh_base + k, x0 * c - x1 * s);
+                    cartan_set_f32(k_dst, kh_base + k + half, x1 * c + x0 * s);
+                    k = k + 1.0;
+                }
+
+                let v_head_ptr = cartan_f32_ptr_add(v_p, kh_base);
+                let v_sq = cartan_simd_dot_f32(v_head_ptr, v_head_ptr, head_dim);
+                let inv_v_rms = 1.0 / sqrt((v_sq / head_dim) + 0.000001);
+                hd = 0.0;
+                while (hd < head_dim) {
+                    let val = cartan_f32_at(v_p, kh_base + hd);
+                    cartan_set_f32(v_dst, kh_base + hd, val * inv_v_rms);
+                    hd = hd + 1.0;
+                }
+
+                kvh = kvh + 1.0;
+            }
+        }
+
+        // Causal GQA Attention
+        var max_seq = cur_pos + 1.0;
+        if (max_seq > g_kv_cache_max_seq) { max_seq = g_kv_cache_max_seq; }
+        let hd_unroll_limit = head_dim - 3.0;
+
+        qh = 0.0;
+        while (qh < q_heads) {
+            let kvh = floor(qh / heads_per_kv);
+            let q_h = cartan_f32_ptr_add(q_p, qh * head_dim);
+            let out_h = cartan_f32_ptr_add(out_p, qh * head_dim);
+
+            var t = 0.0;
+            var max_val = -1000000000.0;
+            while (t < max_seq) {
+                let k_ht = cartan_f32_ptr_add(k_cache, t * kv_dim + kvh * head_dim);
+                let score = cartan_simd_dot_f32(q_h, k_ht, head_dim);
+                cartan_set_f32(scores_buf, t, score);
+                if (score > max_val) { max_val = score; }
+                t = t + 1.0;
+            }
+
+            var sum_exp = 0.0;
+            t = 0.0;
+            while (t < max_seq) {
+                let s_val = exp(cartan_f32_at(scores_buf, t) - max_val);
+                cartan_set_f32(scores_buf, t, s_val);
+                sum_exp = sum_exp + s_val;
+                t = t + 1.0;
+            }
+
+            let inv_sum = 1.0 / sum_exp;
+            var hd = 0.0;
+            while (hd < head_dim) {
+                cartan_set_f32(out_h, hd, 0.0);
+                hd = hd + 1.0;
+            }
+
+            t = 0.0;
+            while (t < max_seq) {
+                let p_t = cartan_f32_at(scores_buf, t) * inv_sum;
+                if (p_t > 0.000000001) {
+                    let v_ht = cartan_f32_ptr_add(v_cache, t * kv_dim + kvh * head_dim);
+                    hd = 0.0;
+                    while (hd < hd_unroll_limit) {
+                        let hd1 = hd + 1.0;
+                        let hd2 = hd + 2.0;
+                        let hd3 = hd + 3.0;
+                        let o0 = cartan_f32_at(out_h, hd) + p_t * cartan_f32_at(v_ht, hd);
+                        let o1 = cartan_f32_at(out_h, hd1) + p_t * cartan_f32_at(v_ht, hd1);
+                        let o2 = cartan_f32_at(out_h, hd2) + p_t * cartan_f32_at(v_ht, hd2);
+                        let o3 = cartan_f32_at(out_h, hd3) + p_t * cartan_f32_at(v_ht, hd3);
+                        cartan_set_f32(out_h, hd, o0);
+                        cartan_set_f32(out_h, hd1, o1);
+                        cartan_set_f32(out_h, hd2, o2);
+                        cartan_set_f32(out_h, hd3, o3);
+                        hd = hd + 4.0;
+                    }
+                    while (hd < head_dim) {
+                        let cur = cartan_f32_at(out_h, hd);
+                        let val = cartan_f32_at(v_ht, hd);
+                        cartan_set_f32(out_h, hd, cur + p_t * val);
+                        hd = hd + 1.0;
+                    }
+                }
+                t = t + 1.0;
+            }
+            qh = qh + 1.0;
+        }
+        p = p + 1.0;
+    }
+
+    // 5. Batched Output Projection W_o (Row-Outer Multi-Threaded AVX2 INT4 GEMV Engine)
+    cartan_trans_pool_dispatch_batch_int4_gemv(dim, q_dim, o_scales, w_o_bytes, b_attn_out, b_h1, N, dim);
+
+    // Post-Attention RMSNorm + Residual + Pre-FFN RMSNorm for each token p
+    p = 0.0;
+    while (p < N) {
+        let x_in_vec = cartan_tree_get_f32(token_states, p);
+        let o_p = cartan_f32_ptr_add(b_h1, p * dim);
+        let h1_sq = cartan_simd_dot_f32(o_p, o_p, dim);
+        let inv_o_rms = 1.0 / sqrt((h1_sq / dim) + 0.000001);
+        d = 0.0;
+        while (d < dim) {
+            let x = cartan_vec_get_f32(x_in_vec, d);
+            let o = cartan_f32_at(o_p, d);
+            let w = cartan_f32_at(w_post_attn, d);
+            cartan_set_f32(o_p, d, x + o * inv_o_rms * w);
+            d = d + 1.0;
+        }
+        h1_sq_sum = cartan_simd_dot_f32(o_p, o_p, dim);
+        let inv_h1_rms = 1.0 / sqrt((h1_sq_sum / dim) + 0.000001);
+        let norm_dst = cartan_f32_ptr_add(b_norm_h2, p * dim);
+        d = 0.0;
+        while (d < dim) {
+            let val = cartan_f32_at(o_p, d);
+            let w = cartan_f32_at(w_pre_ffn, d);
+            cartan_set_f32(norm_dst, d, val * inv_h1_rms * w);
+            d = d + 1.0;
+        }
+        p = p + 1.0;
+    }
+
+    // 6. Batched GeGLU Gate & Up and Down Projections (Row-Outer Multi-Threaded AVX2 INT4 Engine)
+    cartan_trans_pool_dispatch_batch_int4_geglu(inter_dim, dim, gate_scales, up_scales, w_gate_bytes, w_up_bytes, b_norm_h2, b_act, N, inter_dim);
+    cartan_trans_pool_dispatch_batch_int4_gemv(dim, inter_dim, down_scales, w_down_bytes, b_act, b_ffn, N, dim);
+
+    // 7. Post-FFN RMSNorm, Residual Addition, PLE Gating, and Layer Scalar Scaling
+    p = 0.0;
+    while (p < N) {
+        let h1_p = cartan_f32_ptr_add(b_h1, p * dim);
+        let ffn_p = cartan_f32_ptr_add(b_ffn, p * dim);
+        ffn_sq_sum = cartan_simd_dot_f32(ffn_p, ffn_p, dim);
+        let inv_ffn_rms = 1.0 / sqrt((ffn_sq_sum / dim) + 0.000001);
+        d = 0.0;
+        while (d < dim) {
+            let h1_val = cartan_f32_at(h1_p, d);
+            let ffn_val = cartan_f32_at(ffn_p, d);
+            let w = cartan_f32_at(w_post_ffn, d);
+            cartan_set_f32(h1_p, d, h1_val + ffn_val * inv_ffn_rms * w);
+            d = d + 1.0;
+        }
+        p = p + 1.0;
+    }
+
+    if (has_ple > 0.0) {
+        var b_ple_act = g_trans_b_ple_act;
+        var b_ple_proj = g_trans_b_ple_proj;
+        var is_ple_dynamic = 0.0;
+        if (N > 1024.0 || b_ple_act == 0.0) {
+            is_ple_dynamic = 1.0;
+            b_ple_act = malloc(N * ple_dim * 4.0);
+            b_ple_proj = malloc(N * dim * 4.0);
+        }
+
+        // Batched PLE Gate GEMV across all N prompt tokens
+        cartan_trans_pool_dispatch_batch_int4_gemv(ple_dim, dim, ple_gate_scales, w_ple_gate_bytes, b_h1, b_ple_act, N, ple_dim);
+
+        p = 0.0;
+        while (p < N) {
+            let tok_id = cartan_vec_get_f32(prompt_tokens, p);
+            pli_l = 0.0;
+            if (g_prompt_pli_buf != 0.0) {
+                pli_l = cartan_f32_ptr_add(g_prompt_pli_buf, p * 10752.0 + layer_idx * 256.0);
+            } else if (tok_id >= 0.0 && tok_id < 262144.0) {
+                pli_l = cartan_get_cached_pli(layer_idx, tok_id);
+            }
+            let act_p = cartan_f32_ptr_add(b_ple_act, p * ple_dim);
+            pl = 0.0;
+            while (pl < ple_dim) {
+                let dot_gate = cartan_f32_at(act_p, pl);
+                pli_val = 1.0;
+                if (pli_l != 0.0) {
+                    pli_val = cartan_f32_at(pli_l, pl);
+                }
+                cartan_set_f32(act_p, pl, cartan_fast_gelu_tanh(dot_gate) * pli_val);
+                pl = pl + 1.0;
+            }
+            p = p + 1.0;
+        }
+
+        // Batched PLE Projection GEMV across all N prompt tokens
+        cartan_trans_pool_dispatch_batch_int4_gemv(dim, ple_dim, ple_proj_scales, w_ple_proj_bytes, b_ple_act, b_ple_proj, N, dim);
+
+        p = 0.0;
+        while (p < N) {
+            let h_in_vec = cartan_tree_get_f32(token_states, p);
+            let h2_p = cartan_f32_ptr_add(b_h1, p * dim);
+            let proj_p = cartan_f32_ptr_add(b_ple_proj, p * dim);
+            ple_sq = cartan_simd_dot_f32(proj_p, proj_p, dim);
+            let inv_ple_rms = 1.0 / sqrt((ple_sq / dim) + 0.000001);
+            d = 0.0;
+            while (d < dim) {
+                let h2_val = cartan_f32_at(h2_p, d);
+                let proj_val = cartan_f32_at(proj_p, d);
+                let norm_val = cartan_f32_at(w_ple_norm, d);
+                cartan_vec_set_f32(h_in_vec, d, (h2_val + proj_val * inv_ple_rms * norm_val) * layer_scalar);
+                d = d + 1.0;
+            }
+            p = p + 1.0;
+        }
+
+        if (is_ple_dynamic == 1.0) {
+            free(b_ple_act);
+            free(b_ple_proj);
+        }
+    } else {
+        p = 0.0;
+        while (p < N) {
+            let h_in_vec = cartan_tree_get_f32(token_states, p);
+            let h2_p = cartan_f32_ptr_add(b_h1, p * dim);
+            d = 0.0;
+            while (d < dim) {
+                cartan_vec_set_f32(h_in_vec, d, cartan_f32_at(h2_p, d) * layer_scalar);
+                d = d + 1.0;
+            }
+            p = p + 1.0;
+        }
+    }
+
+    if (is_dynamic == 1.0) {
+        free(b_norm_h1);
+        free(b_q);
+        free(b_k);
+        free(b_v);
+        free(b_attn_out);
+        free(b_h1);
+        free(b_norm_h2);
+        free(b_act);
+        free(b_ffn);
+    }
+
+    return 1.0;
+}
+
+// -----------------------------------------------------------------------------
 // 13. High-Throughput Batched Sequence Prefill Layer Forward Kernel
 // Row-outer execution: Streams each weight matrix from RAM exactly ONCE per layer,
 // achieving a 93x memory bandwidth reduction and sub-second prefill latency.
@@ -3987,6 +5494,9 @@ fn cartan_manifold_layer_forward_batch(
     let is_int8 = cartan_f32_at(layer_buf, 11.0);
     if (is_int8 == 1.0) {
         return cartan_manifold_layer_forward_batch_int8(token_states, layer_buf, prompt_tokens, num_tokens, start_pos);
+    }
+    if (is_int8 == 2.0) {
+        return cartan_manifold_layer_forward_batch_int4(token_states, layer_buf, prompt_tokens, num_tokens, start_pos);
     }
 
     let q_heads = q_dim / head_dim;

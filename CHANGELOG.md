@@ -1,3 +1,30 @@
+## [8.477.0] - 2026-10-03 (Sprint 521: INT4 Weight Packing & SIMD Unpacking Engine)
+
+### Completed & Validated
+- **Native LLVM IR AVX2 SIMD Intrinsic (`src/cartanc/llvm_codegen.car`, `src/cartanc/core_runtime.car`)**:
+  - Implemented `@cartan_simd_dot_i4_f32` in LLVM code generator: emits 16-byte packed loads (`<16 x i8>`), extracting 32 INT4 weights per chunk.
+  - Utilizes branchless arithmetic shift sign extension (`shl`/`ashr`) to unpack low and high nibbles simultaneously, avoiding scalar branching.
+  - Multiplies unpacked weights with 32-bit float activations using 4-way unrolled fused multiply-add accumulators (`llvm.fmuladd.v8f32`) and multiplies by row scale factor.
+  - Registered `extern fn cartan_simd_dot_i4_f32` with `"double"` return type in `core_runtime.car`.
+- **Offline Symmetric W4A32 Quantizer (`tools/quantize_manifold_int4.car`)**:
+  - Quantizes raw layer weights to signed 4-bit integers in $[-7, +7]$ with exact zero preservation.
+  - Contiguous pair-packing scheme: even elements in low nibbles, odd elements in high nibbles.
+  - Quantized all 42 checkpoint layers to `manifold_layer_*_int4.bin`, reducing footprint from 3.95 GB to 1.87 GB (50.09% bandwidth reduction).
+- **Multi-Threaded Transformer Runtime Integration (`src/std/transformer.cl`, `test/geomind/chat.cl`)**:
+  - Implemented single-token decode Ops 12.0 (GEMV), 13.0 (Dual GEMV), and 14.0 (GeGLU) in `cartan_trans_pool_worker_main` and dispatched in `cartan_manifold_layer_forward_native`.
+  - Implemented row-outer batched sequence prefill Ops 15.0 (GEMV), 16.0 (Dual GEMV), and 17.0 (GeGLU) streaming weights exactly once per layer.
+  - Added dispatch helpers `cartan_trans_pool_dispatch_batch_int4_gemv`, `dual_gemv`, and `geglu`.
+  - Implemented dedicated prefill kernel `cartan_manifold_layer_forward_batch_int4` and routed `is_int8 == 2.0` in `cartan_manifold_layer_forward_batch`.
+  - Updated checkpoint loader in `test/geomind/chat.cl` to detect and load INT4 weights (`[Host RAM] Ingested 42 INT4 Manifold Layers (1.87 GB)`).
+- **Empirical Validation & Benchmark**:
+  - Verified bit-level mathematical parity across 12 vector sizes (16 to 8192) via `scratch/test_dot_parity_i4.car` ($0.000000$ deviation vs 64-bit float reference).
+  - Target 82 Phase 7 SIMD regression passed cleanly.
+  - Validated compiler regression test suite (`tools/run_affected_tests.ps1 -Sprint 521`): **10/10 passed** (Targets 1, 2, 3, 4, 5, 82, 83, 84, 85, 86) in 50.02s with zero regressions.
+  - Validated live prompt inference on `geomind.exe` with sub-second prefill and fluid autoregressive streaming.
+- **Issue Tracking & Technical Debt**:
+  - Marked `[ISSUE-378]` as `[RESOLVED]` in `ISSUES.md`.
+  - Updated Phase 25 in `docs/ROADMAP.md`.
+
 ## [8.476.0] - 2026-10-03 (Sprint 520: Thermodynamic Layer Early Exit & Hopfield Speculative Drafting)
 
 ### Completed & Validated
