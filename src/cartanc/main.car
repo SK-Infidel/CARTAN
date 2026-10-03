@@ -93,8 +93,6 @@ fn ast_expansion_pass(ast: ptr, visited_files: ptr) -> ptr {
             let disc = stmt[0];
             if (disc == 63.0) { // Stmt::Include (Index 63)
                 var path = cartan_tree_get_f32(stmt, 1.0);
-                printf("[DEBUG include] raw_path=%s\n", path);
-                cartan_flush(0.0);
                 if (cartan_string_starts_with(path, "../../") != 0.0) {
                     path = cartan_string_substring(path, 6.0, cartan_string_length(path));
                 }
@@ -141,36 +139,22 @@ fn ast_expansion_pass(ast: ptr, visited_files: ptr) -> ptr {
                     }
                 }
 
-                printf("[DEBUG include] resolved_path=%s\n", path);
-                cartan_flush(0.0);
                 if (contains_string(visited_files, path) == 0.0 && cartan_file_exists(path) != 0.0) {
                     cartan_tree_push(visited_files, path);
                     let source = cartan_read_file(path);
                     let length = cartan_string_length(source);
-                    printf("[DEBUG include] read len: %f\n", length);
-                    cartan_flush(0.0);
                     if (length > 0.0) {
                         let lexer = lexer_init(source, length);
                         let tokens = cartan_tree_create();
-                        var tok_count = 0.0;
                         while (1.0) {
                             let tok = lexer_next_token(lexer);
-                            tok_count = tok_count + 1.0;
-                            if (tok_count == 1000.0 || tok_count == 5000.0 || tok_count == 10000.0 || tok_count == 15000.0 || tok_count == 20000.0 || tok_count == 25000.0) {
-                                printf("[DEBUG lex] tok_count: %f\n", tok_count);
-                                cartan_flush(0.0);
-                            }
                             cartan_tree_push(tokens, tok);
                             if (tok.token_type[0] == 168.0) {
                                 break;
                             }
                         }
-                        printf("[DEBUG include] lexed tokens: %f\n", cartan_tree_len_f(tokens));
-                        cartan_flush(0.0);
                         let parser = parser_init(tokens);
                         let sub_ast = parse(parser);
-                        printf("[DEBUG include] parsed sub_ast: %f\n", cartan_tree_len_f(sub_ast));
-                        cartan_flush(0.0);
                         let expanded_sub_ast = ast_expansion_pass(sub_ast, visited_files);
                         let sub_len = cartan_tree_len_f(expanded_sub_ast);
                         var j = 0.0;
@@ -514,10 +498,21 @@ fn main() -> float {
             return jit_res;
         }
 
-        printf("Compiling LLVM IR to native executable via Zig (-O3 LTO Vectorized Pass Pipeline)...\n");
-        let zig_cmd = cartan_string_concat("python tools/zig_wrapper.py ", out_ll);
-        let cmd = cartan_string_concat(cartan_string_concat(zig_cmd, " -o "), output_file);
-        let compile_res = system(cmd);
+        printf("Compiling and linking native executable via Clang (-O2 AVX2/FMA MSVC)...\n");
+        cartan_flush(0.0);
+        let clang_exe = cartan_resolve_compiler_path();
+        let lib_flags = cartan_get_compiler_lib_flags();
+        var cmd = cartan_string_concat("\"", clang_exe);
+        cmd = cartan_string_concat(cmd, "\" -target x86_64-pc-windows-msvc -g -O2 -mavx2 -mfma -Wno-override-module -Wl,/FORCE:MULTIPLE -Wl,/STACK:67108864");
+        cmd = cartan_string_concat(cmd, lib_flags);
+        cmd = cartan_string_concat(cmd, " -DCARTAN_GPU_RUNTIME_LINKED -DCARTAN_COMPILED_LLVM -D_CRT_SECURE_NO_WARNINGS -x ir \"");
+        cmd = cartan_string_concat(cmd, out_ll);
+        cmd = cartan_string_concat(cmd, "\" -o \"");
+        cmd = cartan_string_concat(cmd, output_file);
+        cmd = cartan_string_concat(cmd, "\" -lkernel32 -lshell32 -lws2_32 -luser32 -lgdi32 -lwinmm -ladvapi32 -lOpenCL -lwinsqlite3 -lwgpu_native.dll");
+
+        let exec_cmd = cartan_string_concat("\"", cartan_string_concat(cmd, "\""));
+        let compile_res = system(exec_cmd);
         if (compile_res != 0.0) {
             printf("Error: native compiler failed with status %f\n", compile_res);
             return 1.0;

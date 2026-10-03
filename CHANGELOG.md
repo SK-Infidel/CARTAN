@@ -1,3 +1,24 @@
+## [8.472.0] - 2026-10-02 (Sprint 516: Native Standalone Compiler Linker Driver & Zero-Python Toolchain)
+
+### Completed & Validated
+- **Pure CARTAN Toolchain & Library Resolution (`src/cartanc/core_runtime.car`, `src/cartanc/main.car`)**:
+  - Implemented `cartan_resolve_compiler_path()` in pure CARTAN: probes `CARTAN_CLANG` environment variable, canonical Intel oneAPI Clang (`compiler/latest/bin/compiler/clang.exe` and `2025.3`), LLVM Clang, and PATH fallback.
+  - Implemented `cartan_get_compiler_lib_flags()`: dynamically resolves repository libraries (`-L"lib"`, `-L"../lib"`), CUDA OpenCL paths (`CUDA_PATH` or canonical), and oneAPI runtime library paths.
+  - Replaced external intermediate Python script `tools/zig_wrapper.py` in `cartanc` build pipeline and `cartan_jit_eval` with direct native Clang/LLD assembly.
+  - Hardened command execution: wrapped composite subprocess commands in outer double-quotes to defeat Windows `cmd.exe /c` quote-stripping on whitespace paths.
+  - Deprecated legacy `tools/zig_wrapper.py` with clear migration header.
+- **Compiler Frontend Hygiene (`src/cartanc/main.car`)**:
+  - Eradicated 6 diagnostic print statements (`[DEBUG include] raw_path=...`, `[DEBUG lex]...`) from include processing.
+  - Cleaned status reporting to `Compiling and linking native executable via Clang (-O2 AVX2/FMA MSVC)...`.
+- **3-Stage Bootstrap & Bit-for-Bit Fixpoint Parity**:
+  - Executed 3-stage self-hosting bootstrap (`cartanc.exe` -> `stage1` -> `stage2` -> `stage3`).
+  - Achieved exact bit-for-bit SHA-256 fixpoint parity between `bin/cartanc_stage2.ll` and `bin/cartanc_stage3.ll` (`2BE39C010FC91AF8E176D5AFE9FB34DD9C3D0D012DD4090AC641D0070A321573`).
+  - Promoted Stage 2 binary to root `cartanc.exe` and `bin/cartanc.exe`.
+- **Empirical Regression Verification**:
+  - Validated canary file severance test: compilation and execution passed with `tools/zig_wrapper.py` renamed.
+  - Executed affected compiler regression test suite (`tools/run_affected_tests.ps1 -Auto`): **7/7 passed** (Targets 1, 2, 3, 4, 5, 82, 86) in 12.95s with zero regressions.
+  - Verified compilation and CLI execution (`--help`) of full GeoMind neural engine (`test/geomind/main.car`, 122,231 lines LLVM IR).
+
 ## [8.471.0] - 2026-10-02 (Sprint 515: Technical Debt Resolution, Roadmap Synchronization & Architecture Plans)
 
 ### Completed & Validated

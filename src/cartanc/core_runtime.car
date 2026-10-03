@@ -920,17 +920,88 @@ fn cartan_get_quote() -> string {
     return "\"";
 }
 
+fn cartan_resolve_compiler_path() -> string {
+    // Priority 1: User or CI override via CARTAN_CLANG
+    let env_clang = cartan_getenv("CARTAN_CLANG");
+    if (cartan_string_length(env_clang) > 0.0) {
+        if (cartan_file_exists(env_clang) != 0.0) {
+            return env_clang;
+        }
+    }
+    // Priority 2: Canonical Intel oneAPI Clang (latest junction)
+    let p_latest = "C:/Program Files (x86)/Intel/oneAPI/compiler/latest/bin/compiler/clang.exe";
+    if (cartan_file_exists(p_latest) != 0.0) {
+        return p_latest;
+    }
+    // Priority 3: Versioned Intel oneAPI Clang (2025.3)
+    let p_2025 = "C:/Program Files (x86)/Intel/oneAPI/2025.3/bin/compiler/clang.exe";
+    if (cartan_file_exists(p_2025) != 0.0) {
+        return p_2025;
+    }
+    // Priority 4: Standard LLVM Clang installation
+    let p_llvm = "C:/Program Files/LLVM/bin/clang.exe";
+    if (cartan_file_exists(p_llvm) != 0.0) {
+        return p_llvm;
+    }
+    // Priority 5: Fallback to system PATH clang
+    return "clang";
+}
+
+fn cartan_get_compiler_lib_flags() -> string {
+    var flags = "";
+    // Probe relative repository libraries (wgpu_native.dll.lib)
+    if (cartan_file_exists("lib/wgpu_native.dll.lib") != 0.0 || cartan_file_exists("lib/wgpu_native.dll") != 0.0) {
+        flags = cartan_string_concat(flags, " -L\"lib\"");
+    }
+    if (cartan_file_exists("../lib/wgpu_native.dll.lib") != 0.0 || cartan_file_exists("../lib/wgpu_native.dll") != 0.0) {
+        flags = cartan_string_concat(flags, " -L\"../lib\"");
+    }
+    // Probe CUDA library path
+    let cuda_env = cartan_getenv("CUDA_PATH");
+    if (cartan_string_length(cuda_env) > 0.0) {
+        let cuda_lib = cartan_string_concat(cuda_env, "/lib/x64");
+        flags = cartan_string_concat(flags, cartan_string_concat(" -L\"", cartan_string_concat(cuda_lib, "\"")));
+    } else {
+        let p_cuda = "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v13.2/lib/x64/OpenCL.lib";
+        if (cartan_file_exists(p_cuda) != 0.0) {
+            flags = cartan_string_concat(flags, " -L\"C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v13.2/lib/x64\"");
+        }
+    }
+    // Probe Intel oneAPI library path
+    let p_oneapi_latest = "C:/Program Files (x86)/Intel/oneAPI/compiler/latest/lib/OpenCL.lib";
+    if (cartan_file_exists(p_oneapi_latest) != 0.0) {
+        flags = cartan_string_concat(flags, " -L\"C:/Program Files (x86)/Intel/oneAPI/compiler/latest/lib\"");
+    } else {
+        let p_oneapi_2025 = "C:/Program Files (x86)/Intel/oneAPI/2025.3/lib/OpenCL.lib";
+        if (cartan_file_exists(p_oneapi_2025) != 0.0) {
+            flags = cartan_string_concat(flags, " -L\"C:/Program Files (x86)/Intel/oneAPI/2025.3/lib\"");
+        }
+    }
+    return flags;
+}
+
 fn cartan_jit_eval(ll_file: string) -> float {
     if (ll_file == 0.0) { return -1.0; }
     let out_exe = "cartan_jit_run.exe";
-    let cmd1 = cartan_string_concat("python tools/zig_wrapper.py ", ll_file);
-    let cmd2 = cartan_string_concat(cmd1, " -o ");
-    let cmd3 = cartan_string_concat(cmd2, out_exe);
-    let cmd4 = cartan_string_concat(cmd3, " && .\\");
-    let cmd5 = cartan_string_concat(cmd4, out_exe);
-    let res = system(cmd5);
+    let clang_exe = cartan_resolve_compiler_path();
+    let lib_flags = cartan_get_compiler_lib_flags();
+    var cmd = cartan_string_concat("\"", clang_exe);
+    cmd = cartan_string_concat(cmd, "\" -target x86_64-pc-windows-msvc -g -O2 -mavx2 -mfma -Wno-override-module -Wl,/FORCE:MULTIPLE -Wl,/STACK:67108864");
+    cmd = cartan_string_concat(cmd, lib_flags);
+    cmd = cartan_string_concat(cmd, " -DCARTAN_GPU_RUNTIME_LINKED -DCARTAN_COMPILED_LLVM -D_CRT_SECURE_NO_WARNINGS -x ir \"");
+    cmd = cartan_string_concat(cmd, ll_file);
+    cmd = cartan_string_concat(cmd, "\" -o \"");
+    cmd = cartan_string_concat(cmd, out_exe);
+    cmd = cartan_string_concat(cmd, "\" -lkernel32 -lshell32 -lws2_32 -luser32 -lgdi32 -lwinmm -ladvapi32 -lOpenCL -lwinsqlite3 -lwgpu_native.dll");
+
+    let exec_cmd = cartan_string_concat("\"", cartan_string_concat(cmd, "\""));
+    let compile_res = system(exec_cmd);
+    if (compile_res != 0.0) {
+        return compile_res;
+    }
+    let run_res = system(".\\cartan_jit_run.exe");
     remove(out_exe);
-    return res;
+    return run_res;
 }
 
 fn cartan_system(cmd: string) -> float {

@@ -4652,6 +4652,35 @@ This file tracks technical debt and bugs identified during repository code revie
   2. Emitted standard unquoted command format when paths contain no whitespace (`tools\capture_camera.exe scratch\camera_frame.bmp 640 480`).
   3. Empirically validated with real hardware: live camera successfully captured a 640x480 frame from the 2560x1440 sensor, extracted the 320-D eikonal embedding on $S^{319}$, matched Rick's enrolled face map with 0.9670 cosine similarity, and authenticated Rick's root session automatically at startup.
 
+---
+
+## [ISSUE-369] [FIXED] External Python Linker Dependency in Standalone Compiler
+- **Severity**: High (Self-Hosting Language Architecture & Performance)
+- **Component**: [`src/cartanc/main.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/main.car), [`src/cartanc/core_runtime.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/core_runtime.car), [`tools/zig_wrapper.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/zig_wrapper.py)
+- **Description**: 
+  1. `cartanc.exe` builds native executables by executing `python tools/zig_wrapper.py <out_ll> -o <output_file>`, violating the standalone self-compiling mandate of the language.
+  2. Spawning Python introduces 200–400 ms of process startup latency per compilation invocation across all 88 regression test targets.
+  3. `tools/zig_wrapper.py` hardcodes machine-specific absolute installation paths for Intel oneAPI, NVIDIA CUDA, and local repo libraries.
+- **Resolution (Sprint 516)**: 
+  1. Implemented native toolchain resolvers in pure CARTAN: `cartan_resolve_compiler_path()` (probing `CARTAN_CLANG`, canonical oneAPI latest/2025.3, LLVM, and system PATH) and `cartan_get_compiler_lib_flags()` (probing `lib/`, `../lib/`, `CUDA_PATH`, and oneAPI libs) in `src/cartanc/core_runtime.car`.
+  2. Replaced `python tools/zig_wrapper.py` in both `main.car` (native build) and `core_runtime.car` (`cartan_jit_eval`) with direct Clang/LLD assembly.
+  3. Enclosed subprocess invocation in outer double-quotes to protect against Windows `cmd.exe /c` quote-stripping quirks.
+  4. Executed full 3-stage self-hosting bootstrap (`cartanc.exe -> stage1 -> stage2 -> stage3`); achieved bit-for-bit SHA-256 fixpoint parity between `bin/cartanc_stage2.ll` and `bin/cartanc_stage3.ll` (`2BE39C010FC91AF8E176D5AFE9FB34DD9C3D0D012DD4090AC641D0070A321573`).
+  5. Validated canary file severance test: compilation and execution passed with `tools/zig_wrapper.py` renamed. Promoted Stage 2 binary to root `cartanc.exe`.
+
+---
+
+## [ISSUE-370] [FIXED] Diagnostic Trace Pollution in Compiler Frontend
+- **Severity**: Low (Developer Experience & Build Hygiene)
+- **Component**: [`src/cartanc/main.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/main.car)
+- **Description**: Frontend include processing contains hardcoded diagnostic prints (`[DEBUG include] raw_path=...`, `[DEBUG lex]...`) that spam stdout during every file inclusion and compilation pass.
+- **Resolution (Sprint 516)**: 
+  1. Eradicated all 6 diagnostic print calls and loop counters from `src/cartanc/main.car` include resolution.
+  2. Replaced legacy Zig compilation banner with clean milestone status: `Compiling and linking native executable via Clang (-O2 AVX2/FMA MSVC)...`.
+  3. Verified zero instances of `[DEBUG include]` or `[DEBUG lex]` in build logs.
+
+
+
 
 
 
