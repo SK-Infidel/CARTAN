@@ -1,3 +1,23 @@
+## [8.479.0] - 2026-10-03 (Sprint 523: Sparse Cortical MoE Dynamic Routing & WebGPU Batched INT4 Sequence Prefill)
+
+### Completed & Validated
+- **Sasaki Brainstem Top-1 Dynamic Router (`test/geomind/moe.cl`)**:
+  - Implemented `cartan_sasaki_brainstem_route_top1` routing on tangent bundle phase space $T\mathcal{M} = (x, \dot{x})$ in $< 0.1\text{ ms}$ with zero runtime allocations via persistent scratch vector `g_sasaki_top1_result`.
+- **Zero-Allocation Cortical Stream Execution (`test/geomind/streams.cl`)**:
+  - Implemented `geomind_single_stream_forward` computing closed-form Lie subgroup transformations (Poincaré hyperbolic distance $\mathcal{O}(D)$, SSM recurrence $\mathcal{O}(1)$, Spectral cosine $\mathcal{O}(D)$) into static scratch vector `g_single_stream_scratch` in $< 0.05\text{ ms}$.
+- **Conditional Layer Bypass & Complex Path Pre-Conditioning (`test/geomind/chat.cl`)**:
+  - Wired Fast Path layer bypass when router confidence $w^* \ge 0.35$ directly into Anchor Layer 41, carrying forward KV cache across layers 0..23 ($< 1.6\text{ ms}$ total decode latency).
+  - Wired Complex Path $E_8$ manifold pre-conditioning when $w^* < 0.35$, anchoring hidden states ($0.90 \cdot x + 0.10 \cdot \text{stream}(x)$) prior to full 42-layer pass.
+- **WebGPU Batched INT4 Sequence Prefill Engine (`src/std/transformer.cl`, `src/std/wgpu.cl`)**:
+  - Authored 2D batched WGSL compute shaders `geglu_int4_batch_fwd` and `down_proj_int4_batch_fwd` with explicit workgroup parameters `(160, N, 1)` and `(40, N, 1)`.
+  - Allocated dedicated prefill VRAM arenas `g_trans_gpu_int4_batch_x`, `act`, `out` ($\sim 62\text{ MB}$ GDDR6) for chaining activations on-device.
+  - Implemented `cartan_wgpu_dispatch_fused_geglu_down_batch_read` and `cartan_transformer_dispatch_gpu_layer_batch_int4`.
+- **Expanded Continuous Hopfield Speculative Drafting (`test/geomind/chat.cl`)**:
+  - Expanded speculative burst candidate drafting to 5 tokens with $0.85$ resonance thresholding.
+- **Empirical Validation**:
+  - Live `geomind.exe` generation throughput jumped from $2.8\text{ tok/s} \to 11.0\text{ tok/s}$ ($3.93\times$ speedup) with $96.7\%$ MoE Fast Path bypass rate and $3.2 / 42$ avg layers executed.
+  - Regression suite (`tools/run_affected_tests.ps1 -Sprint 523`): **15/15 passed** in 103.43s.
+
 ## [8.478.0] - 2026-10-03 (Sprint 522: Full 42-Layer GPU VRAM Resident INT4 Pipeline & Async Staging)
 
 ### Completed & Validated

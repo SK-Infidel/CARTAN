@@ -187,6 +187,42 @@ fn cartan_sasaki_brainstem_route_vec(pos: ptr, mom: ptr, temp: float) -> ptr {
     return geomind_sasaki_stream_routing(pos, mom, temp);
 }
 
+var g_sasaki_top1_result: ptr = 0.0;
+
+fn cartan_sasaki_brainstem_route_top1(pos: ptr, mom: ptr, temp: float) -> ptr {
+    if (g_sasaki_top1_result == 0.0) {
+        g_sasaki_top1_result = cartan_vec_create();
+        cartan_vec_push_f32(g_sasaki_top1_result, 0.0);
+        cartan_vec_push_f32(g_sasaki_top1_result, 0.125);
+        cartan_vec_push_f32(g_sasaki_top1_result, 1.0);
+        cartan_vec_push_f32(g_sasaki_top1_result, 0.125);
+    }
+    let weights = geomind_sasaki_stream_routing(pos, mom, temp);
+    var max_w = cartan_vec_get_f32(weights, 0.0);
+    var dom_idx = 0.0;
+    var second_w = 0.0;
+    var second_idx = 1.0;
+    var s = 1.0;
+    while (s < 8.0) {
+        let w = cartan_vec_get_f32(weights, s);
+        if (w > max_w) {
+            second_w = max_w;
+            second_idx = dom_idx;
+            max_w = w;
+            dom_idx = s;
+        } else if (w > second_w) {
+            second_w = w;
+            second_idx = s;
+        }
+        s = s + 1.0;
+    }
+    cartan_vec_set_f32(g_sasaki_top1_result, 0.0, dom_idx);
+    cartan_vec_set_f32(g_sasaki_top1_result, 1.0, max_w);
+    cartan_vec_set_f32(g_sasaki_top1_result, 2.0, second_idx);
+    cartan_vec_set_f32(g_sasaki_top1_result, 3.0, second_w);
+    return g_sasaki_top1_result;
+}
+
 fn cartan_tensor_compute_momentum(cur_h: ptr, prev_h: ptr) -> ptr {
     let mom = cartan_vec_create();
     if (cur_h == 0.0) { return mom; }

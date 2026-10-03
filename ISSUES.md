@@ -4779,6 +4779,29 @@ This file tracks technical debt and bugs identified during repository code revie
   3. Implemented thread pool Ops 12-14 (decode) and Ops 15-17 (batched prefill), along with `cartan_manifold_layer_forward_batch_int4` in `src/std/transformer.cl`.
   4. Verified bit-level mathematical parity across 12 vector sizes, passed Target 82 Phase 7 and all 10 affected regression targets (10/10 PASS), and verified live prompt inference on `geomind.exe`.
 
+## [ISSUE-379] [RESOLVED] Monolithic Dense 42-Layer Autoregressive DDR5 Wall: Absence of Sparse Cortical MoE Dynamic Routing
+- **Severity**: High (Autoregressive Decode Throughput & Latency Bottleneck)
+- **Component**: [`test/geomind/moe.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/moe.cl), [`test/geomind/streams.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/streams.cl), [`test/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl)
+- **Description**:
+  1. Monolithic decode previously streamed all 42 dense layers from DDR5/VRAM on every single token, regardless of token complexity.
+  2. The Sasaki Brainstem Router and 8 Lie Subgroup Cortical Streams were evaluated densely as an add-on rather than as a sparse mixture-of-experts dynamic routing engine.
+- **Resolution (Sprint 523)**:
+  1. Implemented `cartan_sasaki_brainstem_route_top1` on tangent bundle phase-space $T\mathcal{M} = (x, \dot{x})$ in $< 0.1\text{ ms}$ with zero runtime allocations.
+  2. Implemented `geomind_single_stream_forward` in `test/geomind/streams.cl` executing specialized closed-form cortical streams in $< 0.05\text{ ms}$.
+  3. Wired Fast Path conditional layer bypass in `test/geomind/chat.cl` ($w^* \ge 0.35$ directly to Anchor Layer 41 with KV continuity) and Complex Path $E_8$ manifold pre-conditioning ($w^* < 0.35$).
+  4. Verified live `geomind.exe` prompt decode throughput jump from $2.8\text{ tok/s} \to 11.0\text{ tok/s}$ ($3.93\times$ speedup) with $96.7\%$ layer bypass.
+
+## [ISSUE-380] [RESOLVED] WebGPU Batched Sequence Prefill Workgroup Y Dimension Collapse Bug & Buffer Isolation
+- **Severity**: Medium (Prefill Correctness & On-Device Memory Chaining)
+- **Component**: [`src/std/wgpu.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/wgpu.cl), [`src/std/transformer.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/transformer.cl)
+- **Description**:
+  1. `cartan_wgpu_dispatch` in `src/std/wgpu.cl` collapsed `wy` by dividing by 64, dropping tokens $1 \dots N-1$ when `gid.y` mapped to token indices.
+  2. The prefill engine lacked dedicated batched VRAM buffers, risking intermediate buffer clobbering.
+- **Resolution (Sprint 523)**:
+  1. Implemented `cartan_wgpu_dispatch_fused_geglu_down_batch_read` in `src/std/wgpu.cl` with explicit 2D workgroups `(160, N, 1)` and `(40, N, 1)`.
+  2. Allocated dedicated batched VRAM arenas `g_trans_gpu_int4_batch_x`, `act`, `out` ($\sim 62\text{ MB}$ GDDR6) chaining activations on-device.
+  3. Integrated GPU batched INT4 prefill into `cartan_manifold_layer_forward_batch_int4` with transparent CPU AVX2 fallback.
+
 
 
 

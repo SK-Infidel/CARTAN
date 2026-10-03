@@ -205,6 +205,151 @@ fn geomind_multistream_forward(x: ptr, stream_idx: float) -> ptr {
     return blended;
 }
 
+// Zero-allocation persistent scratch vector for single-stream execution
+var g_single_stream_scratch: ptr = 0.0;
+
+fn geomind_single_stream_forward(x: ptr, stream_idx: float) -> ptr {
+    if (x == 0.0) { return x; }
+    let dim = cartan_vec_len(x);
+    if (g_single_stream_scratch == 0.0) {
+        g_single_stream_scratch = cartan_vec_create();
+        var i = 0.0;
+        while (i < dim) {
+            cartan_vec_push_f32(g_single_stream_scratch, 0.0);
+            i = i + 1.0;
+        }
+    } else {
+        let cur_len = cartan_vec_len(g_single_stream_scratch);
+        if (cur_len < dim) {
+            var i = cur_len;
+            while (i < dim) {
+                cartan_vec_push_f32(g_single_stream_scratch, 0.0);
+                i = i + 1.0;
+            }
+        }
+    }
+
+    if (stream_idx == 0.0) {
+        let kw = geom_killing_form_dynkin_weight(0.0);
+        let inv_dynkin = 1.0 / sqrt(kw);
+        var i = 0.0;
+        while (i < dim) {
+            let val = cartan_vec_get_f32(x, i);
+            cartan_vec_set_f32(g_single_stream_scratch, i, val * inv_dynkin);
+            i = i + 1.0;
+        }
+        return g_single_stream_scratch;
+    }
+    if (stream_idx == 1.0) {
+        let kw = geom_killing_form_dynkin_weight(1.0);
+        let decay = exp(-0.05 * kw);
+        var running_state = 0.0;
+        var i = 0.0;
+        while (i < dim) {
+            let val = cartan_vec_get_f32(x, i);
+            running_state = running_state * decay + val * (1.0 - decay);
+            let ssm_out = running_state * sqrt(kw);
+            cartan_vec_set_f32(g_single_stream_scratch, i, ssm_out);
+            i = i + 1.0;
+        }
+        return g_single_stream_scratch;
+    }
+    if (stream_idx == 2.0) {
+        let kw = geom_killing_form_dynkin_weight(2.0);
+        var i = 0.0;
+        while (i < dim) {
+            let val = cartan_vec_get_f32(x, i);
+            let freq = 3.1415926535 * (i + 0.5) / dim;
+            let harmonic = cos(freq * kw);
+            let spec_out = val * (0.5 + 0.5 * harmonic);
+            cartan_vec_set_f32(g_single_stream_scratch, i, spec_out);
+            i = i + 1.0;
+        }
+        return g_single_stream_scratch;
+    }
+    if (stream_idx == 3.0) {
+        let kw = geom_killing_form_dynkin_weight(3.0);
+        var norm_sq = 0.0;
+        var i = 0.0;
+        while (i < dim) {
+            let val = cartan_vec_get_f32(x, i);
+            norm_sq = norm_sq + (val * val) * kw;
+            i = i + 1.0;
+        }
+        let r = sqrt(norm_sq) * 0.05;
+        var u = r;
+        if (u > 0.95) { u = 0.95; }
+        let hyp_scale = 2.0 / (1.0 - u * u);
+        i = 0.0;
+        while (i < dim) {
+            let val = cartan_vec_get_f32(x, i);
+            cartan_vec_set_f32(g_single_stream_scratch, i, tanh(val) * (0.5 + 0.5 * hyp_scale));
+            i = i + 1.0;
+        }
+        return g_single_stream_scratch;
+    }
+    if (stream_idx == 4.0) {
+        let kw = geom_killing_form_dynkin_weight(4.0);
+        var i = 0.0;
+        while (i < dim) {
+            let val = cartan_vec_get_f32(x, i);
+            var prev = val;
+            if (i > 0.0) { prev = cartan_vec_get_f32(x, i - 1.0); }
+            var next_val = val;
+            if (i < dim - 1.0) { next_val = cartan_vec_get_f32(x, i + 1.0); }
+            let lap = 2.0 * val - prev - next_val;
+            let hom_out = val - (lap / kw);
+            cartan_vec_set_f32(g_single_stream_scratch, i, hom_out);
+            i = i + 1.0;
+        }
+        return g_single_stream_scratch;
+    }
+    if (stream_idx == 5.0) {
+        let kw = geom_killing_form_dynkin_weight(5.0);
+        var i = 0.0;
+        while (i < dim) {
+            let val = cartan_vec_get_f32(x, i);
+            let eik_out = val / sqrt(1.0 + kw * val * val);
+            cartan_vec_set_f32(g_single_stream_scratch, i, eik_out);
+            i = i + 1.0;
+        }
+        return g_single_stream_scratch;
+    }
+    if (stream_idx == 6.0) {
+        let kw = geom_killing_form_dynkin_weight(6.0);
+        let tau = 0.1 / kw;
+        var i = 0.0;
+        while (i < dim) {
+            let val = cartan_vec_get_f32(x, i);
+            var prev = val;
+            if (i > 0.0) { prev = cartan_vec_get_f32(x, i - 1.0); }
+            var next_val = val;
+            if (i < dim - 1.0) { next_val = cartan_vec_get_f32(x, i + 1.0); }
+            let lap = next_val - 2.0 * val + prev;
+            let diff_out = val + tau * lap;
+            cartan_vec_set_f32(g_single_stream_scratch, i, diff_out);
+            i = i + 1.0;
+        }
+        return g_single_stream_scratch;
+    }
+    if (stream_idx == 7.0) {
+        let kw = geom_killing_form_dynkin_weight(7.0);
+        let cos_th = cos(1.04719755);
+        let sin_th = sin(1.04719755);
+        var i = 0.0;
+        while (i < dim) {
+            let val = cartan_vec_get_f32(x, i);
+            var next_val = val;
+            if (i < dim - 1.0) { next_val = cartan_vec_get_f32(x, i + 1.0); }
+            let rot_val = val * cos_th - next_val * sin_th;
+            cartan_vec_set_f32(g_single_stream_scratch, i, rot_val);
+            i = i + 1.0;
+        }
+        return g_single_stream_scratch;
+    }
+    return x;
+}
+
 // Unified 8-Submanifold Cortical Manifold Transformation
 // Decomposes x into 8 distinct submanifolds (stride = 248 for 1984D, 320 for 2560D):
 // Dims 0..stride-1:       Stream 0: SO(16) Cosformer Linear Attention

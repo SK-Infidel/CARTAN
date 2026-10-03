@@ -818,3 +818,143 @@ fn cartan_wgpu_dispatch_fused_geglu_down_read(
     return 0.0;
 }
 
+// Dispatches batched GeGLU and Down passes across N tokens and reads result back to dst_data
+fn cartan_wgpu_dispatch_fused_geglu_down_batch_read(
+    pipe_geglu: ptr,
+    bg_geglu: ptr,
+    pipe_down: ptr,
+    bg_down: ptr,
+    wx_geglu: float,
+    wx_down: float,
+    num_tokens: float,
+    gpu_out: ptr,
+    dst_data: ptr,
+    size_bytes: float
+) -> float {
+    if (g_wgpu_device == 0.0 || g_wgpu_queue == 0.0 || pipe_geglu == 0.0 || bg_geglu == 0.0 || pipe_down == 0.0 || bg_down == 0.0 || gpu_out == 0.0 || dst_data == 0.0 || num_tokens <= 0.0) {
+        return 0.0;
+    }
+
+    var alloc_sz = size_bytes;
+    if (alloc_sz < 1048576.0) { alloc_sz = 1048576.0; }
+    if (g_wgpu_staging_buf_0 == 0.0 || alloc_sz > g_wgpu_staging_size) {
+        if (g_wgpu_staging_buf_0 != 0.0) {
+            wgpuBufferDestroy(g_wgpu_staging_buf_0);
+            wgpuBufferRelease(g_wgpu_staging_buf_0);
+        }
+        if (g_wgpu_staging_buf_1 != 0.0) {
+            wgpuBufferDestroy(g_wgpu_staging_buf_1);
+            wgpuBufferRelease(g_wgpu_staging_buf_1);
+        }
+        g_wgpu_staging_buf_0 = cartan_wgpu_create_buffer(alloc_sz, 9.0);
+        g_wgpu_staging_buf_1 = cartan_wgpu_create_buffer(alloc_sz, 9.0);
+        g_wgpu_staging_size = alloc_sz;
+        g_wgpu_staging_idx = 0.0;
+        g_wgpu_map_done_0 = 0.0;
+        g_wgpu_map_done_1 = 0.0;
+    }
+
+    if (g_wgpu_map_cb_0 == 0.0) {
+        g_wgpu_map_cb_0 = malloc(64.0);
+        g_wgpu_map_cb_0[0.0] = 0.0;
+        g_wgpu_map_cb_0[1.0] = 2.0; // AllowProcessEvents
+        g_wgpu_map_cb_0[2.0] = cartan_wgpu_on_map_0;
+        g_wgpu_map_cb_0[3.0] = 0.0;
+        g_wgpu_map_cb_0[4.0] = 0.0;
+
+        g_wgpu_map_cb_1 = malloc(64.0);
+        g_wgpu_map_cb_1[0.0] = 0.0;
+        g_wgpu_map_cb_1[1.0] = 2.0; // AllowProcessEvents
+        g_wgpu_map_cb_1[2.0] = cartan_wgpu_on_map_1;
+        g_wgpu_map_cb_1[3.0] = 0.0;
+        g_wgpu_map_cb_1[4.0] = 0.0;
+    }
+
+    var staging_buf = g_wgpu_staging_buf_0;
+    var map_cb = g_wgpu_map_cb_0;
+    let cur_idx = g_wgpu_staging_idx;
+    if (cur_idx == 1.0) {
+        staging_buf = g_wgpu_staging_buf_1;
+        map_cb = g_wgpu_map_cb_1;
+        if (g_wgpu_map_done_1 == 1.0) {
+            wgpuBufferUnmap(staging_buf);
+            g_wgpu_map_done_1 = 0.0;
+        }
+    } else {
+        if (g_wgpu_map_done_0 == 1.0) {
+            wgpuBufferUnmap(staging_buf);
+            g_wgpu_map_done_0 = 0.0;
+        }
+    }
+    if (staging_buf == 0.0) { return 0.0; }
+
+    let cmd_encoder = wgpuDeviceCreateCommandEncoder(g_wgpu_device, 0.0);
+
+    // Pass 1: Batched GeGLU across N tokens
+    let pass1 = wgpuCommandEncoderBeginComputePass(cmd_encoder, 0.0);
+    wgpuComputePassEncoderSetPipeline(pass1, pipe_geglu);
+    wgpuComputePassEncoderSetBindGroup(pass1, 0.0, bg_geglu, 0.0, 0.0);
+    wgpuComputePassEncoderDispatchWorkgroups(pass1, wx_geglu, num_tokens, 1.0);
+    wgpuComputePassEncoderEnd(pass1);
+    wgpuComputePassEncoderRelease(pass1);
+
+    // Pass 2: Batched Down projection across N tokens
+    let pass2 = wgpuCommandEncoderBeginComputePass(cmd_encoder, 0.0);
+    wgpuComputePassEncoderSetPipeline(pass2, pipe_down);
+    wgpuComputePassEncoderSetBindGroup(pass2, 0.0, bg_down, 0.0, 0.0);
+    wgpuComputePassEncoderDispatchWorkgroups(pass2, wx_down, num_tokens, 1.0);
+    wgpuComputePassEncoderEnd(pass2);
+    wgpuComputePassEncoderRelease(pass2);
+
+    // Pass 3: Copy gpu_out to host-visible staging buffer
+    wgpuCommandEncoderCopyBufferToBuffer(cmd_encoder, gpu_out, 0.0, staging_buf, 0.0, size_bytes);
+
+    let cmd_buffer = wgpuCommandEncoderFinish(cmd_encoder, 0.0);
+    wgpuCommandEncoderRelease(cmd_encoder);
+
+    if (g_wgpu_persistent_cmd_list == 0.0) {
+        g_wgpu_persistent_cmd_list = malloc(8.0);
+    }
+    g_wgpu_persistent_cmd_list[0.0] = cmd_buffer;
+    wgpuQueueSubmit(g_wgpu_queue, 1.0, g_wgpu_persistent_cmd_list);
+    wgpuCommandBufferRelease(cmd_buffer);
+
+    // Request asynchronous buffer mapping
+    if (cur_idx == 0.0) {
+        g_wgpu_map_done_0 = 0.0;
+    } else {
+        g_wgpu_map_done_1 = 0.0;
+    }
+    wgpuBufferMapAsync(staging_buf, 1.0, 0.0, size_bytes, map_cb);
+
+    // Poll until mapped
+    var poll_loop = 0.0;
+    var done = 0.0;
+    if (cur_idx == 0.0) { done = g_wgpu_map_done_0; } else { done = g_wgpu_map_done_1; }
+    while (done == 0.0 && poll_loop < 200.0) {
+        wgpuDevicePoll(g_wgpu_device, 1.0, 0.0);
+        wgpuInstanceProcessEvents(g_wgpu_instance);
+        if (cur_idx == 0.0) { done = g_wgpu_map_done_0; } else { done = g_wgpu_map_done_1; }
+        poll_loop = poll_loop + 1.0;
+    }
+
+    if (done == 0.0) {
+        return 0.0;
+    }
+
+    let mapped_ptr = wgpuBufferGetMappedRange(staging_buf, 0.0, size_bytes);
+    if (mapped_ptr != 0.0) {
+        memcpy(dst_data, mapped_ptr, size_bytes);
+        wgpuBufferUnmap(staging_buf);
+        if (cur_idx == 0.0) { g_wgpu_map_done_0 = 0.0; } else { g_wgpu_map_done_1 = 0.0; }
+        g_wgpu_staging_idx = 1.0 - cur_idx;
+        return 1.0;
+    }
+
+    wgpuBufferUnmap(staging_buf);
+    if (cur_idx == 0.0) { g_wgpu_map_done_0 = 0.0; } else { g_wgpu_map_done_1 = 0.0; }
+    g_wgpu_staging_idx = 1.0 - cur_idx;
+    return 0.0;
+}
+
+

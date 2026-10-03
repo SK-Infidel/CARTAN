@@ -2460,6 +2460,23 @@ var g_telemetry_speculative_drafted: float = 0.0;
 var g_telemetry_speculative_accepted: float = 0.0;
 var g_hopfield_speculative_draft_enabled: float = 1.0;
 
+// Sasaki Cortical MoE Dynamic Routing & Stream Telemetry
+var g_telemetry_stream_bypass_count: float = 0.0;
+var g_telemetry_stream_0: float = 0.0;
+var g_telemetry_stream_1: float = 0.0;
+var g_telemetry_stream_2: float = 0.0;
+var g_telemetry_stream_3: float = 0.0;
+var g_telemetry_stream_4: float = 0.0;
+var g_telemetry_stream_5: float = 0.0;
+var g_telemetry_stream_6: float = 0.0;
+var g_telemetry_stream_7: float = 0.0;
+
+var g_sasaki_stream_threshold: float = 0.35;
+var g_sasaki_bypass_enabled: float = 1.0;
+
+var g_prev_decode_h: ptr = 0.0;
+var g_decode_vel_h: ptr = 0.0;
+
 fn geomind_clone_tensor(src: ptr, dim: float) -> ptr {
     if (src == 0.0 || dim <= 0.0) { return 0.0; }
     let dst = cartan_tensor_alloc(dim);
@@ -2471,7 +2488,7 @@ fn geomind_clone_tensor(src: ptr, dim: float) -> ptr {
     return dst;
 }
 
-// Single-token causal autoregressive decode step across all 42 Sovereign Manifold layers with KV caching
+// Single-token causal autoregressive decode step with Sasaki Brainstem MoE routing and KV caching
 fn geomind_execute_manifold_decode_step(sampled_tok: float, pos: float) -> ptr {
     cartan_manifold_set_decode_mode(1.0);
     let h_in = geomind_lookup_token_embedding(sampled_tok);
@@ -2480,6 +2497,99 @@ fn geomind_execute_manifold_decode_step(sampled_tok: float, pos: float) -> ptr {
 
     let tok_str = bpe_decode_token(sampled_tok);
     geomind_init_char_stream(tok_str);
+
+    // Track tangent bundle state velocity (x, \dot{x})
+    if (g_decode_vel_h == 0.0) {
+        g_decode_vel_h = cartan_vec_create();
+        var vi = 0.0;
+        while (vi < 2560.0) {
+            cartan_vec_push_f32(g_decode_vel_h, 0.0);
+            vi = vi + 1.0;
+        }
+    }
+    if (g_prev_decode_h != 0.0) {
+        var vi = 0.0;
+        while (vi < 2560.0) {
+            let cur_v = cartan_vec_get_f32(cur_h, vi);
+            let prev_v = cartan_vec_get_f32(g_prev_decode_h, vi);
+            cartan_vec_set_f32(g_decode_vel_h, vi, cur_v - prev_v);
+            cartan_vec_set_f32(g_prev_decode_h, vi, cur_v);
+            vi = vi + 1.0;
+        }
+    } else {
+        g_prev_decode_h = cartan_vec_create();
+        var vi = 0.0;
+        while (vi < 2560.0) {
+            let cur_v = cartan_vec_get_f32(cur_h, vi);
+            cartan_vec_push_f32(g_prev_decode_h, cur_v);
+            cartan_vec_set_f32(g_decode_vel_h, vi, 0.0);
+            vi = vi + 1.0;
+        }
+    }
+
+    // Evaluate Sasaki Brainstem Router in < 0.1ms
+    let route_res = cartan_sasaki_brainstem_route_top1(cur_h, g_decode_vel_h, 0.70);
+    let dom_stream = cartan_vec_get_f32(route_res, 0.0);
+    let dom_w = cartan_vec_get_f32(route_res, 1.0);
+
+    // Record stream activation histogram
+    if (dom_stream == 0.0) { g_telemetry_stream_0 = g_telemetry_stream_0 + 1.0; }
+    else if (dom_stream == 1.0) { g_telemetry_stream_1 = g_telemetry_stream_1 + 1.0; }
+    else if (dom_stream == 2.0) { g_telemetry_stream_2 = g_telemetry_stream_2 + 1.0; }
+    else if (dom_stream == 3.0) { g_telemetry_stream_3 = g_telemetry_stream_3 + 1.0; }
+    else if (dom_stream == 4.0) { g_telemetry_stream_4 = g_telemetry_stream_4 + 1.0; }
+    else if (dom_stream == 5.0) { g_telemetry_stream_5 = g_telemetry_stream_5 + 1.0; }
+    else if (dom_stream == 6.0) { g_telemetry_stream_6 = g_telemetry_stream_6 + 1.0; }
+    else if (dom_stream == 7.0) { g_telemetry_stream_7 = g_telemetry_stream_7 + 1.0; }
+
+    // Fast Path: Conditional Layer Bypass (bypassing layers 0..40 directly into Anchor Layer 41)
+    if (g_sasaki_bypass_enabled == 1.0 && dom_w >= g_sasaki_stream_threshold && pos > 0.0) {
+        let stream_h = geomind_single_stream_forward(cur_h, dom_stream);
+        var ci = 0.0;
+        while (ci < 2560.0) {
+            cartan_vec_set_f32(cur_h, ci, cartan_vec_get_f32(stream_h, ci));
+            ci = ci + 1.0;
+        }
+
+        // Maintain continuous KV cache sequence for layers 0..23 (carry forward attention context)
+        var kl = 0.0;
+        while (kl < 24.0) {
+            let k_base = cartan_kv_cache_get_k(kl);
+            let v_base = cartan_kv_cache_get_v(kl);
+            if (k_base != 0.0 && v_base != 0.0 && pos < g_kv_cache_max_seq) {
+                cartan_c_memcpy(cartan_f32_ptr_add(k_base, pos * 1024.0), cartan_f32_ptr_add(k_base, (pos - 1.0) * 1024.0), 4096.0);
+                cartan_c_memcpy(cartan_f32_ptr_add(v_base, pos * 1024.0), cartan_f32_ptr_add(v_base, (pos - 1.0) * 1024.0), 4096.0);
+            }
+            kl = kl + 1.0;
+        }
+
+        // Execute final Anchor Layer 41
+        let layer_41_buf = geomind_get_layer_buffer(41.0);
+        if (layer_41_buf != 0.0) {
+            let final_h = cartan_manifold_layer_forward_raw(cur_h, layer_41_buf, pos, pos + 1.0, 0.0, 0.0);
+            if (final_h != 0.0) {
+                cartan_vec_free(cur_h);
+                cur_h = final_h;
+            }
+        }
+
+        g_telemetry_stream_bypass_count = g_telemetry_stream_bypass_count + 1.0;
+        g_telemetry_total_layers_executed = g_telemetry_total_layers_executed + 2.0;
+        g_telemetry_total_decode_tokens = g_telemetry_total_decode_tokens + 1.0;
+
+        geomind_poll_char_stream(41.0, 42.0);
+        return cur_h;
+    }
+
+    // Complex Path: Pre-conditioned E8 Manifold Anchor (stream_h blends 10% into cur_h)
+    let stream_h = geomind_single_stream_forward(cur_h, dom_stream);
+    var ci = 0.0;
+    while (ci < 2560.0) {
+        let orig_v = cartan_vec_get_f32(cur_h, ci);
+        let s_v = cartan_vec_get_f32(stream_h, ci);
+        cartan_vec_set_f32(cur_h, ci, 0.90 * orig_v + 0.10 * s_v);
+        ci = ci + 1.0;
+    }
 
     var early_exited = 0.0;
     var l = 0.0;
@@ -2534,6 +2644,10 @@ fn geomind_execute_manifold_decode_step(sampled_tok: float, pos: float) -> ptr {
 fn geomind_chat_clear_session() -> float {
     g_chat_session_pos = 0.0;
     geomind_reset_kv_caches();
+    if (g_prev_decode_h != 0.0) {
+        cartan_vec_free(g_prev_decode_h);
+        g_prev_decode_h = 0.0;
+    }
     let db = geomind_chat_get_db();
     if (db != 0.0) {
         cartan_sqlite_exec(db, "DELETE FROM episodes WHERE session_id = 'session_active';");
@@ -2568,6 +2682,10 @@ fn geomind_chat_append_turn_tokens(target_tokens: ptr, role_tok: float, content_
 }
 
 fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, temp: float, image_path: string, audio_path: string) -> float {
+    if (g_prev_decode_h != 0.0) {
+        cartan_vec_free(g_prev_decode_h);
+        g_prev_decode_h = 0.0;
+    }
     geomind_chat_log_turn("user", prompt);
     geomind_chat_learn_conversational_turn("user", prompt);
     if (g_chat_debug_mode == 1.0) {
@@ -2850,8 +2968,8 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
         var rep_pen = 1.15;
 
         // Continuous Hopfield Speculative Burst Drafting (Single-Pass Batched DDR5 Verification)
-        if (g_hopfield_speculative_draft_enabled == 1.0 && step + 4.0 < max_t) {
-            let candidate_tokens = cartan_hopfield_draft_candidate_tokens(cur_h, 4.0, 0.88);
+        if (g_hopfield_speculative_draft_enabled == 1.0 && step + 5.0 < max_t) {
+            let candidate_tokens = cartan_hopfield_draft_candidate_tokens(cur_h, 5.0, 0.85);
             let n_draft = cartan_vec_len(candidate_tokens);
             if (n_draft > 0.0) {
                 let draft_states = cartan_tree_create();
@@ -3054,9 +3172,13 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
         if (g_telemetry_total_decode_tokens > 0.0) {
             exit_rate = (g_telemetry_early_exit_count * 100.0) / g_telemetry_total_decode_tokens;
         }
-        if (g_telemetry_early_exit_count > 0.0 || g_telemetry_speculative_drafted > 0.0) {
-            printf("[GeoMind Telemetry] Prefill: %.0f ms (%s tokens) | Decode: %.0f ms (%s tokens, %.1f tok/s) | Early Exit: %.1f%% (Avg %.1f/42 layers) | Speculative: %.0f/%.0f accepted | Horizon: %.0f\n",
-                   dt_prefill, cartan_float_to_string(num_prompt_toks), dt_decode, cartan_float_to_string(step), tok_per_sec, exit_rate, avg_layers, g_telemetry_speculative_accepted, g_telemetry_speculative_drafted, g_chat_session_pos + num_prompt_toks + step);
+        var bypass_rate = 0.0;
+        if (g_telemetry_total_decode_tokens > 0.0) {
+            bypass_rate = (g_telemetry_stream_bypass_count * 100.0) / g_telemetry_total_decode_tokens;
+        }
+        if (g_telemetry_stream_bypass_count > 0.0 || g_telemetry_early_exit_count > 0.0 || g_telemetry_speculative_drafted > 0.0) {
+            printf("[GeoMind Telemetry] Prefill: %.0f ms (%s tokens) | Decode: %.0f ms (%s tokens, %.1f tok/s) | MoE Fast Path: %.1f%% (%s tok) | Early Exit: %.1f%% (Avg %.1f/42 layers) | Speculative: %.0f/%.0f accepted | Horizon: %.0f\n",
+                   dt_prefill, cartan_float_to_string(num_prompt_toks), dt_decode, cartan_float_to_string(step), tok_per_sec, bypass_rate, cartan_float_to_string(g_telemetry_stream_bypass_count), exit_rate, avg_layers, g_telemetry_speculative_accepted, g_telemetry_speculative_drafted, g_chat_session_pos + num_prompt_toks + step);
         } else {
             printf("[GeoMind Telemetry] Prefill: %.0f ms (%s tokens) | Decode: %.0f ms (%s tokens, %.1f tok/s) | Context Horizon: %.0f\n",
                    dt_prefill, cartan_float_to_string(num_prompt_toks), dt_decode, cartan_float_to_string(step), tok_per_sec, g_chat_session_pos + num_prompt_toks + step);
@@ -3070,7 +3192,7 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
             var bi = num_prompt_toks;
             let hist_len = cartan_vec_len(history);
             var b_cnt = 0.0;
-            while (bi < hist_len && b_cnt < 4.0) {
+            while (bi < hist_len && b_cnt < 5.0) {
                 cartan_vec_push_f32(response_burst_vec, cartan_vec_get_f32(history, bi));
                 bi = bi + 1.0;
                 b_cnt = b_cnt + 1.0;

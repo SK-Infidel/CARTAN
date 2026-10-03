@@ -61,14 +61,14 @@ $TargetCatalog = @{
     43 = @{ Name = "test_inductive_biases"; File = "test/compiler_suite/test_inductive_biases.car"; Run = $false; Negative = $false }
     44 = @{ Name = "test_net_and_logger"; File = "test/compiler_suite/test_net_and_logger.car"; Run = $false; Negative = $false }
     45 = @{ Name = "test_hopfield_buffer"; File = "test/compiler_suite/test_hopfield_buffer.car"; Run = $false; Negative = $false }
-    46 = @{ Name = "test_lie_streams"; File = "test/compiler_suite/test_lie_streams.car"; Run = $false; Negative = $false }
+    46 = @{ Name = "test_lie_streams"; File = "test/compiler_suite/test_lie_streams.car"; Run = $true; Negative = $false }
     47 = @{ Name = "test_hebbian_plasticity"; File = "test/compiler_suite/test_hebbian_plasticity.car"; Run = $false; Negative = $false }
     48 = @{ Name = "test_multimodal_grounding"; File = "test/compiler_suite/test_multimodal_grounding.car"; Run = $false; Negative = $false }
     49 = @{ Name = "test_sleep_consolidation"; File = "test/compiler_suite/test_sleep_consolidation.car"; Run = $false; Negative = $false }
     50 = @{ Name = "test_language_acquisition_cloze"; File = "test/compiler_suite/test_language_acquisition_cloze.car"; Run = $false; Negative = $false }
     51 = @{ Name = "test_model_grafting"; File = "test/compiler_suite/test_model_grafting.car"; Run = $false; Negative = $false }
     52 = @{ Name = "test_native_multimodal_io"; File = "test/compiler_suite/test_native_multimodal_io.car"; Run = $false; Negative = $false }
-    53 = @{ Name = "test_sasaki_brainstem_routing"; File = "test/compiler_suite/test_sasaki_brainstem_routing.car"; Run = $false; Negative = $false }
+    53 = @{ Name = "test_sasaki_brainstem_routing"; File = "test/compiler_suite/test_sasaki_brainstem_routing.car"; Run = $true; Negative = $false }
     54 = @{ Name = "test_continuous_hopfield_recall"; File = "test/compiler_suite/test_continuous_hopfield_recall.car"; Run = $true; Negative = $false }
     55 = @{ Name = "test_wordnet_taxonomy_dag"; File = "test/compiler_suite/test_wordnet_taxonomy_dag.car"; Run = $false; Negative = $false }
     56 = @{ Name = "test_doubt_reflective_rewind"; File = "test/compiler_suite/test_doubt_reflective_rewind.car"; Run = $false; Negative = $false }
@@ -110,6 +110,7 @@ $TargetCatalog = @{
 # Sprint Preset Mapping
 # -----------------------------------------------------------------------------
 $SprintMapping = @{
+    523 = @(1, 2, 3, 4, 5, 18, 46, 53, 54, 58, 82, 83, 84, 85, 86)
     522 = @(1, 2, 3, 4, 5, 18, 82, 83, 84, 85, 86)
     521 = @(1, 2, 3, 4, 5, 82, 83, 84, 85, 86)
     520 = @(45, 54, 58, 83, 84, 85, 86)
