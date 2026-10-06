@@ -4,6 +4,20 @@ All notable changes to the CARTAN programming language, self-hosting compiler (`
 
 In accordance with User Rule 3 and project standards, GeoMind cognitive model releases are tracked independently in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
+## [8.500.0] - 2026-10-05 (Sprint 544: CARTAN Unified Algebraic Taxonomy: Pillar 1 Multilinear Tensor Algebra & Structural Framework)
+
+### Completed & Validated
+- **CARTAN Unified Algebraic Architecture (`[ISSUE-402]`)**:
+  - **Modular 4-Pillar Hierarchy ([`src/std/algebra.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/algebra.cl))**: Established the unified standard algebraic taxonomy under `src/std/algebra/`, organized by algebraic heritage into 4 pillars (Tensor, Geometric/Clifford/Weyl, Lie, and Abstract) topped by an umbrella entrypoint.
+  - **N-Dimensional Tensor Algebra ([`src/std/algebra/tensor.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/algebra/tensor.cl))**: Implemented strided multidimensional tensors (`AlgTensor`) up to rank 8. Added `alg_tensor_create`, `alg_tensor_zeros`, `alg_tensor_ones`, `alg_tensor_clone`, `alg_tensor_get`, `alg_tensor_set`, `alg_tensor_reshape`, `alg_tensor_slice`, and `alg_tensor_free`.
+  - **Multilinear Contraction & Einsum**: Implemented tensor outer products ($A \otimes B$), index contractions over paired dimensions (trace reduction), and general Einstein summation dot products (`alg_tensor_einsum_dot`).
+  - **Matrix Algebra & Factorizations (`AlgMat`)**: Implemented IKJ cache-aligned matrix multiplication, LU decomposition with partial row pivoting and singularity detection ($10^{-12}$), Gauss-Jordan matrix inversion, Householder QR decomposition via rank-1 updates, Jacobi eigensystem solving for real symmetric matrices with in-place Givens rotations, and Higham scaling-and-squaring matrix exponentials $\exp(A)$ with order-12 Taylor series.
+  - **Symmetric Algebra & Quadratic Forms**: Implemented matrix symmetrization ($A_{\text{sym}} = \frac{1}{2}(A + A^T)$), quadratic forms $Q(v) = v^T A v$, bilinear forms $B(u, v) = u^T A v$, Sylvester metric signature classification $(p, q, r)$ for pseudo-Riemannian and spacetime geometries, and canonical $2n \times 2n$ symplectic matrix construction $J$.
+  - **Matrix <-> Tensor Bridge**: Implemented bidirectional adapters `alg_mat_to_tensor` and `alg_tensor_to_mat`.
+- **Empirical Regression Verification & Test Target 91 ([`Projects/geomind/Testing-scratch/test_stdlib_algebra_tensor.car`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/Testing-scratch/test_stdlib_algebra_tensor.car))**:
+  - Authored dedicated 4-gate test suite covering 35 assertions across N-dim striding, Einsum contractions, LU/QR/Jacobi/exp factorizations, Sylvester signatures, and symplectic properties (100% PASS, exit code 0).
+  - Registered Target 91 and Preset 544 in [`tools/run_affected_tests.ps1`](file:///C:/Users/rich-/source/repos/CARTAN/tools/run_affected_tests.ps1); verified 13/13 affected regression suite targets PASS in 20.73s.
+
 ## [8.499.0] - 2026-10-05 (Sprint 543: Standard Library Promotion: Pure-CARTAN JSON Engine, Sandboxed Process Execution & Lightweight XML Extractors)
 
 ### Completed & Validated

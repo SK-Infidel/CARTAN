@@ -106,12 +106,14 @@ $TargetCatalog = @{
     88 = @{ Name = "test_autodiff_backward_syntax"; File = "Projects/geomind/Testing-scratch/test_autodiff_backward_syntax.car"; Run = $true; Negative = $false }
     89 = @{ Name = "test_stdlib_string_terminal_html"; File = "Projects/geomind/Testing-scratch/test_stdlib_string_terminal_html.car"; Run = $true; Negative = $false }
     90 = @{ Name = "test_stdlib_json_process_xml"; File = "Projects/geomind/Testing-scratch/test_stdlib_json_process_xml.car"; Run = $true; Negative = $false }
+    91 = @{ Name = "test_stdlib_algebra_tensor"; File = "Projects/geomind/Testing-scratch/test_stdlib_algebra_tensor.car"; Run = $true; Negative = $false }
 }
 
 # -----------------------------------------------------------------------------
 # Sprint Preset Mapping
 # -----------------------------------------------------------------------------
 $SprintMapping = @{
+    544 = @(1, 2, 3, 4, 5, 10, 18, 20, 24, 82, 89, 90, 91)
     543 = @(1, 2, 3, 4, 5, 10, 18, 20, 24, 82, 89, 90)
     542 = @(1, 2, 3, 4, 5, 18, 24, 82, 89)
     541 = @(1, 2, 3, 4, 5, 18, 24, 31, 33, 34, 36, 37, 45, 46, 53, 54, 58, 74, 80, 82, 83, 84, 85, 86)
