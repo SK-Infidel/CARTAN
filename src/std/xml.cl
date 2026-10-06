@@ -287,3 +287,76 @@ fn xml_stringify(root: ptr) -> string {
     return cartan_string_concat("<", cartan_string_concat(tag, cartan_string_concat(">", cartan_string_concat(text, cartan_string_concat("</", cartan_string_concat(tag, ">"))))));
 }
 
+// Lightweight extraction of XML attribute value supporting double or single quotes
+fn xml_extract_attribute(tag_header: string, attr_name: string) -> string {
+    if (tag_header == 0.0 || attr_name == 0.0) { return ""; }
+    if (cartan_string_length(tag_header) == 0.0 || cartan_string_length(attr_name) == 0.0) { return ""; }
+
+    // Check double quotes: attr="value"
+    var target = cartan_string_concat(attr_name, "=\"");
+    var pos = string_index_of_offset_ignore_case(tag_header, target, 0.0);
+    let target_len = cartan_string_length(target);
+    free(target);
+
+    if (pos >= 0.0) {
+        let v_start = pos + target_len;
+        let q_pos = string_index_of_offset_ignore_case(tag_header, "\"", v_start);
+        if (q_pos > v_start) {
+            return cartan_string_substring(tag_header, v_start, q_pos);
+        }
+    }
+
+    // Check single quotes: attr='value'
+    var target_sq = cartan_string_concat(attr_name, "='");
+    var pos_sq = string_index_of_offset_ignore_case(tag_header, target_sq, 0.0);
+    let target_sq_len = cartan_string_length(target_sq);
+    free(target_sq);
+
+    if (pos_sq >= 0.0) {
+        let v_start_sq = pos_sq + target_sq_len;
+        let q_pos_sq = string_index_of_offset_ignore_case(tag_header, "'", v_start_sq);
+        if (q_pos_sq > v_start_sq) {
+            return cartan_string_substring(tag_header, v_start_sq, q_pos_sq);
+        }
+    }
+    return "";
+}
+
+// Extracts inner text content between the first opening tag closing '>' and closing tag '</'
+fn xml_extract_tag_body(tag_str: string) -> string {
+    if (tag_str == 0.0 || cartan_string_length(tag_str) == 0.0) { return ""; }
+    let gt = string_index_of_offset_ignore_case(tag_str, ">", 0.0);
+    let lt = string_index_of_offset_ignore_case(tag_str, "</", 0.0);
+    if (gt >= 0.0 && lt > gt) {
+        return cartan_string_substring(tag_str, gt + 1.0, lt);
+    }
+    return "";
+}
+
+// Extracts inner text content of a specifically named tag: <tag_name...>BODY</tag_name>
+fn xml_extract_tag_body_by_name(xml_str: string, tag_name: string) -> string {
+    if (xml_str == 0.0 || tag_name == 0.0) { return ""; }
+    if (cartan_string_length(xml_str) == 0.0 || cartan_string_length(tag_name) == 0.0) { return ""; }
+
+    var open_pfx = "<";
+    open_pfx = cartan_string_concat(open_pfx, tag_name);
+    let open_pos = string_index_of_offset_ignore_case(xml_str, open_pfx, 0.0);
+    free(open_pfx);
+    if (open_pos < 0.0) { return ""; }
+
+    let gt = string_index_of_offset_ignore_case(xml_str, ">", open_pos);
+    if (gt < 0.0) { return ""; }
+
+    var close_tag = "</";
+    close_tag = cartan_string_concat(close_tag, tag_name);
+    close_tag = cartan_string_concat(close_tag, ">");
+    let close_pos = string_index_of_offset_ignore_case(xml_str, close_tag, gt);
+    free(close_tag);
+
+    if (close_pos > gt) {
+        return cartan_string_substring(xml_str, gt + 1.0, close_pos);
+    }
+    return "";
+}
+
+

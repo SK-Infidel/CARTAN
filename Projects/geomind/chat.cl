@@ -18,8 +18,12 @@ include "engine.cl";
 include "ising_state_machine.cl";
 include "e8_attention_engine.cl";
 
-
 include "../../src/std/string.cl";
+include "../../src/std/terminal.cl";
+include "../../src/std/html.cl";
+include "../../src/std/json.cl";
+include "../../src/std/process.cl";
+include "../../src/std/xml.cl";
 include "../../src/std/collections.cl";
 
 include "../../src/std/reasoning.cl";
@@ -1032,6 +1036,7 @@ fn geomind_chat_get_use_color() -> float {
 
 fn geomind_chat_set_use_color(flag: float) {
     g_chat_use_color = flag;
+    terminal_set_color_enabled(flag);
 }
 
 fn geomind_chat_get_use_animation() -> float {
@@ -1043,86 +1048,70 @@ fn geomind_chat_set_use_animation(flag: float) {
 }
 
 fn geomind_ansi_esc() -> string {
-    let p = calloc(2.0, 1.0);
-    cartan_set_byte(p, 0.0, 27.0);
-    return p;
+    return terminal_ansi_esc();
 }
 
 fn geomind_col_reset() -> string {
-    if (g_chat_use_color == 1.0) { return "\e[0m"; }
+    if (g_chat_use_color == 1.0) { return terminal_col_reset(); }
     return "";
 }
 
 fn geomind_col_bold() -> string {
-    if (g_chat_use_color == 1.0) { return "\e[1m"; }
+    if (g_chat_use_color == 1.0) { return terminal_col_bold(); }
     return "";
 }
 
 fn geomind_col_dim() -> string {
-    if (g_chat_use_color == 1.0) { return "\e[2m"; }
+    if (g_chat_use_color == 1.0) { return terminal_col_dim(); }
     return "";
 }
 
 fn geomind_col_green() -> string {
-    if (g_chat_use_color == 1.0) { return "\e[1;32m"; }
+    if (g_chat_use_color == 1.0) { return terminal_col_green(); }
     return "";
 }
 
 fn geomind_col_cyan() -> string {
-    if (g_chat_use_color == 1.0) { return "\e[1;36m"; }
+    if (g_chat_use_color == 1.0) { return terminal_col_cyan(); }
     return "";
 }
 
 fn geomind_col_yellow() -> string {
-    if (g_chat_use_color == 1.0) { return "\e[1;33m"; }
+    if (g_chat_use_color == 1.0) { return terminal_col_yellow(); }
     return "";
 }
 
 fn geomind_col_amber() -> string {
-    if (g_chat_use_color == 1.0) { return "\e[33m"; }
+    if (g_chat_use_color == 1.0) { return terminal_col_amber(); }
     return "";
 }
 
 fn geomind_col_magenta() -> string {
-    if (g_chat_use_color == 1.0) { return "\e[1;35m"; }
+    if (g_chat_use_color == 1.0) { return terminal_col_magenta(); }
     return "";
 }
 
 fn geomind_col_red() -> string {
-    if (g_chat_use_color == 1.0) { return "\e[1;31m"; }
+    if (g_chat_use_color == 1.0) { return terminal_col_red(); }
     return "";
 }
 
 fn geomind_col_gray() -> string {
-    if (g_chat_use_color == 1.0) { return "\e[90m"; }
+    if (g_chat_use_color == 1.0) { return terminal_col_gray(); }
     return "";
 }
 
 fn geomind_col_erase_line() -> string {
-    if (g_chat_use_color == 1.0) { return "\e[2K\r"; }
+    if (g_chat_use_color == 1.0) { return terminal_erase_line(); }
     return "\r                                                                                \r";
 }
 
 fn geomind_get_spinner_frame(idx: float) -> string {
-    let m = idx - (floor(idx / 10.0) * 10.0);
-    if (m == 0.0) { return "⠋"; }
-    if (m == 1.0) { return "⠙"; }
-    if (m == 2.0) { return "⠹"; }
-    if (m == 3.0) { return "⠸"; }
-    if (m == 4.0) { return "⠼"; }
-    if (m == 5.0) { return "⠴"; }
-    if (m == 6.0) { return "⠦"; }
-    if (m == 7.0) { return "⠧"; }
-    if (m == 8.0) { return "⠇"; }
-    return "⠏";
+    return terminal_spinner_braille(idx);
 }
 
 fn geomind_get_spinner_ascii_frame(idx: float) -> string {
-    let m = idx - (floor(idx / 4.0) * 4.0);
-    if (m == 0.0) { return "|"; }
-    if (m == 1.0) { return "/"; }
-    if (m == 2.0) { return "-"; }
-    return "\\";
+    return terminal_spinner_ascii(idx);
 }
 
 
@@ -1211,100 +1200,23 @@ fn geomind_clean_learned_token(raw: string) -> string {
 }
 
 fn geomind_char_to_lower(c: float) -> float {
-    if (c >= 65.0 && c <= 90.0) {
-        return c + 32.0;
-    }
-    return c;
+    return string_char_to_lower(c);
 }
 
 fn geomind_string_index_of_ignore_case(haystack: string, needle: string) -> float {
-    if (haystack == 0.0 || needle == 0.0) { return -1.0; }
-    let h_len = cartan_string_length(haystack);
-    let n_len = cartan_string_length(needle);
-    if (n_len > h_len || n_len == 0.0) { return -1.0; }
-    var i = 0.0;
-    let limit = h_len - n_len;
-    while (i <= limit) {
-        var is_matched = 1.0;
-        var j = 0.0;
-        while (j < n_len) {
-            let ch_h = geomind_char_to_lower(cartan_string_get_char(haystack, i + j));
-            let ch_n = geomind_char_to_lower(cartan_string_get_char(needle, j));
-            if (ch_h != ch_n) {
-                is_matched = 0.0;
-                break;
-            }
-            j = j + 1.0;
-        }
-        if (is_matched == 1.0) {
-            return i;
-        }
-        i = i + 1.0;
-    }
-    return -1.0;
+    return string_index_of_ignore_case(haystack, needle);
 }
 
 fn geomind_string_index_of_offset_ignore_case(haystack: string, needle: string, start_offset: float) -> float {
-    if (haystack == 0.0 || needle == 0.0) { return -1.0; }
-    let h_len = cartan_string_length(haystack);
-    let n_len = cartan_string_length(needle);
-    if (start_offset < 0.0) { return -1.0; }
-    if (start_offset + n_len > h_len || n_len == 0.0) { return -1.0; }
-    var i = start_offset;
-    let limit = h_len - n_len;
-    while (i <= limit) {
-        var is_matched = 1.0;
-        var j = 0.0;
-        while (j < n_len) {
-            let ch_h = geomind_char_to_lower(cartan_string_get_char(haystack, i + j));
-            let ch_n = geomind_char_to_lower(cartan_string_get_char(needle, j));
-            if (ch_h != ch_n) {
-                is_matched = 0.0;
-                break;
-            }
-            j = j + 1.0;
-        }
-        if (is_matched == 1.0) {
-            return i;
-        }
-        i = i + 1.0;
-    }
-    return -1.0;
+    return string_index_of_offset_ignore_case(haystack, needle, start_offset);
 }
 
 fn geomind_string_starts_with_offset(haystack: string, needle: string, offset: float) -> float {
-    if (haystack == 0.0 || needle == 0.0) { return 0.0; }
-    let h_len = cartan_string_length(haystack);
-    let n_len = cartan_string_length(needle);
-    if (offset < 0.0 || offset + n_len > h_len) { return 0.0; }
-    var j = 0.0;
-    while (j < n_len) {
-        if (cartan_string_get_char(haystack, offset + j) != cartan_string_get_char(needle, j)) {
-            return 0.0;
-        }
-        j = j + 1.0;
-    }
-    return 1.0;
+    return string_starts_with_offset(haystack, needle, offset);
 }
 
 fn geomind_string_trim(s: string) -> string {
-    if (s == 0.0) { return ""; }
-    let s_len = cartan_string_length(s);
-    if (s_len == 0.0) { return ""; }
-    var start = 0.0;
-    while (start < s_len) {
-        let b = cartan_byte_at(s, start);
-        if (b != 32.0 && b != 10.0 && b != 13.0 && b != 9.0) { break; }
-        start = start + 1.0;
-    }
-    if (start >= s_len) { return ""; }
-    var end = s_len - 1.0;
-    while (end > start) {
-        let b = cartan_byte_at(s, end);
-        if (b != 32.0 && b != 10.0 && b != 13.0 && b != 9.0) { break; }
-        end = end - 1.0;
-    }
-    return cartan_string_substring(s, start, end + 1.0);
+    return string_trim(s);
 }
 
 fn geomind_sanitize_output_for_display(raw: string) -> string {
@@ -2172,32 +2084,7 @@ fn geomind_chat_learn_conversational_turn(speaker: string, text: string) -> floa
 
 // Executes command redirected to scratch/tool_cmd_out.tmp, captures stdout/stderr, unlinks scratch file
 fn geomind_internal_exec_to_scratch(cmd: string) -> string {
-    if (cartan_string_length(cmd) == 0.0) { return ""; }
-    let scratch_file = "scratch/tool_cmd_out.tmp";
-    var full_cmd = "cmd.exe /c \"(";
-    full_cmd = cartan_string_concat(full_cmd, cmd);
-    full_cmd = cartan_string_concat(full_cmd, ") > ");
-    full_cmd = cartan_string_concat(full_cmd, scratch_file);
-    full_cmd = cartan_string_concat(full_cmd, " 2>&1\"");
-
-    let rc = cartan_system(full_cmd);
-    var out_text = "";
-    if (cartan_file_exists(scratch_file) == 1.0) {
-        out_text = cartan_read_file(scratch_file);
-        remove(scratch_file);
-    }
-    if (rc != 0.0) {
-        var err_prefix = "[Exit code: ";
-        err_prefix = cartan_string_concat(err_prefix, cartan_float_to_string(rc));
-        err_prefix = cartan_string_concat(err_prefix, "]\n");
-        out_text = cartan_string_concat(err_prefix, out_text);
-    }
-    let out_len = cartan_string_length(out_text);
-    if (out_len > 65536.0) {
-        let truncated = cartan_string_substring(out_text, 0.0, 65536.0);
-        return cartan_string_concat(truncated, "\n[Output truncated to 65,536 bytes]");
-    }
-    return out_text;
+    return process_exec(cmd);
 }
 
 fn geomind_tool_file_exists(path: string) -> string {
@@ -2302,218 +2189,36 @@ fn geomind_tool_list_dir(path: string) -> string {
 
 // Decodes common HTML entities to plain ASCII/UTF-8 characters
 fn geomind_html_decode_entities(text: string) -> string {
-    if (text == 0.0) { return ""; }
-    var s = cartan_string_replace(text, "&nbsp;", " ");
-    s = cartan_string_replace(s, "&quot;", "\"");
-    s = cartan_string_replace(s, "&#39;", "'");
-    s = cartan_string_replace(s, "&apos;", "'");
-    s = cartan_string_replace(s, "&lt;", "<");
-    s = cartan_string_replace(s, "&gt;", ">");
-    s = cartan_string_replace(s, "&mdash;", "--");
-    s = cartan_string_replace(s, "&ndash;", "-");
-    s = cartan_string_replace(s, "&amp;", "&");
-    return s;
+    return html_decode_entities(text);
 }
 
 // Resolves relative URLs against base URL (protocol, domain, path)
 fn geomind_url_resolve(base_url: string, link_url: string) -> string {
-    if (link_url == 0.0 || cartan_string_length(link_url) == 0.0) { return ""; }
-    if (cartan_string_starts_with(link_url, "http://") == 1.0 ||
-        cartan_string_starts_with(link_url, "https://") == 1.0) {
-        return link_url;
-    }
-    if (cartan_string_starts_with(link_url, "//") == 1.0) {
-        return cartan_string_concat("https:", link_url);
-    }
-    var origin = base_url;
-    let proto_idx = geomind_string_index_of_offset_ignore_case(base_url, "://", 0.0);
-    if (proto_idx >= 0.0) {
-        let slash_after = geomind_string_index_of_offset_ignore_case(base_url, "/", proto_idx + 3.0);
-        if (slash_after >= 0.0) {
-            origin = cartan_string_substring(base_url, 0.0, slash_after);
-        }
-    }
-    if (cartan_string_starts_with(link_url, "/") == 1.0) {
-        return cartan_string_concat(origin, link_url);
-    }
-    var dir_base = origin;
-    let b_len = cartan_string_length(base_url);
-    var last_slash = -1.0;
-    var bi = b_len - 1.0;
-    while (bi >= 0.0) {
-        if (cartan_string_get_char(base_url, bi) == 47.0) {
-            last_slash = bi;
-            break;
-        }
-        bi = bi - 1.0;
-    }
-    if (last_slash > proto_idx + 2.0) {
-        dir_base = cartan_string_substring(base_url, 0.0, last_slash + 1.0);
-    } else {
-        dir_base = cartan_string_concat(origin, "/");
-    }
-    return cartan_string_concat(dir_base, link_url);
+    return url_resolve(base_url, link_url);
 }
 
 // Case-insensitively excises subtree blocks (<script>...</script>, <style>...</style>, etc.)
 fn geomind_html_remove_tag_block(html: string, open_tag: string, close_tag: string) -> string {
-    if (html == 0.0) { return ""; }
-    var cur = html;
-    var pos = geomind_string_index_of_offset_ignore_case(cur, open_tag, 0.0);
-    var guard = 0.0;
-    while (pos >= 0.0 && guard < 100.0) {
-        let close_pos = geomind_string_index_of_offset_ignore_case(cur, close_tag, pos);
-        if (close_pos >= 0.0) {
-            let end_idx = close_pos + cartan_string_length(close_tag);
-            let s_pre = cartan_string_substring(cur, 0.0, pos);
-            let s_post = cartan_string_substring(cur, end_idx, cartan_string_length(cur));
-            cur = cartan_string_concat(s_pre, s_post);
-            pos = geomind_string_index_of_offset_ignore_case(cur, open_tag, pos);
-        } else {
-            break;
-        }
-        guard = guard + 1.0;
-    }
-    return cur;
+    return html_remove_tag_block(html, open_tag, close_tag);
 }
 
 fn geomind_html_extract_title(html: string) -> string {
-    if (html == 0.0) { return ""; }
-    let t_open = geomind_string_index_of_offset_ignore_case(html, "<title>", 0.0);
-    if (t_open >= 0.0) {
-        let t_close = geomind_string_index_of_offset_ignore_case(html, "</title>", t_open);
-        if (t_close > t_open + 7.0) {
-            let raw_t = cartan_string_substring(html, t_open + 7.0, t_close);
-            return geomind_html_decode_entities(raw_t);
-        }
-    }
-    return "";
+    return html_extract_title(html);
 }
 
 // Strips HTML markup tags using span slicing while injecting line breaks on block boundaries
 fn geomind_html_strip_tags(html: string) -> string {
-    if (html == 0.0) { return ""; }
-    let len = cartan_string_length(html);
-    let scaffold = prompt_scaffold_create(65536.0);
-    var i = 0.0;
-    while (i < len) {
-        let next_lt = geomind_string_index_of_offset_ignore_case(html, "<", i);
-        if (next_lt < 0.0) {
-            let rem_span = cartan_string_substring(html, i, len);
-            prompt_scaffold_append(scaffold, rem_span);
-            break;
-        }
-        if (next_lt > i) {
-            let text_span = cartan_string_substring(html, i, next_lt);
-            prompt_scaffold_append(scaffold, text_span);
-        }
-        let next_gt = geomind_string_index_of_offset_ignore_case(html, ">", next_lt);
-        if (next_gt < 0.0) {
-            break;
-        }
-        let tag_content = cartan_string_substring(html, next_lt + 1.0, next_gt);
-        if (cartan_string_starts_with(tag_content, "p") == 1.0 ||
-            cartan_string_starts_with(tag_content, "/p") == 1.0 ||
-            cartan_string_starts_with(tag_content, "div") == 1.0 ||
-            cartan_string_starts_with(tag_content, "/div") == 1.0 ||
-            cartan_string_starts_with(tag_content, "br") == 1.0 ||
-            cartan_string_starts_with(tag_content, "/tr") == 1.0 ||
-            cartan_string_starts_with(tag_content, "h1") == 1.0 ||
-            cartan_string_starts_with(tag_content, "h2") == 1.0 ||
-            cartan_string_starts_with(tag_content, "h3") == 1.0) {
-            prompt_scaffold_append(scaffold, "\n");
-        } else if (cartan_string_starts_with(tag_content, "li") == 1.0) {
-            prompt_scaffold_append(scaffold, "\n* ");
-        }
-        i = next_gt + 1.0;
-    }
-    let raw_res = prompt_scaffold_get_text(scaffold);
-    let res = cartan_string_concat(raw_res, "");
-    prompt_scaffold_free(scaffold);
-    return res;
+    return html_strip_tags(html);
 }
 
 // Extracts <a href="..."> links from HTML and formats an enumerated followable link registry
 fn geomind_html_extract_links(html: string, base_url: string, max_links: float) -> string {
-    if (html == 0.0) { return ""; }
-    var links_out = "";
-    var count = 0.0;
-    var pos = geomind_string_index_of_offset_ignore_case(html, "<a ", 0.0);
-    let len = cartan_string_length(html);
-    while (pos >= 0.0 && pos < len && count < max_links) {
-        let a_close = geomind_string_index_of_offset_ignore_case(html, "</a>", pos);
-        if (a_close < 0.0) { break; }
-        let a_tag_end = geomind_string_index_of_offset_ignore_case(html, ">", pos);
-        if (a_tag_end > pos && a_tag_end < a_close) {
-            let a_header = cartan_string_substring(html, pos, a_tag_end);
-            var href = geomind_extract_xml_attribute(a_header, "href");
-            if (cartan_string_length(href) == 0.0) {
-                let sq_pos = geomind_string_index_of_offset_ignore_case(a_header, "href='", 0.0);
-                if (sq_pos >= 0.0) {
-                    let sq_end = geomind_string_index_of_offset_ignore_case(a_header, "'", sq_pos + 6.0);
-                    if (sq_end > sq_pos + 6.0) {
-                        href = cartan_string_substring(a_header, sq_pos + 6.0, sq_end);
-                    }
-                }
-            }
-            if (cartan_string_length(href) > 0.0 &&
-                cartan_string_starts_with(href, "#") == 0.0 &&
-                cartan_string_starts_with(href, "javascript:") == 0.0 &&
-                cartan_string_starts_with(href, "mailto:") == 0.0) {
-                let inner_raw = cartan_string_substring(html, a_tag_end + 1.0, a_close);
-                let inner_clean = geomind_html_strip_tags(inner_raw);
-                var label = geomind_html_decode_entities(inner_clean);
-                if (cartan_string_length(label) == 0.0) {
-                    label = href;
-                }
-                if (cartan_string_length(label) > 60.0) {
-                    label = cartan_string_substring(label, 0.0, 60.0);
-                }
-                let resolved = geomind_url_resolve(base_url, href);
-                count = count + 1.0;
-                var line = "  [";
-                line = cartan_string_concat(line, cartan_float_to_string(count));
-                line = cartan_string_concat(line, "] ");
-                line = cartan_string_concat(line, label);
-                line = cartan_string_concat(line, " -> ");
-                line = cartan_string_concat(line, resolved);
-                line = cartan_string_concat(line, "\n");
-                links_out = cartan_string_concat(links_out, line);
-            }
-        }
-        pos = geomind_string_index_of_offset_ignore_case(html, "<a ", a_close + 4.0);
-    }
-    return links_out;
+    return html_extract_links(html, base_url, max_links);
 }
 
 // SSRF target checker
 fn geomind_is_ssrf_blacklisted(url: string) -> float {
-    if (cartan_string_contains(url, "localhost") == 1.0 ||
-        cartan_string_contains(url, "127.") == 1.0 ||
-        cartan_string_contains(url, "0.0.0.0") == 1.0 ||
-        cartan_string_contains(url, "[::1]") == 1.0 ||
-        cartan_string_contains(url, "10.") == 1.0 ||
-        cartan_string_contains(url, "192.168.") == 1.0 ||
-        cartan_string_contains(url, "169.254.") == 1.0 ||
-        cartan_string_contains(url, "172.16.") == 1.0 ||
-        cartan_string_contains(url, "172.17.") == 1.0 ||
-        cartan_string_contains(url, "172.18.") == 1.0 ||
-        cartan_string_contains(url, "172.19.") == 1.0 ||
-        cartan_string_contains(url, "172.20.") == 1.0 ||
-        cartan_string_contains(url, "172.21.") == 1.0 ||
-        cartan_string_contains(url, "172.22.") == 1.0 ||
-        cartan_string_contains(url, "172.23.") == 1.0 ||
-        cartan_string_contains(url, "172.24.") == 1.0 ||
-        cartan_string_contains(url, "172.25.") == 1.0 ||
-        cartan_string_contains(url, "172.26.") == 1.0 ||
-        cartan_string_contains(url, "172.27.") == 1.0 ||
-        cartan_string_contains(url, "172.28.") == 1.0 ||
-        cartan_string_contains(url, "172.29.") == 1.0 ||
-        cartan_string_contains(url, "172.30.") == 1.0 ||
-        cartan_string_contains(url, "172.31.") == 1.0) {
-        return 1.0;
-    }
-    return 0.0;
+    return url_is_ssrf_blacklisted(url);
 }
 
 // Genuine Web Browsing Primitive: fetches URL via curl.exe, parses content and followable links
@@ -2655,53 +2360,15 @@ fn geomind_tool_execute(tool_name: string, arg1: string, arg2: string) -> string
 }
 
 fn geomind_extract_xml_attribute(tag: string, attr_name: string) -> string {
-    if (tag == 0.0 || attr_name == 0.0) { return ""; }
-    let target = cartan_string_concat(attr_name, "=\"");
-    let pos = geomind_string_index_of_offset_ignore_case(tag, target, 0.0);
-    if (pos >= 0.0) {
-        let v_start = pos + cartan_string_length(target);
-        let q_pos = geomind_string_index_of_offset_ignore_case(tag, "\"", v_start);
-        if (q_pos > v_start) {
-            return cartan_string_substring(tag, v_start, q_pos);
-        }
-    }
-    let target_sq = cartan_string_concat(attr_name, "='");
-    let pos_sq = geomind_string_index_of_offset_ignore_case(tag, target_sq, 0.0);
-    if (pos_sq >= 0.0) {
-        let v_start_sq = pos_sq + cartan_string_length(target_sq);
-        let q_pos_sq = geomind_string_index_of_offset_ignore_case(tag, "'", v_start_sq);
-        if (q_pos_sq > v_start_sq) {
-            return cartan_string_substring(tag, v_start_sq, q_pos_sq);
-        }
-    }
-    return "";
+    return xml_extract_attribute(tag, attr_name);
 }
 
 fn geomind_extract_tag_body(tag_str: string) -> string {
-    if (tag_str == 0.0) { return ""; }
-    let gt = geomind_string_index_of_offset_ignore_case(tag_str, ">", 0.0);
-    let lt = geomind_string_index_of_offset_ignore_case(tag_str, "</", 0.0);
-    if (gt >= 0.0 && lt > gt) {
-        return cartan_string_substring(tag_str, gt + 1.0, lt);
-    }
-    return "";
+    return xml_extract_tag_body(tag_str);
 }
 
 fn geomind_extract_json_field(call_str: string, field: string) -> string {
-    if (call_str == 0.0 || field == 0.0) { return ""; }
-    var pattern = cartan_string_concat("\"", field);
-    pattern = cartan_string_concat(pattern, "\"");
-    let p_pos = geomind_string_index_of_offset_ignore_case(call_str, pattern, 0.0);
-    if (p_pos < 0.0) { return ""; }
-    let colon_pos = geomind_string_index_of_offset_ignore_case(call_str, ":", p_pos);
-    if (colon_pos < 0.0) { return ""; }
-    let q1 = geomind_string_index_of_offset_ignore_case(call_str, "\"", colon_pos + 1.0);
-    if (q1 < 0.0) { return ""; }
-    let q2 = geomind_string_index_of_offset_ignore_case(call_str, "\"", q1 + 1.0);
-    if (q2 > q1) {
-        return cartan_string_substring(call_str, q1 + 1.0, q2);
-    }
-    return "";
+    return json_get_string(call_str, field);
 }
 
 fn geomind_parse_and_dispatch_tool_call(call_str: string) -> string {

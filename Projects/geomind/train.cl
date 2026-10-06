@@ -7,6 +7,7 @@ include "../../src/std/gpu.cl";
 include "../../src/std/math.cl";
 include "../../src/std/collections.cl";
 include "../../src/std/string.cl";
+include "../../src/std/json.cl";
 include "../../src/std/fs.cl";
 include "../../src/std/resonator.cl";
 include "../../src/std/semantics.cl";
@@ -1459,64 +1460,7 @@ fn webgpu_run_causal_training_pipeline(dataset_path: string, num_steps: float) -
 }
 
 fn geomind_manifest_get_field(json_str: string, key: string) -> string {
-    let len = cartan_string_length(json_str);
-    if (len <= 0.0) { return ""; }
-
-    let pattern = cartan_string_concat("\"", cartan_string_concat(key, "\""));
-    let pat_len = cartan_string_length(pattern);
-
-    var i = 0.0;
-    while (i <= len - pat_len) {
-        let sub = cartan_string_substring(json_str, i, i + pat_len);
-        if (cartan_string_eq(sub, pattern) == 1.0) {
-            var colon_idx = i + pat_len;
-            while (colon_idx < len && cartan_string_get_char(json_str, colon_idx) != 58.0) { // ':'
-                colon_idx = colon_idx + 1.0;
-            }
-            if (colon_idx < len) {
-                var val_start = colon_idx + 1.0;
-                while (val_start < len) {
-                    let vc = cartan_string_get_char(json_str, val_start);
-                    if (vc != 32.0 && vc != 9.0) {
-                        break;
-                    }
-                    val_start = val_start + 1.0;
-                }
-
-                if (val_start < len) {
-                    let first_val_ch = cartan_string_get_char(json_str, val_start);
-                    if (first_val_ch == 34.0) { // Quoted string
-                        var val_end = val_start + 1.0;
-                        while (val_end < len) {
-                            if (cartan_string_get_char(json_str, val_end) == 34.0) {
-                                if (val_end > (val_start + 1.0) && cartan_string_get_char(json_str, val_end - 1.0) == 92.0) {
-                                    if (val_end > (val_start + 2.0) && cartan_string_get_char(json_str, val_end - 2.0) == 92.0) {
-                                        break;
-                                    }
-                                } else {
-                                    break;
-                                }
-                            }
-                            val_end = val_end + 1.0;
-                        }
-                        return cartan_string_substring(json_str, val_start + 1.0, val_end);
-                    } else { // Primitive scalar
-                        var val_end = val_start;
-                        while (val_end < len) {
-                            let ec = cartan_string_get_char(json_str, val_end);
-                            if (ec == 44.0 || ec == 125.0 || ec == 93.0 || ec == 32.0 || ec == 10.0 || ec == 13.0) {
-                                break;
-                            }
-                            val_end = val_end + 1.0;
-                        }
-                        return cartan_string_substring(json_str, val_start, val_end);
-                    }
-                }
-            }
-        }
-        i = i + 1.0;
-    }
-    return "";
+    return json_get_string(json_str, key);
 }
 
 // Clean and normalize a raw training line (stripping JSON markup if .jsonl, trimming whitespace)
@@ -1544,18 +1488,14 @@ fn geomind_clean_training_line(raw_line: string) -> string {
         let t_len = cartan_string_length(target);
         if (c_len > 0.0 || t_len > 0.0) {
             let res = cartan_string_concat(cloze, target);
-            free(cloze);
-            free(target);
+            if (c_len > 0.0) { free(cloze); }
+            if (t_len > 0.0) { free(target); }
             return res;
         }
         let txt = geomind_manifest_get_field(raw_line, "text");
         let txt_len = cartan_string_length(txt);
         if (txt_len > 0.0) {
-            let unescaped_n = cartan_string_replace(txt, "\\n", "\n");
-            let unescaped_q = cartan_string_replace(unescaped_n, "\\\"", "\"");
-            free(unescaped_n);
-            free(txt);
-            return unescaped_q;
+            return txt;
         }
     }
 
@@ -1635,130 +1575,16 @@ fn geomind_slice_and_tokenize_chunk(file_content: ptr, content_len: float, start
 }
 
 fn geomind_manifest_parse_datasets(json_str: string) -> ptr {
-    let list = cartan_tree_create();
-    let len = cartan_string_length(json_str);
-    if (len == 0.0) { return list; }
-
-    let key = "\"datasets\"";
-    let key_len = cartan_string_length(key);
-    var i = 0.0;
-    var found_bracket = -1.0;
-
-    while (i <= len - key_len) {
-        let sub = cartan_string_substring(json_str, i, i + key_len);
-        if (cartan_string_eq(sub, key) == 1.0) {
-            var j = i + key_len;
-            while (j < len) {
-                if (cartan_string_get_char(json_str, j) == 91.0) { // '['
-                    found_bracket = j + 1.0;
-                    j = len + 1.0;
-                }
-                j = j + 1.0;
-            }
-            i = len + 1.0;
-        }
-        i = i + 1.0;
-    }
-
-    if (found_bracket < 0.0) { return list; }
-
-    var p = found_bracket;
-    var in_str = 0.0;
-    var str_start = 0.0;
-
-    while (p < len) {
-        let c = cartan_string_get_char(json_str, p);
-        if (c == 93.0 && in_str == 0.0) { // ']'
-            break;
-        }
-        if (c == 34.0) { // '"'
-            if (in_str == 0.0) {
-                in_str = 1.0;
-                str_start = p + 1.0;
-            } else {
-                in_str = 0.0;
-                let item = cartan_string_substring(json_str, str_start, p);
-                cartan_tree_push(list, item);
-            }
-        }
-        p = p + 1.0;
-    }
+    let arr = json_get_array(json_str, "datasets");
+    let list = json_parse_string_array(arr);
+    if (cartan_string_length(arr) > 0.0) { free(arr); }
     return list;
 }
 
 fn geomind_manifest_parse_float_array(json_str: string, key_name: string, num_elements: float, default_val: float) -> ptr {
-    let list = cartan_vec_create();
-    let len = cartan_string_length(json_str);
-    if (len == 0.0) {
-        var k = 0.0;
-        while (k < num_elements) {
-            cartan_vec_push_f32(list, default_val);
-            k = k + 1.0;
-        }
-        return list;
-    }
-
-    let key = cartan_string_concat("\"", cartan_string_concat(key_name, "\""));
-    let key_len = cartan_string_length(key);
-    var i = 0.0;
-    var found_bracket = -1.0;
-
-    while (i <= len - key_len) {
-        let sub = cartan_string_substring(json_str, i, i + key_len);
-        if (cartan_string_eq(sub, key) == 1.0) {
-            var j = i + key_len;
-            while (j < len) {
-                if (cartan_string_get_char(json_str, j) == 91.0) { // '['
-                    found_bracket = j + 1.0;
-                    j = len + 1.0;
-                }
-                j = j + 1.0;
-            }
-            i = len + 1.0;
-        }
-        i = i + 1.0;
-    }
-
-    if (found_bracket < 0.0) {
-        var k = 0.0;
-        while (k < num_elements) {
-            cartan_vec_push_f32(list, default_val);
-            k = k + 1.0;
-        }
-        return list;
-    }
-
-    var p = found_bracket;
-    var num_start = -1.0;
-
-    while (p < len) {
-        let c = cartan_string_get_char(json_str, p);
-        if (c == 93.0) { // ']'
-            if (num_start >= 0.0) {
-                let num_str = cartan_string_substring(json_str, num_start, p);
-                let val = atof(num_str);
-                free(num_str);
-                cartan_vec_push_f32(list, val);
-                num_start = -1.0;
-            }
-            break;
-        }
-        if ((c >= 48.0 && c <= 57.0) || c == 46.0 || c == 45.0) {
-            if (num_start < 0.0) {
-                num_start = p;
-            }
-        } else {
-            if (num_start >= 0.0) {
-                let num_str = cartan_string_substring(json_str, num_start, p);
-                let val = atof(num_str);
-                free(num_str);
-                cartan_vec_push_f32(list, val);
-                num_start = -1.0;
-            }
-        }
-        p = p + 1.0;
-    }
-
+    let arr = json_get_array(json_str, key_name);
+    let list = json_parse_float_array(arr, default_val);
+    if (cartan_string_length(arr) > 0.0) { free(arr); }
     var cur_len = cartan_vec_len(list);
     while (cur_len < num_elements) {
         cartan_vec_push_f32(list, default_val);
@@ -1768,20 +1594,9 @@ fn geomind_manifest_parse_float_array(json_str: string, key_name: string, num_el
 }
 
 fn geomind_manifest_parse_offsets(json_str: string, num_datasets: float, cur_idx: float, cur_offset: float) -> ptr {
-    let key = "\"offsets\"";
-    let key_len = cartan_string_length(key);
-    let len = cartan_string_length(json_str);
-    var has_offsets = 0.0;
-    var i = 0.0;
-    while (i <= len - key_len) {
-        let sub = cartan_string_substring(json_str, i, i + key_len);
-        if (cartan_string_eq(sub, key) == 1.0) {
-            has_offsets = 1.0;
-            i = len + 1.0;
-        }
-        i = i + 1.0;
-    }
-    if (has_offsets == 1.0) {
+    let arr = json_get_array(json_str, "offsets");
+    if (cartan_string_length(arr) > 0.0) {
+        free(arr);
         return geomind_manifest_parse_float_array(json_str, "offsets", num_datasets, 0.0);
     }
     let list = cartan_vec_create();

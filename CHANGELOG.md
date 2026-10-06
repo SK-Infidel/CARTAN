@@ -4,6 +4,35 @@ All notable changes to the CARTAN programming language, self-hosting compiler (`
 
 In accordance with User Rule 3 and project standards, GeoMind cognitive model releases are tracked independently in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
+## [8.499.0] - 2026-10-05 (Sprint 543: Standard Library Promotion: Pure-CARTAN JSON Engine, Sandboxed Process Execution & Lightweight XML Extractors)
+
+### Completed & Validated
+- **Standard Library Promotion & Technical Debt Elimination (`[ISSUE-401]`)**:
+  - **Pure-CARTAN JSON Parser & Serializer ([`src/std/json.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/json.cl))**: Implemented zero-allocation $O(N)$ linear scans via `cartan_byte_at` replacing quadratic string loops. Added `json_get_string` (with full `\"`, `\\`, `\n`, `\r`, `\t` escape resolution), typed scalar extraction (`json_get_float`, `json_get_bool`), array slicing (`json_get_array`), array parsers (`json_parse_float_array` to `cartan_vec`, `json_parse_string_array` to `cartan_tree`), container cleanup (`json_free_string_array`), and serialization primitives (`json_escape_string`, `json_serialize_field_*`).
+  - **Sandboxed Process Execution Engine ([`src/std/process.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/process.cl))**: Implemented resilient command execution (`process_exec`) with scratch unlinking, intermediate string cleanup, clean integer exit codes (`[Exit code: N]`), direct disk redirection (`process_exec_to_file`), and path traversal sandboxing (`process_is_path_safe`).
+  - **Lightweight XML Substring Extractors ([`src/std/xml.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/xml.cl))**: Extended standard XML module with fast non-allocating string extractors: `xml_extract_attribute` (single and double quotes), `xml_extract_tag_body`, and `xml_extract_tag_body_by_name`.
+  - **Orphan Geometry Cleanup**: Permanently pruned redundant dead copy `Projects/geomind/geom.cl`.
+- **Consumer Modernization**:
+  - Refactored [`Projects/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/chat.cl) to consume `src/std/json.cl`, `src/std/process.cl`, and `src/std/xml.cl`, removing duplicate private routines.
+  - Refactored [`Projects/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/train.cl) to delegate manifest field extraction, dataset parsing, and offset vector handling to `src/std/json.cl`, adding non-zero length guards before CRT `free()` calls.
+- **Regression Verification & Test Target 90 ([`Projects/geomind/Testing-scratch/test_stdlib_json_process_xml.car`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/Testing-scratch/test_stdlib_json_process_xml.car))**:
+  - Authored comprehensive 4-gate test suite covering all 23 unit, edge, and linear-scan benchmark cases (100% PASS, exit code 0).
+  - Registered Target 90 and Preset 543 in [`tools/run_affected_tests.ps1`](file:///C:/Users/rich-/source/repos/CARTAN/tools/run_affected_tests.ps1).
+
+## [8.498.0] - 2026-10-05 (Sprint 542: Standard Library Promotion: String Manipulation, ANSI Terminal Formatting & Pure-CARTAN HTML Parsing)
+
+### Completed & Validated
+- **Standard Library Promotion & Modernization (`[ISSUE-400]`)**:
+  - **Extended String Primitives ([`src/std/string.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/string.cl))**: Implemented native ASCII character conversion and classification (`string_char_to_lower`, `string_char_is_space`), leading/trailing whitespace trimming (`string_trim`), and sub-string search algorithms (`string_index_of`, `string_index_of_offset`, `string_index_of_ignore_case`, `string_index_of_offset_ignore_case`, `string_starts_with_offset`) utilizing $O(N)$ linear scans via `cartan_byte_at`.
+  - **Terminal ANSI Formatting & Cursor Control ([`src/std/terminal.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/terminal.cl))**: Implemented full ANSI terminal styling engine (`terminal_col_*`), in-place line clearing (`\e[2K\r`), Braille/ASCII rotating spinners, and non-blocking CRT keyboard polling (`terminal_kbhit`, `terminal_getch`) normalized to strict `1.0`/`0.0` boolean return values.
+  - **Pure-CARTAN HTML Parsing & Security Engine ([`src/std/html.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/html.cl))**: Implemented XML/HTML entity decoding (`html_decode_entities`), attribute extraction (`html_extract_attribute`), block excision (`html_remove_tag_block`), page title extraction (`html_extract_title`), markup stripping (`html_strip_tags`) with dynamic buffer sizing, RFC-compliant URL resolution (`url_resolve`), host-isolated SSRF blacklisting (`url_is_ssrf_blacklisted`), and link extraction (`html_extract_links`).
+- **GeoMind Consumer Refactoring ([`Projects/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/chat.cl))**:
+  - Refactored `Projects/geomind/chat.cl` to import and delegate to the new standard libraries (`src/std/terminal.cl`, `src/std/html.cl`, `src/std/string.cl`), eliminating duplicate private implementations.
+  - Recompiled production binary [`bin/geomind.exe`](file:///C:/Users/rich-/source/repos/CARTAN/bin/geomind.exe) via Clang (-O2 AVX2/FMA MSVC) with zero warnings or errors (LLVM IR: 152,240).
+- **Regression Verification & Test Target 89 ([`Projects/geomind/Testing-scratch/test_stdlib_string_terminal_html.car`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/Testing-scratch/test_stdlib_string_terminal_html.car))**:
+  - Authored comprehensive 3-gate regression test suite covering all 27 unit and edge cases across string, terminal, and HTML modules (100% PASS, exit code 0).
+  - Registered Target 89 in `tools/run_affected_tests.ps1` and verified Sprint 542 test suite (9/9 targets PASS in 13.63s).
+
 ## [8.497.0] - 2026-10-05 (Sprint 541: Workspace Realignment to Projects Hierarchy: Regression Suite Relocation & Zero-Break Path Resolution)
 
 ### Completed & Validated

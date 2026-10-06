@@ -3564,4 +3564,35 @@ The following issues pertain strictly to the GeoMind cognitive model and have be
 
 ---
 
+## [ISSUE-400] [FIXED] Standard Library Promotion: Native High-Performance String Utilities, ANSI Terminal Formatting & Pure-CARTAN HTML Parsing
+
+- **Severity**: Medium (Standard Library Ergonomics, Performance & Reusability)
+- **Component**: [`src/std/string.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/string.cl), [`src/std/terminal.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/terminal.cl), [`src/std/html.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/html.cl), [`Projects/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/chat.cl), [`Projects/geomind/Testing-scratch/test_stdlib_string_terminal_html.car`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/Testing-scratch/test_stdlib_string_terminal_html.car)
+- **Description**: Reusable string scanning, terminal formatting, and web data parsing routines were implemented privately inside `Projects/geomind/chat.cl`, violating standard library modularity and reusability across CARTAN projects. Furthermore, string operations using repeated `cartan_string_get_char` calls incurred O(N^2) overhead due to repeated `strlen()` calls, terminal polling lacked boolean normalization, and URL SSRF protection lacked host authority isolation.
+- **Resolution (Sprint 542)**:
+  1. Extended `src/std/string.cl` with native ASCII algorithms (`string_char_to_lower`, `string_char_is_space`, `string_trim`, `string_index_of`, `string_index_of_offset`, `string_index_of_ignore_case`, `string_index_of_offset_ignore_case`, `string_starts_with_offset`) utilizing O(N) linear scans via `cartan_byte_at`.
+  2. Created `src/std/terminal.cl` providing full ANSI color formatting (`terminal_col_*`), line clearing (`\e[2K\r`), Braille/ASCII rotating spinners, and CRT non-blocking keyboard polling (`terminal_kbhit`, `terminal_getch`) normalized to strict boolean return values (`1.0`/`0.0`).
+  3. Created `src/std/html.cl` providing XML/HTML entity decoding (`html_decode_entities`), attribute extraction (`html_extract_attribute`), tag block excision (`html_remove_tag_block`), page title extraction (`html_extract_title`), markup stripping (`html_strip_tags`) with dynamic buffer sizing, RFC-compliant URL resolution (`url_resolve`), host-isolated SSRF blacklisting (`url_is_ssrf_blacklisted`), and link extraction (`html_extract_links`).
+  4. Refactored `Projects/geomind/chat.cl` to import and delegate to the new standard libraries, eliminating duplicate private routines.
+  5. Built Target 89 regression test suite (`Projects/geomind/Testing-scratch/test_stdlib_string_terminal_html.car`), registering it in `tools/run_affected_tests.ps1`, achieving 27/27 assertions PASS (exit code 0).
+
+---
+
+## [ISSUE-401] [FIXED] Standard Library Promotion: Pure-CARTAN JSON Engine, Sandboxed Process Execution, Lightweight XML Extractors & Orphan Geometry Cleanup
+
+- **Severity**: Medium (Standard Library Infrastructure, Algorithmic Complexity & Technical Debt)
+- **Component**: [`src/std/json.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/json.cl), [`src/std/process.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/process.cl), [`src/std/xml.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/xml.cl), [`Projects/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/chat.cl), [`Projects/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/train.cl), [`Projects/geomind/geom.cl`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/geom.cl), [`Projects/geomind/Testing-scratch/test_stdlib_json_process_xml.car`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/Testing-scratch/test_stdlib_json_process_xml.car)
+- **Description**: CARTAN lacked a standard JSON parsing and serialization library and sandboxed process execution module. JSON field extraction was duplicated across `chat.cl` and `train.cl` with O(N^2) character scan loops due to repeated `strlen()` calls in `cartan_string_get_char`. Process execution in `chat.cl` hardcoded a fragile `scratch/` relative path, intermediate strings leaked during command concatenation, and `src/std/xml.cl` lacked fast substring extraction helpers. Additionally, `Projects/geomind/geom.cl` was an unreferenced duplicate of `src/std/geom.cl`.
+- **Resolution (Sprint 543)**:
+  1. Created `src/std/json.cl` with zero-allocation O(N) linear scans via `cartan_byte_at`: string extraction and unescaping (`json_get_string`), typed scalar extraction (`json_get_float`, `json_get_bool`), array slicing (`json_get_array`), array parsing (`json_parse_float_array` to `cartan_vec`, `json_parse_string_array` to `cartan_tree`), string array deallocation (`json_free_string_array`), and serialization (`json_escape_string`, `json_serialize_field_*`).
+  2. Created `src/std/process.cl` providing resilient shell process execution (`process_exec`) with scratch unlinking, intermediate string memory freeing, integer-normalized exit code indicator (`[Exit code: N]`), direct disk redirection (`process_exec_to_file`), and path traversal sandboxing (`process_is_path_safe`).
+  3. Extended `src/std/xml.cl` with lightweight substring extractors: `xml_extract_attribute`, `xml_extract_tag_body`, and `xml_extract_tag_body_by_name`.
+  4. Permanently deleted orphaned duplicate file `Projects/geomind/geom.cl`.
+  5. Refactored `Projects/geomind/chat.cl` and `Projects/geomind/train.cl` to delegate all JSON, process, and XML operations to the standard libraries, with length guards before string deallocations.
+  6. Authored Target 90 regression suite (`Projects/geomind/Testing-scratch/test_stdlib_json_process_xml.car`), registered in `tools/run_affected_tests.ps1` under Preset 543, achieving 23/23 assertions PASS (exit code 0).
+
+---
+
+
+
 
