@@ -107,12 +107,14 @@ $TargetCatalog = @{
     89 = @{ Name = "test_stdlib_string_terminal_html"; File = "Projects/geomind/Testing-scratch/test_stdlib_string_terminal_html.car"; Run = $true; Negative = $false }
     90 = @{ Name = "test_stdlib_json_process_xml"; File = "Projects/geomind/Testing-scratch/test_stdlib_json_process_xml.car"; Run = $true; Negative = $false }
     91 = @{ Name = "test_stdlib_algebra_tensor"; File = "Projects/geomind/Testing-scratch/test_stdlib_algebra_tensor.car"; Run = $true; Negative = $false }
+    92 = @{ Name = "test_stdlib_algebra_geometric"; File = "Projects/geomind/Testing-scratch/test_stdlib_algebra_geometric.car"; Run = $true; Negative = $false }
 }
 
 # -----------------------------------------------------------------------------
 # Sprint Preset Mapping
 # -----------------------------------------------------------------------------
 $SprintMapping = @{
+    545 = @(1, 2, 3, 4, 5, 10, 18, 20, 24, 82, 89, 90, 91, 92)
     544 = @(1, 2, 3, 4, 5, 10, 18, 20, 24, 82, 89, 90, 91)
     543 = @(1, 2, 3, 4, 5, 10, 18, 20, 24, 82, 89, 90)
     542 = @(1, 2, 3, 4, 5, 18, 24, 82, 89)
@@ -224,9 +226,13 @@ else {
         if ($file -match 'geom|manifold|lie') { $hasGeom = $true }
         if ($file -match 'nses|veto|critic') { $hasNSES = $true }
         if ($file -match 'resonator|hopfield') { $hasHopfield = $true }
+        if ($file -match 'algebra') { $hasAlgebra = $true }
         if ($file -match 'src/cartanc/') { $hasCompilerCore = $true }
     }
 
+    if ($hasAlgebra) {
+        @(91, 92) | ForEach-Object { if (-not $SelectedTargetIDs.Contains($_)) { $SelectedTargetIDs.Add($_) } }
+    }
     if ($hasTransformerOrChat) {
         @(83, 84, 85, 86, 87) | ForEach-Object { if (-not $SelectedTargetIDs.Contains($_)) { $SelectedTargetIDs.Add($_) } }
     }

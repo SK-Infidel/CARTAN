@@ -4,6 +4,27 @@ All notable changes to the CARTAN programming language, self-hosting compiler (`
 
 In accordance with User Rule 3 and project standards, GeoMind cognitive model releases are tracked independently in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
+## [8.501.0] - 2026-10-06 (Sprint 545: CARTAN Unified Algebraic Taxonomy: Pillar 2 Geometric, Clifford, Weyl & Hypercomplex Algebras)
+
+### Completed & Validated
+- **Pillar 2 Geometric, Clifford, Weyl & Hypercomplex Framework (`[ISSUE-403]`)**:
+  - **Generalized Clifford Algebra $Cl(p, q, r)$ ([`src/std/algebra/geometric.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/algebra/geometric.cl))**: Implemented $2^n$-dimensional multivector engine (`AlgMultivector`) with bitmask blade indexing via arithmetic emulation (`alg_bit_pow2`, `alg_bit_test`, `alg_bit_and`, `alg_bit_xor`, `alg_bit_popcount`). Added geometric product $A B$ under arbitrary signature $(p, q, r)$ with anti-commutation parity swaps $(-1)^{\sum_{i<j} a_j b_i}$ and metric signature factor evaluation for Euclidean ($e_i^2 = +1$), Minkowski ($Cl(1, 3, 0)$ spacelike $e_i^2 = -1$), and projective degenerate ($Cl(3, 0, 1)$ null $e_0^2 = 0$) geometries.
+  - **Exterior Grassmann & Contraction Products**: Implemented Grassmann exterior / wedge product $A \wedge B$ (with nilpotence $e_1 \wedge e_1 = 0$) and inner left contraction $A \rfloor B$ ($e_1 \rfloor e_{12} = e_2, e_2 \rfloor e_{12} = -e_1$). Added grade projection $\langle A \rangle_k$, scalar extraction $\langle A \rangle_0$, multivector reversion $\tilde{A}$ ($(-1)^{k(k-1)/2}$), and grade involution $\hat{A}$ ($(-1)^k$).
+  - **Rotors & Spinor Sandwich Rotations**: Implemented 3D rotor generator (`alg_mv_rotor_3d`) and sandwich transformation $v' = R v \tilde{R}$ with unimodularity $R \tilde{R} = 1$, norm preservation $\|v'\| = \|v\|$, and orthogonal invariance ($R e_3 \tilde{R} = e_3$) with zero memory leaks.
+  - **Cayley-Dickson Hypercomplex Systems**:
+    - **Complex Numbers $\mathbb{C}$ (`AlgComplex`)**: Arithmetic, conjugate, inverse, modulus $|z|$, and polar representation.
+    - **Dual Numbers $\mathbb{D}$ (`AlgDual`)**: Forward-mode exact machine-precision automatic differentiation ($f(x + \epsilon) = f(x) + f'(x)\epsilon$ with $\epsilon^2 = 0$) across polynomial, rational, and trigonometric functions (`alg_dual_sin`, `alg_dual_cos`, `alg_dual_exp`, `alg_dual_sqrt`).
+    - **Split-Complex Numbers $\mathbb{H}_{\text{split}}$ (`AlgSplit`)**: Realized hyperbolic spacetime interval $x^2 - t^2$ with $j^2 = +1$.
+    - **Quaternions $\mathbb{H}$ (`AlgQuat`)**: Realized Hamilton relations $i^2 = j^2 = k^2 = ijk = -1$, conjugate, norm, inverse, and slerp interpolation with shortest path wrapping ($\cos \Omega < 0$) and small angle linear fallback.
+    - **Octonions $\mathbb{O}$ (`AlgOctonion`)**: Realized 8D Cayley-Dickson division algebra with Fano plane multiplication, genuine non-zero associator $[e_1, e_2, e_4] = 2e_7 \ne 0$ verifying non-associativity, and alternativity $[a, a, b] = 0$.
+  - **Polynomial-Differential Weyl Algebra $W_n$ (`AlgWeylOp`)**:
+    - Implemented Canonical Commutation Relations $[\partial, x] = 1$ as the bosonic canonical dual to Clifford's CAR.
+    - Implemented normal-ordered monomial multiplication via Leibniz formula $\partial^k x^m = \sum_{r=0}^{\min(k, m)} \binom{k}{r} \frac{m!}{(m-r)!} x^{m-r} \partial^{k-r}$, operator Lie commutator bracket $[P, Q] = PQ - QP$, differential action on polynomial test states $P(x, \partial) f(x)$ ($D(x^3) = 3x^2$), and quantum harmonic oscillator $[a, a^\dagger] = 1$.
+  - **Standard Library Umbrella Integration ([`src/std/algebra.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/algebra.cl))**: Re-exported `src/std/algebra/geometric.cl` under the umbrella entrypoint.
+- **Empirical Regression Verification & Test Target 92 ([`Projects/geomind/Testing-scratch/test_stdlib_algebra_geometric.car`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/Testing-scratch/test_stdlib_algebra_geometric.car))**:
+  - Authored dedicated 4-gate test suite covering 43 assertions across Clifford products, rotor sandwich rotations, Cayley-Dickson hypercomplex systems, octonion associators, and Weyl algebra CCR commutators (100% PASS, exit code 0).
+  - Registered Target 92, Preset 545, and `algebra` auto-detection in [`tools/run_affected_tests.ps1`](file:///C:/Users/rich-/source/repos/CARTAN/tools/run_affected_tests.ps1); verified 14/14 affected regression suite targets PASS in 23s.
+
 ## [8.500.0] - 2026-10-05 (Sprint 544: CARTAN Unified Algebraic Taxonomy: Pillar 1 Multilinear Tensor Algebra & Structural Framework)
 
 ### Completed & Validated

@@ -31,7 +31,7 @@ trigger: always_on
             ▼
 ┌────────────────────────┐
 │  Sprint Review & Retro │ <── Empirical Verification, ISSUES.md update, CHANGELOG update,
-└────────────────────────┘     Archive Walkthrough, Roll forward into Planning
+└────────────────────────┘     Archive Walkthrough, update documentation, Roll forward into Planning
 ```
 
 ## Specialized Working Group Squads
