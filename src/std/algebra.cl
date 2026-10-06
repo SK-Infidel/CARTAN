@@ -8,7 +8,9 @@ include "src/std/algebra/tensor.cl";
 // Pillar 2: Clifford, Weyl & Hypercomplex Algebras
 include "src/std/algebra/geometric.cl";
 
-// Pillars 3–4 will be re-exported here as they are established:
-// include "src/std/algebra/lie.cl";       // Pillar 3: Lie Algebras, Roots & Poisson
+// Pillar 3: Lie Algebras, Roots, Superalgebras & Poisson Brackets
+include "src/std/algebra/lie.cl";
+
+// Pillar 4 will be re-exported here as it is established:
 // include "src/std/algebra/abstract.cl";  // Pillar 4: Jordan, Tropical & Logic
 

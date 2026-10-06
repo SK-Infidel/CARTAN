@@ -399,6 +399,51 @@ fn alg_mat_clone(m: AlgMat) -> AlgMat {
     return out;
 }
 
+// Adds two matrices of matching dimension: C = A + B
+fn alg_mat_add(a: AlgMat, b: AlgMat) -> AlgMat {
+    let out = alg_mat_create(a.rows, a.cols);
+    let total = a.rows * a.cols;
+    let data_a = a.data;
+    let data_b = b.data;
+    let data_out = out.data;
+    var i = 0.0;
+    while (i < total) {
+        data_out[i] = data_a[i] + data_b[i];
+        i = i + 1.0;
+    }
+    return out;
+}
+
+// Subtracts two matrices of matching dimension: C = A - B
+fn alg_mat_sub(a: AlgMat, b: AlgMat) -> AlgMat {
+    let out = alg_mat_create(a.rows, a.cols);
+    let total = a.rows * a.cols;
+    let data_a = a.data;
+    let data_b = b.data;
+    let data_out = out.data;
+    var i = 0.0;
+    while (i < total) {
+        data_out[i] = data_a[i] - data_b[i];
+        i = i + 1.0;
+    }
+    return out;
+}
+
+// Scales a matrix by scalar s: C = s * A
+fn alg_mat_scale(a: AlgMat, s: float) -> AlgMat {
+    let out = alg_mat_create(a.rows, a.cols);
+    let total = a.rows * a.cols;
+    let data_a = a.data;
+    let data_out = out.data;
+    var i = 0.0;
+    while (i < total) {
+        data_out[i] = data_a[i] * s;
+        i = i + 1.0;
+    }
+    return out;
+}
+
+
 // Transposes an M x N matrix to N x M
 fn alg_mat_transpose(m: AlgMat) -> AlgMat {
     let out = alg_mat_create(m.cols, m.rows);

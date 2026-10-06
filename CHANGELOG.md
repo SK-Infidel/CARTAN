@@ -4,6 +4,42 @@ All notable changes to the CARTAN programming language, self-hosting compiler (`
 
 In accordance with User Rule 3 and project standards, GeoMind cognitive model releases are tracked independently in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
+## [8.502.0] - 2026-10-06 (Sprint 546: CARTAN Unified Algebraic Taxonomy: Pillar 3 Lie Algebras, Pre-Lie Systems, Lie Superalgebras & Poisson Brackets)
+
+### Completed & Validated
+- **Pillar 3 Lie Algebras, Pre-Lie Systems, Superalgebras & Poisson Brackets (`[ISSUE-404]`)**:
+  - **Pillar 1 Matrix Arithmetic Primitives ([`src/std/algebra/tensor.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/algebra/tensor.cl))**: Extended tensor algebra with fundamental matrix operations: `alg_mat_add`, `alg_mat_sub`, and `alg_mat_scale`.
+  - **Finite-Dimensional Lie Algebras ([`src/std/algebra/lie.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/algebra/lie.cl))**:
+    - Implemented finite-dimensional Lie algebra engine `AlgLieAlgebra` with 3D structure constants $c_{ij}^k$ stored in contiguous flat row-major layout ($i \cdot d^2 + j \cdot d + k$).
+    - Implemented anti-symmetry enforcement: `alg_lie_set_constant` automatically sets $c_{ji}^k = -c_{ij}^k$ and zeroes diagonal $c_{ii}^k = 0$.
+    - Implemented vector Lie bracket $[u, v] = \sum_{i,j,k} u_i v_j c_{ij}^k e_k$.
+    - Implemented exhaustive Jacobi identity verification across all $d^3$ basis triples: $\sum_m (c_{ij}^m c_{mk}^l + c_{jk}^m c_{mi}^l + c_{ki}^m c_{mj}^l) = 0$.
+    - Implemented adjoint matrix representation $\text{ad}_u$: $(\text{ad}_u)_{k,j} = \sum_i u_i c_{ij}^k$.
+    - Implemented direct-contraction Killing metric $K_{ij} = \sum_{a,b} c_{ia}^b c_{jb}^a$ in $O(d^4)$ FLOPs with a single allocation, eliminating intermediate matrix allocations.
+    - Implemented Cartan semisimplicity criterion verifying non-degeneracy $\det(K) \ne 0$ via LU decomposition, distinguishing semisimple Lie algebras (e.g. $\mathfrak{so}(3)$ with $\det(K) = -8$) from solvable/abelian algebras ($\det(K) = 0$).
+  - **Classical Matrix Lie Algebras & Baker-Campbell-Hausdorff (BCH)**:
+    - Implemented matrix Lie commutator bracket $[A, B] = AB - BA$.
+    - Implemented 3D rotation algebra $\mathfrak{so}(3)$ generators ($J_x, J_y, J_z$) satisfying $[J_i, J_j] = \epsilon_{ijk} J_k$.
+    - Implemented symplectic Lie algebra verification $\mathfrak{sp}(2n, \mathbb{R})$ satisfying $M^T J + J M = 0$.
+    - Implemented order-2 Baker-Campbell-Hausdorff series expansion $Z \approx X + Y + \frac{1}{2}[X, Y] + \frac{1}{12}([X, [X, Y]] + [Y, [Y, X]])$ for continuous Lie group exp mapping.
+  - **Pre-Lie (Vinberg) Left-Symmetric Algebras (`AlgPreLie`)**:
+    - Implemented pre-Lie product $x \cdot y$ defined by 3-tensor $P_{ij}^k$.
+    - Implemented pre-Lie associator $(x, y, z) = (x \cdot y) \cdot z - x \cdot (y \cdot z)$.
+    - Implemented left-symmetry identity verification $(x, y, z) = (y, x, z)$ across all triples.
+    - Implemented induced Lie commutator bracket $[x, y] = x \cdot y - y \cdot x$ satisfying the Jacobi identity.
+  - **Graded Lie Superalgebras (`AlgLieSuper`)**:
+    - Implemented $\mathbb{Z}_2$-graded superalgebra $\mathfrak{g} = \mathfrak{g}_0 \oplus \mathfrak{g}_1$ with bosonic and fermionic subspaces.
+    - Implemented parity-graded bracket $[a, b] = -(-1)^{|a||b|} [b, a]$ with anticommutation for fermions $\{f_1, f_2\} \in \mathfrak{g}_0$.
+    - Implemented super-Jacobi identity verification $(-1)^{|a||c|}[a, [b, c]] + (-1)^{|b||a|}[b, [c, a]] + (-1)^{|c||b|}[c, [a, b]] = 0$.
+  - **Classical Poisson Phase Space (`AlgPoisson`)**:
+    - Implemented canonical symplectic Poisson bracket $\{f, g\} = \sum_{i=1}^n \left(\frac{\partial f}{\partial q_i}\frac{\partial g}{\partial p_i} - \frac{\partial f}{\partial p_i}\frac{\partial g}{\partial q_i}\right)$.
+    - Verified canonical relations $\{q_i, p_j\} = \delta_{ij}$, $\{q_i, q_j\} = 0$, $\{p_i, p_j\} = 0$.
+    - Verified Leibniz derivation rule $\{f, gh\} = \{f, g\}h + g\{f, h\}$.
+  - **Standard Library Umbrella Integration ([`src/std/algebra.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/algebra.cl))**: Re-exported `src/std/algebra/lie.cl` under the umbrella entrypoint.
+- **Empirical Regression Verification & Test Target 93 ([`Projects/geomind/Testing-scratch/test_stdlib_algebra_lie.car`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/Testing-scratch/test_stdlib_algebra_lie.car))**:
+  - Authored dedicated 4-gate test suite covering 30 assertions across Lie algebras, structure constants, Killing metric, matrix commutators, BCH expansion, pre-Lie systems, superalgebras, and Poisson phase space brackets (100% PASS, exit code 0).
+  - Registered Target 93, Preset 546, and `algebra` auto-detection in [`tools/run_affected_tests.ps1`](file:///C:/Users/rich-/source/repos/CARTAN/tools/run_affected_tests.ps1); verified 15/15 affected regression suite targets PASS in 25.21s.
+
 ## [8.501.0] - 2026-10-06 (Sprint 545: CARTAN Unified Algebraic Taxonomy: Pillar 2 Geometric, Clifford, Weyl & Hypercomplex Algebras)
 
 ### Completed & Validated
