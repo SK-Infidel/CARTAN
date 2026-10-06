@@ -1,0 +1,1 @@
+fn main() -> ptr { return TokenType::Identifier("hello"); }

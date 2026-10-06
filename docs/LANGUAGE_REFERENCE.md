@@ -23,7 +23,7 @@ Cartan operates natively on a few carefully constructed primitive types:
 
 ---
 
-## 2. Variables & Constants
+## 2. Variables, Constants & String Literals
 
 Variables are declared with `let` (scoped/immutable assignment) or `var` (mutable assignment). Constants are declared with `const`.
 
@@ -32,6 +32,15 @@ let message = "Hello CARTAN";
 var my_variable = 42.0;
 const PI = 3.14159;
 ```
+
+### String Literals & Escape Sequences
+String literals are enclosed in double quotes (`"..."`). CARTAN natively recognizes standard escape sequences:
+- `\n` : Line feed (ASCII 10)
+- `\r` : Carriage return (ASCII 13)
+- `\t` : Horizontal tab (ASCII 9)
+- `\\` : Literal backslash (ASCII 92)
+- `\"` : Literal double quote (ASCII 34)
+- `\e` or `\E` : ANSI escape character (ASCII 27 / `ESC`). Automatically lowered in the compiler frontend (`cartan_llvm_format_string_literal`) to `\1b` in LLVM IR global string constants, enabling direct terminal coloring (`"\e[32mGeoMind>\e[0m"`) and dynamic in-place line overwriting (`"\e[2K\r"`).
 
 ---
 
@@ -254,7 +263,62 @@ Cartan provides standard library modules written in native CARTAN (`.cl` impleme
 - `cartan_copy_file(src, dst)`: Copies file from source path to destination path.
 - `cartan_export_c_headers(src, dst)`: Generates and writes C header files from symbol definitions.
 
-### 12.3 `src/std/semantics.cl`
+### 12.3 `src/std/wgpu.cl` (Pure Native WebGPU Hardware Engine)
+- `cartan_wgpu_is_initialized() -> float`: Returns `1.0` if WebGPU device context is active.
+- `cartan_wgpu_get_device_name() -> string`: Queries underlying GPU adapter name (e.g. `NVIDIA RTX 2000 Ada Generation Laptop GPU`).
+- `cartan_wgpu_create_compute_pipeline(device, wgsl_source) -> float`: Compiles WGSL shader pipeline directly on the GPU.
+- Double-buffered GDDR6 staging buffers (`g_wgpu_staging_buf_0` / `g_wgpu_staging_buf_1`, $\ge 1\text{ MB}$ each, `WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst`) for non-blocking asynchronous GPU readback.
+- Branchless INT4 unpacking shaders utilizing `unpack4x8unorm` + `select`.
+
+### 12.4 `src/std/transformer.cl` (Sovereign 42-Layer Manifold & Hardware Attention)
+- `cartan_kv_cache_set_capacity(capacity)`: Sizes pinned KV cache arena (up to 131,072 context tokens, $24 \times L \times 1024 \times 4\text{ B}$).
+- `cartan_kv_cache_init(num_layers, max_seq)`: Allocates contiguous physical memory blocks for Key/Value states.
+- `cartan_kv_cache_reset()`: Clears active sequence pointer while preserving allocated arena.
+- `cartan_kv_cache_clear_range(layer, start_pos, end_pos)`: Rolls back rejected speculative draft slots and writes sentinel mask blocks ($-10000.0$).
+- `cartan_simd_dot_i4_f32(vec_a, vec_b, len)`: Hardware-accelerated AVX2 4-bit packed nibble dot product.
+- `cartan_simd_dot_i8_f32(vec_a, vec_b, len)`: Hardware-accelerated AVX2 8-bit quantized vector dot product with 256-bit saturation.
+- Multi-threaded CPU threadpool worker loop (`cartan_trans_pool_worker_main`) with idle standby (`Sleep(10.0)`) silencing cooling fans during terminal waits.
+
+### 12.5 `src/std/tokenizer.cl` (SentencePiece 262k BPE Trie Engine)
+- `cartan_hub_init_bpe_trie_if_needed(bin_path)`: Loads pure-CARTAN 262,144 SentencePiece binary Trie arena (`geomind_vocab_262k.bin`, 12.96 MB, 600,386 nodes, 16-byte aligned nodes).
+- `bpe_encode(text, out_tokens, max_tokens)`: Greedy longest-prefix Trie traversal emitting token IDs with zero dynamic heap allocations.
+- `bpe_decode_token(token_id)`: $\mathcal{O}(1)$ direct array dereference from in-memory string pool.
+- `tokenizer_scale_ic_loss(loss, token_id)`: Scales cross-entropy loss by information content weight.
+- `tokenizer_get_ic_weight(token_id)`: Computes information content weight based on corpus frequency.
+
+### 12.6 `src/std/sqlite_vec.cl` (Tier 2 Cognitive Memory Engine)
+- `sqlite_vec_open(db_path)`: Opens SQLite database in WAL mode for persistent cognitive storage across 10 Cognitive Domains.
+- `sqlite_vec_close(db)`: Flushes WAL journal and closes database cleanly.
+- `sqlite_vec_get_user_attr(db, user_id, attr_name)`: Performs targeted JIT query for specific interlocutor attribute in Domain 10 (`USERS_AND_RELATIONSHIPS`).
+- `sqlite_vec_set_user_attr(db, user_id, attr_name, attr_val)`: Persists ad-hoc learned user attributes.
+
+### 12.7 `src/std/cargraph.cl` (Cacheline-Aligned Binary Knowledge Graph)
+- `cargraph_load_binary(path)`: Loads 64-byte cacheline-aligned flat binary NSES knowledge graph (`CarGraphHeader`, CSR row pointers, CSR edge lists).
+- `cargraph_write_binary(graph, path)`: Persists flat CSR graph to disk with zero serialization overhead.
+
+### 12.8 `src/std/nses_pipeline.cl` (Master Neuro-Symbolic Pipeline)
+- `nses_pipeline_create(cargraph, sqlite_db)`: Orchestrates the master neuro-symbolic pipeline.
+- `nses_pipeline_step_turn(...)`: Executes SAT solver, guardrails, Burroughs stochastic annealing, and veto gates.
+
+### 12.9 `src/std/fusion.cl` (Model Merging & Geometric Crossover)
+- `fusion_slerp_tensors(t1, t2, alpha)`: Spherical linear interpolation along Riemannian geodesics under Killing-Cartan metric.
+- `fusion_ties_merge(models, weights)`: Truncated sign-consensus parameter merge.
+- `fusion_dare_merge(models, drop_rate)`: Drop-and-rescale model fusion.
+
+### 12.10 `src/std/distill.cl` (Knowledge Distillation)
+- `distill_kl_divergence_loss(student_logits, teacher_logits, temp)`: Computes Kullback-Leibler divergence loss between teacher and student distributions.
+- `distill_sparse_hierarchy_loss(...)`: Sparse taxonomic hierarchy regularization loss.
+
+### 12.11 `src/std/hub.cl` (Model Checkpoint Loader)
+- `cartan_safetensors_open(path)`: Memory-mapped safetensors parser.
+- `cartan_safetensors_get_tensor(handle, tensor_name)`: Zero-copy tensor slice extraction.
+
+### 12.12 `src/std/vision.cl` (Computer Vision)
+- `Image`: Struct containing width, height, channels, and raw pixel pointer.
+- `vision_create_image(width, height, channels)`: Allocates image buffer.
+- `vision_image_to_tensor(image)`: Converts RGB raster bytes to normalized float tensor.
+
+### 12.13 `src/std/semantics.cl`
 ```cartan
 include "src/std/semantics.cl";
 
@@ -263,17 +327,7 @@ let depth = semantics_dot_path_depth(path); // returns 6.0
 let distance = semantics_lca_tree_distance(path, "entity.physical_entity.object.organism.canine.wolf");
 ```
 
----
-
-## 12.4 Information Content & Tokenizer Scaling (`src/std/tokenizer.cl`)
-
-```cartan
-include "src/std/tokenizer.cl";
-
-let scaled_loss = tokenizer_scale_ic_loss(1.5, 35.0); // scales cross-entropy loss by IC weight
-```
-
-### 12.5 `src/std/collections.cl`
+### 12.14 `src/std/collections.cl`
 - `cartan_tree_create()`: Instantiates dynamic heap tree container.
 - `cartan_tree_push(t, item)` / `cartan_tree_push_f32(t, val)`: Appends element to tree.
 - `cartan_tree_get_f32(t, idx)` / `cartan_tree_get(t, idx)`: Retrieves element at index.
@@ -281,18 +335,18 @@ let scaled_loss = tokenizer_scale_ic_loss(1.5, 35.0); // scales cross-entropy lo
 - `cartan_slice_tree(t, start, end)`: Extracts sub-tree slice.
 - `cartan_slice_nd(t, dims, indices)`: Performs N-dimensional multidimensional slicing.
 
-### 12.6 `src/std/async.cl`
+### 12.15 `src/std/async.cl`
 - `cartan_async_spawn(fn_ptr, arg)`: Spawns cooperative coroutine.
 - `cartan_async_yield(task_id)`: Yields active execution slice back to scheduler.
 - `cartan_async_await(task_id)`: Awaits coroutine completion and returns final result.
 
-### 12.7 `src/std/security.cl`
+### 12.16 `src/std/security.cl`
 - `cartan_rt_vram_lock_parameters(arena, bytes)`: Sets write-lock on model weights in VRAM.
 - `cartan_rt_vram_unlock_parameters(arena)`: Unlocks model weight arena.
 - `cartan_rt_check_vram_access(addr, bytes)`: Verifies capability bounds before access.
 - `cartan_rt_lock_swmr()` / `cartan_rt_unlock_swmr()`: Single-Writer Multi-Reader synchronization fences.
 
-### 12.8 `src/std/math.cl` & `src/std/io.cl`
+### 12.17 `src/std/math.cl` & `src/std/io.cl`
 - `sin(x)`, `cos(x)`, `tan(x)`, `exp(x)`, `log(x)`, `sqrt(x)`, `pow(x, y)`: Standard scalar math intrinsics.
 - `printf(format, ...)`: Formatted console output via libc ABI.
 - `cartan_read_line()`: Reads single line from standard input.
@@ -302,12 +356,76 @@ let scaled_loss = tokenizer_scale_ic_loss(1.5, 35.0); // scales cross-entropy lo
 
 ## 13. Compiler CLI Toolchain (`cartanc.exe`)
 
-The self-hosted compiler provides native subcommands:
+The self-hosted compiler provides native subcommands and a direct Clang/LLD linker driver:
 
-- `cartanc build <file.car> -o <out.exe>`: Compiles CARTAN source to optimized LLVM IR (`.ll`) and links to native executable via Zig.
+### 13.1 Core Commands
+- `cartanc build <file.car> -o <out.exe>`: Compiles CARTAN source to optimized LLVM IR (`.ll`) and links directly via host Clang/LLD into native executable:
+  ```cmd
+  clang -O2 -mavx2 -mfma -Wl,/FORCE:MULTIPLE -Wl,/STACK:67108864 <input.ll> -o <target.exe> -luser32 -lkernel32 -lshell32 -ladvapi32 -lOpenCL -lwgpu_native -lwinsqlite3
+  ```
 - `cartanc run <file.car>`: Compiles and runs the program in-memory via Just-In-Time (JIT) execution.
 - `cartanc repl`: Launches interactive REPL prompt for live expression evaluation.
 - `cartanc pkg`: Generates package manifests (`cartan.toml`) and dependency lockfiles (`cartan.lock`).
 - `cartanc bindgen <file.car>`: Automatically exports C/C++ FFI header files (`.h`) from SymbolTable definitions.
 - `cartanc lsp`: Runs JSON-RPC 2.0 Language Server for IDE editor integration.
 - `cartanc doc <file.car>`: Emits Markdown API documentation directly from docstrings and symbols.
+
+### 13.2 Compiler Build Flags
+- `-o <path>`: Specifies destination binary path.
+- `--release`: Enables maximum optimization (`-O2`), inlining, and dead-code elimination.
+- `-c`: Emits textual LLVM IR (`.ll`) without linking.
+- `-v`: Enables verbose compilation telemetry.
+- `-I <dir>`: Appends directory to module include search paths.
+- `-L <dir>`: Appends directory to native library search paths.
+- `-target <triple>`: Overrides target architecture triple (defaults to `x86_64-pc-windows-msvc`).
+
+---
+
+## 14. Agentic Host Execution & Perceptual Tools
+
+CARTAN provides native support for autonomous agent execution and environment interaction:
+
+### 14.1 Capabilities-Based Exposure (`@agent_accessible`)
+Exposes CARTAN functions directly to the agent tool registry and cognitive preamble:
+```cartan
+@agent_accessible
+fn read_file(path: string) -> string;
+
+@agent_accessible
+fn exec_command(cmd: string) -> string;
+```
+
+### 14.2 Host System Operations
+- `read_file(path)`: Reads entire file content into memory string.
+- `write_file(path, content)`: Writes string content directly to target path.
+- `file_exists(path)`: Verifies path existence on disk (`1.0` if exists, `0.0` otherwise).
+- `list_dir(dir)`: Enumerates files and directories within target folder.
+- `exec_command(cmd)`: Executes host commands via shell subprocess with real-time output capture.
+- **Permission Tiers**: Grounded in Domain 10 (`USERS_AND_RELATIONSHIPS`) cognitive memory:
+  - *Unverified Guests*: Strictly sandboxed to `scratch/` directory. Destructive commands blocked.
+  - *Authenticated Operators / Creators*: Unrestricted full-system administrative access.
+
+### 14.3 Multi-Modal Perceptual Tools
+- `read_screen()`: Captures primary desktop monitor via Win32 GDI attached to `winsta0\default` and extracts on-screen text lines in $< 0.4\text{ s}$ via WinRT `Windows.Media.Ocr.OcrEngine`. Requires verified biometric authentication (`g_active_user_verified == 1.0`).
+- `browse_web(url)`: Fetches HTTP/HTTPS web documents, strips HTML script/style blocks, decodes HTML entities, and enforces SSRF security filters blocking loopback (`127.0.0.1`, `localhost`) and private RFC-1918 subnets for unverified users.
+
+### 14.4 Interactive REPL Slash Commands (15 Commands)
+The interactive REPL (`geomind.exe --chat`) provides 15 real-time slash commands:
+1. `/help` or `h`: Displays the comprehensive interactive command catalog.
+2. `/think` or `t`: Toggles visibility of internal cognitive reasoning passes (Continuous Hopfield, Concept Taxonomy, Sasaki routing).
+3. `/telemetry` or `m`: Toggles display of token generation throughput metrics (tokens, tok/s, latency).
+4. `/stream` or `s`: Toggles fluid sub-token streaming vs clean structured buffered output.
+5. `/color` or `c`: Toggles ANSI 16-color palette styling.
+6. `/anim` or `a`: Toggles dynamic in-place rotating ASCII/braille thinking spinners.
+7. `/whoami` or `w`: Inspects the active interlocutor's authenticated profile and ad-hoc attributes.
+8. `/register-face`: Captures physical webcam frame and registers 320-D biometric face embedding into Domain 10.
+9. `/screen`: Captures desktop display and displays OCR-extracted text lines.
+10. `/browse <url>`: Fetches and displays sanitized web page text.
+11. `/read <path>`: Displays contents of target file on disk.
+12. `/write <path> <text>`: Writes text content to disk.
+13. `/exec <cmd>`: Executes host shell command.
+14. `/ls [dir]`: Lists contents of directory on disk.
+15. `/exit` or `/quit`: Shuts down threadpool workers cleanly and exits the session.
+
+### 14.5 Non-Blocking Generation Interruption
+During autoregressive generation, the runtime continuously polls CRT `_kbhit()` for the `/` key (ASCII 47). Pressing `/` instantly halts generation cleanly without corrupting the KV cache, transitions the REPL directly into `/` command mode, and suppresses episodic memory persistence for the interrupted turn.

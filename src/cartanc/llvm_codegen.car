@@ -113,6 +113,9 @@ fn llvm_codegen_init() -> LLVMGenerator {
     cartan_dict_set(l.func_return_types, "cartan_set_i64", "void");
     cartan_dict_set(l.func_return_types, "cartan_ptr_at", "ptr");
     cartan_dict_set(l.func_return_types, "cartan_set_ptr", "void");
+    cartan_dict_set(l.func_return_types, "cartan_atomic_f32_at", "double");
+    cartan_dict_set(l.func_return_types, "cartan_atomic_set_f32", "void");
+    cartan_dict_set(l.func_return_types, "cartan_memory_fence", "void");
     cartan_dict_set(l.func_return_types, "sqlite3_column_text", "string");
     cartan_dict_set(l.func_return_types, "sqlite3_errmsg", "string");
     cartan_dict_set(l.func_return_types, "sqlite3_column_double", "double");
@@ -472,6 +475,9 @@ fn llvm_codegen_init() -> LLVMGenerator {
         cartan_tree_push(self_ptr.declared_externs, "cartan_set_i64");
         cartan_tree_push(self_ptr.declared_externs, "cartan_ptr_at");
         cartan_tree_push(self_ptr.declared_externs, "cartan_set_ptr");
+        cartan_tree_push(self_ptr.declared_externs, "cartan_atomic_f32_at");
+        cartan_tree_push(self_ptr.declared_externs, "cartan_atomic_set_f32");
+        cartan_tree_push(self_ptr.declared_externs, "cartan_memory_fence");
         cartan_tree_push(self_ptr.declared_externs, "cartan_c_memcpy");
         cartan_tree_push(self_ptr.declared_externs, "cartan_c_strncmp");
         cartan_tree_push(self_ptr.declared_externs, "cartan_c_ptr_add");
@@ -497,6 +503,8 @@ fn llvm_codegen_init() -> LLVMGenerator {
         add_builtin_extern(self_ptr, user_defined_names, "strncmp", "declare i32 @strncmp(ptr, ptr, i64)\n");
         add_builtin_extern(self_ptr, user_defined_names, "snprintf", "declare i32 @snprintf(ptr, i64, ptr, ...)\n");
         add_builtin_extern(self_ptr, user_defined_names, "getchar", "declare i32 @getchar()\n");
+        add_builtin_extern(self_ptr, user_defined_names, "_kbhit", "declare i32 @_kbhit()\n");
+        add_builtin_extern(self_ptr, user_defined_names, "_getch", "declare i32 @_getch()\n");
         add_builtin_extern(self_ptr, user_defined_names, "strchr", "declare ptr @strchr(ptr, i32)\n");
         add_builtin_extern(self_ptr, user_defined_names, "strncpy", "declare ptr @strncpy(ptr, ptr, i64)\n");
         add_builtin_extern(self_ptr, user_defined_names, "llvm.floor.f64", "declare double @llvm.floor.f64(double)\n");
@@ -824,7 +832,7 @@ fn llvm_codegen_init() -> LLVMGenerator {
                     if (fn_name == "system") { params = "ptr"; abi_ret = "i32"; } else {}
                     if (fn_name == "remove") { params = "ptr"; abi_ret = "i32"; } else {}
                     if (fn_name == "rename") { params = "ptr, ptr"; abi_ret = "i32"; } else {}
-                    if (fn_name == "clock") { params = ""; abi_ret = "i32"; } else {}
+                    if (fn_name == "clock" || fn_name == "_kbhit" || fn_name == "_getch") { params = ""; abi_ret = "i32"; } else {}
                     if (fn_name == "CreateThread") { params = "ptr, i64, ptr, ptr, i32, ptr"; abi_ret = "ptr"; } else {}
                     if (fn_name == "WaitForSingleObject") { params = "ptr, i32"; abi_ret = "i32"; } else {}
                     if (fn_name == "CloseHandle") { params = "ptr"; abi_ret = "i32"; } else {}
@@ -1173,8 +1181,11 @@ fn llvm_codegen_init() -> LLVMGenerator {
         cartan_tree_push(self_ptr.output, "define void @cartan_set_i32(ptr %p, double %offset, double %val) {\nentry:\n  %is_null = icmp eq ptr %p, null\n  br i1 %is_null, label %ret_void, label %store_i32\nstore_i32:\n  %i = fptosi double %offset to i64\n  %ptr = getelementptr inbounds i32, ptr %p, i64 %i\n  %v = fptosi double %val to i32\n  store i32 %v, ptr %ptr, align 4\n  ret void\nret_void:\n  ret void\n}\n\n");
         cartan_tree_push(self_ptr.output, "define double @cartan_i64_at(ptr %p, double %offset) {\nentry:\n  %is_null = icmp eq ptr %p, null\n  br i1 %is_null, label %ret_zero, label %load_i64\nload_i64:\n  %i = fptosi double %offset to i64\n  %ptr = getelementptr inbounds i64, ptr %p, i64 %i\n  %v = load i64, ptr %ptr, align 8\n  %res = uitofp i64 %v to double\n  ret double %res\nret_zero:\n  ret double 0.0\n}\n\n");
         cartan_tree_push(self_ptr.output, "define void @cartan_set_i64(ptr %p, double %offset, double %val) {\nentry:\n  %is_null = icmp eq ptr %p, null\n  br i1 %is_null, label %ret_void, label %store_i64\nstore_i64:\n  %i = fptosi double %offset to i64\n  %ptr = getelementptr inbounds i64, ptr %p, i64 %i\n  %v = fptoui double %val to i64\n  store i64 %v, ptr %ptr, align 8\n  ret void\nret_void:\n  ret void\n}\n\n");
-        cartan_tree_push(self_ptr.output, "define ptr @cartan_ptr_at(ptr %p, double %offset) alwaysinline {\nentry:\n  %is_null = icmp eq ptr %p, null\n  br i1 %is_null, label %ret_null, label %load_ptr\nload_ptr:\n  %i = fptosi double %offset to i64\n  %slot = getelementptr inbounds ptr, ptr %p, i64 %i\n  %res = load ptr, ptr %slot, align 8\n  ret ptr %res\nret_null:\n  ret ptr null\n}\n\n");
-        cartan_tree_push(self_ptr.output, "define void @cartan_set_ptr(ptr %p, double %offset, ptr %val) alwaysinline {\nentry:\n  %is_null = icmp eq ptr %p, null\n  br i1 %is_null, label %ret_void, label %store_ptr\nstore_ptr:\n  %i = fptosi double %offset to i64\n  %slot = getelementptr inbounds ptr, ptr %p, i64 %i\n  store ptr %val, ptr %slot, align 8\n  ret void\nret_void:\n  ret void\n}\n\n");
+        cartan_tree_push(self_ptr.output, "define ptr @cartan_ptr_at(ptr %p, double %offset) alwaysinline {\nentry:\n  %is_null = icmp eq ptr %p, null\n  br i1 %is_null, label %ret_null, label %load_ptr\nload_ptr:\n  %i = fptosi double %offset to i64\n  %slot = getelementptr inbounds ptr, ptr %p, i64 %i\n  %res = load volatile ptr, ptr %slot, align 8\n  ret ptr %res\nret_null:\n  ret ptr null\n}\n\n");
+        cartan_tree_push(self_ptr.output, "define void @cartan_set_ptr(ptr %p, double %offset, ptr %val) alwaysinline {\nentry:\n  %is_null = icmp eq ptr %p, null\n  br i1 %is_null, label %ret_void, label %store_ptr\nstore_ptr:\n  %i = fptosi double %offset to i64\n  %slot = getelementptr inbounds ptr, ptr %p, i64 %i\n  store volatile ptr %val, ptr %slot, align 8\n  ret void\nret_void:\n  ret void\n}\n\n");
+        cartan_tree_push(self_ptr.output, "define double @cartan_atomic_f32_at(ptr %p, double %offset) alwaysinline {\nentry:\n  %is_null = icmp eq ptr %p, null\n  br i1 %is_null, label %ret_zero, label %load_f32\nload_f32:\n  %i = fptosi double %offset to i64\n  %f_ptr = getelementptr inbounds float, ptr %p, i64 %i\n  %f = load atomic float, ptr %f_ptr acquire, align 4\n  %res = fpext float %f to double\n  ret double %res\nret_zero:\n  ret double 0.0\n}\n\n");
+        cartan_tree_push(self_ptr.output, "define void @cartan_atomic_set_f32(ptr %p, double %offset, double %val) alwaysinline {\nentry:\n  %is_null = icmp eq ptr %p, null\n  br i1 %is_null, label %ret_void, label %store_f32\nstore_f32:\n  %i = fptosi double %offset to i64\n  %f_ptr = getelementptr inbounds float, ptr %p, i64 %i\n  %f_val = fptrunc double %val to float\n  store atomic float %f_val, ptr %f_ptr release, align 4\n  ret void\nret_void:\n  ret void\n}\n\n");
+        cartan_tree_push(self_ptr.output, "define void @cartan_memory_fence() alwaysinline {\nentry:\n  fence seq_cst\n  ret void\n}\n\n");
         cartan_tree_push(self_ptr.output, "define ptr @cartan_c_memcpy(ptr %dest, ptr %src, double %count) {\nentry:\n  %dest_null = icmp eq ptr %dest, null\n  %src_null = icmp eq ptr %src, null\n  %either_null = or i1 %dest_null, %src_null\n  %le_zero = fcmp ole double %count, 0.0\n  %skip = or i1 %either_null, %le_zero\n  br i1 %skip, label %ret_dest, label %do_copy\ndo_copy:\n  %n = fptoui double %count to i64\n  %res = call ptr @memcpy(ptr %dest, ptr %src, i64 %n)\n  ret ptr %res\nret_dest:\n  ret ptr %dest\n}\n\n");
         cartan_tree_push(self_ptr.output, "define double @cartan_c_strncmp(ptr %s1, ptr %s2, double %n) {\nentry:\n  %s1_null = icmp eq ptr %s1, null\n  %s2_null = icmp eq ptr %s2, null\n  %either_null = or i1 %s1_null, %s2_null\n  %le_zero = fcmp ole double %n, 0.0\n  %skip = or i1 %either_null, %le_zero\n  br i1 %skip, label %ret_zero, label %do_cmp\ndo_cmp:\n  %count = fptoui double %n to i64\n  %res_i32 = call i32 @strncmp(ptr %s1, ptr %s2, i64 %count)\n  %res = sitofp i32 %res_i32 to double\n  ret double %res\nret_zero:\n  ret double 0.0\n}\n\n");
         cartan_tree_push(self_ptr.output, "define ptr @cartan_c_ptr_add(ptr %p, double %offset) alwaysinline {\nentry:\n  %is_null = icmp eq ptr %p, null\n  br i1 %is_null, label %ret_null, label %do_add\ndo_add:\n  %off_i64 = fptosi double %offset to i64\n  %res = getelementptr inbounds i8, ptr %p, i64 %off_i64\n  ret ptr %res\nret_null:\n  ret ptr null\n}\n\n");
@@ -3336,6 +3347,10 @@ fn llvm_codegen_init() -> LLVMGenerator {
                 var is_cartan_ptr_intrinsic = 0.0;
                 if (cartan_string_eq(name, "cartan_ptr_at") != 0.0 && idx_a == 0.0) { is_cartan_ptr_intrinsic = 1.0; }
                 if (cartan_string_eq(name, "cartan_set_ptr") != 0.0 && (idx_a == 0.0 || idx_a == 2.0)) { is_cartan_ptr_intrinsic = 1.0; }
+                if (cartan_string_eq(name, "cartan_f32_at") != 0.0 && idx_a == 0.0) { is_cartan_ptr_intrinsic = 1.0; }
+                if (cartan_string_eq(name, "cartan_set_f32") != 0.0 && idx_a == 0.0) { is_cartan_ptr_intrinsic = 1.0; }
+                if (cartan_string_eq(name, "cartan_atomic_f32_at") != 0.0 && idx_a == 0.0) { is_cartan_ptr_intrinsic = 1.0; }
+                if (cartan_string_eq(name, "cartan_atomic_set_f32") != 0.0 && idx_a == 0.0) { is_cartan_ptr_intrinsic = 1.0; }
                 if (cartan_string_eq(name, "cartan_async_spawn") != 0.0 && idx_a == 0.0) { is_cartan_ptr_intrinsic = 1.0; }
                 if (cartan_string_eq(name, "async_spawn") != 0.0 && idx_a == 0.0) { is_cartan_ptr_intrinsic = 1.0; }
                 if (cartan_string_eq(name, "cartan_tensor_backward") != 0.0 && idx_a == 0.0) { is_cartan_ptr_intrinsic = 1.0; }
@@ -3448,7 +3463,7 @@ fn llvm_codegen_init() -> LLVMGenerator {
                 let flt_reg = next_reg(self_ptr);
                 cartan_tree_push(self_ptr.output, cartan_string_concat(cartan_string_concat(cartan_string_concat(cartan_string_concat("  ", flt_reg), " = uitofp i64 "), res_reg), " to double\n"));
                 return flt_reg;
-            } else if (cartan_string_eq(name, "strcmp") != 0.0 || cartan_string_eq(name, "strncmp") != 0.0 || cartan_string_eq(name, "getchar") != 0.0 || cartan_string_eq(name, "fseek") != 0.0 || cartan_string_eq(name, "_fseeki64") != 0.0 || cartan_string_eq(name, "fflush") != 0.0 || cartan_string_eq(name, "fclose") != 0.0 || cartan_string_eq(name, "system") != 0.0 || cartan_string_eq(name, "remove") != 0.0 || cartan_string_eq(name, "rename") != 0.0 || cartan_string_eq(name, "clock") != 0.0 || cartan_string_eq(name, "MoveFileExA") != 0.0 || cartan_string_eq(name, "fputs") != 0.0 || cartan_string_eq(name, "WaitForSingleObject") != 0.0 || cartan_string_eq(name, "CloseHandle") != 0.0 || (cartan_string_starts_with(name, "cl") != 0.0 && is_ptr_ret == 0.0) || (cartan_string_starts_with(name, "sqlite3_") != 0.0 && is_ptr_ret == 0.0 && cartan_string_eq(name, "sqlite3_column_double") == 0.0 && cartan_string_eq(name, "sqlite3_column_int64") == 0.0)) {
+            } else if (cartan_string_eq(name, "strcmp") != 0.0 || cartan_string_eq(name, "strncmp") != 0.0 || cartan_string_eq(name, "getchar") != 0.0 || cartan_string_eq(name, "_kbhit") != 0.0 || cartan_string_eq(name, "_getch") != 0.0 || cartan_string_eq(name, "fseek") != 0.0 || cartan_string_eq(name, "_fseeki64") != 0.0 || cartan_string_eq(name, "fflush") != 0.0 || cartan_string_eq(name, "fclose") != 0.0 || cartan_string_eq(name, "system") != 0.0 || cartan_string_eq(name, "remove") != 0.0 || cartan_string_eq(name, "rename") != 0.0 || cartan_string_eq(name, "clock") != 0.0 || cartan_string_eq(name, "MoveFileExA") != 0.0 || cartan_string_eq(name, "fputs") != 0.0 || cartan_string_eq(name, "WaitForSingleObject") != 0.0 || cartan_string_eq(name, "CloseHandle") != 0.0 || (cartan_string_starts_with(name, "cl") != 0.0 && is_ptr_ret == 0.0) || (cartan_string_starts_with(name, "sqlite3_") != 0.0 && is_ptr_ret == 0.0 && cartan_string_eq(name, "sqlite3_column_double") == 0.0 && cartan_string_eq(name, "sqlite3_column_int64") == 0.0)) {
                 let call_prefix = cartan_string_concat("  ", cartan_string_concat(res_reg, cartan_string_concat(" = call i32 @", cartan_string_concat(name, "("))));
                 let call_full = cartan_string_concat(call_prefix, cartan_string_concat(arg_str, ")\n"));
                 cartan_tree_push(self_ptr.output, call_full);

@@ -214,7 +214,18 @@ fn cartan_wgpu_init() -> float {
         ii = ii + 1.0;
     }
     wgpuAdapterGetInfo(g_wgpu_adapter, g_wgpu_adapter_info);
-    g_wgpu_adapter_name = g_wgpu_adapter_info[5.0];
+    let raw_name = g_wgpu_adapter_info[5.0];
+    let name_len = cartan_i32_at(g_wgpu_adapter_info, 12.0);
+    if (raw_name != 0.0) {
+        if (name_len > 0.0 && name_len < 256.0) {
+            let clean_name = malloc(name_len + 1.0);
+            memcpy(clean_name, raw_name, name_len);
+            cartan_set_byte(clean_name, name_len, 0.0);
+            g_wgpu_adapter_name = clean_name;
+        } else {
+            g_wgpu_adapter_name = raw_name;
+        }
+    }
     g_wgpu_vendor_id = cartan_i32_at(g_wgpu_adapter_info, 20.0);
     g_wgpu_adapter_type = cartan_i32_at(g_wgpu_adapter_info, 19.0);
     g_wgpu_backend_type = cartan_i32_at(g_wgpu_adapter_info, 18.0);

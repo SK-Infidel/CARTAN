@@ -1,6 +1,0 @@
-- `[x]` Task 1: Add E8 Metric Tensor (Zeta Spectral Density) helpers to OpenCL `csrc/kernels.cl.h`
-- `[x]` Task 2: Modify `spherical_norm_inplace` & `spherical_norm_backward` to use Riemannian magnitude
-- `[x]` Task 3: Modify `finsler_geodesic_update` to use metric-aware tangent space projections
-- `[x]` Task 4: Modify `E8CosformerAttention` OpenCL kernels to use metric-weighted inner products
-- `[x]` Task 5: Purge dormant `cdist` kernel from C++ and bindings (Already completed in prior phase)
-- `[ ]` Task 6: Recompile engine and run `test_generate.py` to verify stability

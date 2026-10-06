@@ -34,6 +34,9 @@ extern fn Sleep(dwMilliseconds: float) -> void;
 extern fn cartan_simd_dot_i8_f32(w_i8: ptr, x_f32: ptr, scale: float, count: float) -> float;
 extern fn cartan_simd_dot_i4_f32(w_i4: ptr, x_f32: ptr, scale: float, count: float) -> float;
 extern fn cartan_c_ptr_add(p: ptr, offset: float) -> ptr;
+extern fn cartan_atomic_f32_at(p: ptr, offset: float) -> float;
+extern fn cartan_atomic_set_f32(p: ptr, offset: float, val: float) -> void;
+extern fn cartan_memory_fence() -> void;
 
 // 42-Layer Pinned Contiguous KV Cache Arena in pure CARTAN heap
 var g_k_cache_arena: ptr = 0.0;
@@ -111,8 +114,27 @@ fn cartan_kv_cache_get_v(layer_idx: float) -> ptr {
 
 // Zero-allocation persistent block for high-throughput KV cache zeroing
 var g_kv_zero_block: ptr = 0.0;
+var g_kv_mask_block: ptr = 0.0;
+
+// StreamingLLM Attention Sinks & Local Sliding Window Attention (Prefix Sinks = 96.0, Window = 256.0)
+var g_attention_sink_tokens: float = 96.0;
+var g_attention_window_size: float = 256.0;
+
+fn cartan_transformer_set_attention_window(sink_count: float, window_size: float) {
+    g_attention_sink_tokens = sink_count;
+    g_attention_window_size = window_size;
+}
+
+fn cartan_transformer_get_attention_sink_tokens() -> float {
+    return g_attention_sink_tokens;
+}
+
+fn cartan_transformer_get_attention_window_size() -> float {
+    return g_attention_window_size;
+}
 
 // Zero out key/value cache entries across all 24 active layers for rejected sequence positions
+// Fills K slots with -10000.0 sentinel and V slots with 0.0, guaranteeing zero softmax attention contribution
 fn cartan_kv_cache_clear_range(start_pos: float, end_pos: float) -> float {
     if (g_k_cache_arena == 0.0 || g_v_cache_arena == 0.0) { return 0.0; }
     var sp = start_pos;
@@ -124,6 +146,14 @@ fn cartan_kv_cache_clear_range(start_pos: float, end_pos: float) -> float {
     if (g_kv_zero_block == 0.0) {
         g_kv_zero_block = calloc(1024.0, 4.0); // 1 position = 1024 floats = 4096 bytes
     }
+    if (g_kv_mask_block == 0.0) {
+        g_kv_mask_block = malloc(4096.0);
+        var bi = 0.0;
+        while (bi < 1024.0) {
+            cartan_set_f32(g_kv_mask_block, bi, -10000.0);
+            bi = bi + 1.0;
+        }
+    }
 
     var l = 0.0;
     while (l < 24.0) {
@@ -134,7 +164,7 @@ fn cartan_kv_cache_clear_range(start_pos: float, end_pos: float) -> float {
             while (p < ep) {
                 let k_ptr = cartan_f32_ptr_add(k_base, p * 1024.0);
                 let v_ptr = cartan_f32_ptr_add(v_base, p * 1024.0);
-                cartan_c_memcpy(k_ptr, g_kv_zero_block, 4096.0);
+                cartan_c_memcpy(k_ptr, g_kv_mask_block, 4096.0);
                 cartan_c_memcpy(v_ptr, g_kv_zero_block, 4096.0);
                 p = p + 1.0;
             }
@@ -1675,34 +1705,38 @@ fn cartan_trans_pool_worker_main(param: ptr) -> float {
     var r = 0.0;
     var p = 0.0;
     var capped = 0.0;
+    var in_dim = 0.0;
+    var N = 0.0;
+    var out_stride = 0.0;
+    var inter_dim = 0.0;
+    var stride_bytes = 0.0;
 
     while (g_trans_pool_running == 1.0) {
         spin = 0.0;
         spin_yield = 0.0;
-        state = cartan_f32_at(param, 24.0);
+        state = cartan_atomic_f32_at(param, 24.0);
         while (state != 1.0) {
             if (g_trans_pool_running == 0.0) { return 0.0; }
             if (g_trans_pool_standby == 1.0) {
                 Sleep(10.0);
             } else {
-                spin = spin + 1.0;
-                if (spin > 500000.0) {
-                    Sleep(2.0);
-                } else {
-                    spin_yield = spin_yield + 1.0;
-                    if (spin_yield > 5000.0) {
-                        SwitchToThread();
-                        spin_yield = 0.0;
-                    }
+                spin_yield = spin_yield + 1.0;
+                if (spin_yield > 20000.0) {
+                    SwitchToThread();
+                    spin_yield = 0.0;
                 }
             }
-            state = cartan_f32_at(param, 24.0);
+            state = cartan_atomic_f32_at(param, 24.0);
         }
+        cartan_memory_fence();
 
         let op = cartan_f32_at(param, 3.0);
         let start_row = cartan_f32_at(param, 0.0);
         let end_row = cartan_f32_at(param, 1.0);
-        let in_dim = cartan_f32_at(param, 2.0);
+        in_dim = cartan_f32_at(param, 2.0);
+        N = cartan_f32_at(param, 25.0);
+        out_stride = cartan_f32_at(param, 26.0);
+        inter_dim = out_stride;
 
         if (op == 1.0) {
             let w_gate = cartan_ptr_at(param, 4.0);
@@ -1782,8 +1816,6 @@ fn cartan_trans_pool_worker_main(param: ptr) -> float {
                 r = r + 1.0;
             }
         } else if (op == 3.0) {
-            let N = cartan_f32_at(param, 5.0);
-            let inter_dim = cartan_f32_at(param, 6.0);
             let w_gate = cartan_ptr_at(param, 4.0);
             let w_up = cartan_ptr_at(param, 5.0);
             let in_norm = cartan_ptr_at(param, 6.0);
@@ -1838,8 +1870,6 @@ fn cartan_trans_pool_worker_main(param: ptr) -> float {
                 j = j + 1.0;
             }
         } else if (op == 4.0) {
-            let N = cartan_f32_at(param, 5.0);
-            let out_stride = cartan_f32_at(param, 6.0);
             let w_mat = cartan_ptr_at(param, 4.0);
             let in_mat = cartan_ptr_at(param, 6.0);
             let out_mat = cartan_ptr_at(param, 7.0);
@@ -1882,8 +1912,6 @@ fn cartan_trans_pool_worker_main(param: ptr) -> float {
                 r = r + 1.0;
             }
         } else if (op == 5.0) {
-            let N = cartan_f32_at(param, 5.0);
-            let out_stride = cartan_f32_at(param, 6.0);
             let w_k = cartan_ptr_at(param, 4.0);
             let w_v = cartan_ptr_at(param, 5.0);
             let in_mat = cartan_ptr_at(param, 6.0);
@@ -1943,7 +1971,7 @@ fn cartan_trans_pool_worker_main(param: ptr) -> float {
 
             r = start_row;
             while (r < end_row) {
-                if (r == 0.0 || r == 2.0 || r == 3.0 || r == 105.0 || r == 2364.0 || r == 4368.0) {
+                if (r == 0.0 || r == 2.0 || r == 3.0 || r == 98.0 || r == 100.0 || r == 101.0 || r == 105.0 || r == 2364.0 || r == 4368.0 || r == 9731.0) {
                     cartan_vec_set_f32(out_logits, r, -10000.0);
                 } else if (mask != 0.0 && cartan_byte_at(mask, r) == 0.0) {
                     cartan_vec_set_f32(out_logits, r, -10000.0);
@@ -1962,7 +1990,6 @@ fn cartan_trans_pool_worker_main(param: ptr) -> float {
                 r = r + 1.0;
             }
         } else if (op == 7.0) {
-            let in_dim = cartan_f32_at(param, 2.0);
             let scales = cartan_ptr_at(param, 4.0);
             let w_bytes = cartan_ptr_at(param, 5.0);
             let in_vec = cartan_ptr_at(param, 6.0);
@@ -2002,7 +2029,6 @@ fn cartan_trans_pool_worker_main(param: ptr) -> float {
                 r = r + 1.0;
             }
         } else if (op == 8.0) {
-            let in_dim = cartan_f32_at(param, 2.0);
             let g_scales = cartan_ptr_at(param, 4.0);
             let u_scales = cartan_ptr_at(param, 5.0);
             let in_vec = cartan_ptr_at(param, 6.0);
@@ -2060,13 +2086,10 @@ fn cartan_trans_pool_worker_main(param: ptr) -> float {
                 j = j + 1.0;
             }
         } else if (op == 9.0) {
-            let in_dim = cartan_f32_at(param, 2.0);
             let scales = cartan_ptr_at(param, 4.0);
             let w_bytes = cartan_ptr_at(param, 5.0);
             let in_mat = cartan_ptr_at(param, 6.0);
             let out_mat = cartan_ptr_at(param, 7.0);
-            let N = cartan_f32_at(param, 5.0);
-            let out_stride = cartan_f32_at(param, 6.0);
 
             r = start_row;
             let r_limit = end_row - 3.0;
@@ -2111,7 +2134,6 @@ fn cartan_trans_pool_worker_main(param: ptr) -> float {
                 r = r + 1.0;
             }
         } else if (op == 10.0) {
-            let in_dim = cartan_f32_at(param, 2.0);
             let k_scales = cartan_ptr_at(param, 4.0);
             let w_k_bytes = cartan_ptr_at(param, 5.0);
             let in_mat = cartan_ptr_at(param, 6.0);
@@ -2119,8 +2141,6 @@ fn cartan_trans_pool_worker_main(param: ptr) -> float {
             let v_scales = cartan_ptr_at(param, 8.0);
             let w_v_bytes = cartan_ptr_at(param, 9.0);
             let out_v = cartan_ptr_at(param, 10.0);
-            let N = cartan_f32_at(param, 5.0);
-            let out_stride = cartan_f32_at(param, 6.0);
 
             r = start_row;
             let r_limit = end_row - 3.0;
@@ -2186,15 +2206,12 @@ fn cartan_trans_pool_worker_main(param: ptr) -> float {
                 r = r + 1.0;
             }
         } else if (op == 11.0) {
-            let in_dim = cartan_f32_at(param, 2.0);
             let g_scales = cartan_ptr_at(param, 4.0);
             let u_scales = cartan_ptr_at(param, 5.0);
             let in_mat = cartan_ptr_at(param, 6.0);
             let out_act = cartan_ptr_at(param, 7.0);
             let w_g_bytes = cartan_ptr_at(param, 8.0);
             let w_u_bytes = cartan_ptr_at(param, 9.0);
-            let N = cartan_f32_at(param, 5.0);
-            let out_stride = cartan_f32_at(param, 6.0);
 
             j = start_row;
             let j_limit = end_row - 3.0;
@@ -2254,12 +2271,11 @@ fn cartan_trans_pool_worker_main(param: ptr) -> float {
                 j = j + 1.0;
             }
         } else if (op == 12.0) {
-            let in_dim = cartan_f32_at(param, 2.0);
             let scales = cartan_ptr_at(param, 4.0);
             let w_bytes = cartan_ptr_at(param, 5.0);
             let in_vec = cartan_ptr_at(param, 6.0);
             let out_vec = cartan_ptr_at(param, 7.0);
-            let stride_bytes = in_dim * 0.5;
+            stride_bytes = in_dim * 0.5;
 
             r = start_row;
             let r_limit = end_row - 3.0;
@@ -2295,7 +2311,6 @@ fn cartan_trans_pool_worker_main(param: ptr) -> float {
                 r = r + 1.0;
             }
         } else if (op == 13.0) {
-            let in_dim = cartan_f32_at(param, 2.0);
             let k_scales = cartan_ptr_at(param, 4.0);
             let w_k_bytes = cartan_ptr_at(param, 5.0);
             let in_vec = cartan_ptr_at(param, 6.0);
@@ -2303,7 +2318,7 @@ fn cartan_trans_pool_worker_main(param: ptr) -> float {
             let v_scales = cartan_ptr_at(param, 8.0);
             let w_v_bytes = cartan_ptr_at(param, 9.0);
             let out_v = cartan_ptr_at(param, 10.0);
-            let stride_bytes = in_dim * 0.5;
+            stride_bytes = in_dim * 0.5;
 
             r = start_row;
             let r_limit = end_row - 3.0;
@@ -2360,14 +2375,13 @@ fn cartan_trans_pool_worker_main(param: ptr) -> float {
                 r = r + 1.0;
             }
         } else if (op == 14.0) {
-            let in_dim = cartan_f32_at(param, 2.0);
             let g_scales = cartan_ptr_at(param, 4.0);
             let u_scales = cartan_ptr_at(param, 5.0);
             let in_vec = cartan_ptr_at(param, 6.0);
             let out_vec = cartan_ptr_at(param, 7.0);
             let w_g_bytes = cartan_ptr_at(param, 8.0);
             let w_u_bytes = cartan_ptr_at(param, 9.0);
-            let stride_bytes = in_dim * 0.5;
+            stride_bytes = in_dim * 0.5;
 
             j = start_row;
             let j_limit = end_row - 3.0;
@@ -2419,14 +2433,11 @@ fn cartan_trans_pool_worker_main(param: ptr) -> float {
                 j = j + 1.0;
             }
         } else if (op == 15.0) {
-            let in_dim = cartan_f32_at(param, 2.0);
             let scales = cartan_ptr_at(param, 4.0);
             let w_bytes = cartan_ptr_at(param, 5.0);
             let in_mat = cartan_ptr_at(param, 6.0);
             let out_mat = cartan_ptr_at(param, 7.0);
-            let N = cartan_f32_at(param, 5.0);
-            let out_stride = cartan_f32_at(param, 6.0);
-            let stride_bytes = in_dim * 0.5;
+            stride_bytes = in_dim * 0.5;
 
             r = start_row;
             let r_limit = end_row - 3.0;
@@ -2471,7 +2482,6 @@ fn cartan_trans_pool_worker_main(param: ptr) -> float {
                 r = r + 1.0;
             }
         } else if (op == 16.0) {
-            let in_dim = cartan_f32_at(param, 2.0);
             let k_scales = cartan_ptr_at(param, 4.0);
             let w_k_bytes = cartan_ptr_at(param, 5.0);
             let in_mat = cartan_ptr_at(param, 6.0);
@@ -2479,9 +2489,7 @@ fn cartan_trans_pool_worker_main(param: ptr) -> float {
             let v_scales = cartan_ptr_at(param, 8.0);
             let w_v_bytes = cartan_ptr_at(param, 9.0);
             let out_v = cartan_ptr_at(param, 10.0);
-            let N = cartan_f32_at(param, 5.0);
-            let out_stride = cartan_f32_at(param, 6.0);
-            let stride_bytes = in_dim * 0.5;
+            stride_bytes = in_dim * 0.5;
 
             r = start_row;
             let r_limit = end_row - 3.0;
@@ -2547,16 +2555,13 @@ fn cartan_trans_pool_worker_main(param: ptr) -> float {
                 r = r + 1.0;
             }
         } else if (op == 17.0) {
-            let in_dim = cartan_f32_at(param, 2.0);
             let g_scales = cartan_ptr_at(param, 4.0);
             let u_scales = cartan_ptr_at(param, 5.0);
             let in_mat = cartan_ptr_at(param, 6.0);
             let out_act = cartan_ptr_at(param, 7.0);
             let w_g_bytes = cartan_ptr_at(param, 8.0);
             let w_u_bytes = cartan_ptr_at(param, 9.0);
-            let N = cartan_f32_at(param, 5.0);
-            let out_stride = cartan_f32_at(param, 6.0);
-            let stride_bytes = in_dim * 0.5;
+            stride_bytes = in_dim * 0.5;
 
             j = start_row;
             let j_limit = end_row - 3.0;
@@ -2617,7 +2622,8 @@ fn cartan_trans_pool_worker_main(param: ptr) -> float {
             }
         }
 
-        cartan_set_f32(param, 24.0, 2.0);
+        cartan_memory_fence();
+        cartan_atomic_set_f32(param, 24.0, 2.0);
     }
     return 0.0;
 }
@@ -2645,7 +2651,8 @@ fn cartan_trans_pool_dispatch(op: float, total_rows: float, in_dim: float, w_mat
         cartan_set_ptr(tp, 5.0, w_mat2);
         cartan_set_ptr(tp, 6.0, in_vec);
         cartan_set_ptr(tp, 7.0, out_vec);
-        cartan_set_f32(tp, 24.0, 1.0);
+        cartan_memory_fence();
+        cartan_atomic_set_f32(tp, 24.0, 1.0);
         ti = ti + 1.0;
     }
 
@@ -2792,16 +2799,17 @@ fn cartan_trans_pool_dispatch(op: float, total_rows: float, in_dim: float, w_mat
     while (ti < 8.0) {
         let tp = cartan_f32_ptr_add(g_trans_thread_tasks, ti * 64.0);
         spin = 0.0;
-        s = cartan_f32_at(tp, 24.0);
+        s = cartan_atomic_f32_at(tp, 24.0);
         while (s != 2.0) {
             spin = spin + 1.0;
             if (spin > 5000.0) {
                 SwitchToThread();
                 spin = 0.0;
             }
-            s = cartan_f32_at(tp, 24.0);
+            s = cartan_atomic_f32_at(tp, 24.0);
         }
-        cartan_set_f32(tp, 24.0, 0.0);
+        cartan_memory_fence();
+        cartan_atomic_set_f32(tp, 24.0, 0.0);
         ti = ti + 1.0;
     }
 }
@@ -2838,7 +2846,8 @@ fn cartan_trans_pool_dispatch_int8_geglu(
         cartan_set_ptr(tp, 7.0, out_vec);
         cartan_set_ptr(tp, 8.0, w_g_bytes);
         cartan_set_ptr(tp, 9.0, w_u_bytes);
-        cartan_set_f32(tp, 24.0, 1.0);
+        cartan_memory_fence();
+        cartan_atomic_set_f32(tp, 24.0, 1.0);
         ti = ti + 1.0;
     }
 
@@ -2896,16 +2905,17 @@ fn cartan_trans_pool_dispatch_int8_geglu(
     while (ti < 8.0) {
         let tp = cartan_f32_ptr_add(g_trans_thread_tasks, ti * 64.0);
         spin = 0.0;
-        s = cartan_f32_at(tp, 24.0);
+        s = cartan_atomic_f32_at(tp, 24.0);
         while (s != 2.0) {
             spin = spin + 1.0;
             if (spin > 5000.0) {
                 SwitchToThread();
                 spin = 0.0;
             }
-            s = cartan_f32_at(tp, 24.0);
+            s = cartan_atomic_f32_at(tp, 24.0);
         }
-        cartan_set_f32(tp, 24.0, 0.0);
+        cartan_memory_fence();
+        cartan_atomic_set_f32(tp, 24.0, 0.0);
         ti = ti + 1.0;
     }
 }
@@ -2942,7 +2952,8 @@ fn cartan_trans_pool_dispatch_int4_geglu(
         cartan_set_ptr(tp, 7.0, out_vec);
         cartan_set_ptr(tp, 8.0, w_g_bytes);
         cartan_set_ptr(tp, 9.0, w_u_bytes);
-        cartan_set_f32(tp, 24.0, 1.0);
+        cartan_memory_fence();
+        cartan_atomic_set_f32(tp, 24.0, 1.0);
         ti = ti + 1.0;
     }
 
@@ -3001,16 +3012,17 @@ fn cartan_trans_pool_dispatch_int4_geglu(
     while (ti < 8.0) {
         let tp = cartan_f32_ptr_add(g_trans_thread_tasks, ti * 64.0);
         spin = 0.0;
-        s = cartan_f32_at(tp, 24.0);
+        s = cartan_atomic_f32_at(tp, 24.0);
         while (s != 2.0) {
             spin = spin + 1.0;
             if (spin > 5000.0) {
                 SwitchToThread();
                 spin = 0.0;
             }
-            s = cartan_f32_at(tp, 24.0);
+            s = cartan_atomic_f32_at(tp, 24.0);
         }
-        cartan_set_f32(tp, 24.0, 0.0);
+        cartan_memory_fence();
+        cartan_atomic_set_f32(tp, 24.0, 0.0);
         ti = ti + 1.0;
     }
 }
@@ -3049,7 +3061,8 @@ fn cartan_trans_pool_dispatch_int4_dual_gemv(
         cartan_set_ptr(tp, 8.0, v_scales);
         cartan_set_ptr(tp, 9.0, w_v_bytes);
         cartan_set_ptr(tp, 10.0, out_v);
-        cartan_set_f32(tp, 24.0, 1.0);
+        cartan_memory_fence();
+        cartan_atomic_set_f32(tp, 24.0, 1.0);
         ti = ti + 1.0;
     }
 
@@ -3113,16 +3126,17 @@ fn cartan_trans_pool_dispatch_int4_dual_gemv(
     while (ti < 8.0) {
         let tp = cartan_f32_ptr_add(g_trans_thread_tasks, ti * 64.0);
         spin = 0.0;
-        s = cartan_f32_at(tp, 24.0);
+        s = cartan_atomic_f32_at(tp, 24.0);
         while (s != 2.0) {
             spin = spin + 1.0;
             if (spin > 5000.0) {
                 SwitchToThread();
                 spin = 0.0;
             }
-            s = cartan_f32_at(tp, 24.0);
+            s = cartan_atomic_f32_at(tp, 24.0);
         }
-        cartan_set_f32(tp, 24.0, 0.0);
+        cartan_memory_fence();
+        cartan_atomic_set_f32(tp, 24.0, 0.0);
         ti = ti + 1.0;
     }
 }
@@ -3158,14 +3172,15 @@ fn cartan_trans_pool_dispatch_batch(
         cartan_set_f32(tp, 1.0, end_r);
         cartan_set_f32(tp, 2.0, in_dim);
         cartan_set_f32(tp, 3.0, op);
-        cartan_set_f32(tp, 5.0, N);
-        cartan_set_f32(tp, 6.0, out_stride);
         cartan_set_ptr(tp, 4.0, w_mat1);
         cartan_set_ptr(tp, 5.0, w_mat2);
         cartan_set_ptr(tp, 6.0, in_mat);
         cartan_set_ptr(tp, 7.0, out_mat1);
         cartan_set_ptr(tp, 8.0, out_mat2);
-        cartan_set_f32(tp, 24.0, 1.0);
+        cartan_set_f32(tp, 25.0, N);
+        cartan_set_f32(tp, 26.0, out_stride);
+        cartan_memory_fence();
+        cartan_atomic_set_f32(tp, 24.0, 1.0);
         ti = ti + 1.0;
     }
 
@@ -3306,16 +3321,17 @@ fn cartan_trans_pool_dispatch_batch(
     while (ti < 8.0) {
         let tp = cartan_f32_ptr_add(g_trans_thread_tasks, ti * 64.0);
         spin = 0.0;
-        s = cartan_f32_at(tp, 24.0);
+        s = cartan_atomic_f32_at(tp, 24.0);
         while (s != 2.0) {
             spin = spin + 1.0;
             if (spin > 5000.0) {
                 SwitchToThread();
                 spin = 0.0;
             }
-            s = cartan_f32_at(tp, 24.0);
+            s = cartan_atomic_f32_at(tp, 24.0);
         }
-        cartan_set_f32(tp, 24.0, 0.0);
+        cartan_memory_fence();
+        cartan_atomic_set_f32(tp, 24.0, 0.0);
         ti = ti + 1.0;
     }
 }
@@ -3352,9 +3368,10 @@ fn cartan_trans_pool_dispatch_batch_int8_gemv(
         cartan_set_ptr(tp, 5.0, w_bytes);
         cartan_set_ptr(tp, 6.0, in_mat);
         cartan_set_ptr(tp, 7.0, out_mat);
-        cartan_set_f32(tp, 5.0, N);
-        cartan_set_f32(tp, 6.0, out_stride);
-        cartan_set_f32(tp, 24.0, 1.0);
+        cartan_set_f32(tp, 25.0, N);
+        cartan_set_f32(tp, 26.0, out_stride);
+        cartan_memory_fence();
+        cartan_atomic_set_f32(tp, 24.0, 1.0);
         ti = ti + 1.0;
     }
 
@@ -3405,16 +3422,17 @@ fn cartan_trans_pool_dispatch_batch_int8_gemv(
     while (ti < 8.0) {
         let tp = cartan_f32_ptr_add(g_trans_thread_tasks, ti * 64.0);
         spin = 0.0;
-        s = cartan_f32_at(tp, 24.0);
+        s = cartan_atomic_f32_at(tp, 24.0);
         while (s != 2.0) {
             spin = spin + 1.0;
             if (spin > 5000.0) {
                 SwitchToThread();
                 spin = 0.0;
             }
-            s = cartan_f32_at(tp, 24.0);
+            s = cartan_atomic_f32_at(tp, 24.0);
         }
-        cartan_set_f32(tp, 24.0, 0.0);
+        cartan_memory_fence();
+        cartan_atomic_set_f32(tp, 24.0, 0.0);
         ti = ti + 1.0;
     }
 }
@@ -3457,9 +3475,10 @@ fn cartan_trans_pool_dispatch_batch_int8_dual_gemv(
         cartan_set_ptr(tp, 8.0, v_scales);
         cartan_set_ptr(tp, 9.0, w_v_bytes);
         cartan_set_ptr(tp, 10.0, out_v);
-        cartan_set_f32(tp, 5.0, N);
-        cartan_set_f32(tp, 6.0, out_stride);
-        cartan_set_f32(tp, 24.0, 1.0);
+        cartan_set_f32(tp, 25.0, N);
+        cartan_set_f32(tp, 26.0, out_stride);
+        cartan_memory_fence();
+        cartan_atomic_set_f32(tp, 24.0, 1.0);
         ti = ti + 1.0;
     }
 
@@ -3531,16 +3550,17 @@ fn cartan_trans_pool_dispatch_batch_int8_dual_gemv(
     while (ti < 8.0) {
         let tp = cartan_f32_ptr_add(g_trans_thread_tasks, ti * 64.0);
         spin = 0.0;
-        s = cartan_f32_at(tp, 24.0);
+        s = cartan_atomic_f32_at(tp, 24.0);
         while (s != 2.0) {
             spin = spin + 1.0;
             if (spin > 5000.0) {
                 SwitchToThread();
                 spin = 0.0;
             }
-            s = cartan_f32_at(tp, 24.0);
+            s = cartan_atomic_f32_at(tp, 24.0);
         }
-        cartan_set_f32(tp, 24.0, 0.0);
+        cartan_memory_fence();
+        cartan_atomic_set_f32(tp, 24.0, 0.0);
         ti = ti + 1.0;
     }
 }
@@ -3581,9 +3601,10 @@ fn cartan_trans_pool_dispatch_batch_int8_geglu(
         cartan_set_ptr(tp, 7.0, out_act);
         cartan_set_ptr(tp, 8.0, w_g_bytes);
         cartan_set_ptr(tp, 9.0, w_u_bytes);
-        cartan_set_f32(tp, 5.0, N);
-        cartan_set_f32(tp, 6.0, out_stride);
-        cartan_set_f32(tp, 24.0, 1.0);
+        cartan_set_f32(tp, 25.0, N);
+        cartan_set_f32(tp, 26.0, out_stride);
+        cartan_memory_fence();
+        cartan_atomic_set_f32(tp, 24.0, 1.0);
         ti = ti + 1.0;
     }
 
@@ -3649,16 +3670,17 @@ fn cartan_trans_pool_dispatch_batch_int8_geglu(
     while (ti < 8.0) {
         let tp = cartan_f32_ptr_add(g_trans_thread_tasks, ti * 64.0);
         spin = 0.0;
-        s = cartan_f32_at(tp, 24.0);
+        s = cartan_atomic_f32_at(tp, 24.0);
         while (s != 2.0) {
             spin = spin + 1.0;
             if (spin > 5000.0) {
                 SwitchToThread();
                 spin = 0.0;
             }
-            s = cartan_f32_at(tp, 24.0);
+            s = cartan_atomic_f32_at(tp, 24.0);
         }
-        cartan_set_f32(tp, 24.0, 0.0);
+        cartan_memory_fence();
+        cartan_atomic_set_f32(tp, 24.0, 0.0);
         ti = ti + 1.0;
     }
 }
@@ -3695,9 +3717,10 @@ fn cartan_trans_pool_dispatch_batch_int4_gemv(
         cartan_set_ptr(tp, 5.0, w_bytes);
         cartan_set_ptr(tp, 6.0, in_mat);
         cartan_set_ptr(tp, 7.0, out_mat);
-        cartan_set_f32(tp, 5.0, N);
-        cartan_set_f32(tp, 6.0, out_stride);
-        cartan_set_f32(tp, 24.0, 1.0);
+        cartan_set_f32(tp, 25.0, N);
+        cartan_set_f32(tp, 26.0, out_stride);
+        cartan_memory_fence();
+        cartan_atomic_set_f32(tp, 24.0, 1.0);
         ti = ti + 1.0;
     }
 
@@ -3749,16 +3772,17 @@ fn cartan_trans_pool_dispatch_batch_int4_gemv(
     while (ti < 8.0) {
         let tp = cartan_f32_ptr_add(g_trans_thread_tasks, ti * 64.0);
         spin = 0.0;
-        s = cartan_f32_at(tp, 24.0);
+        s = cartan_atomic_f32_at(tp, 24.0);
         while (s != 2.0) {
             spin = spin + 1.0;
             if (spin > 5000.0) {
                 SwitchToThread();
                 spin = 0.0;
             }
-            s = cartan_f32_at(tp, 24.0);
+            s = cartan_atomic_f32_at(tp, 24.0);
         }
-        cartan_set_f32(tp, 24.0, 0.0);
+        cartan_memory_fence();
+        cartan_atomic_set_f32(tp, 24.0, 0.0);
         ti = ti + 1.0;
     }
 }
@@ -3801,9 +3825,10 @@ fn cartan_trans_pool_dispatch_batch_int4_dual_gemv(
         cartan_set_ptr(tp, 8.0, v_scales);
         cartan_set_ptr(tp, 9.0, w_v_bytes);
         cartan_set_ptr(tp, 10.0, out_v);
-        cartan_set_f32(tp, 5.0, N);
-        cartan_set_f32(tp, 6.0, out_stride);
-        cartan_set_f32(tp, 24.0, 1.0);
+        cartan_set_f32(tp, 25.0, N);
+        cartan_set_f32(tp, 26.0, out_stride);
+        cartan_memory_fence();
+        cartan_atomic_set_f32(tp, 24.0, 1.0);
         ti = ti + 1.0;
     }
 
@@ -3876,16 +3901,17 @@ fn cartan_trans_pool_dispatch_batch_int4_dual_gemv(
     while (ti < 8.0) {
         let tp = cartan_f32_ptr_add(g_trans_thread_tasks, ti * 64.0);
         spin = 0.0;
-        s = cartan_f32_at(tp, 24.0);
+        s = cartan_atomic_f32_at(tp, 24.0);
         while (s != 2.0) {
             spin = spin + 1.0;
             if (spin > 5000.0) {
                 SwitchToThread();
                 spin = 0.0;
             }
-            s = cartan_f32_at(tp, 24.0);
+            s = cartan_atomic_f32_at(tp, 24.0);
         }
-        cartan_set_f32(tp, 24.0, 0.0);
+        cartan_memory_fence();
+        cartan_atomic_set_f32(tp, 24.0, 0.0);
         ti = ti + 1.0;
     }
 }
@@ -3926,9 +3952,10 @@ fn cartan_trans_pool_dispatch_batch_int4_geglu(
         cartan_set_ptr(tp, 7.0, out_act);
         cartan_set_ptr(tp, 8.0, w_g_bytes);
         cartan_set_ptr(tp, 9.0, w_u_bytes);
-        cartan_set_f32(tp, 5.0, N);
-        cartan_set_f32(tp, 6.0, out_stride);
-        cartan_set_f32(tp, 24.0, 1.0);
+        cartan_set_f32(tp, 25.0, N);
+        cartan_set_f32(tp, 26.0, out_stride);
+        cartan_memory_fence();
+        cartan_atomic_set_f32(tp, 24.0, 1.0);
         ti = ti + 1.0;
     }
 
@@ -3995,16 +4022,17 @@ fn cartan_trans_pool_dispatch_batch_int4_geglu(
     while (ti < 8.0) {
         let tp = cartan_f32_ptr_add(g_trans_thread_tasks, ti * 64.0);
         spin = 0.0;
-        s = cartan_f32_at(tp, 24.0);
+        s = cartan_atomic_f32_at(tp, 24.0);
         while (s != 2.0) {
             spin = spin + 1.0;
             if (spin > 5000.0) {
                 SwitchToThread();
                 spin = 0.0;
             }
-            s = cartan_f32_at(tp, 24.0);
+            s = cartan_atomic_f32_at(tp, 24.0);
         }
-        cartan_set_f32(tp, 24.0, 0.0);
+        cartan_memory_fence();
+        cartan_atomic_set_f32(tp, 24.0, 0.0);
         ti = ti + 1.0;
     }
 }
@@ -4043,13 +4071,14 @@ fn cartan_trans_pool_dispatch_lm_head(
         cartan_set_ptr(tp, 6.0, in_h);
         cartan_set_ptr(tp, 7.0, out_logits);
         cartan_set_ptr(tp, 8.0, mask);
-        cartan_set_f32(tp, 24.0, 1.0);
+        cartan_memory_fence();
+        cartan_atomic_set_f32(tp, 24.0, 1.0);
         ti = ti + 1.0;
     }
 
     r = 0.0;
     while (r < chunk) {
-        if (r == 0.0 || r == 2.0 || r == 3.0 || r == 105.0 || r == 2364.0 || r == 4368.0) {
+        if (r == 0.0 || r == 2.0 || r == 3.0 || r == 98.0 || r == 100.0 || r == 101.0 || r == 105.0 || r == 2364.0 || r == 4368.0 || r == 9731.0) {
             cartan_vec_set_f32(out_logits, r, -10000.0);
         } else if (mask != 0.0 && cartan_byte_at(mask, r) == 0.0) {
             cartan_vec_set_f32(out_logits, r, -10000.0);
@@ -4072,16 +4101,17 @@ fn cartan_trans_pool_dispatch_lm_head(
     while (ti < 8.0) {
         let tp = cartan_f32_ptr_add(g_trans_thread_tasks, ti * 64.0);
         spin = 0.0;
-        s = cartan_f32_at(tp, 24.0);
+        s = cartan_atomic_f32_at(tp, 24.0);
         while (s != 2.0) {
             spin = spin + 1.0;
             if (spin > 5000.0) {
                 SwitchToThread();
                 spin = 0.0;
             }
-            s = cartan_f32_at(tp, 24.0);
+            s = cartan_atomic_f32_at(tp, 24.0);
         }
-        cartan_set_f32(tp, 24.0, 0.0);
+        cartan_memory_fence();
+        cartan_atomic_set_f32(tp, 24.0, 0.0);
         ti = ti + 1.0;
     }
 }
@@ -4128,7 +4158,7 @@ fn cartan_init_transformer_scratch_buffers() -> float {
     var ti = 0.0;
     while (ti < 8.0) {
         let tp = cartan_f32_ptr_add(g_trans_thread_tasks, ti * 64.0);
-        cartan_set_f32(tp, 24.0, 0.0);
+        cartan_atomic_set_f32(tp, 24.0, 0.0);
         ti = ti + 1.0;
     }
 
@@ -4477,31 +4507,73 @@ fn cartan_manifold_layer_forward_native(
     var max_seq = pos + 1.0;
     if (max_seq > g_kv_cache_max_seq) { max_seq = g_kv_cache_max_seq; }
 
+    var sink_limit = g_attention_sink_tokens;
+    if (sink_limit > max_seq) { sink_limit = max_seq; }
+    var win_start = 0.0;
+    let win_size = g_attention_window_size;
+    if (win_size > 0.0 && max_seq > (sink_limit + win_size)) {
+        win_start = max_seq - win_size;
+    }
+    var p1_limit = max_seq;
+    if (win_start > 0.0) { p1_limit = sink_limit; }
+
     qh = 0.0;
     while (qh < q_heads) {
         let kvh = floor(qh / heads_per_kv);
         let q_h = cartan_f32_ptr_add(g_trans_q_rot, qh * head_dim);
         var max_score = -1000000000.0;
 
+        // Phase 1a: Attention Sinks (0 .. p1_limit)
         var t = 0.0;
-        while (t < max_seq) {
-            var dot = 0.0;
+        while (t < p1_limit) {
+            var dot = -10000.0;
             if (k_cache != 0.0) {
                 let k_ht = cartan_f32_ptr_add(k_cache, t * kv_dim + kvh * head_dim);
-                dot = cartan_simd_dot_f32(q_h, k_ht, head_dim);
+                if (cartan_f32_at(k_ht, 0.0) > -9999.0) {
+                    dot = cartan_simd_dot_f32(q_h, k_ht, head_dim);
+                }
             }
             cartan_set_f32(g_trans_scores, t, dot);
             if (dot > max_score) { max_score = dot; }
             t = t + 1.0;
         }
 
+        // Phase 1b: Local Sliding Window (win_start .. max_seq)
+        if (win_start > 0.0) {
+            t = win_start;
+            while (t < max_seq) {
+                var dot = -10000.0;
+                if (k_cache != 0.0) {
+                    let k_ht = cartan_f32_ptr_add(k_cache, t * kv_dim + kvh * head_dim);
+                    if (cartan_f32_at(k_ht, 0.0) > -9999.0) {
+                        dot = cartan_simd_dot_f32(q_h, k_ht, head_dim);
+                    }
+                }
+                cartan_set_f32(g_trans_scores, t, dot);
+                if (dot > max_score) { max_score = dot; }
+                t = t + 1.0;
+            }
+        }
+
         var sum_exp = 0.0;
+        // Phase 2a: Sinks Exponent
         t = 0.0;
-        while (t < max_seq) {
+        while (t < p1_limit) {
             let ep = exp(cartan_f32_at(g_trans_scores, t) - max_score);
             cartan_set_f32(g_trans_scores, t, ep);
             sum_exp = sum_exp + ep;
             t = t + 1.0;
+        }
+
+        // Phase 2b: Sliding Window Exponent
+        if (win_start > 0.0) {
+            t = win_start;
+            while (t < max_seq) {
+                let ep = exp(cartan_f32_at(g_trans_scores, t) - max_score);
+                cartan_set_f32(g_trans_scores, t, ep);
+                sum_exp = sum_exp + ep;
+                t = t + 1.0;
+            }
         }
         var inv_sum = 1.0;
         if (sum_exp > 0.000000000001) { inv_sum = 1.0 / sum_exp; }
@@ -4513,9 +4585,11 @@ fn cartan_manifold_layer_forward_native(
             hd = hd + 1.0;
         }
         if (v_cache != 0.0) {
-            t = 0.0;
             let hd_unroll_limit = head_dim - 3.0;
-            while (t < max_seq) {
+
+            // Phase 3a: Sinks V Accumulation
+            t = 0.0;
+            while (t < p1_limit) {
                 let p_t = cartan_f32_at(g_trans_scores, t) * inv_sum;
                 if (p_t > 0.000000001) {
                     let v_ht = cartan_f32_ptr_add(v_cache, t * kv_dim + kvh * head_dim);
@@ -4542,6 +4616,39 @@ fn cartan_manifold_layer_forward_native(
                     }
                 }
                 t = t + 1.0;
+            }
+
+            // Phase 3b: Sliding Window V Accumulation
+            if (win_start > 0.0) {
+                t = win_start;
+                while (t < max_seq) {
+                    let p_t = cartan_f32_at(g_trans_scores, t) * inv_sum;
+                    if (p_t > 0.000000001) {
+                        let v_ht = cartan_f32_ptr_add(v_cache, t * kv_dim + kvh * head_dim);
+                        hd = 0.0;
+                        while (hd < hd_unroll_limit) {
+                            let hd1 = hd + 1.0;
+                            let hd2 = hd + 2.0;
+                            let hd3 = hd + 3.0;
+                            let o0 = cartan_f32_at(out_h, hd) + p_t * cartan_f32_at(v_ht, hd);
+                            let o1 = cartan_f32_at(out_h, hd1) + p_t * cartan_f32_at(v_ht, hd1);
+                            let o2 = cartan_f32_at(out_h, hd2) + p_t * cartan_f32_at(v_ht, hd2);
+                            let o3 = cartan_f32_at(out_h, hd3) + p_t * cartan_f32_at(v_ht, hd3);
+                            cartan_set_f32(out_h, hd, o0);
+                            cartan_set_f32(out_h, hd1, o1);
+                            cartan_set_f32(out_h, hd2, o2);
+                            cartan_set_f32(out_h, hd3, o3);
+                            hd = hd + 4.0;
+                        }
+                        while (hd < head_dim) {
+                            let cur = cartan_f32_at(out_h, hd);
+                            let val = cartan_f32_at(v_ht, hd);
+                            cartan_set_f32(out_h, hd, cur + p_t * val);
+                            hd = hd + 1.0;
+                        }
+                    }
+                    t = t + 1.0;
+                }
             }
         }
         qh = qh + 1.0;
@@ -5042,40 +5149,88 @@ fn cartan_manifold_layer_forward_batch_int8(
         if (max_seq > g_kv_cache_max_seq) { max_seq = g_kv_cache_max_seq; }
         let hd_unroll_limit = head_dim - 3.0;
 
+        var sink_limit = g_attention_sink_tokens;
+        if (sink_limit > max_seq) { sink_limit = max_seq; }
+        var win_start = 0.0;
+        let win_size = g_attention_window_size;
+        if (win_size > 0.0 && max_seq > (sink_limit + win_size)) {
+            win_start = max_seq - win_size;
+        }
+        var p1_limit = max_seq;
+        if (win_start > 0.0) { p1_limit = sink_limit; }
+
         qh = 0.0;
         while (qh < q_heads) {
             let kvh = floor(qh / heads_per_kv);
             let q_h = cartan_f32_ptr_add(q_p, qh * head_dim);
             let out_h = cartan_f32_ptr_add(out_p, qh * head_dim);
 
-            var t = 0.0;
             var max_val = -1000000000.0;
-            while (t < max_seq) {
-                let k_ht = cartan_f32_ptr_add(k_cache, t * kv_dim + kvh * head_dim);
-                let score = cartan_simd_dot_f32(q_h, k_ht, head_dim);
+
+            // Phase 1a: Attention Sinks (0 .. p1_limit)
+            var t = 0.0;
+            while (t < p1_limit) {
+                var score = -10000.0;
+                if (k_cache != 0.0) {
+                    let k_ht = cartan_f32_ptr_add(k_cache, t * kv_dim + kvh * head_dim);
+                    if (cartan_f32_at(k_ht, 0.0) > -9999.0) {
+                        score = cartan_simd_dot_f32(q_h, k_ht, head_dim);
+                    }
+                }
                 cartan_set_f32(scores_buf, t, score);
                 if (score > max_val) { max_val = score; }
                 t = t + 1.0;
             }
 
+            // Phase 1b: Local Sliding Window (win_start .. max_seq)
+            if (win_start > 0.0) {
+                t = win_start;
+                while (t < max_seq) {
+                    var score = -10000.0;
+                    if (k_cache != 0.0) {
+                        let k_ht = cartan_f32_ptr_add(k_cache, t * kv_dim + kvh * head_dim);
+                        if (cartan_f32_at(k_ht, 0.0) > -9999.0) {
+                            score = cartan_simd_dot_f32(q_h, k_ht, head_dim);
+                        }
+                    }
+                    cartan_set_f32(scores_buf, t, score);
+                    if (score > max_val) { max_val = score; }
+                    t = t + 1.0;
+                }
+            }
+
             var sum_exp = 0.0;
+            // Phase 2a: Sinks Exponent
             t = 0.0;
-            while (t < max_seq) {
+            while (t < p1_limit) {
                 let s_val = exp(cartan_f32_at(scores_buf, t) - max_val);
                 cartan_set_f32(scores_buf, t, s_val);
                 sum_exp = sum_exp + s_val;
                 t = t + 1.0;
             }
 
-            let inv_sum = 1.0 / sum_exp;
+            // Phase 2b: Sliding Window Exponent
+            if (win_start > 0.0) {
+                t = win_start;
+                while (t < max_seq) {
+                    let s_val = exp(cartan_f32_at(scores_buf, t) - max_val);
+                    cartan_set_f32(scores_buf, t, s_val);
+                    sum_exp = sum_exp + s_val;
+                    t = t + 1.0;
+                }
+            }
+
+            var inv_sum = 1.0;
+            if (sum_exp > 0.000000000001) { inv_sum = 1.0 / sum_exp; }
             var hd = 0.0;
             while (hd < head_dim) {
                 cartan_set_f32(out_h, hd, 0.0);
                 hd = hd + 1.0;
             }
 
+            // Phase 3a: Sinks V Accumulation
             t = 0.0;
-            while (t < max_seq) {
+            while (t < p1_limit) {
                 let p_t = cartan_f32_at(scores_buf, t) * inv_sum;
                 if (p_t > 0.000000001) {
                     let v_ht = cartan_f32_ptr_add(v_cache, t * kv_dim + kvh * head_dim);
@@ -5102,6 +5257,39 @@ fn cartan_manifold_layer_forward_batch_int8(
                     }
                 }
                 t = t + 1.0;
+            }
+
+            // Phase 3b: Sliding Window V Accumulation
+            if (win_start > 0.0) {
+                t = win_start;
+                while (t < max_seq) {
+                    let p_t = cartan_f32_at(scores_buf, t) * inv_sum;
+                    if (p_t > 0.000000001) {
+                        let v_ht = cartan_f32_ptr_add(v_cache, t * kv_dim + kvh * head_dim);
+                        hd = 0.0;
+                        while (hd < hd_unroll_limit) {
+                            let hd1 = hd + 1.0;
+                            let hd2 = hd + 2.0;
+                            let hd3 = hd + 3.0;
+                            let o0 = cartan_f32_at(out_h, hd) + p_t * cartan_f32_at(v_ht, hd);
+                            let o1 = cartan_f32_at(out_h, hd1) + p_t * cartan_f32_at(v_ht, hd1);
+                            let o2 = cartan_f32_at(out_h, hd2) + p_t * cartan_f32_at(v_ht, hd2);
+                            let o3 = cartan_f32_at(out_h, hd3) + p_t * cartan_f32_at(v_ht, hd3);
+                            cartan_set_f32(out_h, hd, o0);
+                            cartan_set_f32(out_h, hd1, o1);
+                            cartan_set_f32(out_h, hd2, o2);
+                            cartan_set_f32(out_h, hd3, o3);
+                            hd = hd + 4.0;
+                        }
+                        while (hd < head_dim) {
+                            let cur = cartan_f32_at(out_h, hd);
+                            let val = cartan_f32_at(v_ht, hd);
+                            cartan_set_f32(out_h, hd, cur + p_t * val);
+                            hd = hd + 1.0;
+                        }
+                    }
+                    t = t + 1.0;
+                }
             }
             qh = qh + 1.0;
         }
@@ -5283,12 +5471,10 @@ fn cartan_manifold_layer_forward_batch_int4(
     if (kv_heads <= 0.0) { kv_heads = 1.0; }
     let heads_per_kv = q_heads / kv_heads;
 
-    let half = head_dim * 0.5;
+    let half = head_dim / 2.0;
+    let is_global = (fmod(layer_idx + 1.0, 6.0) == 0.0);
     var rope_angles = half;
-    var is_global = 1.0;
-    let mod6 = layer_idx - floor(layer_idx / 6.0) * 6.0;
-    if (mod6 != 0.0) {
-        is_global = 0.0;
+    if (is_global > 0.0) {
         rope_angles = 64.0;
     }
 
@@ -5544,40 +5730,88 @@ fn cartan_manifold_layer_forward_batch_int4(
         if (max_seq > g_kv_cache_max_seq) { max_seq = g_kv_cache_max_seq; }
         let hd_unroll_limit = head_dim - 3.0;
 
+        var sink_limit = g_attention_sink_tokens;
+        if (sink_limit > max_seq) { sink_limit = max_seq; }
+        var win_start = 0.0;
+        let win_size = g_attention_window_size;
+        if (win_size > 0.0 && max_seq > (sink_limit + win_size)) {
+            win_start = max_seq - win_size;
+        }
+        var p1_limit = max_seq;
+        if (win_start > 0.0) { p1_limit = sink_limit; }
+
         qh = 0.0;
         while (qh < q_heads) {
             let kvh = floor(qh / heads_per_kv);
             let q_h = cartan_f32_ptr_add(q_p, qh * head_dim);
             let out_h = cartan_f32_ptr_add(out_p, qh * head_dim);
 
-            var t = 0.0;
             var max_val = -1000000000.0;
-            while (t < max_seq) {
-                let k_ht = cartan_f32_ptr_add(k_cache, t * kv_dim + kvh * head_dim);
-                let score = cartan_simd_dot_f32(q_h, k_ht, head_dim);
+
+            // Phase 1a: Attention Sinks (0 .. p1_limit)
+            var t = 0.0;
+            while (t < p1_limit) {
+                var score = -10000.0;
+                if (k_cache != 0.0) {
+                    let k_ht = cartan_f32_ptr_add(k_cache, t * kv_dim + kvh * head_dim);
+                    if (cartan_f32_at(k_ht, 0.0) > -9999.0) {
+                        score = cartan_simd_dot_f32(q_h, k_ht, head_dim);
+                    }
+                }
                 cartan_set_f32(scores_buf, t, score);
                 if (score > max_val) { max_val = score; }
                 t = t + 1.0;
             }
 
+            // Phase 1b: Local Sliding Window (win_start .. max_seq)
+            if (win_start > 0.0) {
+                t = win_start;
+                while (t < max_seq) {
+                    var score = -10000.0;
+                    if (k_cache != 0.0) {
+                        let k_ht = cartan_f32_ptr_add(k_cache, t * kv_dim + kvh * head_dim);
+                        if (cartan_f32_at(k_ht, 0.0) > -9999.0) {
+                            score = cartan_simd_dot_f32(q_h, k_ht, head_dim);
+                        }
+                    }
+                    cartan_set_f32(scores_buf, t, score);
+                    if (score > max_val) { max_val = score; }
+                    t = t + 1.0;
+                }
+            }
+
             var sum_exp = 0.0;
+            // Phase 2a: Sinks Exponent
             t = 0.0;
-            while (t < max_seq) {
+            while (t < p1_limit) {
                 let s_val = exp(cartan_f32_at(scores_buf, t) - max_val);
                 cartan_set_f32(scores_buf, t, s_val);
                 sum_exp = sum_exp + s_val;
                 t = t + 1.0;
             }
 
-            let inv_sum = 1.0 / sum_exp;
+            // Phase 2b: Sliding Window Exponent
+            if (win_start > 0.0) {
+                t = win_start;
+                while (t < max_seq) {
+                    let s_val = exp(cartan_f32_at(scores_buf, t) - max_val);
+                    cartan_set_f32(scores_buf, t, s_val);
+                    sum_exp = sum_exp + s_val;
+                    t = t + 1.0;
+                }
+            }
+
+            var inv_sum = 1.0;
+            if (sum_exp > 0.000000000001) { inv_sum = 1.0 / sum_exp; }
             var hd = 0.0;
             while (hd < head_dim) {
                 cartan_set_f32(out_h, hd, 0.0);
                 hd = hd + 1.0;
             }
 
+            // Phase 3a: Sinks V Accumulation
             t = 0.0;
-            while (t < max_seq) {
+            while (t < p1_limit) {
                 let p_t = cartan_f32_at(scores_buf, t) * inv_sum;
                 if (p_t > 0.000000001) {
                     let v_ht = cartan_f32_ptr_add(v_cache, t * kv_dim + kvh * head_dim);
@@ -5604,6 +5838,39 @@ fn cartan_manifold_layer_forward_batch_int4(
                     }
                 }
                 t = t + 1.0;
+            }
+
+            // Phase 3b: Sliding Window V Accumulation
+            if (win_start > 0.0) {
+                t = win_start;
+                while (t < max_seq) {
+                    let p_t = cartan_f32_at(scores_buf, t) * inv_sum;
+                    if (p_t > 0.000000001) {
+                        let v_ht = cartan_f32_ptr_add(v_cache, t * kv_dim + kvh * head_dim);
+                        hd = 0.0;
+                        while (hd < hd_unroll_limit) {
+                            let hd1 = hd + 1.0;
+                            let hd2 = hd + 2.0;
+                            let hd3 = hd + 3.0;
+                            let o0 = cartan_f32_at(out_h, hd) + p_t * cartan_f32_at(v_ht, hd);
+                            let o1 = cartan_f32_at(out_h, hd1) + p_t * cartan_f32_at(v_ht, hd1);
+                            let o2 = cartan_f32_at(out_h, hd2) + p_t * cartan_f32_at(v_ht, hd2);
+                            let o3 = cartan_f32_at(out_h, hd3) + p_t * cartan_f32_at(v_ht, hd3);
+                            cartan_set_f32(out_h, hd, o0);
+                            cartan_set_f32(out_h, hd1, o1);
+                            cartan_set_f32(out_h, hd2, o2);
+                            cartan_set_f32(out_h, hd3, o3);
+                            hd = hd + 4.0;
+                        }
+                        while (hd < head_dim) {
+                            let cur = cartan_f32_at(out_h, hd);
+                            let val = cartan_f32_at(v_ht, hd);
+                            cartan_set_f32(out_h, hd, cur + p_t * val);
+                            hd = hd + 1.0;
+                        }
+                    }
+                    t = t + 1.0;
+                }
             }
             qh = qh + 1.0;
         }
@@ -6047,6 +6314,17 @@ fn cartan_manifold_layer_forward_batch(
         let out_p = cartan_f32_ptr_add(b_attn_out, p * q_dim);
         max_seq = start_pos + p + 1.0;
         if (max_seq > g_kv_cache_max_seq) { max_seq = g_kv_cache_max_seq; }
+        let hd_unroll_limit = head_dim - 3.0;
+
+        var sink_limit = g_attention_sink_tokens;
+        if (sink_limit > max_seq) { sink_limit = max_seq; }
+        var win_start = 0.0;
+        let win_size = g_attention_window_size;
+        if (win_size > 0.0 && max_seq > (sink_limit + win_size)) {
+            win_start = max_seq - win_size;
+        }
+        var p1_limit = max_seq;
+        if (win_start > 0.0) { p1_limit = sink_limit; }
 
         qh = 0.0;
         while (qh < q_heads) {
@@ -6054,26 +6332,59 @@ fn cartan_manifold_layer_forward_batch(
             let q_h = cartan_f32_ptr_add(q_p, qh * head_dim);
             max_score = -1000000000.0;
 
+            // Phase 1a: Attention Sinks (0 .. p1_limit)
             t = 0.0;
-            while (t < max_seq) {
-                dot = 0.0;
+            while (t < p1_limit) {
+                dot = -10000.0;
                 if (k_cache != 0.0) {
                     let k_ht = cartan_f32_ptr_add(k_cache, t * kv_dim + kvh * head_dim);
-                    dot = cartan_simd_dot_f32(q_h, k_ht, head_dim);
+                    if (cartan_f32_at(k_ht, 0.0) > -9999.0) {
+                        dot = cartan_simd_dot_f32(q_h, k_ht, head_dim);
+                    }
                 }
                 cartan_set_f32(g_trans_scores, t, dot);
                 if (dot > max_score) { max_score = dot; }
                 t = t + 1.0;
             }
 
+            // Phase 1b: Local Sliding Window (win_start .. max_seq)
+            if (win_start > 0.0) {
+                t = win_start;
+                while (t < max_seq) {
+                    dot = -10000.0;
+                    if (k_cache != 0.0) {
+                        let k_ht = cartan_f32_ptr_add(k_cache, t * kv_dim + kvh * head_dim);
+                        if (cartan_f32_at(k_ht, 0.0) > -9999.0) {
+                            dot = cartan_simd_dot_f32(q_h, k_ht, head_dim);
+                        }
+                    }
+                    cartan_set_f32(g_trans_scores, t, dot);
+                    if (dot > max_score) { max_score = dot; }
+                    t = t + 1.0;
+                }
+            }
+
             sum_exp = 0.0;
+            // Phase 2a: Sinks Exponent
             t = 0.0;
-            while (t < max_seq) {
+            while (t < p1_limit) {
                 let ep = exp(cartan_f32_at(g_trans_scores, t) - max_score);
                 cartan_set_f32(g_trans_scores, t, ep);
                 sum_exp = sum_exp + ep;
                 t = t + 1.0;
             }
+
+            // Phase 2b: Sliding Window Exponent
+            if (win_start > 0.0) {
+                t = win_start;
+                while (t < max_seq) {
+                    let ep = exp(cartan_f32_at(g_trans_scores, t) - max_score);
+                    cartan_set_f32(g_trans_scores, t, ep);
+                    sum_exp = sum_exp + ep;
+                    t = t + 1.0;
+                }
+            }
+
             inv_sum = 1.0;
             if (sum_exp > 0.000000000001) { inv_sum = 1.0 / sum_exp; }
 
@@ -6084,14 +6395,14 @@ fn cartan_manifold_layer_forward_batch(
                 hd = hd + 1.0;
             }
             if (v_cache != 0.0) {
+                // Phase 3a: Sinks V Accumulation
                 t = 0.0;
-                let hd_limit = head_dim - 3.0;
-                while (t < max_seq) {
+                while (t < p1_limit) {
                     let p_t = cartan_f32_at(g_trans_scores, t) * inv_sum;
                     if (p_t > 0.000000001) {
                         let v_ht = cartan_f32_ptr_add(v_cache, t * kv_dim + kvh * head_dim);
                         hd = 0.0;
-                        while (hd < hd_limit) {
+                        while (hd < hd_unroll_limit) {
                             let hd1 = hd + 1.0;
                             let hd2 = hd + 2.0;
                             let hd3 = hd + 3.0;
@@ -6113,6 +6424,39 @@ fn cartan_manifold_layer_forward_batch(
                         }
                     }
                     t = t + 1.0;
+                }
+
+                // Phase 3b: Sliding Window V Accumulation
+                if (win_start > 0.0) {
+                    t = win_start;
+                    while (t < max_seq) {
+                        let p_t = cartan_f32_at(g_trans_scores, t) * inv_sum;
+                        if (p_t > 0.000000001) {
+                            let v_ht = cartan_f32_ptr_add(v_cache, t * kv_dim + kvh * head_dim);
+                            hd = 0.0;
+                            while (hd < hd_unroll_limit) {
+                                let hd1 = hd + 1.0;
+                                let hd2 = hd + 2.0;
+                                let hd3 = hd + 3.0;
+                                let o0 = cartan_f32_at(out_h, hd) + p_t * cartan_f32_at(v_ht, hd);
+                                let o1 = cartan_f32_at(out_h, hd1) + p_t * cartan_f32_at(v_ht, hd1);
+                                let o2 = cartan_f32_at(out_h, hd2) + p_t * cartan_f32_at(v_ht, hd2);
+                                let o3 = cartan_f32_at(out_h, hd3) + p_t * cartan_f32_at(v_ht, hd3);
+                                cartan_set_f32(out_h, hd, o0);
+                                cartan_set_f32(out_h, hd1, o1);
+                                cartan_set_f32(out_h, hd2, o2);
+                                cartan_set_f32(out_h, hd3, o3);
+                                hd = hd + 4.0;
+                            }
+                            while (hd < head_dim) {
+                                let prev = cartan_f32_at(out_h, hd);
+                                let v_val = cartan_f32_at(v_ht, hd);
+                                cartan_set_f32(out_h, hd, prev + p_t * v_val);
+                                hd = hd + 1.0;
+                            }
+                        }
+                        t = t + 1.0;
+                    }
                 }
             }
             qh = qh + 1.0;

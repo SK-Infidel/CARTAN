@@ -72,6 +72,16 @@ fn prompt_scaffold_get_text(buf: PromptScaffoldBuffer) -> string {
     return buf.raw_buffer;
 }
 
+// Appends a single byte character to buffer with capacity verification
+fn prompt_scaffold_append_char(buf: PromptScaffoldBuffer, byte_val: float) {
+    if (buf.raw_buffer == 0.0) { return; }
+    if (buf.length + 1.0 >= buf.capacity) { return; }
+    cartan_set_byte(buf.raw_buffer, buf.length, byte_val);
+    buf.length = buf.length + 1.0;
+    cartan_set_byte(buf.raw_buffer, buf.length, 0.0);
+}
+
+
 // Boundary Containment Sanitizer (Invariant TS-4.3)
 // Quarantines rogue injected section delimiters from lateral primes or user inputs
 fn prompt_sanitize_delimiters(s: string) -> string {

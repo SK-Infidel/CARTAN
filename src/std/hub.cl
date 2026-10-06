@@ -654,12 +654,12 @@ fn hub_fetch_weights(repo_id: string, filename: string) -> string {
     }
 
     // 3. test/geomind subdirectory
-    let tg_sf = "test/geomind/cache_model.safetensors";
+    let tg_sf = "Projects/geomind/cache_model.safetensors";
     if (cartan_file_exists(tg_sf) == 1.0 && cartan_get_binary_file_size(tg_sf) > 1000000.0) {
         printf("[hub] Found sovereign model weight file in test/geomind: %s\n", tg_sf);
         return tg_sf;
     }
-    let up_tg_sf = "../test/geomind/cache_model.safetensors";
+    let up_tg_sf = "../Projects/geomind/cache_model.safetensors";
     if (cartan_file_exists(up_tg_sf) == 1.0 && cartan_get_binary_file_size(up_tg_sf) > 1000000.0) {
         printf("[hub] Found sovereign model weight file in ../test/geomind: %s\n", up_tg_sf);
         return up_tg_sf;
@@ -701,8 +701,8 @@ fn hub_load_dataset(repo_id: string, split: string) -> Dataset {
         let candidate_txt = cartan_string_concat(ds_path, ".txt");
         if (cartan_file_exists(candidate_txt) == 1.0) {
             ds_path = candidate_txt;
-        } else if (cartan_file_exists("test/geomind/trainingdata/atomic_conceptnet_discourse.tsv") == 1.0) {
-            ds_path = "test/geomind/trainingdata/atomic_conceptnet_discourse.tsv";
+        } else if (cartan_file_exists("Projects/geomind/trainingdata/atomic_conceptnet_discourse.tsv") == 1.0) {
+            ds_path = "Projects/geomind/trainingdata/atomic_conceptnet_discourse.tsv";
         }
     }
     if (cartan_file_exists(ds_path) == 1.0) {

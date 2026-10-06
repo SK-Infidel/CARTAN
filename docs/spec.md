@@ -5,8 +5,9 @@ Cartan is a statically typed, self-hosting, natively tensor-first programming la
 ## 1. Compiler Architecture
 Cartan compiles via a 100% self-hosted LLVM compiler toolchain (`cartanc` written in native CARTAN):
 - **Self-Hosted Frontend (`src/cartanc/`)**: Lexer, Parser, Type Checker, and AST expansion passes written in native CARTAN (`ast.ch`, `lexer.car`, `parser.car`, `type_checker.car`).
-- **Pure CARTAN Core Runtime (`src/cartanc/core_runtime.car`)**: Canonical runtime module auto-injected during compiler AST expansion. Provides memory-safe string manipulation, dynamic hierarchical trees (`tree<T>`), memory assertions, file I/O, and OS process execution directly in pure CARTAN.
+- **Pure CARTAN Core Runtime (`src/cartanc/core_runtime.car`)**: Canonical runtime module auto-injected during compiler AST expansion. Provides memory-safe string manipulation, dynamic hierarchical trees (`tree<T>`), memory assertions, file I/O, OS process execution, and ANSI escape sequence formatting directly in pure CARTAN.
 - **Pure Freestanding Hardware Runtime (`gpu_runtime/` & Native LLVM IR Emitted Runtime)**: Pure freestanding runtime architecture with all primitive tree, string, memory, and formatting operations emitted directly as pure LLVM IR (`llvm_codegen.car`), zero linked C runtime source files, SWMR memory fences, DLPack zero-copy FFI interop, capabilities-based VRAM sandboxing, continuous Hopfield memory banks, and native WebGPU compute shaders.
+- **Pure-CARTAN Standalone Clang/LLD Linker Driver (`src/cartanc/main.car`)**: Direct resolution of Clang/LLD (priority order: `CARTAN_CLANG` environment variable $\to$ Intel oneAPI latest $\to$ Intel oneAPI 2025.3 $\to$ LLVM bin $\to$ PATH). Directly orchestrates the compilation of emitted `.ll` files into native machine code targeting `x86_64-pc-windows-msvc -O2 -mavx2 -mfma -Wl,/FORCE:MULTIPLE -Wl,/STACK:67108864` linking Windows system DLLs, OpenCL, WinSQLite3, and WGPU native. Zero external Python, zero Zig wrapper.
 
 ## 2. Keywords
 - `fn` : Function declaration
@@ -16,7 +17,31 @@ Cartan compiles via a 100% self-hosted LLVM compiler toolchain (`cartanc` writte
 - `tensor` : Primitive tensor type declaration
 - `struct` : Data structure definition
 - `async`, `yield`, `await` : Asynchronous coroutine execution primitives (`src/std/async.cl`)
-- **Standard Library Ecosystem (`src/std/`)**: Native implementation files carry the `.cl` extension (CARTAN Library) while public declaration header files carry the `.ch` extension (CARTAN Header). Includes `async.cl`/`async.ch` (Pure CARTAN Coroutines), `security.cl`/`security.ch` (VRAM write-locks and SWMR fences), `evolution.cl`/`evolution.ch` (Master Evolutionary Suite: ES + WANN + AZR + M2N2), `es_opt.cl`/`es_opt.ch` (Mirrored Evolution Strategies), `elm.cl`/`elm.ch` (Extreme Learning Machines zero-shot readout solve), `wann.cl`/`wann.ch` (Weight-Agnostic Neural Networks), `esn.cl`/`esn.ch` (Reservoir Computing), `dip.cl`/`dip.ch` (Deep Image Prior), `reasoning.cl`/`reasoning.ch` (Absolute Zero Reasoning compiler self-play), `optim.cl`/`optim.ch` (Finsler-Randers Riemannian natural gradients), `resonator.cl`/`resonator.ch` (Continuous Hopfield energy basins), `fusion.cl`/`fusion.ch` (M2N2 niche crossover, KnOTS SVD, SLERP, TIES, DARE), `distill.cl` (KL distillation), `hub.cl` (HuggingFace Hub), `tokenizer.cl` (Dynamic Gutenberg BPE tokenizer), and `vision.cl` (Computer Vision).
+- **Standard Library Ecosystem (`src/std/`)**: Native implementation files carry the `.cl` extension (CARTAN Library) while public declaration header files carry the `.ch` extension (CARTAN Header). Includes:
+  - `wgpu.cl` / `wgpu.ch`: Pure native WebGPU engine with double-buffered GDDR6 staging buffers, WGSL compute pipelines, branchless INT4 unpacking (`unpack4x8unorm` + `select`), and asynchronous GPU readback.
+  - `transformer.cl` / `transformer.ch`: Sovereign 42-layer causal transformer manifold, Grouped-Query Attention (GQA, 16 Q heads, 8 KV heads), SwiGLU MLP ($d_{ffn}=10240$), pinned contiguous KV cache arena, AVX2 INT8/INT4 SIMD dot products (`cartan_simd_dot_i4_f32`, `cartan_simd_dot_i8_f32`), and softcap LM head.
+  - `sqlite_vec.cl` / `sqlite_vec.ch`: Embedded SQLite WAL Tier 2 cognitive memory engine for 10 Cognitive Domains, JIT attribute retrieval, and episodic continuity.
+  - `cargraph.cl` / `cargraph.ch`: 64-byte cacheline-aligned flat binary storage engine (`CarGraphHeader`, CSR row pointers, CSR edge lists) for NSES knowledge graph.
+  - `nses_pipeline.cl` / `nses_pipeline.ch`: Master NSES pipeline orchestrator unifying CSR graph traversal, SAT solver, guardrails, plasticity, Burroughs lateral randomness, prompt scaffold, and veto gate.
+  - `domain_lexicon.cl`: Domain-specific symbolic lexicon and semantic category mappings.
+  - `burroughs.cl`: Burroughs lateral randomness, associative drift, and stochastic temperature annealing.
+  - `prompt_scaffold.cl`: Neuro-symbolic prompt assembly, guardrail injection, and context framing.
+  - `tokenizer.cl` / `tokenizer.ch`: Pure-CARTAN 262,144 SentencePiece BPE Trie engine with 16-byte aligned binary nodes (`bpe_encode`, `bpe_decode_token`), information content loss scaling, and Zipfian logit adjustment ($\text{logits}(w) - \gamma \cdot \text{IC}(w)$).
+  - `async.cl` / `async.ch`: Pure CARTAN Coroutines and cooperative multitasking.
+  - `security.cl` / `security.ch`: VRAM write-locks and SWMR fences.
+  - `evolution.cl` / `evolution.ch`: Master Evolutionary Suite (ES + WANN + AZR + M2N2).
+  - `es_opt.cl` / `es_opt.ch`: Mirrored Evolution Strategies.
+  - `elm.cl` / `elm.ch`: Extreme Learning Machines zero-shot readout solve.
+  - `wann.cl` / `wann.ch`: Weight-Agnostic Neural Networks.
+  - `esn.cl` / `esn.ch`: Reservoir Computing.
+  - `dip.cl` / `dip.ch`: Deep Image Prior.
+  - `reasoning.cl` / `reasoning.ch`: Absolute Zero Reasoning compiler self-play.
+  - `optim.cl` / `optim.ch`: Finsler-Randers Riemannian natural gradients.
+  - `resonator.cl` / `resonator.ch`: Continuous Hopfield energy basins and attractor relaxation.
+  - `fusion.cl` / `fusion.ch`: M2N2 niche crossover, KnOTS SVD, SLERP along Riemannian geodesics, TIES, and DARE.
+  - `distill.cl`: Teacher-Student KL divergence and sparse hierarchy distillation.
+  - `hub.cl`: HuggingFace Hub, safetensors parsing, and metadata deserialization.
+  - `vision.cl`: Computer Vision primitives, image decoding, and tensor conversion.
 
 - `backward(loss)` : Initiates static backward graph generation & autograd
 - `in` : Geometric manifold space declaration
@@ -71,6 +96,19 @@ A tensor exists within a specific mathematical space, which dictates how operati
 struct PoincaréDisk { const curvature = -1.0; }
 var embedding = tensor[1, 512] in PoincaréDisk; 
 ```
+
+### 4.5 Bare-Metal KV Cache Arena & Hardware Staging Buffers
+For high-throughput autoregressive inference and bounded memory footprint:
+1. **Pinned Contiguous KV Cache Arena (`src/std/transformer.cl`)**:
+   - Pre-allocated static physical memory blocks (`g_k_cache_arena`, `g_v_cache_arena`) sized for up to 131,072 context tokens ($24 \times L \times 1024 \times 4\text{ B}$).
+   - Zero-copy shared KV pointers across layers 24..41 directly referencing source layers 22/23 (`kv_source_layer`), eliminating redundant memory bandwidth.
+   - StreamingLLM Attention Sinks ($t \in [0, 3]$) + local sliding window ($t \in [\text{win\_start}, \text{max\_seq}-1]$, 256 tokens), bounding attention compute to $\le 260$ tokens indefinitely.
+2. **Double-Buffered GDDR6 Staging Buffers (`src/std/wgpu.cl`)**:
+   - Double-buffered ping-pong staging buffers (`g_wgpu_staging_buf_0` / `g_wgpu_staging_buf_1`, $\ge 1\text{ MB}$ each, `WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst`) for non-blocking asynchronous GPU readback.
+   - Branchless INT4 unpacking (`unpack4x8unorm` + `select`) in WebGPU WGSL compute shaders.
+3. **AVX2 256-Bit Vector SIMD Intrinsics (`src/cartanc/llvm_codegen.car`)**:
+   - `@cartan_simd_dot_i8_f32`: 256-bit `<32 x i8>` vector loads saturated across all 32 lanes per cycle.
+   - `@cartan_simd_dot_i4_f32`: 4-bit packed nibble vector dot products with AVX2 parallel sign extension and FMA accumulation.
 
 ## 5. Syntax Rules
 
@@ -127,6 +165,12 @@ To support physical simulations with zero allocations, Cartan provides fused ele
 * **Broadcasting Operators (`.+=`, `.-=`, `.*=`, `./=`, `.@=`)**: Instead of creating temporary tensors/arrays, these perform operations element-wise in-place.
 * **Vectorization Hints (`@simd`, `@inbounds`)**: Preceding a loop block, `@simd` instructs the LLVM compiler to vectorise loop lanes via loop metadata, and `@inbounds` flags the compiler to omit safety bounds checking for maximum bare-metal optimization.
 
+### 5.8 Asynchronous Terminal I/O & Non-Blocking Keyboard Polling
+Cartan provides low-latency interactive terminal capabilities:
+- **Non-Blocking Key Polling (`_kbhit` / `_getch`)**: Lowered in `llvm_codegen.car` with canonical `i32` ABI calling convention (`sitofp i32 %res to double`), preventing register clobbering in XMM0. Allows interactive execution loops to poll for user interruption (e.g. `/` key halting token generation) without blocking the thread pool.
+- **ANSI Escape Sequence Lowering (`\e` / `\E`)**: String literal scanner lowers `\e` and `\E` to ASCII 27 ESC, emitted directly into `\1b` global string constants in LLVM IR for rich terminal styling and dynamic in-place rotating ASCII animations (`\r`).
+- **Structured Buffering & Output Sanitization**: Supports buffered output mode suppressing sub-token streaming jitter and sanitizing internal protocol tokens (`<think>`, `<|channel>`, `</thought>`).
+
 ## 6. Continuous Multi-Modal Streams
 Rather than treating hardware inputs as blocking text files, Cartan uses `stream` for continuous read-to-learn cycles. A `stream` directly binds to a symbolic dimension in a function call, telling the Type Checker exactly where a dynamic variable originates.
 ```cartan
@@ -144,7 +188,11 @@ CARTAN compiles directly from source AST to native machine code via textual LLVM
 2. **Semantic Verification (`src/cartanc/type_checker.car`)**: Validates tensor dimensions, method calls, and symbol scopes.
 3. **AST Optimization Pass (`src/cartanc/optimizer.car`)**: Folds constant scalar arithmetic and simplifies control graphs.
 4. **LLVM IR Code Generation (`src/cartanc/llvm_codegen.car`)**: Emits structured, type-checked LLVM IR (`.ll`) featuring automatic pointer-to-float conversions (`as_float`), scientific float stabilization (`1.0e-06`), and DWARF debugging metadata (`!dbg`).
-5. **Native Linking & Vectorized Pass Pipeline (`tools/zig_wrapper.py`)**: Compiles `.ll` directly (with zero C source files linked) into standalone, zero-dependency native `.exe` executables.
+5. **Native Clang/LLD Linking Pipeline (`src/cartanc/main.car`)**: Pure-CARTAN compiler driver resolves host Clang/LLD directly and invokes native compilation:
+   ```cmd
+   clang -O2 -mavx2 -mfma -Wl,/FORCE:MULTIPLE -Wl,/STACK:67108864 <input.ll> -o <target.exe> -luser32 -lkernel32 -lshell32 -ladvapi32 -lOpenCL -lwgpu_native -lwinsqlite3
+   ```
+   Zero external Python, zero Zig wrapper dependencies.
 6. **In-Memory JIT Engine (`cartan_jit_eval`)**: Compiles and executes code on-the-fly for `cartanc run <file.car>` and the interactive REPL.
 
 *(Historical Note: The early `.aer` stack-based bytecode format served as an initial Phase 1 prototype and has been entirely superseded by direct native LLVM IR emission).*
@@ -323,4 +371,36 @@ spawn ModelAgent {
 
 ### 13.2 Asynchronous Message Handling
 Message handlers are defined using the `receive` keyword. Handlers match incoming message signatures, parsing parameters dynamically and executing safe local updates inside try-catch fault isolation boundaries.
+
+---
+
+## 14. Agentic Host Execution & Perceptual Tools
+
+CARTAN integrates native capabilities for autonomous agent systems, executing host system operations, web retrieval, and optical perception under strict capabilities-based sandboxing:
+
+### 14.1 Capabilities-Based Function Exposure (`@agent_accessible`)
+Functions and system utilities decorated with `@agent_accessible` are exposed to the agentic reasoning and tool dispatch engine:
+```cartan
+@agent_accessible
+fn read_file(path: string) -> string;
+
+@agent_accessible
+fn exec_command(cmd: string) -> string;
+```
+
+### 14.2 Host System Operations & Permission Sandboxing
+- **File System Operations**: `read_file(path)`, `write_file(path, content)`, `file_exists(path)`, `list_dir(dir)` implemented using bare-metal native file I/O with zero heap leaks.
+- **Subprocess Execution**: `exec_command(cmd)` executes host commands with real-time output capture.
+- **Permission Tiers**: Grounded in Domain 10 (`USERS_AND_RELATIONSHIPS`) cognitive memory:
+  - *Unverified Guests / Visitors*: Sandboxed strictly to `scratch/` directories; destructive shell commands and root file alterations rejected.
+  - *Authenticated Operators / Creators*: Unrestricted full-system capabilities.
+
+### 14.3 Multi-Modal Perceptual Tools
+- **Web Browsing (`browse_web`)**: Retrieves HTTP/HTTPS endpoints via native socket/WinINet channels, performing HTML entity decoding (`geomind_html_decode_entities`), script/style block stripping, tag elimination, and SSRF blacklist validation blocking loopback and private IP addresses.
+- **Desktop Screen OCR (`read_screen`)**: Captures primary monitor display via Win32 GDI attached to `winsta0\default`, executing hardware-accelerated text line recognition via WinRT `Windows.Media.Ocr.OcrEngine` in $< 0.4\text{ s}$.
+
+### 14.4 Tool Protocol & Autoregressive Re-injection
+- Emits structured tool calls in XML (`<tool_call:NAME param="val"/>` or `<tool_call:NAME>param</tool_call>`) and JSON formats.
+- Intercepts calls during autoregressive generation, halts decode, executes genuine native host operations (Strict Zero-Mock Rule), formats outputs as `<tool_response>...</tool_response>`, injects tokens into the active KV cache, and seamlessly resumes continuous autoregressive decode.
+
 

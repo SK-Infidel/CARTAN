@@ -5,7 +5,7 @@
 include "src/std/math.cl";
 include "src/std/tensor.cl";
 include "src/std/markov.cl";
-include "test/geomind/ising_state_machine.cl";
+include "Projects/geomind/ising_state_machine.cl";
 include "src/std/string.cl";
 include "src/std/fs.cl";
 

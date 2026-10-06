@@ -48,22 +48,22 @@ var g_bpe_vocab_size: float = 65536.0;
 var g_bpe_node_count: float = 0.0;
 var g_bpe_trie_initialized: float = 0.0;
 
-// Load binary Trie arena into contiguous memory (3.98 MB, 200,345 nodes, 65,536 tokens)
+// Load binary Trie arena into contiguous memory (12.96 MB, 600,386 nodes, 262,144 tokens)
 fn cartan_hub_init_bpe_trie_if_needed() -> float {
     if (g_bpe_trie_initialized == 1.0) { return 1.0; }
 
-    var bin_path = "test/geomind/trainingdata/geomind_vocab_262k.bin";
+    var bin_path = "Projects/geomind/trainingdata/geomind_vocab_262k.bin";
     if (cartan_file_exists(bin_path) == 0.0) {
-        bin_path = "../test/geomind/trainingdata/geomind_vocab_262k.bin";
+        bin_path = "../Projects/geomind/trainingdata/geomind_vocab_262k.bin";
     }
     if (cartan_file_exists(bin_path) == 0.0) {
         bin_path = "trainingdata/geomind_vocab_262k.bin";
     }
     if (cartan_file_exists(bin_path) == 0.0) {
-        bin_path = "test/geomind/trainingdata/geomind_vocab_65k.bin";
+        bin_path = "Projects/geomind/trainingdata/geomind_vocab_65k.bin";
     }
     if (cartan_file_exists(bin_path) == 0.0) {
-        bin_path = "../test/geomind/trainingdata/geomind_vocab_65k.bin";
+        bin_path = "../Projects/geomind/trainingdata/geomind_vocab_65k.bin";
     }
     if (cartan_file_exists(bin_path) == 0.0) {
         bin_path = "trainingdata/geomind_vocab_65k.bin";

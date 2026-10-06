@@ -16,100 +16,116 @@ $ErrorActionPreference = "Continue"
 # Target Catalog (All 88 Compiler Regression Suite Targets)
 # -----------------------------------------------------------------------------
 $TargetCatalog = @{
-    1  = @{ Name = "test_primitives"; File = "test/compiler_suite/test_primitives.car"; Run = $false; Negative = $false }
-    2  = @{ Name = "test_enums"; File = "test/compiler_suite/test_enums.car"; Run = $false; Negative = $false }
-    3  = @{ Name = "test_modules"; File = "test/compiler_suite/test_modules.car"; Run = $false; Negative = $false }
-    4  = @{ Name = "test_fail_syntax"; File = "test/compiler_suite/test_fail_syntax.car"; Run = $false; Negative = $true }
-    5  = @{ Name = "test_slices_tuples"; File = "test/compiler_suite/test_slices_tuples.car"; Run = $false; Negative = $false }
-    6  = @{ Name = "test_dlpack_slicing"; File = "test/compiler_suite/test_dlpack_slicing.car"; Run = $false; Negative = $false }
-    7  = @{ Name = "test_security_sandboxing"; File = "test/compiler_suite/test_security_sandboxing.car"; Run = $false; Negative = $false }
-    8  = @{ Name = "test_static_assert"; File = "test/compiler_suite/test_static_assert.car"; Run = $false; Negative = $false }
-    9  = @{ Name = "test_comptime_autograd"; File = "test/compiler_suite/test_comptime_autograd.car"; Run = $false; Negative = $false }
-    10 = @{ Name = "test_stdlib"; File = "test/compiler_suite/test_stdlib.car"; Run = $false; Negative = $false }
-    11 = @{ Name = "test_variadic_ret"; File = "test/compiler_suite/test_variadic_ret.car"; Run = $false; Negative = $false }
-    12 = @{ Name = "test_tensor_opt"; File = "test/compiler_suite/test_tensor_opt.car"; Run = $false; Negative = $false }
-    13 = @{ Name = "test_optimizer"; File = "test/compiler_suite/test_optimizer.car"; Run = $false; Negative = $false }
-    14 = @{ Name = "test_std_abstraction"; File = "test/compiler_suite/test_std_abstraction.car"; Run = $false; Negative = $false }
-    15 = @{ Name = "test_net_abstraction"; File = "test/compiler_suite/test_net_abstraction.car"; Run = $false; Negative = $false }
-    16 = @{ Name = "test_jit_engine"; File = "test/compiler_suite/test_jit_engine.car"; Run = $false; Negative = $false }
-    17 = @{ Name = "test_generics"; File = "test/compiler_suite/test_generics.car"; Run = $false; Negative = $false }
-    18 = @{ Name = "test_async_coroutines"; File = "test/compiler_suite/test_async_coroutines.car"; Run = $true; Negative = $false }
-    19 = @{ Name = "test_package_manager"; File = "test/compiler_suite/test_package_manager.car"; Run = $false; Negative = $false }
-    20 = @{ Name = "test_http_xml"; File = "test/compiler_suite/test_http_xml.car"; Run = $false; Negative = $false }
-    21 = @{ Name = "test_physics_math"; File = "test/compiler_suite/test_physics_math.car"; Run = $false; Negative = $false }
-    22 = @{ Name = "test_math_string_full"; File = "test/compiler_suite/test_math_string_full.car"; Run = $false; Negative = $false }
-    23 = @{ Name = "test_physics_geom_advanced"; File = "test/compiler_suite/test_physics_geom_advanced.car"; Run = $false; Negative = $false }
-    24 = @{ Name = "test_tokenizer"; File = "test/compiler_suite/test_tokenizer.car"; Run = $false; Negative = $false }
-    25 = @{ Name = "test_collections_ingest_env"; File = "test/compiler_suite/test_collections_ingest_env.car"; Run = $false; Negative = $false }
-    26 = @{ Name = "test_framework_layer2"; File = "test/compiler_suite/test_framework_layer2.car"; Run = $false; Negative = $false }
-    27 = @{ Name = "test_repl"; File = "test/compiler_suite/test_repl.car"; Run = $false; Negative = $false }
-    28 = @{ Name = "test_bindgen"; File = "test/compiler_suite/test_bindgen.car"; Run = $false; Negative = $false }
-    29 = @{ Name = "test_lsp"; File = "test/compiler_suite/test_lsp.car"; Run = $false; Negative = $false }
-    30 = @{ Name = "test_doc"; File = "test/compiler_suite/test_doc.car"; Run = $false; Negative = $false }
-    31 = @{ Name = "test_llvm_opt_pipeline"; File = "test/compiler_suite/test_llvm_opt_pipeline.car"; Run = $false; Negative = $false }
-    32 = @{ Name = "test_dist_parallelism"; File = "test/compiler_suite/test_dist_parallelism.car"; Run = $false; Negative = $false }
-    33 = @{ Name = "test_hf_hub"; File = "test/compiler_suite/test_hf_hub.car"; Run = $false; Negative = $false }
-    34 = @{ Name = "test_vision"; File = "test/compiler_suite/test_vision.car"; Run = $false; Negative = $false }
-    35 = @{ Name = "test_autotune"; File = "test/compiler_suite/test_autotune.car"; Run = $false; Negative = $false }
-    36 = @{ Name = "test_fusion_distill"; File = "test/compiler_suite/test_fusion_distill.car"; Run = $false; Negative = $false }
-    37 = @{ Name = "test_merge_model_weights"; File = "test/compiler_suite/test_merge_model_weights.car"; Run = $false; Negative = $false }
-    38 = @{ Name = "test_semantics_ic"; File = "test/compiler_suite/test_semantics_ic.car"; Run = $false; Negative = $false }
-    39 = @{ Name = "test_novel_ai_libs"; File = "test/compiler_suite/test_novel_ai_libs.car"; Run = $false; Negative = $false }
-    40 = @{ Name = "test_es_opt"; File = "test/compiler_suite/test_es_opt.car"; Run = $false; Negative = $false }
-    41 = @{ Name = "test_evolution_master"; File = "test/compiler_suite/test_evolution_master.car"; Run = $false; Negative = $false }
-    42 = @{ Name = "test_xml_ingest_pipeline"; File = "test/compiler_suite/test_xml_ingest_pipeline.car"; Run = $false; Negative = $false }
-    43 = @{ Name = "test_inductive_biases"; File = "test/compiler_suite/test_inductive_biases.car"; Run = $false; Negative = $false }
-    44 = @{ Name = "test_net_and_logger"; File = "test/compiler_suite/test_net_and_logger.car"; Run = $false; Negative = $false }
-    45 = @{ Name = "test_hopfield_buffer"; File = "test/compiler_suite/test_hopfield_buffer.car"; Run = $false; Negative = $false }
-    46 = @{ Name = "test_lie_streams"; File = "test/compiler_suite/test_lie_streams.car"; Run = $true; Negative = $false }
-    47 = @{ Name = "test_hebbian_plasticity"; File = "test/compiler_suite/test_hebbian_plasticity.car"; Run = $false; Negative = $false }
-    48 = @{ Name = "test_multimodal_grounding"; File = "test/compiler_suite/test_multimodal_grounding.car"; Run = $false; Negative = $false }
-    49 = @{ Name = "test_sleep_consolidation"; File = "test/compiler_suite/test_sleep_consolidation.car"; Run = $false; Negative = $false }
-    50 = @{ Name = "test_language_acquisition_cloze"; File = "test/compiler_suite/test_language_acquisition_cloze.car"; Run = $false; Negative = $false }
-    51 = @{ Name = "test_model_grafting"; File = "test/compiler_suite/test_model_grafting.car"; Run = $false; Negative = $false }
-    52 = @{ Name = "test_native_multimodal_io"; File = "test/compiler_suite/test_native_multimodal_io.car"; Run = $false; Negative = $false }
-    53 = @{ Name = "test_sasaki_brainstem_routing"; File = "test/compiler_suite/test_sasaki_brainstem_routing.car"; Run = $true; Negative = $false }
-    54 = @{ Name = "test_continuous_hopfield_recall"; File = "test/compiler_suite/test_continuous_hopfield_recall.car"; Run = $true; Negative = $false }
-    55 = @{ Name = "test_wordnet_taxonomy_dag"; File = "test/compiler_suite/test_wordnet_taxonomy_dag.car"; Run = $false; Negative = $false }
-    56 = @{ Name = "test_doubt_reflective_rewind"; File = "test/compiler_suite/test_doubt_reflective_rewind.car"; Run = $false; Negative = $false }
-    57 = @{ Name = "test_markov_conscious_agent"; File = "test/compiler_suite/test_markov_conscious_agent.car"; Run = $false; Negative = $false }
-    58 = @{ Name = "test_hybrid_resonant_transformer"; File = "test/compiler_suite/test_hybrid_resonant_transformer.car"; Run = $true; Negative = $false }
-    59 = @{ Name = "test_finsler_randers"; File = "test/compiler_suite/test_finsler_randers.car"; Run = $false; Negative = $false }
-    60 = @{ Name = "test_core_builtins"; File = "test/compiler_suite/test_core_builtins.car"; Run = $false; Negative = $false }
-    61 = @{ Name = "test_language_primitives"; File = "test/compiler_suite/test_language_primitives.car"; Run = $false; Negative = $false }
-    62 = @{ Name = "test_transforms_and_logic"; File = "test/compiler_suite/test_transforms_and_logic.car"; Run = $false; Negative = $false }
-    63 = @{ Name = "test_loops_and_primitives"; File = "test/compiler_suite/test_loops_and_primitives.car"; Run = $false; Negative = $false }
-    64 = @{ Name = "test_geometric_and_search_primitives"; File = "test/compiler_suite/test_geometric_and_search_primitives.car"; Run = $false; Negative = $false }
-    65 = @{ Name = "test_tensor_and_pointer_ops"; File = "test/compiler_suite/test_tensor_and_pointer_ops.car"; Run = $false; Negative = $false }
-    66 = @{ Name = "test_geometric_bridge_and_reflection"; File = "test/compiler_suite/test_geometric_bridge_and_reflection.car"; Run = $false; Negative = $false }
-    67 = @{ Name = "test_attention_fused_methods"; File = "test/compiler_suite/test_attention_fused_methods.car"; Run = $false; Negative = $false }
-    68 = @{ Name = "test_async_spawn_evolve"; File = "test/compiler_suite/test_async_spawn_evolve.car"; Run = $false; Negative = $false }
-    69 = @{ Name = "test_neuro_symbolic_jit"; File = "test/compiler_suite/test_neuro_symbolic_jit.car"; Run = $false; Negative = $false }
-    70 = @{ Name = "test_impl_trait_methods"; File = "test/compiler_suite/test_impl_trait_methods.car"; Run = $false; Negative = $false }
-    71 = @{ Name = "test_nses_language_domain"; File = "test/compiler_suite/test_nses_language_domain.car"; Run = $true; Negative = $false }
-    72 = @{ Name = "test_ns_rule_generator"; File = "test/compiler_suite/test_ns_rule_generator.car"; Run = $true; Negative = $false }
-    73 = @{ Name = "test_bulk_corpus_ingestion"; File = "test/compiler_suite/test_bulk_corpus_ingestion.car"; Run = $true; Negative = $false }
-    74 = @{ Name = "test_chat_train_nses_forward_integration"; File = "test/compiler_suite/test_chat_train_nses_forward_integration.car"; Run = $true; Negative = $false }
-    75 = @{ Name = "test_nses_logic_domain"; File = "test/compiler_suite/test_nses_logic_domain.car"; Run = $true; Negative = $false }
-    76 = @{ Name = "test_nses_decision_domain"; File = "test/compiler_suite/test_nses_decision_domain.car"; Run = $true; Negative = $false }
-    77 = @{ Name = "test_universal_domain_lexicon"; File = "test/compiler_suite/test_universal_domain_lexicon.car"; Run = $true; Negative = $false }
-    78 = @{ Name = "test_nses_epistemology_domain"; File = "test/compiler_suite/test_nses_epistemology_domain.car"; Run = $true; Negative = $false }
-    79 = @{ Name = "test_nses_compiler_domain"; File = "test/compiler_suite/test_nses_compiler_domain.car"; Run = $true; Negative = $false }
-    80 = @{ Name = "test_nses_universal_cognitive_domains"; File = "test/compiler_suite/test_nses_universal_cognitive_domains.car"; Run = $true; Negative = $false }
-    81 = @{ Name = "test_nses_software_engineering_domain"; File = "test/compiler_suite/test_nses_software_engineering_domain.car"; Run = $true; Negative = $false }
-    82 = @{ Name = "test_compiler_simd_tensor_math"; File = "test/compiler_suite/test_compiler_simd_tensor_math.car"; Run = $true; Negative = $false }
-    83 = @{ Name = "test_manifold_layer_alignment"; File = "test/compiler_suite/test_manifold_layer_alignment.car"; Run = $true; Negative = $false }
-    84 = @{ Name = "test_manifold_full_model_execution"; File = "test/compiler_suite/test_manifold_full_model_execution.car"; Run = $true; Negative = $false }
-    85 = @{ Name = "test_model_config_decoupling"; File = "test/compiler_suite/test_model_config_decoupling.car"; Run = $true; Negative = $false }
-    86 = @{ Name = "test_manifold_layer_streaming_pipeline"; File = "test/compiler_suite/test_manifold_layer_streaming_pipeline.car"; Run = $true; Negative = $false }
-    87 = @{ Name = "test_ns_gradient_supervision"; File = "test/compiler_suite/test_ns_gradient_supervision.car"; Run = $true; Negative = $false }
-    88 = @{ Name = "test_autodiff_backward_syntax"; File = "test/compiler_suite/test_autodiff_backward_syntax.car"; Run = $true; Negative = $false }
+    1  = @{ Name = "test_primitives"; File = "Projects/geomind/Testing-scratch/test_primitives.car"; Run = $false; Negative = $false }
+    2  = @{ Name = "test_enums"; File = "Projects/geomind/Testing-scratch/test_enums.car"; Run = $false; Negative = $false }
+    3  = @{ Name = "test_modules"; File = "Projects/geomind/Testing-scratch/test_modules.car"; Run = $false; Negative = $false }
+    4  = @{ Name = "test_fail_syntax"; File = "Projects/geomind/Testing-scratch/test_fail_syntax.car"; Run = $false; Negative = $true }
+    5  = @{ Name = "test_slices_tuples"; File = "Projects/geomind/Testing-scratch/test_slices_tuples.car"; Run = $false; Negative = $false }
+    6  = @{ Name = "test_dlpack_slicing"; File = "Projects/geomind/Testing-scratch/test_dlpack_slicing.car"; Run = $false; Negative = $false }
+    7  = @{ Name = "test_security_sandboxing"; File = "Projects/geomind/Testing-scratch/test_security_sandboxing.car"; Run = $false; Negative = $false }
+    8  = @{ Name = "test_static_assert"; File = "Projects/geomind/Testing-scratch/test_static_assert.car"; Run = $false; Negative = $false }
+    9  = @{ Name = "test_comptime_autograd"; File = "Projects/geomind/Testing-scratch/test_comptime_autograd.car"; Run = $false; Negative = $false }
+    10 = @{ Name = "test_stdlib"; File = "Projects/geomind/Testing-scratch/test_stdlib.car"; Run = $false; Negative = $false }
+    11 = @{ Name = "test_variadic_ret"; File = "Projects/geomind/Testing-scratch/test_variadic_ret.car"; Run = $false; Negative = $false }
+    12 = @{ Name = "test_tensor_opt"; File = "Projects/geomind/Testing-scratch/test_tensor_opt.car"; Run = $false; Negative = $false }
+    13 = @{ Name = "test_optimizer"; File = "Projects/geomind/Testing-scratch/test_optimizer.car"; Run = $false; Negative = $false }
+    14 = @{ Name = "test_std_abstraction"; File = "Projects/geomind/Testing-scratch/test_std_abstraction.car"; Run = $false; Negative = $false }
+    15 = @{ Name = "test_net_abstraction"; File = "Projects/geomind/Testing-scratch/test_net_abstraction.car"; Run = $false; Negative = $false }
+    16 = @{ Name = "test_jit_engine"; File = "Projects/geomind/Testing-scratch/test_jit_engine.car"; Run = $false; Negative = $false }
+    17 = @{ Name = "test_generics"; File = "Projects/geomind/Testing-scratch/test_generics.car"; Run = $false; Negative = $false }
+    18 = @{ Name = "test_async_coroutines"; File = "Projects/geomind/Testing-scratch/test_async_coroutines.car"; Run = $true; Negative = $false }
+    19 = @{ Name = "test_package_manager"; File = "Projects/geomind/Testing-scratch/test_package_manager.car"; Run = $false; Negative = $false }
+    20 = @{ Name = "test_http_xml"; File = "Projects/geomind/Testing-scratch/test_http_xml.car"; Run = $false; Negative = $false }
+    21 = @{ Name = "test_physics_math"; File = "Projects/geomind/Testing-scratch/test_physics_math.car"; Run = $false; Negative = $false }
+    22 = @{ Name = "test_math_string_full"; File = "Projects/geomind/Testing-scratch/test_math_string_full.car"; Run = $false; Negative = $false }
+    23 = @{ Name = "test_physics_geom_advanced"; File = "Projects/geomind/Testing-scratch/test_physics_geom_advanced.car"; Run = $false; Negative = $false }
+    24 = @{ Name = "test_tokenizer"; File = "Projects/geomind/Testing-scratch/test_tokenizer.car"; Run = $false; Negative = $false }
+    25 = @{ Name = "test_collections_ingest_env"; File = "Projects/geomind/Testing-scratch/test_collections_ingest_env.car"; Run = $false; Negative = $false }
+    26 = @{ Name = "test_framework_layer2"; File = "Projects/geomind/Testing-scratch/test_framework_layer2.car"; Run = $false; Negative = $false }
+    27 = @{ Name = "test_repl"; File = "Projects/geomind/Testing-scratch/test_repl.car"; Run = $false; Negative = $false }
+    28 = @{ Name = "test_bindgen"; File = "Projects/geomind/Testing-scratch/test_bindgen.car"; Run = $false; Negative = $false }
+    29 = @{ Name = "test_lsp"; File = "Projects/geomind/Testing-scratch/test_lsp.car"; Run = $false; Negative = $false }
+    30 = @{ Name = "test_doc"; File = "Projects/geomind/Testing-scratch/test_doc.car"; Run = $false; Negative = $false }
+    31 = @{ Name = "test_llvm_opt_pipeline"; File = "Projects/geomind/Testing-scratch/test_llvm_opt_pipeline.car"; Run = $false; Negative = $false }
+    32 = @{ Name = "test_dist_parallelism"; File = "Projects/geomind/Testing-scratch/test_dist_parallelism.car"; Run = $false; Negative = $false }
+    33 = @{ Name = "test_hf_hub"; File = "Projects/geomind/Testing-scratch/test_hf_hub.car"; Run = $false; Negative = $false }
+    34 = @{ Name = "test_vision"; File = "Projects/geomind/Testing-scratch/test_vision.car"; Run = $false; Negative = $false }
+    35 = @{ Name = "test_autotune"; File = "Projects/geomind/Testing-scratch/test_autotune.car"; Run = $false; Negative = $false }
+    36 = @{ Name = "test_fusion_distill"; File = "Projects/geomind/Testing-scratch/test_fusion_distill.car"; Run = $false; Negative = $false }
+    37 = @{ Name = "test_merge_model_weights"; File = "Projects/geomind/Testing-scratch/test_merge_model_weights.car"; Run = $false; Negative = $false }
+    38 = @{ Name = "test_semantics_ic"; File = "Projects/geomind/Testing-scratch/test_semantics_ic.car"; Run = $false; Negative = $false }
+    39 = @{ Name = "test_novel_ai_libs"; File = "Projects/geomind/Testing-scratch/test_novel_ai_libs.car"; Run = $false; Negative = $false }
+    40 = @{ Name = "test_es_opt"; File = "Projects/geomind/Testing-scratch/test_es_opt.car"; Run = $false; Negative = $false }
+    41 = @{ Name = "test_evolution_master"; File = "Projects/geomind/Testing-scratch/test_evolution_master.car"; Run = $false; Negative = $false }
+    42 = @{ Name = "test_xml_ingest_pipeline"; File = "Projects/geomind/Testing-scratch/test_xml_ingest_pipeline.car"; Run = $false; Negative = $false }
+    43 = @{ Name = "test_inductive_biases"; File = "Projects/geomind/Testing-scratch/test_inductive_biases.car"; Run = $false; Negative = $false }
+    44 = @{ Name = "test_net_and_logger"; File = "Projects/geomind/Testing-scratch/test_net_and_logger.car"; Run = $false; Negative = $false }
+    45 = @{ Name = "test_hopfield_buffer"; File = "Projects/geomind/Testing-scratch/test_hopfield_buffer.car"; Run = $false; Negative = $false }
+    46 = @{ Name = "test_lie_streams"; File = "Projects/geomind/Testing-scratch/test_lie_streams.car"; Run = $true; Negative = $false }
+    47 = @{ Name = "test_hebbian_plasticity"; File = "Projects/geomind/Testing-scratch/test_hebbian_plasticity.car"; Run = $false; Negative = $false }
+    48 = @{ Name = "test_multimodal_grounding"; File = "Projects/geomind/Testing-scratch/test_multimodal_grounding.car"; Run = $false; Negative = $false }
+    49 = @{ Name = "test_sleep_consolidation"; File = "Projects/geomind/Testing-scratch/test_sleep_consolidation.car"; Run = $false; Negative = $false }
+    50 = @{ Name = "test_language_acquisition_cloze"; File = "Projects/geomind/Testing-scratch/test_language_acquisition_cloze.car"; Run = $false; Negative = $false }
+    51 = @{ Name = "test_model_grafting"; File = "Projects/geomind/Testing-scratch/test_model_grafting.car"; Run = $false; Negative = $false }
+    52 = @{ Name = "test_native_multimodal_io"; File = "Projects/geomind/Testing-scratch/test_native_multimodal_io.car"; Run = $false; Negative = $false }
+    53 = @{ Name = "test_sasaki_brainstem_routing"; File = "Projects/geomind/Testing-scratch/test_sasaki_brainstem_routing.car"; Run = $true; Negative = $false }
+    54 = @{ Name = "test_continuous_hopfield_recall"; File = "Projects/geomind/Testing-scratch/test_continuous_hopfield_recall.car"; Run = $true; Negative = $false }
+    55 = @{ Name = "test_wordnet_taxonomy_dag"; File = "Projects/geomind/Testing-scratch/test_wordnet_taxonomy_dag.car"; Run = $false; Negative = $false }
+    56 = @{ Name = "test_doubt_reflective_rewind"; File = "Projects/geomind/Testing-scratch/test_doubt_reflective_rewind.car"; Run = $false; Negative = $false }
+    57 = @{ Name = "test_markov_conscious_agent"; File = "Projects/geomind/Testing-scratch/test_markov_conscious_agent.car"; Run = $false; Negative = $false }
+    58 = @{ Name = "test_hybrid_resonant_transformer"; File = "Projects/geomind/Testing-scratch/test_hybrid_resonant_transformer.car"; Run = $true; Negative = $false }
+    59 = @{ Name = "test_finsler_randers"; File = "Projects/geomind/Testing-scratch/test_finsler_randers.car"; Run = $false; Negative = $false }
+    60 = @{ Name = "test_core_builtins"; File = "Projects/geomind/Testing-scratch/test_core_builtins.car"; Run = $false; Negative = $false }
+    61 = @{ Name = "test_language_primitives"; File = "Projects/geomind/Testing-scratch/test_language_primitives.car"; Run = $false; Negative = $false }
+    62 = @{ Name = "test_transforms_and_logic"; File = "Projects/geomind/Testing-scratch/test_transforms_and_logic.car"; Run = $false; Negative = $false }
+    63 = @{ Name = "test_loops_and_primitives"; File = "Projects/geomind/Testing-scratch/test_loops_and_primitives.car"; Run = $false; Negative = $false }
+    64 = @{ Name = "test_geometric_and_search_primitives"; File = "Projects/geomind/Testing-scratch/test_geometric_and_search_primitives.car"; Run = $false; Negative = $false }
+    65 = @{ Name = "test_tensor_and_pointer_ops"; File = "Projects/geomind/Testing-scratch/test_tensor_and_pointer_ops.car"; Run = $false; Negative = $false }
+    66 = @{ Name = "test_geometric_bridge_and_reflection"; File = "Projects/geomind/Testing-scratch/test_geometric_bridge_and_reflection.car"; Run = $false; Negative = $false }
+    67 = @{ Name = "test_attention_fused_methods"; File = "Projects/geomind/Testing-scratch/test_attention_fused_methods.car"; Run = $false; Negative = $false }
+    68 = @{ Name = "test_async_spawn_evolve"; File = "Projects/geomind/Testing-scratch/test_async_spawn_evolve.car"; Run = $false; Negative = $false }
+    69 = @{ Name = "test_neuro_symbolic_jit"; File = "Projects/geomind/Testing-scratch/test_neuro_symbolic_jit.car"; Run = $false; Negative = $false }
+    70 = @{ Name = "test_impl_trait_methods"; File = "Projects/geomind/Testing-scratch/test_impl_trait_methods.car"; Run = $false; Negative = $false }
+    71 = @{ Name = "test_nses_language_domain"; File = "Projects/geomind/Testing-scratch/test_nses_language_domain.car"; Run = $true; Negative = $false }
+    72 = @{ Name = "test_ns_rule_generator"; File = "Projects/geomind/Testing-scratch/test_ns_rule_generator.car"; Run = $true; Negative = $false }
+    73 = @{ Name = "test_bulk_corpus_ingestion"; File = "Projects/geomind/Testing-scratch/test_bulk_corpus_ingestion.car"; Run = $true; Negative = $false }
+    74 = @{ Name = "test_chat_train_nses_forward_integration"; File = "Projects/geomind/Testing-scratch/test_chat_train_nses_forward_integration.car"; Run = $true; Negative = $false }
+    75 = @{ Name = "test_nses_logic_domain"; File = "Projects/geomind/Testing-scratch/test_nses_logic_domain.car"; Run = $true; Negative = $false }
+    76 = @{ Name = "test_nses_decision_domain"; File = "Projects/geomind/Testing-scratch/test_nses_decision_domain.car"; Run = $true; Negative = $false }
+    77 = @{ Name = "test_universal_domain_lexicon"; File = "Projects/geomind/Testing-scratch/test_universal_domain_lexicon.car"; Run = $true; Negative = $false }
+    78 = @{ Name = "test_nses_epistemology_domain"; File = "Projects/geomind/Testing-scratch/test_nses_epistemology_domain.car"; Run = $true; Negative = $false }
+    79 = @{ Name = "test_nses_compiler_domain"; File = "Projects/geomind/Testing-scratch/test_nses_compiler_domain.car"; Run = $true; Negative = $false }
+    80 = @{ Name = "test_nses_universal_cognitive_domains"; File = "Projects/geomind/Testing-scratch/test_nses_universal_cognitive_domains.car"; Run = $true; Negative = $false }
+    81 = @{ Name = "test_nses_software_engineering_domain"; File = "Projects/geomind/Testing-scratch/test_nses_software_engineering_domain.car"; Run = $true; Negative = $false }
+    82 = @{ Name = "test_compiler_simd_tensor_math"; File = "Projects/geomind/Testing-scratch/test_compiler_simd_tensor_math.car"; Run = $true; Negative = $false }
+    83 = @{ Name = "test_manifold_layer_alignment"; File = "Projects/geomind/Testing-scratch/test_manifold_layer_alignment.car"; Run = $true; Negative = $false }
+    84 = @{ Name = "test_manifold_full_model_execution"; File = "Projects/geomind/Testing-scratch/test_manifold_full_model_execution.car"; Run = $true; Negative = $false }
+    85 = @{ Name = "test_model_config_decoupling"; File = "Projects/geomind/Testing-scratch/test_model_config_decoupling.car"; Run = $true; Negative = $false }
+    86 = @{ Name = "test_manifold_layer_streaming_pipeline"; File = "Projects/geomind/Testing-scratch/test_manifold_layer_streaming_pipeline.car"; Run = $true; Negative = $false }
+    87 = @{ Name = "test_ns_gradient_supervision"; File = "Projects/geomind/Testing-scratch/test_ns_gradient_supervision.car"; Run = $true; Negative = $false }
+    88 = @{ Name = "test_autodiff_backward_syntax"; File = "Projects/geomind/Testing-scratch/test_autodiff_backward_syntax.car"; Run = $true; Negative = $false }
 }
 
 # -----------------------------------------------------------------------------
 # Sprint Preset Mapping
 # -----------------------------------------------------------------------------
 $SprintMapping = @{
+    541 = @(1, 2, 3, 4, 5, 18, 24, 31, 33, 34, 36, 37, 45, 46, 53, 54, 58, 74, 80, 82, 83, 84, 85, 86)
+    540 = @(1, 2, 3, 4, 5, 18, 24, 33, 34, 36, 37, 45, 46, 53, 54, 58, 74, 80, 82, 83, 84, 85, 86)
+    539 = @(1, 2, 3, 4, 5, 18, 24, 33, 34, 36, 37, 45, 46, 53, 54, 58, 74, 80, 82, 83, 84, 85, 86)
+    538 = @(1, 2, 3, 4, 5, 18, 24, 33, 34, 36, 37, 45, 46, 53, 54, 58, 74, 80, 82, 83, 84, 85, 86)
+    537 = @(1, 2, 3, 4, 5, 18, 45, 46, 53, 54, 58, 74, 80, 82, 83, 84, 85, 86)
+    536 = @(1, 2, 3, 4, 5, 18, 45, 46, 53, 54, 58, 82, 83, 84, 85, 86)
+    535 = @(1, 2, 3, 4, 5, 18, 45, 46, 53, 54, 58, 82, 83, 84, 85, 86)
+    534 = @(1, 2, 3, 4, 5, 18, 45, 46, 53, 54, 58, 82, 83, 84, 85, 86)
+    533 = @(1, 2, 3, 4, 5, 18, 45, 46, 53, 54, 58, 82, 83, 84, 85, 86)
+    532 = @(1, 2, 3, 4, 5, 18, 45, 46, 53, 54, 58, 82, 83, 84, 85, 86)
+    531 = @(1, 2, 3, 4, 5, 18, 45, 46, 53, 54, 58, 82, 83, 84, 85, 86)
+    530 = @(1, 2, 3, 4, 5, 18, 45, 46, 53, 54, 58, 82, 83, 84, 85, 86)
+    529 = @(1, 2, 3, 4, 5, 18, 45, 46, 53, 54, 58, 82, 83, 84, 85, 86)
+    528 = @(1, 2, 3, 4, 5, 18, 45, 46, 53, 54, 58, 82, 83, 84, 85, 86)
+    527 = @(1, 2, 3, 4, 5, 18, 45, 46, 53, 54, 58, 82, 83, 84, 85, 86)
+    526 = @(1, 2, 3, 4, 5, 18, 45, 46, 53, 54, 58, 82, 83, 84, 85, 86)
     525 = @(1, 2, 3, 4, 5, 18, 45, 46, 53, 54, 58, 82, 83, 84, 85, 86)
     524 = @(1, 2, 3, 4, 5, 18, 45, 46, 53, 54, 58, 82, 83, 84, 85, 86)
     523 = @(1, 2, 3, 4, 5, 18, 46, 53, 54, 58, 82, 83, 84, 85, 86)
@@ -186,7 +202,7 @@ else {
     $hasHopfield = $false
 
     foreach ($file in $modifiedFiles) {
-        if ($file -match 'test/compiler_suite/test_(\w+)\.car') {
+        if ($file -match 'Projects/geomind/Testing-scratch/test_(\w+)\.car') {
             # Direct edit to a test file
             foreach ($entry in $TargetCatalog.GetEnumerator()) {
                 if ($entry.Value.File -eq $file) {

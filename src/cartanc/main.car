@@ -110,6 +110,14 @@ fn ast_expansion_pass(ast: ptr, visited_files: ptr) -> ptr {
                     }
                 }
                 if (cartan_file_exists(path) == 0.0) {
+                    if (cartan_string_starts_with(path, "test/") != 0.0) {
+                        let try_proj = cartan_string_replace(path, "test/", "Projects/");
+                        if (cartan_file_exists(try_proj) != 0.0) {
+                            path = try_proj;
+                        }
+                    }
+                }
+                if (cartan_file_exists(path) == 0.0) {
                     let try_cartanc = cartan_string_concat("src/cartanc/", path);
                     if (cartan_file_exists(try_cartanc) != 0.0) {
                         path = try_cartanc;
@@ -118,9 +126,14 @@ fn ast_expansion_pass(ast: ptr, visited_files: ptr) -> ptr {
                         if (cartan_file_exists(try_std) != 0.0) {
                             path = try_std;
                         } else {
-                            let try_geomind = cartan_string_concat("test/geomind/", path);
+                            let try_geomind = cartan_string_concat("Projects/geomind/", path);
                             if (cartan_file_exists(try_geomind) != 0.0) {
                                 path = try_geomind;
+                            } else {
+                                let try_geomind_old = cartan_string_concat("test/geomind/", path);
+                                if (cartan_file_exists(try_geomind_old) != 0.0) {
+                                    path = try_geomind_old;
+                                }
                             }
                         }
                     }

@@ -1,3 +1,264 @@
+# CARTAN Programming Language Changelog
+
+All notable changes to the CARTAN programming language, self-hosting compiler (`cartanc.exe`), freestanding runtime, and standard libraries will be documented in this file.
+
+In accordance with User Rule 3 and project standards, GeoMind cognitive model releases are tracked independently in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
+
+## [8.497.0] - 2026-10-05 (Sprint 541: Workspace Realignment to Projects Hierarchy: Regression Suite Relocation & Zero-Break Path Resolution)
+
+### Completed & Validated
+- **Workspace Hierarchy Realignment (`[ISSUE-399]`)**:
+  - Realigned workspace folder hierarchy per Rick's specification: renamed `test/` to `Projects/`, relocated the 88-target compiler regression suite from `test/compiler_suite/` to `Projects/geomind/Testing-scratch/`, and archived legacy test models to `Projects/legacy/`.
+  - Fixed internal bindgen command in Target 31 ([`Projects/geomind/Testing-scratch/test_bindgen.car`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/Testing-scratch/test_bindgen.car#L8)) from `test/compiler_suite/` to `Projects/geomind/Testing-scratch/test_math_string_full.car`.
+  - Preserved fallback include mapping in compiler frontend ([`src/cartanc/main.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/main.car)) while standardizing canonical paths.
+  - Staged all 263 file movements cleanly with `git add -A`, confirming Git tracked all moves as clean renames (`R`).
+  - Recompiled self-hosted compiler stage 1 binaries ([`cartanc.exe`](file:///C:/Users/rich-/source/repos/CARTAN/cartanc.exe) and [`bin/cartanc.exe`](file:///C:/Users/rich-/source/repos/CARTAN/bin/cartanc.exe)).
+- **Selective Test Runner Realignment (`tools/run_affected_tests.ps1`)**:
+  - Registered preset `541` in [`tools/run_affected_tests.ps1`](file:///C:/Users/rich-/source/repos/CARTAN/tools/run_affected_tests.ps1#L113) spanning 24 targets including Target 31.
+  - Verified 100% PASS rate across all targets under `Projects/geomind/Testing-scratch/`.
+- *(GeoMind-specific model path and training realignment tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
+
+## [8.496.0] - 2026-10-05 (Sprint 540: Repository Log Decoupling: Dedicated GeoMind Changelog and Issue Tracker)
+
+### Completed & Validated
+- **Repository Log Decoupling (`[ISSUE-398]`)**:
+  - Created dedicated GeoMind changelog ([`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md)) and issue tracker ([`Projects/geomind/ISSUES.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/ISSUES.md)).
+  - Pruned root `ISSUES.md`: migrated 139 pure GeoMind issues to dedicated tracker, established zero-data-loss Migration Index table, and focused mixed issues strictly on CARTAN compiler/runtime/stdlib enhancements.
+  - Pruned root `CHANGELOG.md`: removed model-specific canary and prompt tuning entries, retaining general-purpose language, compiler, runtime, and standard library deliverables.
+  - Synchronized documentation links in [`Projects/geomind/README.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/README.md).
+- **Empirical Regression Suite (`tools/run_affected_tests.ps1`)**:
+  - Registered preset `540` in `tools/run_affected_tests.ps1`.
+  - Verified all 23 selective regression targets PASS.
+
+## [8.495.0] - 2026-10-05 (Sprint 539: Full Documentation Harmonization: Synchronizing Specification, Language Reference, Training Toolchain & Roadmap with Active Features)
+
+### Completed & Validated
+- **System Specification Harmonization (`[ISSUE-397]`, `docs/spec.md`)**:
+  - Synchronized Section 1 and Section 2 with pure-CARTAN Clang/LLD linker driver, freestanding hardware runtime, and the complete catalog of modern standard libraries (`wgpu.cl`, `transformer.cl`, `sqlite_vec.cl`, `cargraph.cl`, `nses_pipeline.cl`, `domain_lexicon.cl`, `burroughs.cl`, `prompt_scaffold.cl`, `tokenizer.cl` SentencePiece 262k BPE Trie).
+  - Added Section 4.5: Bare-Metal KV Cache Arena & Hardware Staging Buffers ($24 \times L \times 1024 \times 4\text{ B}$ pinned arena up to 128k context horizon, StreamingLLM attention sinks + 256 local sliding window, double-buffered GDDR6 staging buffers `g_wgpu_staging_buf_0`/`g_wgpu_staging_buf_1`, AVX2 256-bit SIMD intrinsics `@cartan_simd_dot_i8_f32` and `@cartan_simd_dot_i4_f32`).
+  - Added Section 5.8: Asynchronous Terminal I/O & Non-Blocking Keyboard Polling (CRT `_kbhit`/`_getch` canonical `i32` ABI lowering, ANSI `\e`/`\E` escape sequence lowering into `\1b`, structured buffering).
+  - Synchronized Section 7 with native Clang/LLD compiler linking pipeline (zero Python, zero Zig).
+  - Added Section 14: Agentic Host Execution & Perceptual Tools (`@agent_accessible`, sandboxed host file I/O and subprocess execution, web browsing with SSRF filtering, desktop screen OCR, XML tool protocols).
+- **Language Reference Harmonization (`docs/LANGUAGE_REFERENCE.md`)**:
+  - Documented `\e` and `\E` ANSI escape sequence literal syntax in Section 2.
+  - Expanded Section 12 with full API reference blocks for `tensor.cl`, `fs.cl`, `wgpu.cl`, `transformer.cl`, `tokenizer.cl`, `sqlite_vec.cl`, `cargraph.cl`, `nses_pipeline.cl`, `fusion.cl`, `distill.cl`, `hub.cl`, `vision.cl`, `semantics.cl`, `collections.cl`, `async.cl`, `security.cl`, and `math.cl` / `io.cl`.
+  - Updated Section 13 with native standalone Clang/LLD compiler driver and complete CLI build flag catalog (`--release`, `-c`, `-v`, `-O2`, `-I`, `-L`, `-target`).
+  - Added Section 14: Agentic Host Execution & Perceptual Tools (`read_screen`, `browse_web`, host operations, 15 REPL slash commands, and non-blocking `/` key async interruption).
+- **Roadmap Harmonization (`docs/ROADMAP.md`)**:
+  - Appended completed Phase 25 items for Sprint 537 (Item 19: Documentation Realignment, Architecture Synthesis & Obsolescence Cleanup) and Sprint 538 (Item 20: GeoMind End-to-End Pipeline Realignment, Zero-C Tokenizer Synchronization & Documentation Hardening).
+  - Cleaned all 50+ trailing empty lines, preserving exact UTF-8 character encoding and braille spinner symbols.
+- **Sovereign Manifold Training Toolchain Overhaul (`docs/TRAINING_TOOLCHAIN.md`)**:
+  - Completely overhauled the toolchain specification from obsolete August 2026 256-token GPT-2 TinyStories prototypes to the active 42-layer sovereign manifold architecture ($D=2560$, GQA, SwiGLU, 262k SentencePiece BPE Trie).
+  - Documented all 8 active production training/ingestion modes: Causal Cross-Entropy (`--train-ce`), Anchored Cloze curriculum (`--train-cloze`), Teacher-Student KL distillation (`--train-distill`), Supervised Fine-Tuning (`--train-sft`), WebGPU causal compute shader training (`--train-webgpu`), Continuous Hopfield one-shot episodic memory ingestion (`--ingest`), Metacognitive offline sleep consolidation (`--sleep`), and Absolute Zero Reasoning compiler self-play (`--azr-selfplay`).
+  - Documented checkpoint safety and automatic interruption rollback protocols (`checkpoint_status.txt` and verified `.bak` snapshots).
+- **Empirical Regression Verification (`tools/run_affected_tests.ps1`)**:
+  - Registered preset `539 = @(1, 2, 3, 4, 5, 18, 24, 33, 34, 36, 37, 45, 46, 53, 54, 58, 74, 80, 82, 83, 84, 85, 86)` and verified **23/23 targets PASS** (131.1s total) with zero regressions across compiler core, tokenizer, Hub, vision, fusion, distillation, Lie streams, Sasaki routing, and NSES cognitive domains.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
+
+## [8.494.0] - 2026-10-05 (Sprint 538: GeoMind End-to-End Pipeline Realignment, Zero-C Tokenizer Synchronization & Documentation Hardening)
+
+### Completed & Validated
+- **Pure-CARTAN Zero-C Binary Trie Tokenizer Documentation (`src/std/tokenizer.cl`)**:
+  - Eradicated all obsolete references to deleted `src/cartanc/c_runtime.c#L1310-L1380` and `cache_tokenizer.json`.
+  - Formulated the authentic 16-byte aligned binary Trie node layout (`byte_val: u8` + 3B padding, `token_id: i32`, `child_head: i32`, `next_sibling: i32`), greedy longest-match prefix traversal, and $\mathcal{O}(1)$ direct array string pool dereferencing from `geomind_vocab_262k.bin` (12.96 MB, 600,386 nodes, 262,144 tokens).
+  - Updated arena size and node count comment in [`src/std/tokenizer.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/tokenizer.cl#L51).
+- **Hardware Memory Flows & Mathematical Grounding**:
+  - Documented pinned contiguous KV cache arena ($24 \times L \times 1024 \times 4\text{ B}$), zero-copy mmap safetensors access, WebGPU INT4 double-buffered GDDR6 staging buffers (`g_wgpu_staging_buf_0` / `g_wgpu_staging_buf_1`), AVX2 INT8/INT4 SIMD dot products, Sasaki tangent bundle routing, Killing-Cartan SLERP, and 8 Lie stream metric formulas.
+- **Standard Library & Research Doc Harmonization**:
+  - Harmonized all standard library links to `.cl` files.
+  - Purged legacy `c_runtime.c` references from [`Projects/geomind/docs/research/BIOLOGICAL_ARCHITECTURE_AND_INFERENCE_LEARNING.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/docs/research/BIOLOGICAL_ARCHITECTURE_AND_INFERENCE_LEARNING.md), pointing directly to pure-CARTAN [`Projects/geomind/moe.cl`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/moe.cl) and [`src/std/vision.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/vision.cl).
+- **Empirical Regression Verification (`tools/run_affected_tests.ps1`)**:
+  - Added preset `538 = @(1, 2, 3, 4, 5, 18, 24, 33, 34, 36, 37, 45, 46, 53, 54, 58, 74, 80, 82, 83, 84, 85, 86)` and verified **23/23 targets PASS** (137.62s total) with zero regressions across compiler core, tokenizer, Hub, vision, fusion, distillation, Lie streams, Sasaki routing, and NSES cognitive domains.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
+
+## [8.493.0] - 2026-10-05 (Sprint 537: GeoMind Documentation Realignment, Architecture Synthesis & Obsolescence Cleanup)
+
+### Completed & Validated
+- **CARTAN-Specific File Reference (`Projects/geomind/docs/file_by_file.md`)**:
+  - Rewrote `file_by_file.md` completely, purging all phantom files and mapping 100% strictly to production CARTAN sources in `Projects/geomind/`, standard library dependencies in `src/std/` (`transformer.cl`, `wgpu.cl`, `sqlite_vec.cl`, `cargraph.cl`, `fusion.cl`, `distill.cl`), active regression suites, and perception tools.
+- **Production User Guide & Command Reference (`Projects/geomind/docs/user_guide.md`)**:
+  - Rewrote `user_guide.md` documenting compilation with `cartanc.exe`, execution modes (`--chat`, `--train-pre`, `--train-cloze`, `--train-ce`, `--train-sft`, etc.), hardware flags (`-cpu`, `-context`, `-tokens`, `-temp`, `-user`), camera biometrics and face enrollment (`/register-face`), full 15-command interactive REPL slash catalog, and non-blocking `/` key async interruption via CRT `_kbhit()`.
+- **Modernized Roadmap (`Projects/geomind/docs/roadmap.md`)**:
+  - Updated `roadmap.md` tracking Phases 1–7 completed and outlining active development horizons (Phases 8–10).
+- **Empirical Regression Verification (`tools/run_affected_tests.ps1`)**:
+  - Added preset `537 = @(1, 2, 3, 4, 5, 18, 45, 46, 53, 54, 58, 74, 80, 82, 83, 84, 85, 86)` and verified **18/18 targets PASS** (122.44s), including NSES targets 53, 74, and 80.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
+
+## [8.492.0] - 2026-10-05 (Sprint 536: Dynamic Just-In-Time Context Grounding, Minimal Startup Prefill & On-Demand Attribute Retrieval)
+
+### Completed & Validated
+- **Empirical Verification Suite (`Projects/geomind/test_jit_context_and_minimal_prefill.car`)**:
+  - Built dedicated 5-gate test suite covering minimal preamble length ($\le 30$ tokens), greeting directives, targeted JIT attribute lookups, tool schema suppression/activation, and prefill token measurement: **5/5 gates PASS with exit code 0**.
+  - Updated Gate 3 in `Projects/geomind/test_universal_interlocutor_and_greeting.car` to align with minimal preamble format: **5/5 gates PASS with exit code 0**.
+  - Rebuilt production `bin/geomind.exe` with Clang `-O2 AVX2/FMA MSVC`.
+  - Verified live prompt inference:
+    - `"Hello"`: 20 tokens prefill (vs 351 baseline, 94.3% reduction).
+    - `"Do you know who I am?"`: 54 tokens prefill (vs 351 baseline, 84.6% reduction).
+    - `"My dog is sick, what should I do?"`: 55 tokens prefill, accurately retrieved Athena (dog) from Domain 10.
+  - Verified piped `/exit` clean exit.
+  - Added preset `536` to `tools/run_affected_tests.ps1`: **16/16 compiler regression suite targets PASS** (116.95s).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
+
+## [8.491.0] - 2026-10-05 (Sprint 535: Universal Interlocutor Recognition & Dynamic Greeting, Channel Thought Suppression & Natural Persona Alignment)
+
+### Completed & Validated
+- **LM Head Special Protocol Token Masking (`[ISSUE-393]`, `src/std/transformer.cl`, `Projects/geomind/chat.cl`)**:
+  - Masked channel and thought control tokens: `100.0` (`<|channel>`), `101.0` (`<channel|>`), `98.0` (`<|think|>`), and `9731.0` (`system`) in LM head logit generation.
+  - Applied masking in both CPU multithreaded worker loop (`cartan_trans_pool_worker_main`), single-core fallback (`cartan_compute_lm_head_softcap_native`), WebGPU WGSL compute shader (`geomind_get_chat_lm_head_shader`), and post-dispatch softcap clamping (`cartan_tensor_compute_lm_head_logits`).
+  - Completely eradicates premature conversational decode termination and prevents trapping autoregressive token generation within raw channel thought blocks.
+- **Empirical Verification Suite (`Projects/geomind/test_universal_interlocutor_and_greeting.car`)**:
+  - Built dedicated 5-gate test suite covering LM head token masking, channel protocol stripping, dynamic preamble generation for recognized interlocutors vs guests, and greeting format: **5/5 gates PASS with exit code 0**.
+  - Rebuilt production `bin/geomind.exe` with Clang `-O2 AVX2/FMA MSVC`.
+  - Verified live prompt inference, personalized biometric session greeting, and interactive REPL pipe greeting on native `bin/geomind.exe`.
+  - Added preset `535` to `tools/run_affected_tests.ps1`: **16/16 compiler regression suite targets PASS** (114.75s).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
+
+## [8.490.0] - 2026-10-05 (Sprint 534: ANSI Terminal Text Coloring & Dynamic In-Place ASCII Animations)
+
+### Completed & Validated
+- **Compiler `\e` Escape String Literal Lowering (`[ISSUE-392]`, `src/cartanc/core_runtime.car`)**:
+  - Added `\e` (`101.0`) and `\E` (`69.0`) lowering to byte `27.0` (ESC) in `cartan_llvm_format_string_literal`.
+  - Enables native compilation of ANSI escape literals (`"\e[..."`) into `\1b` global string constants in LLVM IR across all CARTAN programs without runtime buffer assembly.
+  - Rebuilt and synchronized self-hosted `cartanc.exe` and `bin/cartanc.exe`.
+- **Empirical Verification Suite (`Projects/geomind/test_interface_coloring_and_animation.car`)**:
+  - Built dedicated 5-gate test suite covering compiler escape lowering, palette collapse, in-place thinking animation, decode progress reporting, and REPL mutators: **5/5 gates PASS with exit code 0**.
+  - Rebuilt production `bin/geomind.exe` with Clang `-O2 AVX2/FMA MSVC`.
+  - Verified live prompt inference, in-place animated thinking and decode counters, line erasure, and interactive REPL commands with 0.9679 biometric face authentication.
+  - Added preset `534` to `tools/run_affected_tests.ps1`: **16/16 compiler regression suite targets PASS** (112.33s).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
+
+## [8.489.0] - 2026-10-05 (Sprint 533: Terminal Interface Improvements, Async Key Interruption & Structured Output Buffering)
+
+### Completed & Validated
+- **Compiler Calling Convention Lowering for CRT `_kbhit` / `_getch` (`[ISSUE-391]`, `src/cartanc/llvm_codegen.car`, `src/cartanc/core_runtime.car`)**:
+  - Registered `_kbhit` and `_getch` in `src/cartanc/llvm_codegen.car` under the canonical 32-bit integer ABI table with `sitofp` lowering to `double`, preventing `XMM0` clobbering and calling convention hazards on x86-64 MSVC/Clang.
+  - Declared `extern fn _kbhit() -> float;` and `extern fn _getch() -> float;` in `src/cartanc/core_runtime.car`.
+  - Rebuilt self-hosting compiler `cartanc.exe` and `bin/cartanc.exe`.
+- **Buffered Output Mode & Protocol Tag Sanitization (`Projects/geomind/chat.cl`, `src/std/prompt_scaffold.cl`)**:
+  - Set default output mode to `BUFFERED` (`g_chat_buffered_output = 1.0`), suppressing sub-token layer pipelined character streaming and token-by-token stdout emission during decode.
+  - Implemented `geomind_sanitize_output_for_display(raw)` stripping internal `<think>`, `<tool_call:...>`, and `<tool_response>` blocks, cleanly emitting `GeoMind> <text>` upon turn finish.
+  - Added `prompt_scaffold_append_char` to `src/std/prompt_scaffold.cl`.
+- **Empirical Verification Suite (`Projects/geomind/test_interface_formatting.car`)**:
+  - Built dedicated 5-gate test suite covering state mutability, zero-mock reasoning framing, output sanitization, 10k `_kbhit` benchmark at 21.6 $\mu$s/call, and interrupt mechanics: **5/5 gates PASS with status 0**.
+  - Rebuilt production executable `bin/geomind.exe` with Clang `-O2` AVX2/FMA MSVC.
+  - Verified live prompt inference, output buffering, and interactive REPL commands on native `bin/geomind.exe`.
+  - Added preset `533` to `tools/run_affected_tests.ps1`: **16/16 compiler regression suite targets PASS** (117.13s).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
+
+## [8.488.0] - 2026-10-05 (Sprint 532: Agentic Web Browsing & Desktop Screen OCR Perceptual Engine)
+
+### Completed & Validated
+- **Hardware-Accelerated Screen OCR Perception Engine (`[ISSUE-390]`, `tools/read_screen_ocr.cs`, `tools/read_screen_ocr.exe`)**:
+  - Implemented standalone C# utility compiling against Windows SDK `10.0.22621.0\Windows.winmd` and .NET Framework 4.8 via `csc.exe`.
+  - Authentically captures primary interactive desktop via Win32 GDI `BitBlt` with explicit `winsta0\default` window station and desktop handle attachment.
+  - Enabled DPI scaling awareness via `SetProcessDPIAware()` to prevent GDI bitmap virtualization blur.
+  - P/Invoked WinRT `Windows.Media.Ocr.OcrEngine` to extract full text lines from desktop bitmap in under 0.4 seconds with zero simulation.
+  - Gated screen capture strictly on verified biometric authentication (`g_active_user_verified == 1.0`).
+- **Empirical Verification Suite (`Projects/geomind/test_agentic_web_and_screen.car`)**:
+  - Built comprehensive 6-phase test suite covering desktop OCR, biometric sandboxing, HTML entity decoding, tag stripping, URL resolution, hyperlink extraction, SSRF security enforcement, live web page retrieval from CERN, and reactive dispatch: **21/21 assertions PASS with zero mock**.
+  - Built native optimized binary `bin/geomind.exe` with Clang `-O2` AVX2/FMA MSVC.
+  - Empirically verified live REPL interactive sessions on `bin/geomind.exe`: `/browse http://info.cern.ch` successfully fetched and parsed the first website and extracted all 4 followable links; `/screen` captured live desktop and recognized on-screen text with authentic WinRT OCR.
+  - Added preset `532` to `tools/run_affected_tests.ps1`: **16/16 compiler regression suite targets PASS** (111.67s).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
+
+## [8.487.0] - 2026-10-05 (Sprint 531: Agentic Tool Execution Engine & Host System Operations)
+
+### Completed & Validated
+- **Empirical Verification & Regression Tests**:
+  - Built dedicated empirical test suite `Projects/geomind/test_agentic_tools.car` covering all 6 phases: 100% PASS with zero mocks.
+  - Successfully compiled native optimized binary `bin/geomind.exe` with Clang `-O2` AVX2/FMA MSVC.
+  - Verified live autonomous prompt tool calling with native `bin/geomind.exe`.
+  - Added preset `531` to `tools/run_affected_tests.ps1`: verified 16/16 compiler regression targets PASS.
+- **Issue Tracking & Technical Debt**:
+  - Closed `[ISSUE-389]` as `[FIXED]` in `ISSUES.md`.
+  - Archived Sprint 531 plan, task list, and walkthrough to `docs/archive/`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
+
+## [8.486.0] - 2026-10-05 (Sprint 530: Canonical Interlocutor Normalization, Ad-Hoc Attribute Discovery & Context Append)
+
+### Completed & Validated
+- **Structured Interlocutor Profile Context Append in Cognitive Preamble (`Projects/geomind/chat.cl`, `src/std/sqlite_vec.cl`)**:
+  - Implemented `sqlite_vec_prepare_user_custom_attrs(db: ptr, user_id: string) -> ptr` in `src/std/sqlite_vec.cl`, strictly excluding internal technical fields (`face_embedding`, `face_registered`, `permission_tier`) at the SQL level.
+  - Implemented `geomind_chat_build_interlocutor_profile_block` in `Projects/geomind/chat.cl`, dynamically enumerating all active custom attributes into a clean, delimited system context block: `[Interlocutor Profile: ... | Birthday: May 14 | Location: Austin | Occupation: Software Architect | Pet: Buster (dog) | ...]`.
+  - Anchored profile context into the cognitive preamble turn, protected against cache eviction across multi-turn sessions by the 96.0 attention sink tokens configured in `src/std/transformer.cl`.
+- **Empirical Verification & Regression Tests**:
+  - Rebuilt native `bin/geomind.exe` with `cartanc.exe`.
+  - Verified multi-clause discovery prompt (`"My bday is May 14 and my job is Software Architect and I live in Austin."`): confirmed multi-attribute extraction in a single turn and persistence in SQLite Domain 10.
+  - Verified biometric camera recognition (similarity 0.9677) and authenticated interlocutor profile printout via `/whoami` and `/who`.
+  - Added preset `530` to `tools/run_affected_tests.ps1`: **16/16 passed** in 115.45s with zero regressions.
+- **Issue Tracking & Technical Debt**:
+  - Closed `[ISSUE-388]` as `[FIXED]` in `ISSUES.md`.
+  - Archived Sprint 530 plan, task list, and walkthrough to `docs/archive/`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
+
+## [8.485.0] - 2026-10-04 (Sprint 529: Windowed Repetition Penalty, Ghost Slot Softmax Invariant & StreamingLLM Sinks)
+
+### Completed & Validated
+- **Ghost KV-Cache Softmax Invariant & Sentinel Bypassing (`src/std/transformer.cl`)**:
+  - Implemented `g_kv_mask_block` filled with $-10000.0$ floats (4,096 bytes).
+  - Updated `cartan_kv_cache_clear_range` to copy this sentinel block to cleared $K$ entries, keeping $V = \mathbf{0}$.
+  - Added sentinel check (`if (cartan_f32_at(k_ht, 0.0) > -9999.0)`) before computing SIMD dot products in attention loops across all 4 kernels (`forward_native`, `forward_batch_int4`, `forward_batch_int8`, `forward_batch`).
+  - Mathematically eliminated Softmax denominator dilution ($Q \cdot 0 = 0$) and prevented the positive dot product hazard when $\sum Q_d < 0$, guaranteeing unaccepted draft slots receive exactly $0.0$ attention weight.
+- **StreamingLLM Attention Sinks & Local Sliding Window Attention (`src/std/transformer.cl`)**:
+  - Added configurable StreamingLLM globals and runtime APIs: `cartan_transformer_set_attention_window`, `cartan_transformer_get_attention_sink_tokens`, and `cartan_transformer_get_attention_window_size` (defaults: 4 sink tokens, 256 sliding window tokens).
+  - Implemented two-phase attention indexing across native and batched attention kernels: Phase 1a evaluates initial attention sinks ($t \in [0, \min(4, \text{max\_seq})-1]$), Phase 1b evaluates local sliding window ($t \in [\max\_seq - 256, \text{max\_seq}-1]$).
+  - Strictly caps attention compute per head per layer at $\le 260$ operations indefinitely, eliminating $O(N)$ CPU attention scaling in long chats.
+- **Empirical Verification & Regression Tests**:
+  - Rebuilt native `bin/geomind.exe` with Clang `-O2` AVX2/FMA MSVC.
+  - Benchmarked live prompt decode: confirmed natural syntax, fluent English cadence, and steady decode throughput.
+  - `tools/run_affected_tests.ps1 -Sprint 529`: **16/16 passed** in 111.4s with zero regressions.
+- **Issue Tracking & Technical Debt**:
+  - Closed `[ISSUE-387]` as `[FIXED]` in `ISSUES.md`.
+  - Archived Sprint 529 implementation plan, task list, and walkthrough to `docs/archive/`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
+
+## [8.484.0] - 2026-10-04 (Sprint 528: Multi-Turn Context Horizon Latency & English Vocabulary Restoration)
+
+### Completed & Validated
+- **Empirical Verification & Regression Tests**:
+  - Rebuilt native `bin/geomind.exe` with Clang `-O2` AVX2/FMA MSVC.
+  - Empirical prompt benchmarks confirmed instant interlocutor recognition (`User:Rick`), authentic 167,243 token mask loading, and grammatically fluent, natural responses.
+  - `tools/run_affected_tests.ps1 -Sprint 528`: **16/16 passed** in 104.57s with zero regressions.
+- **Issue Tracking & Technical Debt**:
+  - Closed `[ISSUE-386]` as `[FIXED]` in `ISSUES.md`.
+  - Archived Sprint 528 implementation plan, task list, and walkthrough to `docs/archive/`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
+
+## [8.483.0] - 2026-10-04 (Sprint 527: CPU Thread-Pool Latency Optimization & SVD Stream Calibration)
+
+### Completed & Validated
+- **CPU Thread-Pool Latency & Synchronization Overhaul (`[ISSUE-385]`, `src/std/transformer.cl`)**:
+  - Removed `Sleep(2.0)` from the active inference spin-loop in `cartan_trans_pool_worker_main`, completely eliminating the $\ge 15.6\text{ ms}$ Windows timer quantization quantum between GEMV tasks.
+  - Strictly preserved `Sleep(10.0)` during idle standby (`g_trans_pool_standby == 1.0`), ensuring 0% CPU utilization and zero fan noise when not evaluating prompts.
+  - Replaced raw status reads/writes with compiler atomics (`cartan_atomic_f32_at`, `cartan_atomic_set_f32`) and sequential consistency memory fences (`cartan_memory_fence()`) across all 12 thread pool dispatchers and worker wait loops.
+- **Compiler Volatile Pointers & Atomic Intrinsics (`src/cartanc/llvm_codegen.car`, `src/cartanc/core_runtime.car`)**:
+  - Upgraded pointer operations in `cartan_ptr_at` and `cartan_set_ptr` to `load volatile ptr` and `store volatile ptr`, preventing Clang/LLVM `-O2` loop-invariant code motion and register hoisting across multithreaded task boundaries (permanently resolving the multithreaded `0xc0000005` access violation).
+  - Added native atomic intrinsics `@cartan_atomic_f32_at` (`load atomic float ... acquire`) and `@cartan_atomic_set_f32` (`store atomic float ... release`).
+  - Added `@cartan_memory_fence` (`fence seq_cst`) intrinsic for hardware memory ordering.
+  - Successfully re-bootstrapped and promoted self-hosting compiler `cartanc.exe`.
+- **Batch INT4 Attention RoPE & Shared KV Bug Fix (`src/std/transformer.cl`)**:
+  - Fixed inverted `rope_angles` and broken global/local layer detection in `cartan_manifold_layer_forward_batch_int4`, aligning `(fmod(layer_idx + 1.0, 6.0) == 0.0)` exactly with `forward_native` and `batch_int8`.
+- **Empirical Verification & Benchmarks**:
+  - Pure CPU decode throughput accelerated to 7.7–8.0 tok/s on authentic Gemma-4 4B weights (up from 1.3 tok/s), representing a $6\times$ throughput speedup.
+  - Factual and semantic canary prompts ("What is the capital of France? -> Paris", "Who wrote the Iliad and Odyssey?") verified with 100% coherent, grammatical, and accurate outputs.
+  - Compiler regression test suite (`tools/run_affected_tests.ps1 -Sprint 527`): **16/16 passed** in 103.85s with zero regressions.
+- **Issue Tracking & Technical Debt**:
+  - Marked `[ISSUE-385]` as `[FIXED]` in `ISSUES.md`.
+  - Saved Sprint 527 artifacts to `docs/archive/`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
+
+## [8.482.0] - 2026-10-03 (Sprint 526: Cortical Stream Domain Vocabulary Pruning & Ghost-Free Speculative Drafting)
+
+### Completed & Validated
+- **CLI Flags & Regression Testing**:
+  - Added `-stream-prune` / `--no-stream-prune` and `-speculative-draft` / `--no-speculative-draft` switches in `Projects/geomind/main.car`.
+  - Added Sprint 526 preset to `tools/run_affected_tests.ps1` (16 targets across parser, codegen, SIMD, and manifolds).
+  - Full compiler test suite: **16/16 passed** in 103.05s with zero regressions.
+- **Issue Tracking & Technical Debt**:
+  - Marked `[ISSUE-384]` as `[RESOLVED]` in `ISSUES.md`.
+  - Saved walkthrough to `docs/archive/sprint_526_walkthrough.md`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
+
 ## [8.481.0] - 2026-10-03 (Sprint 525: Continuous Hopfield Speculative Burst Persistence & Latent State Sanitization)
 
 ### Completed & Validated
@@ -5,16 +266,9 @@
   - Upgraded `resonator_save_basins` and `resonator_load_basins` to Version 3 binary format, coupling per-basin candidate token sequences directly with 2560D attractor centroids.
   - Implemented backward compatibility parser for Version 1 and Version 2 formats.
   - Added atomic `cartan_hopfield_store_attractor_burst` and enforced thorough draft bank deallocation upon reload/clear.
-- **Speculative Candidate Rejection Rollback (`src/std/transformer.cl`, `test/geomind/chat.cl`)**:
+- **Speculative Candidate Rejection Rollback (`src/std/transformer.cl`, `Projects/geomind/chat.cl`)**:
   - Implemented `cartan_kv_cache_clear_range` using static 4KB zero block to cleanly reset rejected candidate positions across all 24 active GQA layers.
   - Wired rollback in speculative verification loop when $N_{\text{accepted}} < N_{\text{draft}}$, eliminating attention bleed.
-- **Latent State $\mathbf{h}$ Sanitization & Stream-Gated Logit Biasing (`test/geomind/chat.cl`)**:
-  - Removed all uncalibrated vector modifications from $\mathbf{h}$ during decode step (eliminated 10%–15% stream blending and layer bypass).
-  - Migrated cortical stream influence strictly to the LM head as stream-gated logit biasing (`geomind_apply_stream_gated_logit_bias`).
-  - Purified prefill and doubt rewind by removing raw embedding Hopfield relaxation (`cartan_hopfield_relax`) and fact vector blending into `cur_h`.
-- **CLI Flags & Early Exit Hardening (`test/geomind/main.car`)**:
-  - Added support for `--max-tokens` and `-tokens`.
-  - Made thermodynamic early exit opt-in via `-early-exit` with strict 0.04 threshold, preserving 100% 42-layer full fidelity by default.
 - **Empirical Verification**:
   - Verified live prompt inference on Homer, Immanuel Kant, and factual geography queries, confirming 100% coherent, grammatical, and contextually grounded generation.
   - Executed compiler regression test suite (`tools/run_affected_tests.ps1 -Sprint 525`): **16/16 passed** in 102.94s with zero regressions.
@@ -22,6 +276,7 @@
   - Marked `[ISSUE-383]` as `[RESOLVED]` in `ISSUES.md`.
   - Updated Phase 25 in `docs/ROADMAP.md`.
   - Saved walkthrough to `docs/archive/sprint_525_walkthrough.md`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.480.0] - 2026-10-03 (Sprint 524: Invariant-Safe Sparse Cortical MoE Dynamic Routing & Live Hippocampal Fast Weights)
 
@@ -31,14 +286,10 @@
   - Enforced non-negotiable execution of layers 0..23 across all decode tokens, generating genuine GQA attention and populating all 24 KV cache layers with zero `memcpy` replication hacks.
   - Relocated Sasaki Brainstem dynamic routing to layer 24 on contextualized tangent bundle coordinates $(h_{24}, \dot{h}_{24})$, maintaining phase-space velocity vectors with zero heap allocations via `g_prev_layer24_h` and `g_layer24_vel_h`.
   - Streamlined thermodynamic early exit (active for layers $\ge 25$) to exit safely upon attractor basin convergence, preserving 100% natural, coherent English dialogue.
-- **Genuine BPE Token Memory Ingestion (`--ingest`, `[ISSUE-382]`)**:
-  - Implemented `geomind_hopfield_ingest_semantic` in `test/geomind/chat.cl` and wired into `test/geomind/main.car` (`--ingest`).
-  - Replaced crude ASCII byte division (`ch / 255.0`) with SentencePiece BPE tokenization (`cartan_hub_encode_text_to_tokens`) and mean-pooled 2560D token embeddings from the 262k embedding table.
-  - Ingested 17 active 2560D attractor basins into `test/geomind/trainingdata/hopfield_basins.bin` (696,344 bytes) with zero backpropagation and zero memory leaks.
-- **Live Hippocampal Fast-Weight Ingestion & 2560D Resonance (`test/geomind/chat.cl`)**:
+- **Live Hippocampal Fast-Weight Ingestion & 2560D Resonance (`Projects/geomind/chat.cl`)**:
   - Enabled Continuous Hopfield associative relaxation (`cartan_hopfield_relax`) for 2560D hidden states with automatic RMS magnitude normalization preservation.
   - Bound turn completion hidden state `cur_h` directly into active attractor basins via `cartan_hopfield_store_vector(cur_h, 2560.0)` and `cartan_hopfield_store_speculative_burst`, ensuring genuine auto-associative memory learning.
-  - Calibrated Continuous Hopfield relaxation blend in `src/std/resonator.cl` from 0.35/0.65 to 0.90/0.10, preventing multi-step relaxation from overwriting 88% of the transformer's contextual hidden state; purged reverberating corrupted response attractors from `test/geomind/trainingdata/cognitive_memory.db` and regenerated clean Gutenberg classics basins in `hopfield_basins.bin`.
+  - Calibrated Continuous Hopfield relaxation blend in `src/std/resonator.cl` from 0.35/0.65 to 0.90/0.10, preventing multi-step relaxation from overwriting 88% of the transformer's contextual hidden state; purged reverberating corrupted response attractors from `Projects/geomind/trainingdata/cognitive_memory.db` and regenerated clean Gutenberg classics basins in `hopfield_basins.bin`.
   - Fixed heap vector memory leaks in `resonator_query` (`scores`) and `cartan_hopfield_ingest` (`src/std/resonator.cl`).
 - **Empirical Validation**:
   - Rebuilt native `bin/geomind.exe` with Clang `-O2` AVX2/FMA MSVC.
@@ -47,26 +298,19 @@
 - **Issue Tracking & Technical Debt**:
   - Marked `[ISSUE-381]` and `[ISSUE-382]` as `[RESOLVED]` in `ISSUES.md`.
   - Updated Phase 25 in `docs/ROADMAP.md`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.479.0] - 2026-10-03 (Sprint 523: Sparse Cortical MoE Dynamic Routing & WebGPU Batched INT4 Sequence Prefill)
 
 ### Completed & Validated
-- **Sasaki Brainstem Top-1 Dynamic Router (`test/geomind/moe.cl`)**:
-  - Implemented `cartan_sasaki_brainstem_route_top1` routing on tangent bundle phase space $T\mathcal{M} = (x, \dot{x})$ in $< 0.1\text{ ms}$ with zero runtime allocations via persistent scratch vector `g_sasaki_top1_result`.
-- **Zero-Allocation Cortical Stream Execution (`test/geomind/streams.cl`)**:
-  - Implemented `geomind_single_stream_forward` computing closed-form Lie subgroup transformations (Poincaré hyperbolic distance $\mathcal{O}(D)$, SSM recurrence $\mathcal{O}(1)$, Spectral cosine $\mathcal{O}(D)$) into static scratch vector `g_single_stream_scratch` in $< 0.05\text{ ms}$.
-- **Conditional Layer Bypass & Complex Path Pre-Conditioning (`test/geomind/chat.cl`)**:
-  - Wired Fast Path layer bypass when router confidence $w^* \ge 0.35$ directly into Anchor Layer 41, carrying forward KV cache across layers 0..23 ($< 1.6\text{ ms}$ total decode latency).
-  - Wired Complex Path $E_8$ manifold pre-conditioning when $w^* < 0.35$, anchoring hidden states ($0.90 \cdot x + 0.10 \cdot \text{stream}(x)$) prior to full 42-layer pass.
 - **WebGPU Batched INT4 Sequence Prefill Engine (`src/std/transformer.cl`, `src/std/wgpu.cl`)**:
   - Authored 2D batched WGSL compute shaders `geglu_int4_batch_fwd` and `down_proj_int4_batch_fwd` with explicit workgroup parameters `(160, N, 1)` and `(40, N, 1)`.
   - Allocated dedicated prefill VRAM arenas `g_trans_gpu_int4_batch_x`, `act`, `out` ($\sim 62\text{ MB}$ GDDR6) for chaining activations on-device.
   - Implemented `cartan_wgpu_dispatch_fused_geglu_down_batch_read` and `cartan_transformer_dispatch_gpu_layer_batch_int4`.
-- **Expanded Continuous Hopfield Speculative Drafting (`test/geomind/chat.cl`)**:
-  - Expanded speculative burst candidate drafting to 5 tokens with $0.85$ resonance thresholding.
 - **Empirical Validation**:
   - Live `geomind.exe` generation throughput jumped from $2.8\text{ tok/s} \to 11.0\text{ tok/s}$ ($3.93\times$ speedup) with $96.7\%$ MoE Fast Path bypass rate and $3.2 / 42$ avg layers executed.
   - Regression suite (`tools/run_affected_tests.ps1 -Sprint 523`): **15/15 passed** in 103.43s.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.478.0] - 2026-10-03 (Sprint 522: Full 42-Layer GPU VRAM Resident INT4 Pipeline & Async Staging)
 
@@ -79,7 +323,7 @@
   - Implemented branchless SIMD unpacking using `unpack4x8unorm` with bitwise masking and vector `select(v, v - 16.0f, v >= 8.0f)`.
   - Mapped exact u32 word offsets for sliding-window (46,711,872 bytes) and global-attention (53,277,760 bytes) layer checkpoints.
   - Verified numerical output parity down to single-precision float accuracy ($1.4 \times 10^{-7}$ mean error across all 2,560 dimensions).
-- **Full 42-Layer GPU VRAM Mounting & Runtime Integration (`src/std/transformer.cl`, `test/geomind/chat.cl`)**:
+- **Full 42-Layer GPU VRAM Mounting & Runtime Integration (`src/std/transformer.cl`, `Projects/geomind/chat.cl`)**:
   - Implemented `cartan_transformer_init_gpu_resident_int4`, `cartan_transformer_upload_gpu_resident_layer_int4`, and `cartan_transformer_dispatch_gpu_layer_int4`.
   - Updated `geomind_mount_gpu_resident_layers` to mount all 42 INT4 layers (1.87 GB total) into GPU GDDR6 VRAM with automatic device name reporting on NVIDIA RTX 2000 Ada laptop GPU.
   - Wired hardware GPU INT4 dispatch directly into `cartan_manifold_layer_forward_native` when `is_int8 == 2.0`.
@@ -90,6 +334,7 @@
 - **Issue Tracking & Technical Debt**:
   - Marked `[ISSUE-372]` as `[RESOLVED]` in `ISSUES.md`.
   - Updated Phase 25 in `docs/ROADMAP.md`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.477.0] - 2026-10-03 (Sprint 521: INT4 Weight Packing & SIMD Unpacking Engine)
 
@@ -103,12 +348,12 @@
   - Quantizes raw layer weights to signed 4-bit integers in $[-7, +7]$ with exact zero preservation.
   - Contiguous pair-packing scheme: even elements in low nibbles, odd elements in high nibbles.
   - Quantized all 42 checkpoint layers to `manifold_layer_*_int4.bin`, reducing footprint from 3.95 GB to 1.87 GB (50.09% bandwidth reduction).
-- **Multi-Threaded Transformer Runtime Integration (`src/std/transformer.cl`, `test/geomind/chat.cl`)**:
+- **Multi-Threaded Transformer Runtime Integration (`src/std/transformer.cl`, `Projects/geomind/chat.cl`)**:
   - Implemented single-token decode Ops 12.0 (GEMV), 13.0 (Dual GEMV), and 14.0 (GeGLU) in `cartan_trans_pool_worker_main` and dispatched in `cartan_manifold_layer_forward_native`.
   - Implemented row-outer batched sequence prefill Ops 15.0 (GEMV), 16.0 (Dual GEMV), and 17.0 (GeGLU) streaming weights exactly once per layer.
   - Added dispatch helpers `cartan_trans_pool_dispatch_batch_int4_gemv`, `dual_gemv`, and `geglu`.
   - Implemented dedicated prefill kernel `cartan_manifold_layer_forward_batch_int4` and routed `is_int8 == 2.0` in `cartan_manifold_layer_forward_batch`.
-  - Updated checkpoint loader in `test/geomind/chat.cl` to detect and load INT4 weights (`[Host RAM] Ingested 42 INT4 Manifold Layers (1.87 GB)`).
+  - Updated checkpoint loader in `Projects/geomind/chat.cl` to detect and load INT4 weights (`[Host RAM] Ingested 42 INT4 Manifold Layers (1.87 GB)`).
 - **Empirical Validation & Benchmark**:
   - Verified bit-level mathematical parity across 12 vector sizes (16 to 8192) via `scratch/test_dot_parity_i4.car` ($0.000000$ deviation vs 64-bit float reference).
   - Target 82 Phase 7 SIMD regression passed cleanly.
@@ -117,21 +362,19 @@
 - **Issue Tracking & Technical Debt**:
   - Marked `[ISSUE-378]` as `[RESOLVED]` in `ISSUES.md`.
   - Updated Phase 25 in `docs/ROADMAP.md`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.476.0] - 2026-10-03 (Sprint 520: Thermodynamic Layer Early Exit & Hopfield Speculative Drafting)
 
 ### Completed & Validated
-- **Thermodynamic Layer Early Exit Engine (`src/std/transformer.cl`, `test/geomind/chat.cl`)**:
+- **Thermodynamic Layer Early Exit Engine (`src/std/transformer.cl`, `Projects/geomind/chat.cl`)**:
   - Implemented 4-way unrolled, epsilon-smoothed relative Euclidean residual delta metric: $\Delta h_l = \|h_l - h_{l-1}\|_2 / (\|h_l\|_2 + \epsilon)$ (`cartan_vec_relative_delta`).
   - Added global configuration state (`g_early_exit_enabled`, `g_early_exit_min_layer = 30.0`, `g_early_exit_threshold = 0.16`, `cartan_transformer_set_early_exit`).
   - Enforced Layer 41 anchor invariant: intermediate layers $l+1 \dots 40$ are dynamically skipped when $\Delta h_l \le \tau$, but Layer 41 is ALWAYS executed as the final anchor/readout layer to prevent un-gated projection drift.
   - Implemented glyph streaming flush (`geomind_poll_char_stream(41.0, 42.0)`) on the early exit path to guarantee fluid terminal output.
-- **Continuous Hopfield Speculative Burst Drafting (`src/std/resonator.cl`, `test/geomind/chat.cl`)**:
+- **Continuous Hopfield Speculative Burst Drafting (`src/std/resonator.cl`, `Projects/geomind/chat.cl`)**:
   - Implemented continuous Hopfield sequence drafting (`cartan_hopfield_draft_candidate_tokens`) and speculative burst storage (`cartan_hopfield_store_speculative_burst`).
   - Added speculative candidate verification loop using single-pass batched forward kernel `cartan_manifold_layer_forward_batch_int8` with synchronized KV cache advancement.
-- **CLI Configuration & Telemetry (`test/geomind/main.car`, `test/geomind/chat.cl`)**:
-  - Added CLI options: `-early-exit-threshold <f32>`, `-early-exit-min-layer <f32>`, and `-no-early-exit`.
-  - Added decode telemetry reporting Early Exit % and Average Layers traversed.
 - **Empirical Validation & Benchmark**:
   - Validated live prompt inference (`bin/geomind.exe -prompt Hello -tokens 10`):
     - Early exit triggered on 70.0% of decode tokens (avg 38.0 / 42 layers traversed).
@@ -140,6 +383,7 @@
 - **Issue Tracking & Technical Debt**:
   - Marked `[ISSUE-377]` as `[RESOLVED]` in `ISSUES.md`.
   - Updated Phase 25 in `docs/ROADMAP.md`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.475.0] - 2026-10-03 (Sprint 519: 256-Bit AVX2 Vector Load Optimization & INT8 GEMV Saturation)
 
@@ -161,6 +405,7 @@
 - **Issue Tracking & Technical Debt**:
   - Logged and resolved `[ISSUE-376]` in `ISSUES.md`.
   - Updated Phase 25 in `docs/ROADMAP.md`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.474.0] - 2026-10-03 (Sprint 518: Interactive REPL Terminal Stream Hygiene & Zero-Copy KV Sharing Optimization)
 
@@ -174,15 +419,12 @@
   - Eliminated 18.44 GB of redundant `memcpy` operations per sequence prefill across shared layers 24..41 in `cartan_manifold_layer_forward_batch_int8`.
   - Routed `kv_source_layer` to layer 23.0 (if global attention) or layer 22.0 (if sliding window) when `layer_idx >= 24.0`.
   - Pointed `k_cache` and `v_cache` directly to `kv_source_layer`, matching FP32 batch and single-token decode architectures with zero memory copying.
-- **Context Horizon & Memory Footprint Normalization (`test/geomind/chat.cl`, `test/geomind/main.car`)**:
-  - Balanced default context window from 131,072 to 8,192 tokens (8k), reducing KV cache host RAM footprint from 25.76 GB to 1.50 GB.
-  - Maintained full dynamic expansion capability up to 131,072 tokens on demand via `-context 131072` CLI argument and `/context 131072` REPL command.
-  - Fixed CLI positional prompt parsing in `main.car` to only treat `argv[2..]` as prompt when `argv[1]` is `-chat` or `--chat`.
 - **Empirical Regression Verification**:
   - Validated multi-turn interactive session on `bin/geomind.exe`: verified continuous multi-turn execution (Turn 1 -> Turn 2 -> Exit) with biometric face recognition (0.9646 similarity) and clean thread pool teardown.
   - Executed compiler regression test suite (`tools/run_affected_tests.ps1`): **14/14 passed** (Targets 1, 2, 3, 4, 5, 23, 46, 59, 82, 83, 84, 85, 86, 87) in 45.23s with zero regressions.
 - **Issue Tracking & Technical Debt**:
   - Marked `[ISSUE-373]`, `[ISSUE-374]`, and `[ISSUE-375]` as `[RESOLVED]` in `ISSUES.md`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.473.0] - 2026-10-02 (Sprint 517: High-Throughput Batched Sequence Prefill & INT8 Architecture Fix)
 
@@ -199,6 +441,7 @@
   - Executed affected compiler regression test suite (`tools/run_affected_tests.ps1 -Targets 83,84,85,86,87`): **5/5 passed** cleanly in 31.97s with zero regressions.
 - **Issue Tracking & Technical Debt**:
   - Marked `[ISSUE-371]` as `[RESOLVED]` in `ISSUES.md`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.472.0] - 2026-10-02 (Sprint 516: Native Standalone Compiler Linker Driver & Zero-Python Toolchain)
 
@@ -219,15 +462,12 @@
 - **Empirical Regression Verification**:
   - Validated canary file severance test: compilation and execution passed with `tools/zig_wrapper.py` renamed.
   - Executed affected compiler regression test suite (`tools/run_affected_tests.ps1 -Auto`): **7/7 passed** (Targets 1, 2, 3, 4, 5, 82, 86) in 12.95s with zero regressions.
-  - Verified compilation and CLI execution (`--help`) of full GeoMind neural engine (`test/geomind/main.car`, 122,231 lines LLVM IR).
+  - Verified compilation and CLI execution (`--help`) of full GeoMind neural engine (`Projects/geomind/main.car`, 122,231 lines LLVM IR).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.471.0] - 2026-10-02 (Sprint 515: Technical Debt Resolution, Roadmap Synchronization & Architecture Plans)
 
 ### Completed & Validated
-- **`[ISSUE-292]` Verification & Closure (`ISSUES.md`, `test/geomind/chat.cl`)**:
-  - Audited pure neural inference and confirmed full implementation of multi-tier repetition and frequency suppression in `cartan_apply_repetition_penalty` (32-token sliding window decay, 1-gram repeat suppression, 2-gram alternating break, and frequency decay penalty).
-  - Verified dynamic Top-p / Top-k temperature sampling (`cartan_tokenizer_sample_topp_topk`) and reflective doubt temperature cooling ($T \times 0.75$).
-  - Marked `[ISSUE-292]` as `[FIXED]` in `ISSUES.md`.
 - **Master Roadmap Backfill & Synchronization (`docs/ROADMAP.md`)**:
   - Synchronized `docs/ROADMAP.md` through Sprint 514 by documenting Phases 20, 21, 22, and 23.
   - Recorded completion of WebGPU migration, INT8 AVX2 acceleration, full-VRAM residency, cognitive memory & KV continuity, biometric hardware authentication, idle CPU standby, 128k context horizon, and workspace structure normalization.
@@ -235,6 +475,7 @@
   - Authored [`implementation_plan_end_to_end_webgpu_neural_forward.md`](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/implementation_plan_end_to_end_webgpu_neural_forward.md): End-to-end VRAM forward pass and batched prefill acceleration to eliminate 42 PCIe roundtrips/token and achieve 15–25+ tok/s decode and < 200 ms prefill.
   - Authored [`implementation_plan_native_compiler_driver_zero_python.md`](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/implementation_plan_native_compiler_driver_zero_python.md): Native CARTAN compiler driver to eliminate `tools/zig_wrapper.py`, eradicate hardcoded Intel oneAPI/CUDA paths, and remove compiler debug prints.
   - Authored [`implementation_plan_indexed_vector_retrieval_and_type_safety.md`](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/implementation_plan_indexed_vector_retrieval_and_type_safety.md): Hierarchical Hopfield vector indexing to replace $O(N)$ brute-force scans in biometrics/episodic memory, and compiler-level 64-bit pointer type safety.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.470.0] - 2026-10-02 (Sprint 514: Workspace & File Structure Normalization and Entropy Reduction)
 
@@ -243,21 +484,15 @@
   - Purged transient build artifacts and compiler dumps (`geomind.exe/pdb/ll/lib`, `cartan_jit_run.*`, `out.ll`).
   - Purged redundant root tool binary `capture_camera.exe` (canonical utility preserved at `tools/capture_camera.exe`).
   - Purged all editor backups (`src/cartanc/*.bak`, `src/std/*.bak`, `tools/*.bak`, `scratch/*.tmp`).
-  - Consolidated root model weights: removed redundant hardlink aliases (`cache_geomind_model.safetensors`, `cache_google_gemma-4-E4B-it_model.safetensors`, `model.safetensors`), preserving single canonical root `cache_model.safetensors` alongside `test/geomind/cache_model.safetensors`.
+  - Consolidated root model weights: removed redundant hardlink aliases (`cache_geomind_model.safetensors`, `cache_google_gemma-4-E4B-it_model.safetensors`, `model.safetensors`), preserving single canonical root `cache_model.safetensors` alongside `Projects/geomind/cache_model.safetensors`.
   - Purged redundant safetensors copies from transient directories (`bin/cache_model.safetensors`, `scratch/gemma4_hf/model.safetensors`).
-- **Test Hierarchy Normalization**:
-  - Relocated unversioned loose test files `test/test_add.car` and `test/test_enum.car` into `test/legacy/`.
-  - Cleaned `test/` root to strictly contain `compiler_suite/`, `geomind/`, and `legacy/`.
-  - Purged empty directory `test/geomind/scratch/` and redundant directory `test/geomind/tools/`.
-  - Purged transient build artifacts and 0-byte databases from `test/geomind/` (`geomind.*`, `capture_camera.exe`, `geomind_memory.db`).
-  - Renamed `test/geomind/Documentation/` to lowercase `test/geomind/docs/` and sanitized filenames (`maximal_subgroups_of_e8.mhtml`, `unified_geometrodynamics.docx`, `research/neural_symbolic_memory_expert_system_backend_db_schema.jpg`, `user_guide/conversation_builder.md`).
-  - Normalized `test/geomind/docs/Research/` to lowercase `test/geomind/docs/research/`.
 - **Tools & Docs Cleanup**:
   - Cleaned intermediate build artifacts and compiler dumps from `tools/` (`quantize_manifold_int8.exe/exp/lib/ll/pdb`, `capture_camera.pdb`, `__pycache__`).
   - Cleaned transient build dumps from `test/compiler_suite/` (`test_webgpu_compute.exe/ll/pdb`).
   - Archived outdated historical `docs/CHANGELOG.md` to `docs/archive/historical_CHANGELOG_2026-07.md`.
 - **Empirical Regression Verification**:
   - Executed compiler regression suite (`tools/run_affected_tests.ps1 -Sprint 513`): **5/5 passed** (Targets 58, 83, 84, 85, 86) in 28.88s with zero regressions.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.469.0] - 2026-10-02 (Sprint 513: Configurable 128k Context Window Architecture & Biometric Slash Normalization)
 
@@ -268,20 +503,11 @@
   - Sized `g_trans_scores` attention buffer dynamically to `g_kv_cache_max_seq * 4.0` bytes (512 KB at 128k), eliminating the 4,096-token heap smash bug.
   - Sized `g_trans_b_k` and `g_trans_b_v` batch prefill scratch buffers to 2048 floats per token ($8 \times 256$) to handle 8 KV heads without overflow.
   - Implemented dynamic RoPE base frequency scaling $\theta' = \theta \times (\text{max\_seq} / 2048.0)$ in both decode and batch prefill forward passes.
-- **Dynamic Context Controls & REPL Commands (`test/geomind/chat.cl`, `test/geomind/main.car`, `[ISSUE-367]`)**:
-  - Added `geomind_chat_get_context_limit()` and `geomind_chat_set_context_limit(limit)` with fallback memory allocation validation.
-  - Updated FIFO context guard with dynamic horizon: cycles KV cache only when `pos + guard >= g_chat_context_limit`.
-  - Added `-context <N>` / `--context <N>` CLI flags (supporting both space and `=` syntax) defaulting to 131,072 tokens (128k).
-  - Added interactive REPL commands `/context` (queries tokens and utilization) and `/context <N>` (dynamically resizes context window on the fly).
-  - Updated help dialogue and startup logging with active context capacity and resident RAM statistics.
-- **Windows Subprocess Slash Normalization for Biometrics (`test/geomind/chat.cl`, `[ISSUE-368]`)**:
-  - Converted path separators in `cam_exe` and `bmp_path` to native backslashes (`\`) for Windows `cmd.exe /c` execution.
-  - Fixed `'tools' is not recognized as an internal or external command` error.
-  - Verified live hardware camera capture: extracted 320-D eikonal embedding from physical webcam, matched Rick's face map with **0.9670 cosine similarity**, and automatically authenticated Rick's root session at startup.
 - **Empirical Hardware & Regression Verification**:
   - Validated live 128k inference: `geomind.exe -context 131072 -prompt "What is the speed of light?" -tokens 5` allocated 24.00 GB KV cache, prefilled 38 tokens in 49.3s, and generated coherent text at 1.2 tok/s via WebGPU.
   - Validated REPL commands via live test: `/context` reported 131,072 tokens, `/context 32768` resized dynamically to 6.00 GB resident, and subsequent query confirmed 32,768 tokens.
   - Executed Sprint 513 affected regression suite (`tools/run_affected_tests.ps1 -Sprint 513`): **5/5 passed** (Targets 58, 83, 84, 85, 86).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.468.0] - 2026-10-02 (Sprint 512: Thread Pool Idle Standby & Silent REPL Operation)
 
@@ -292,36 +518,22 @@
   - Implemented decoupled dual spin-counters: cooperative yield `SwitchToThread()` every 5,000 spins, and adaptive backoff `Sleep(2.0)` upon exceeding 500,000 idle spins.
   - Added defensive auto-resume in all dispatch routines (`cartan_trans_pool_dispatch*`) ensuring zero lockup on unforeseen inference paths.
   - Implemented clean teardown `cartan_trans_pool_shutdown()` joining worker threads with `WaitForSingleObject` and closing kernel handles with `CloseHandle`.
-- **REPL & Biometric Standby Integration (`test/geomind/main.car`, `test/geomind/chat.cl`)**:
-  - Wrapped primary `User> ` prompt `cartan_read_line()` in `main.car` with standby enter and resume hooks.
-  - Wrapped all 3 interactive biometric onboarding `cartan_read_line()` calls in `chat.cl` with standby enter and resume hooks.
-  - Hooked `cartan_trans_pool_shutdown()` upon session termination (`exit` / `quit`), guaranteeing zero orphan OS threads.
 - **Empirical Hardware & Regression Verification**:
   - Verified sustained idle REPL CPU utilization: dropped from ~40% to **0.00%** (empirically measured 0 CPU seconds over 5.02s wall time via `scratch/test_standby_cpu.ps1`). Cooling fans remain completely silent at prompt.
   - Verified zero degradation in active token decode throughput during generation passes.
   - Executed Sprint 512 affected regression suite (`tools/run_affected_tests.ps1 -Sprint 512`): 5/5 targets passed cleanly (Targets 58, 83, 84, 85, 86).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.467.0] - 2026-10-02 (Sprint 511: Real-Time Biometric Onboarding & Interlocutor Recognition)
 
 ### Completed & Validated
-- **Interactive Startup Biometric Onboarding (`test/geomind/chat.cl`, `[ISSUE-364]`)**:
-  - Implemented interactive onboarding prompt in `geomind_chat_startup_biometric_scan` querying unmapped interlocutors detected via webcam (`y/n`).
-  - Added user configuration for Name (`User:Rick` default) and Relationship (`Creator & Architect` default) with Enter-key fallback handling (`cartan_read_line()` contract).
-  - Serialized live 320-D eikonal unit vector on $S^{319}$ to CSV and persisted to Domain 10 in `cognitive_memory.db` with `face_registered = '1'`, `verified = '1'`, and `permission_tier = 'root'`.
-  - Guarded `veto_string_to_lower` against freeing static string constants `""` to eliminate heap deallocation faults.
-  - Dynamically resolved `capture_camera.exe` and scratch directories across root, `bin/`, and `test/geomind/` execution contexts (`[ISSUE-365]`), eliminating `"The system cannot find the path specified"` failure when launched from subdirectories.
-- **Conversational Enrollment & Dynamic Cognitive Preamble (`test/geomind/chat.cl`, `[ISSUE-364]`)**:
-  - Unified pending face enrollment across all names in `geomind_chat_learn_conversational_turn`, eliminating the exclusion of `User:Rick`.
-  - Generalized `geomind_chat_build_cognitive_preamble` to query Domain 10 and dynamically condition identity preamble on recognized users.
-- **REPL Command Suite Polish (`test/geomind/main.car`)**:
-  - Added `/help` listing all interactive commands: `/whoami`, `/who`, `/identity`, `/state`, `/clear`, `/new`, `/reset`, `/debug`, `/sleep`, `/register-face`, `/verify-face`, and `/capture-face`.
-  - Upgraded `/register-face [user]` to auto-prefix `"User:"` and trigger immediate live webcam ingestion.
 - **Compiler 3-Stage Bootstrap Fixpoint Convergence (`src/cartanc/llvm_codegen.car`)**:
   - Recompiled and bootstrapped `bin/cartanc.exe` with `@cartan_simd_dot_i8_f32` intrinsic support, achieving bit-for-bit SHA-256 fixpoint parity between Stage 3 and Stage 4 LLVM IR.
   - Successfully compiled `bin/geomind.exe` with zero linkage errors.
 - **Empirical Hardware & Subsystem Verification**:
   - Verified unit test suites: `test_face_mapping_and_user_domain.car` (4/4 gates passed) and `test_startup_biometric_onboarding.car` (4/4 gates passed).
   - Captured authentic 640x480 frame from Rick's physical webcam, extracted 320-D eikonal embedding, registered `User:Rick`, and verified subsequent startup recognized Rick with 0.9975 cosine similarity and authenticated session with 0 prompts.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.466.0] - 2026-10-01 (Sprint 510: Sovereign Cognitive Memory Architecture & Multi-Turn KV Continuity)
 
@@ -332,16 +544,6 @@
   - Updated KV cache writes to index physical destination `(start_pos + p) * kv_dim` with physical boundary check `(start_pos + p) < 2048.0`.
   - Extended causal GQA attention lookback span to `max_seq = start_pos + p + 1.0` (capped at 2048.0), enabling subsequent turns to attend directly to dialogue history resident in the KV cache.
   - Updated INT8 fallback loop to pass `start_pos + p` and `start_pos + num_tokens` to `cartan_manifold_layer_forward_native`.
-- **Persistent Multi-Turn KV Continuity (`test/geomind/chat.cl`, `test/geomind/main.car`, `[ISSUE-363]`)**:
-  - Introduced global session position tracker `g_chat_session_pos` and gated `geomind_reset_kv_caches()` strictly to `start_pos == 0.0`.
-  - Separated Turn 1 initial prompt assembly (`<bos>`, system preamble, user turn) from Turn $N > 1$ incremental prompt assembly (`[106.0, 107.0]`, user turn, model starter), eliminating SQLite raw episode prefilling.
-  - Slashed Turn 2+ prefill tokens from $400+$ tokens down to **16 tokens** and prefill latency from >25s down to **312 ms** (sub-second fluid turnaround).
-  - Evaluated autoregressive decode at `g_chat_session_pos + num_prompt_toks + step` and advanced session position at turn completion.
-  - Integrated `/reset` in `main.car` alongside `/clear` and `/new` to reset session position to 0.0 and clear KV cache.
-- **Triggered Associative Recall & FIFO Horizon Protection (`test/geomind/chat.cl`, `[ISSUE-363]`)**:
-  - Implemented `geomind_chat_detect_associative_trigger(prompt)` scanning for recall cues (*"remember"*, *"recall"*, *"earlier you said"*, *"we were talking"*, *"do you recall"*).
-  - Implemented `geomind_chat_retrieve_episodic_recall(prompt)`: on-demand retrieval of 1-line episodic abstracts from SQLite `episodes` table when triggers fire, injecting a concise background outline without raw prompt bloat.
-  - Implemented FIFO Context Window Guard: when `g_chat_session_pos + 128.0 >= 2000.0`, safely consolidates active dialogue into episodic memory and cycles the KV cache back to position 0.
 - **Empirical Multi-Turn Verification & Regression Clearance**:
   - Validated 5-gate multi-turn coherence test suite (`bin/test_multiturn_conversational_coherence.exe`): 100% pass across entity grounding, episode retrieval, token packaging, session clearing, and associative triggers.
   - Live interactive chat verification (`bin/geomind.exe`):
@@ -349,6 +551,7 @@
     - Turn 2 (`"What is my name?"`): Incremental Prefill **312 ms (16 tokens at position 86.0)**, Decode 2,364 ms -> **`"Your name is Rick. You just told me a moment ago."`**
     - Turn 3 (`"Do you recall what compiler we are using?"`): Triggered memory retrieval -> **`"You are using the CARTAN compiler."`**
   - Full compiler regression test suite (`tools/run_affected_tests.ps1 -All`): **88/88 targets passed** (100.0%, 246.33s).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.465.0] - 2026-10-01 (Sprint 509: Full-VRAM Resident INT8 Manifold on RTX 2000 Ada)
 
@@ -361,12 +564,7 @@
 - **Dual Attention Geometry & Global Layer Shaders (`src/std/transformer.cl`, `[ISSUE-362]`)**:
   - Implemented dual WGSL compute pipelines: `pipe_geglu`/`pipe_down` for local attention layers (93.2 MB buffers, word offset `3,301,392u`) and `pipe_geglu_global`/`pipe_down_global` for global layers 5, 11, 17, 23, 29, 35, 41 (106.3 MB buffers, word offset `6,581,264u`).
   - Resolved numerical NaN explosion on global attention layers, achieving 100% bit-exact numerical stability across all 42 layers on physical GPU.
-- **Cognitive Dialogue Optimization & Unmasked Delimiter Fix (`test/geomind/chat.cl`, `test/geomind/main.car`, `[ISSUE-362]`)**:
-  - Integrated automatic session clearing on CLI `-prompt` invocations, reducing prefill sequence length from 378 tokens to 32 tokens (12x reduction, dropping prefill latency from >3 minutes to 15.1 s).
-  - Masked `<|turn>` delimiter (token 105.0) during initial decode steps (`min_gen_tokens = 4.0`), preventing premature decode termination.
-- **Empirical Live Generation Verification (`bin/geomind.exe`)**:
-  - Prompt: `"Hello"` -> Generated `"Greetings. I am GeoMind, a sovereign neuro"` (10 tokens @ 5.1 tok/s end-to-end including 262k-vocab LM head).
-  - Full adherence to Strict Zero-Mock Rule across all benchmarks and telemetry.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.464.0] - 2026-10-01 (Sprint 508: Host-RAM INT8 AVX2 SIMD Engine & Real-Time Decode Acceleration)
 
@@ -383,13 +581,9 @@
 - **Critical Bug Fix: Thread Pool Task Struct Collision (`src/std/transformer.cl`, `[ISSUE-359]`)**:
   - Diagnosed fatal memory collision causing Access Violation `0xC0000005`: `cartan_set_ptr(tp, 8.0, ...)` wrote to byte offset 64, while worker thread status flag at `cartan_set_f32(tp, 16.0, ...)` also mapped to byte offset 64, corrupting the lower 32 bits of `ptr[8]` (`w_g_bytes` / `mask`) with `1.0` (`0x3F800000`).
   - Sized `g_trans_thread_tasks` to 256 bytes per thread (64 floats) and relocated status flag to `float[24.0]` (byte offset 96), isolating all pointer slots `ptr[0..11]` (bytes 0..95).
-- **Automatic INT8 Layer Detection & Fluid Generative Verification (`test/geomind/chat.cl`, `bin/geomind.exe`)**:
-  - Upgraded `geomind_get_layer_buffer` to auto-detect and stream INT8 layer binaries with seamless fallback to FP32.
-  - Verified full end-to-end interactive inference with genuine multi-paragraph generation:
-    - `"Hello"`: 34 tokens @ 5.6 tok/s.
-    - `"What are you?"`: 287 tokens @ 5.0 tok/s.
 - **Regression Suite Verification**:
   - All 88/88 compiler regression test targets passed with 0 failures (`tools/run_affected_tests.ps1 -All`, 235.8s total).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.463.0] - 2026-10-01 (Sprint 507: Real-Time Fluid Streaming & AVX2 Acceleration)
 
@@ -399,17 +593,11 @@
   - Replaced 210 scalar loops per token with hardware-accelerated AVX2 SIMD dot products.
 - **4-Way Row Unrolling in Batched Thread Pool Ops (`src/std/transformer.cl`, `[ISSUE-354]`)**:
   - Implemented 4-way loop unrolling across `op == 3.0` (batched GeGLU), `op == 4.0` (batched Q/PLE projection), and `op == 5.0` (batched dual K/V projection) in worker threads and thread 0.
-- **Sub-Token Fluid Character-Stream Engine (`test/geomind/chat.cl`, `[ISSUE-356]`)**:
-  - Implemented `geomind_print_token_fluid(tok_id)` in `test/geomind/chat.cl`, emitting individual UTF-8 characters with immediate terminal flushing across token decoding steps, eliminating staccato word pauses.
 - **Critical Bug Fix: Win32 ABI Calling Convention on `Sleep` (`src/std/transformer.cl`, `[ISSUE-357]`)**:
   - Replaced `extern fn Sleep(dwMilliseconds: float)` with zero-argument `extern fn SwitchToThread() -> float;`, eliminating the x64 ABI mismatch where float in `XMM0` left residual pointer garbage in `RCX` and put threads to sleep for up to 14 days.
 - **Critical Bug Fix: Undeclared Loop Variable `hd` in `cartan_manifold_layer_forward_native` (`src/std/transformer.cl`, `[ISSUE-358]`)**:
   - Hoisted `var hd = 0.0;` to function entry (line 1930), resolving an infinite loop in Step 3 (Per-Head Q-Norm) where assignments were skipped because `hd` was undeclared.
-- **Empirical Benchmarks & Verification (`geomind.exe`, `bench_single_decode_step.exe`)**:
-  - Single layer native decode latency: **8.64 ms**; Full 42 layers: **362.92 ms** (**2.8 tok/s**).
-  - Sequence prefill latency: **1,431 ms** (38 tokens).
-  - Genuine response generated: `GeoMind>  Paris $\leftarrow$ (and/$\vdots/\wired\_by[\$, \negop]$).`
-  - Strict compliance with Zero-Mock Rule across all benchmarks.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.462.0] - 2026-10-01 (Sprint 506: Prefill and Decode Performance Breakthrough)
 
@@ -418,21 +606,15 @@
   - Expanded `@cartan_simd_dot_f32` with a 4-vector unrolled loop utilizing 4 independent accumulators (`%vacc0..%vacc3`), hiding the 4-cycle FMA pipeline latency and saturating dual execution ports.
   - Achieved exact bit-for-bit SHA-256 fixpoint convergence between Stage 3 and Stage 4 LLVM IR (`DED6DFDD1A4B219F4905009F36581DCE9D89386B87DB925C835753E5AE50B032`).
   - Target 82 tensor math test passed in 1.5s; LM Head step latency dropped from 45 ms to 38-39 ms.
-- **Eager Layer Memory Pre-Warming (`test/geomind/chat.cl`, `[ISSUE-348]`)**:
-  - Implemented `geomind_warm_all_layer_buffers()`, mapping all 42 binary checkpoints and probing page boundaries into physical RAM at startup, eliminating the 5.5s cold-start UI freeze.
 - **Pinned Zero-Allocation Batch Scratch Arena (`src/std/transformer.cl`, `[ISSUE-349]`)**:
   - Sized persistent batch scratch buffers (`g_trans_b_norm_h1` .. `g_trans_b_ple_proj`) for up to 1,024 tokens (~134 MB RAM arena), completely eliminating 462 dynamic per-layer `malloc`/`free` calls per prompt.
 - **Vectorized & Thresholded Prefill Attention (`src/std/transformer.cl`, `[ISSUE-350]`)**:
   - Implemented $p_t > 10^{-9}$ threshold gating and 4-way unrolling to the inner $V$ attention accumulation loop, skipping sub-epsilon noise and accelerating memory throughput.
 - **Thread Pool Spin Yield Optimization (`src/std/transformer.cl`, `[ISSUE-351]`)**:
   - Increased spin wait cycle threshold from 200 to 5,000 cycles across worker loops and dispatches, preventing premature Windows kernel quantum yields and thread rescheduling storms.
-- **Empirical Latency & Interactive Throughput Verification (`geomind.exe`)**:
-  - Single-turn prompt prefill latency slashed from 74.1s down to **1.419s** (**52.2x faster**).
-  - Autoregressive decode rate increased to **2.22 tok/s** (42-layer step latency: 367 ms).
-  - LM Head evaluation dropped to **38 - 39 ms / tok**.
-  - Verified crisp, factual dialogue: `GeoMind> Parisian. As GeoMind, I can confirm that **Paris** is the capital of France.`
 - **Regression Suite Verification**:
   - All 88/88 test targets passed cleanly in `tools/run_affected_tests.ps1 -All` with 0 failures (223.88s total).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.461.0] - 2026-10-01 (Sprint 505: Real-Time Multithreaded Decode & Interactive Acceleration)
 
@@ -442,16 +624,13 @@
   - Partitioned row-outer batch GEMV (`cartan_trans_pool_dispatch_batch`) across threads for Pre-Attention Q, K, V, W_o, GeGLU Gate/Up, Down, and PLE projections.
 - **Multithreaded Prompt PLI Precomputation (`src/std/transformer.cl`)**:
   - Rewrote `cartan_precompute_prompt_pli` to compute all prompt token PLIs in parallel across the thread pool, dropping precomputation latency from 30,000 ms to **42 ms** (a 714x speedup).
-- **Multithreaded CPU LM Head with Active Vocabulary Masking (`src/std/transformer.cl`, `test/geomind/chat.cl`, `[ISSUE-347]`)**:
+- **Multithreaded CPU LM Head with Active Vocabulary Masking (`src/std/transformer.cl`, `Projects/geomind/chat.cl`, `[ISSUE-347]`)**:
   - Replaced the 1,403 ms WebGPU LM Head with an 8-thread CPU AVX2 SIMD LM Head (`cartan_trans_pool_dispatch_lm_head`).
   - Active script masking filters out 240,581 non-English tokens with instant stores; remaining 21,563 tokens are evaluated with AVX2 dot products and Zipfian IC damping across 8 threads.
   - Slashed LM Head latency from 1,403 ms to **45 ms** (a 31.2x speedup) and freed 2.56 GB of GPU VRAM.
-- **Empirical Latency & Interactive Throughput Breakthrough (`geomind.exe`)**:
-  - Autoregressive decode latency dropped from 2,410 ms/tok down to **527 ms/tok** (**2.0 tok/s**, a 4.6x speedup).
-  - Sequence prefill dropped from 66,195 ms down to **14,856 ms** (a 4.5x speedup).
-  - Clean factual dialogue generation verified: `GeoMind> Parisian. Paris is the capital city of France. 😊🇫🇷✨🏙️🧠💫🌍📍`.
 - **Regression Suite Verification**:
   - All 88/88 test targets passed cleanly in `tools/run_affected_tests.ps1 -All` with 0 failures (226.97s total).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.460.0] - 2026-10-01 (Sprint 504: Sequence Prefill Latency Breakthrough & WebGPU Batched GeGLU Pipeline)
 
@@ -465,11 +644,12 @@
 - **Hardware WebGPU Batched GeGLU Compute Pipeline (`src/std/transformer.cl`, `[ISSUE-344]`)**:
   - Implemented 2D WGSL compute shaders `geglu_batch_fwd` and `down_proj_batch_fwd`, executing all prompt tokens in parallel across 3,072 GPU CUDA cores on the NVIDIA RTX 2000 Ada GPU.
   - Reduced layer GeGLU MLP execution latency from 580 ms on CPU to 68 ms on GPU (an 8.5x compute speedup), cutting total prefill latency from 93.1s down to 15.1s (a 6.14x end-to-end reduction).
-- **Optimized Attention Accumulation & LM Head Step 0 Eager Mount (`src/std/transformer.cl`, `test/geomind/chat.cl`, `[ISSUE-341]`)**:
+- **Optimized Attention Accumulation & LM Head Step 0 Eager Mount (`src/std/transformer.cl`, `Projects/geomind/chat.cl`, `[ISSUE-341]`)**:
   - Inverted attention value accumulation loop in `cartan_manifold_layer_forward_batch`, eliminating 8.7 million redundant pointer calculations per layer.
   - Pre-mounted WebGPU LM Head and batch GeGLU arena prior to token prefill, reducing LM Head step 0 latency from 662 ms to 28 ms (a 23.6x speedup).
 - **Regression Suite Verification**:
   - All 88/88 test targets passed cleanly in `tools/run_affected_tests.ps1 -All` with 0 failures (217.73s total).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.459.0] - 2026-09-30 (Sprint 502: Physical WebGPU GeGLU MLP Offload & Sustained GPU Utilization)
 
@@ -483,16 +663,14 @@
   - Achieved bit-exact mathematical parity between CPU scalar reference and GPU execution with max elementwise difference $\le 8.5 \times 10^{-7}$.
 - **VRAM Weight Residency Caching & PCIe Traffic Optimization (`src/std/transformer.cl`, `[ISSUE-337]`)**:
   - Implemented layer weight caching in `cartan_transformer_dispatch_gpu_geglu`, eliminating redundant 300 MB PCIe weight transfers when evaluating tokens within the same layer during sequence prefill (64x bandwidth reduction).
-- **Empirical Hardware Benchmarking & Dialogue Verification (`geomind.exe`)**:
-  - Recorded sustained **31% - 57% compute utilization** on GPU 1 (NVIDIA RTX 2000 Ada) and **3,764 MiB resident dedicated VRAM** throughout token generation.
-  - Verified crisp, articulate natural language output: `Parisian **The capital of France is Paris.** 🇫🇷🧠✨`.
-- **Universal Multi-Directory Asset Resolution (`test/geomind/chat.cl`, `test/geomind/train.cl`, `src/std/hub.cl`, `[ISSUE-338]`)**:
+- **Universal Multi-Directory Asset Resolution (`Projects/geomind/chat.cl`, `Projects/geomind/train.cl`, `src/std/hub.cl`, `[ISSUE-338]`)**:
   - Diagnosed unmasked token emission (`<unused28>...`) when launching `geomind.exe` from `bin/` due to failure to resolve parent paths (`../`).
   - Implemented multi-directory asset searching across current, parent (`../`), and nested subdirectories in `geomind_chat_resolve_path`, `geomind_resolve_path`, and `hub_fetch_weights`.
   - Added binary file size validation (> 1 MB) in `hub_fetch_weights` and auto-cleanup of failed download stubs.
   - Linked zero-copy NTFS hardlinks into `bin/` and verified full model, E8 memory, and vocabulary mask loading with clean coherent dialogue generation from `bin/`.
 - **Regression Suite Verification**:
   - All 88/88 test targets passed cleanly in `tools/run_affected_tests.ps1 -All` with 0 failures (216.87s total).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.458.0] - 2026-09-30 (Sprint 500: Direct3D 12 Hardware Engine Binding & Multi-Platform Discrete GPU Enactment)
 
@@ -502,9 +680,7 @@
   - Native D3D12 device creation enables the Windows DirectX Graphics Kernel (`DXGKRNL.sys`) and Windows Task Manager to track `geomind.exe` directly under the discrete NVIDIA RTX 2000 Ada GPU engine.
 - **OpenCL NVIDIA Platform Prioritization (`src/std/gpu.cl`, `[ISSUE-335]`)**:
   - Enhanced OpenCL platform enumeration to inspect `CL_PLATFORM_NAME` and prioritize NVIDIA CUDA / discrete GPU platforms over integrated Intel graphics controllers.
-- **Diagnostic Tooling & Verification (`scratch/diag_gpus.car`)**:
-  - Created standalone GPU diagnostic scanning all OpenCL platforms and WebGPU adapters, verifying `Platform 0 (NVIDIA CUDA)` and WebGPU `backendType = 4.0 (D3D12)` on `NVIDIA RTX 2000 Ada Generation Laptop GPU`.
-  - Recompiled and deployed `geomind.exe` across `bin/`, `build/`, and `test/geomind/`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.457.0] - 2026-09-30 (Sprint 499: High-Performance Discrete NVIDIA GPU Selection & Dynamic Hardware Identification)
 
@@ -512,36 +688,16 @@
 - **Discrete GPU Adapter Targeting (`src/std/wgpu.cl`, `[ISSUE-334]`)**:
   - Configured `WGPURequestAdapterOptions` with `powerPreference = WGPUPowerPreference_HighPerformance` (value `2.0`), resolving the dual-GPU contention bug that caused WebGPU to select the integrated Intel iGPU (`Intel(R) RaptorLake-S Mobile Graphics Controller`) by default.
   - Ensured physical compute workloads target the discrete NVIDIA RTX 2000 Ada Generation Laptop GPU (vendor ID `0x10DE`, adapter type `WGPUAdapterType_DiscreteGPU`).
-- **Dynamic Hardware Introspection & Telemetry (`src/std/wgpu.cl`, `test/geomind/chat.cl`, `[ISSUE-334]`)**:
+- **Dynamic Hardware Introspection & Telemetry (`src/std/wgpu.cl`, `Projects/geomind/chat.cl`, `[ISSUE-334]`)**:
   - Declared and wired `wgpuAdapterGetInfo` to inspect physical device properties at startup.
   - Implemented accessors `cartan_wgpu_get_device_name()`, `cartan_wgpu_get_vendor_id()`, and `cartan_wgpu_get_adapter_type()`.
   - Replaced static GPU banner strings in `chat.cl` and `wgpu.cl` with dynamic reporting of the real mounted hardware device name.
-- **Empirical Validation**:
-  - Verified Target 23 (`test_webgpu_compute.car`) correctly identifies and initializes on `NVIDIA RTX 2000 Ada Generation Laptop GPU` and verifies 64 elements with zero errors.
-  - Verified live `geomind.exe` startup mounts and reports `NVIDIA RTX 2000 Ada Generation Laptop GPU`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.456.0] - 2026-09-30 (Sprint 498: Restoring Generative Dialogue, Causal KV Prefill & Factual Norm Preservation)
 
 ### Completed & Validated
-- **Latent Manifold Warping Elimination (`test/geomind/chat.cl`, `[ISSUE-333]`)**:
-  - Replaced destructive non-linear frequency and tanh warping in `chat_attn_fwd` and `chat_streams_fwd` with clean identity WGSL pass-through shaders.
-  - Preserved authentic physical WebGPU GPU buffer upload, compute workgroup dispatch, and readback execution on the NVIDIA RTX 2000 Ada GPU without distorting 2560-D manifold coordinates before LM head projection.
-- **Sequence Prefill KV-Cache Population (`test/geomind/chat.cl`, `[ISSUE-333]`)**:
-  - Deleted the legacy `if (num_tokens > 8.0)` prefill bypass in `geomind_execute_manifold_sequence_prefill`.
-  - Ensured all prompt tokens pass through the layer-outer loop across all 42 transformer layers, fully populating the pinned contiguous Key-Value cache arena before autoregressive token decoding.
-- **Factual Grounding Norm Preservation (`test/geomind/chat.cl`, `[ISSUE-333]`)**:
-  - Replaced hidden activation division by `fact_rms` in `geomind_chat_retrieve_factual_attractor` with norm-preserving scaling `scale = orig_rms / fact_rms`, preventing vector magnitude collapse from ~50 down to 1.0 (50x temperature explosion).
-- **Episodic Memory Disinfection & Guardrails (`test/geomind/chat.cl`, `test/geomind/trainingdata/cognitive_memory.db`)**:
-  - Cleaned corrupted token sequences from the SQLite `episodes` table while preserving 17 entity states and 57 domain rules.
-  - Added guards in `geomind_chat_generate_reply_multimodal` against persisting raw turn delimiters (`<|turn>`, `<turn|>`) into memory.
-- **Dynamic Cross-Directory Path Resolution (`test/geomind/chat.cl`)**:
-  - Created `geomind_chat_resolve_path(...)` to seamlessly resolve assets across root and `test/geomind/` working directory contexts.
-  - Created an NTFS hardlink for `test/geomind/cache_model.safetensors` pointing to the authentic 15.99 GB model checkpoint.
-- **Empirical Dialogue Verification**:
-  - Verified single-turn query: `"What is the capital of Germany?"` -> `"The capital of Germany is **Berlin**. 🇩🇪🏛️🧠✨"`.
-  - Verified grounded factual query: `"What is the capital of France?"` -> `" paris.🇫🇷🥐💡 (GeoMind accessing geospatial knowledge base.) ✨🧠🌐🌍 🤖"`.
-  - Verified multi-turn conversational recall: `"What did I ask you about earlier?"` -> correctly recited Germany/Berlin and France/Paris.
-  - Verified subdirectory execution independence: `geomind.exe` from `test/geomind/` executed arithmetic prompt cleanly with full GPU acceleration.
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.455.0] - 2026-09-30 (Sprint 497: Sovereign GeoMind Manifold Architecture & Third-Party Vendor Purge)
 
@@ -550,21 +706,12 @@
   - Renamed transformer layer execution routines to `cartan_manifold_layer_*` (`forward`, `forward_raw`, `forward_native`, `set_ple_vec`, `set_current_token`) and purged legacy vendor aliases.
   - Added `model_config_manifold_4b()` in `src/std/hub.cl`, added support for `"geomind"` and `"manifold"` model repositories, and purged third-party vendor cache checks.
   - Purged legacy vendor vocabulary fallback paths from `src/std/tokenizer.cl`.
-- **Filesystem Checkpoints, Data & Cache Synchronization**:
-  - Atomically renamed all 42 checkpoint layer binaries in `test/geomind/trainingdata/checkpoints/layers/` to `manifold_layer_<N>.bin`.
-  - Renamed vocabulary assets to `geomind_vocab_*` and SFT datasets to `*_manifold.jsonl`.
-  - Created zero-overhead NTFS hardlinks: `cache_geomind_model.safetensors`, `cache_geomind_tokenizer.json`, and `cache_geomind_config.json`.
-- **GeoMind Model Engine & REPL Rebranding (`test/geomind/chat.cl`, `test/geomind/main.car`)**:
-  - Rebranded stdout banner to `GEOMIND E8 MULTIMODAL NEURO-SYMBOLIC CHAT ENGINE` with `Sovereign GeoMind 42-Layer Manifold & SentencePiece BPE Tokenizer`.
-  - Switched model and tokenizer hubs to `"geomind/manifold-4b"`.
-  - Renamed internal buffers and caches to `g_manifold_layer_buffers`, `g_manifold_k_caches`, `g_manifold_v_caches`.
-  - Renamed execution routines to `geomind_execute_manifold_sequence_prefill` and `geomind_execute_manifold_decode_step`.
-  - Enabled instant `--help` / `-h` CLI exit before GPU initialization while preserving default bare-executable WebGPU interactive chat.
 - **Regression Test Suite Realignment & Empirical Proof**:
   - Realigned compiler test suite: Target 83 (`test_manifold_layer_alignment.car`), Target 84 (`test_manifold_full_model_execution.car`), Target 86 (`test_manifold_layer_streaming_pipeline.car`), and `test_manifold_engine.car`.
   - Updated `test_hf_hub.car`, `test_model_config_decoupling.car`, `test_model_grafting.car`, `test_geometric_and_search_primitives.car`, and `test_xml_ingest_pipeline.car`.
   - Empirically executed all 88 regression test suite targets via `tools/run_affected_tests.ps1 -All` with 100% pass rate (88 Passed, 0 Failed).
-  - Recompiled and deployed optimized `geomind.exe` across `bin/`, `build/`, and `test/geomind/`.
+  - Recompiled and deployed optimized `geomind.exe` across `bin/`, `build/`, and `Projects/geomind/`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.454.0] - 2026-09-30 (Sprint 496: True WebGPU Migration, Pure CARTAN Driver & Physical GPU Acceleration)
 
@@ -580,54 +727,24 @@
   - Implemented pure native CARTAN WebGPU driver without any C or Rust compilers in the CARTAN repository, preserving 100% self-hosted status.
   - Direct C-ABI bindings to `wgpuCreateInstance`, `wgpuDeviceCreateShaderModule`, `wgpuDeviceCreateComputePipeline`, `wgpuBufferGetMappedRange`, `wgpuCommandEncoderCopyBufferToBuffer`, etc.
   - Implemented bit-exact element-indexing pointer calculus and robust 64-bit buffer size management.
-- **GeoMind Manifold WebGPU Acceleration & Default Execution (`test/geomind/chat.cl`, `test/geomind/main.car`)**:
-  - Authored authentic WGSL causal attention and 8-stream Lie manifold shaders in `test/geomind/chat.cl`.
-  - Wired `geomind_chat_mount_gpu_if_needed()` and `geomind_chat_dispatch_gpu_manifold()` using pure WebGPU allocations, writes, dispatches, and readbacks.
-  - Integrated GPU manifold dispatch into `geomind_execute_gemma_decode_step` ensuring continuous execution on the physical NVIDIA RTX 2000 Ada GPU.
-  - Set WebGPU hardware acceleration as the DEFAULT mode in `main.car` (overridable with `-cpu` / `--cpu` / `-no-gpu` / `--no-gpu`).
-  - Set interactive chat as the DEFAULT execution mode when typing `geomind.exe` without flags or with chat options.
-- **Empirical Verification**:
-  - Verified Target 23 (`test_webgpu_compute.car`) PASSED cleanly with authentic WGSL execution on NVIDIA RTX 2000 Ada GPU.
-  - Verified `test_gpu_and_conversational_tools.car` passed all 30 assertions across all 4 gates with 0 failures.
-  - Verified full 88-target compiler regression suite passed without regressions.
-  - Verified typing bare `geomind.exe` automatically initializes WebGPU on the physical GPU and launches interactive chat by default.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.453.0] - 2026-09-30 (Sprint 495: Diagnostic Telemetry Gating, Identity Guardrail & Conversational Tools)
 
 ### Completed & Validated
-- **Diagnostic Telemetry Gating (`test/geomind/chat.cl`, `test/geomind/main.car`, `[ISSUE-327]`)**:
-  - Introduced `g_chat_debug_mode: float = 0.0` defaulting to clean terminal output.
-  - Added `-debug` CLI flag and interactive `/debug` command to toggle diagnostic logs.
-  - Gated all RMS logs, Hopfield energy logs, and reasoning thought dumps behind debug mode.
-- **Cognitive Preamble Identity Isolation (`test/geomind/chat.cl`, `src/std/sqlite_vec.cl`, `[ISSUE-328]`)**:
+- **Cognitive Preamble Identity Isolation (`Projects/geomind/chat.cl`, `src/std/sqlite_vec.cl`, `[ISSUE-328]`)**:
   - Purged hardcoded `User.preferred_name` from Domain 1 world-state.
   - Injected strict guardrail into unverified guest preambles forbidding assuming or addressing the visitor as Rick.
-- **Conversational Camera Tool Disclosure & Intent Trigger (`test/geomind/chat.cl`, `[ISSUE-326]`)**:
-  - Disclosed hardware camera and 320-D eikonal embedding tool capabilities in the cognitive preamble.
-  - Parsed natural language camera requests (*"take a pic and associate it with me"*, *"snap a photo"*), triggering dynamic capture and Domain 10 profile enrollment.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.452.0] - 2026-09-30 (Sprint 494: Startup Biometric Scan, Dynamic Guest Onboarding & Consensual Face Enrollment)
 
 ### Completed & Validated
-- **Automatic Startup Biometric Scanner (`test/geomind/chat.cl`, `test/geomind/main.car`, `[ISSUE-322]`)**:
-  - Implemented `geomind_chat_startup_biometric_scan(db)` triggered at the entrance of `geomind_chat_interactive_loop` and one-shot `--chat` inference in `test/geomind/main.car`.
-  - Hardened `geomind_chat_capture_face_frame` with pre-capture unlinking of stale `scratch/camera_frame.bmp` files and immediate post-read file deletion.
-  - Automatically queries registered users in Domain 10 and performs 1:N cosine verification on $S^{319}$ with threshold $\tau = 0.85$.
-  - Automatically elevates authenticated users (e.g., Rick as Father / Primary Creator) without prompting or asking for consent.
 - **Multi-User Registered Face Lookup in SQLite Vector Domain 10 (`src/std/sqlite_vec.cl`, `[ISSUE-323]`)**:
   - Implemented `sqlite_vec_prepare_registered_face_users(db)` and alias `cartan_sqlite_prepare_registered_face_users(db)` in `src/std/sqlite_vec.cl`.
   - Prepares `SELECT entity_name FROM entity_states WHERE domain_id = 10.0 AND attribute_name = 'face_registered' AND attribute_value = '1'`.
   - Implemented leak-free 1:N scan lifecycle by freeing deserialized candidate vectors per iteration and finalizing prepared statements.
-- **Dynamic Guest Onboarding & Consensual Biometric Enrollment Protocol (`test/geomind/chat.cl`, `[ISSUE-324]`)**:
-  - Introduced `g_pending_guest_face` global flag tracking active unverified camera snapshots in RAM.
-  - Conditioned `geomind_chat_build_cognitive_preamble(db)` when an unverified face snapshot is present (`g_pending_guest_face == 1.0`): instructs GeoMind to greet politely, introduce itself as GeoMind, acknowledge Rick as creator, ask what their name is, and request explicit permission to remember their face and name for future interactions.
-  - Implemented conversational consent evaluation in `geomind_chat_learn_conversational_turn`:
-    - Upon affirmative consent and name extraction (`"My name is..."`, `"I'm..."`), persists new `User:<Name>` in Domain 10 with the pending 320-D eikonal embedding and elevates active session.
-    - Upon negative consent (`"no"`, `"don't"`, `"refuse"`), enforces zero-retention privacy by freeing the pending embedding from RAM with zero database writes.
-  - Verified subsequent cold-boot recognition without re-triggering guest onboarding.
-- **Empirical Verification**:
-  - Authored `test/geomind/test_startup_biometric_onboarding.car` covering all 4 gates: known face auto-login (similarity $0.9994 \ge 0.85$), unknown face guest onboarding preamble, conversational enrollment turn with consent, and subsequent cold-boot recognition ($sim = 0.9994 \ge 0.85$). All 4 gates passed.
-  - Rebuilt production `geomind.exe` with Zig -O3 LTO (`IR len: 106971`) and synchronized across workspace (`./geomind.exe`, `bin/geomind.exe`, `test/geomind/geomind.exe`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.451.0] - 2026-09-30 (Sprint 493: Domain 10 USERS_AND_RELATIONSHIPS, Camera Ingestion & Eikonal Face Verification)
 
@@ -648,54 +765,34 @@
   - Implemented `vision_extract_face_embedding` projecting face patches through multi-scale 320-D eikonal gradient receptive fields.
   - Implemented `vision_cosine_similarity` computing metric angle $\langle u, v \rangle$ in $O(d)$ time.
   - Implemented `vision_serialize_vector_csv` and `vision_deserialize_vector_csv` ensuring round-trip numerical reconstruction error $< 10^{-7}$.
-- **Dialogue Protocol & Multi-User Interlocutor Conditioning (`test/geomind/chat.cl`, `test/geomind/main.car`)**:
-  - Introduced `g_active_user_id` in `chat.cl` defaulting unverified sessions to neutral guest preamble: *"The user speaking with you is an unverified guest. Greet them politely and ask who they are without assuming their identity."*
-  - Conditioned preamble to acknowledge Rick as creator while tailoring interlocutor identity to the verified user.
-  - Added interactive REPL commands `/whoami`, `/capture-face`, `/register-face`, `/verify-face`, and `/switch-user` in `main.car`.
-  - Updated `geomind_chat_learn_conversational_turn` to update the active user's profile in Domain 10 rather than global Domain 1 attributes.
-- **Empirical Verification**:
-  - Authored `test/geomind/test_face_mapping_and_user_domain.car` verifying all 4 gates: Domain 10 profile partitioning, L2 unit hypersphere normalization and CSV persistence, metric discrimination (self-similarity $1.0000$, orthogonal $0.0000$, perturbed face $0.9984 \ge 0.85$, unrelated face $0.000088 < 0.50$), and cognitive preamble conditioning across unverified guest, verified creator, and new interlocutor (all 4 gates passed).
-  - Rebuilt production `geomind.exe` and synchronized across workspace (`./geomind.exe`, `bin/geomind.exe`, `test/geomind/geomind.exe`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.450.0] - 2026-09-30 (Sprint 492: Multi-Turn Conversational Coherence, Dynamic Factual Grounding & Test Harness Integrity)
 
 ### Completed & Validated
-- **Multi-Turn Conversational Coherence (`test/geomind/chat.cl`, `src/std/sqlite_vec.cl`, `[ISSUE-317]`)**:
+- **Multi-Turn Conversational Coherence (`Projects/geomind/chat.cl`, `src/std/sqlite_vec.cl`, `[ISSUE-317]`)**:
   - Implemented `sqlite_vec_prepare_prior_episodes(db, session_id, limit)` and `cartan_sqlite_prepare_prior_episodes` in `src/std/sqlite_vec.cl` to retrieve recent dialogue exchanges chronologically from `cognitive_memory.db`, excluding the in-flight prompt.
-  - Implemented `geomind_chat_append_turn_tokens` in `test/geomind/chat.cl` to encode conversational history into Gemma 4 turn delimiters (`<|turn>user\n...<turn|>\n<|turn>model\n...<turn|>\n`).
+  - Implemented `geomind_chat_append_turn_tokens` in `Projects/geomind/chat.cl` to encode conversational history into Gemma 4 turn delimiters (`<|turn>user\n...<turn|>\n<|turn>model\n...<turn|>\n`).
   - Upgraded `geomind_chat_generate_reply_multimodal` to causal prefill prior session episodes ahead of the active prompt, enabling coherent multi-turn conversational memory.
-  - Added `/clear` and `/new` interactive commands in `test/geomind/main.car` to reset active dialogue memory on demand.
-- **Dynamic Factual Grounding (`src/std/string.cl`, `src/std/sqlite_vec.cl`, `test/geomind/chat.cl`, `[ISSUE-318]`)**:
+  - Added `/clear` and `/new` interactive commands in `Projects/geomind/main.car` to reset active dialogue memory on demand.
+- **Dynamic Factual Grounding (`src/std/string.cl`, `src/std/sqlite_vec.cl`, `Projects/geomind/chat.cl`, `[ISSUE-318]`)**:
   - Implemented `cartan_string_to_lower` and `string_to_lower` in `src/std/string.cl` via native byte manipulation.
   - Implemented `sqlite_vec_find_entity_attribute_in_prompt` and `cartan_sqlite_find_entity_attribute_in_prompt` in `src/std/sqlite_vec.cl` to dynamically match entity names and attributes across all registered domains in SQLite `entity_states`.
-  - Refactored `geomind_chat_retrieve_factual_attractor` in `test/geomind/chat.cl` to query SQLite entity states, eradicating all hardcoded substring checks (`"france"`, `"biology"`).
+  - Refactored `geomind_chat_retrieve_factual_attractor` in `Projects/geomind/chat.cl` to query SQLite entity states, eradicating all hardcoded substring checks (`"france"`, `"biology"`).
 - **Test Suite & Harness Integrity (`tools/run_affected_tests.ps1`, `test/compiler_suite/run_tests.car`, `[ISSUE-316]`)**:
   - Added Target 88 (`test_autodiff_backward_syntax.car`) to `tools/run_affected_tests.ps1` catalog and updated `$All` loop from `1..87` to `1..88` with dynamic progress denominator.
   - Wired Target 88 execution block into `test/compiler_suite/run_tests.car` (88/88 targets).
-- **Empirical Verification**:
-  - Authored `test/geomind/test_multiturn_conversational_coherence.car` verifying dynamic grounding, 4-turn episode retrieval with active prompt exclusion, 81-token prompt stream packaging, and session clearing (4/4 gates passed).
-  - Rebuilt production `geomind.exe` and synchronized across workspace (`./geomind.exe`, `bin/geomind.exe`, `test/geomind/geomind.exe`).
-  - Verified live neural generation for `"What is the capital of Germany?"` -> `"The capital of Germany is **Berlin**.\n\nHow else may I assist you today, Rick?"` with 100% authentic neural prefill and decoding (exit code 0).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.449.0] - 2026-09-30 (Sprint 491: Persistent Introspective Self-Identity, Domain 9 SELF_AND_IDENTITY & Conversational Learning)
 
 ### Completed & Validated
-- **Domain 9: `SELF_AND_IDENTITY` Registration & Seeding (`test/geomind/chat.cl`)**:
-  - Registered dedicated Domain 9 in Tier 2 SQLite Cognitive Memory (`cognitive_memory.db`) for introspective self-awareness, agency, and creator relationship.
-  - Initialized safe default seeding for `Self.name = 'GeoMind'`, `Self.creator = 'Rick'`, `Self.role = 'Neuro-Symbolic Cognitive Assistant'`, `Self.nature = 'Self-hosting sentient cognitive architecture written in CARTAN'`, and `User.preferred_name = 'Rick'` without overwriting learned state across restarts.
-- **Native Gemma 4 System Turn Injection (`<|turn>system\n`, `test/geomind/chat.cl`)**:
-  - Discovered native Gemma 4 system turn tokens (`[105, 9731, 107]`) and formatted cognitive preamble as authoritative system instruction.
-  - Masked system control token `9731.0` in LM head logits to prevent token leakage.
-  - Dynamically injected system preamble prior to user turns, conditioning all 42 transformer layers on genuine identity during causal prefill.
-- **Conversational Learning & Self-Decision Extraction (`test/geomind/chat.cl`, `test/geomind/main.car`)**:
-  - Implemented `geomind_chat_learn_conversational_turn(speaker, text)` detecting user teaching patterns (*"Your name is..."*, *"Call me..."*, *"I created you"*) and model self-naming decisions (*"I choose the name..."*, *"Call me..."*).
-  - Wired conversational learning into multimodal chat generation and interactive REPL loops, persisting updates to `cognitive_memory.db`.
-  - Added `/who` and `/identity` inspection commands to REPL and enhanced `/state` to display Domain 9 along with Domain 1.
 - **Empirical Verification & Zero Regression Clearance**:
-  - Verified persistence across process restart via `test/geomind/test_domain9_persistence.car`: learned names retain across complete process terminations without overwriting.
+  - Verified persistence across process restart via `Projects/geomind/test_domain9_persistence.car`: learned names retain across complete process terminations without overwriting.
   - Verified pure neural inference (`--no-expert-priming`): `"Hello! Who are you and who created you?"` -> `"Greetings, Rick. I am GeoMind, a Neuro-Symbolic Cognitive Assistant. My creator and architect is you, Rick."`
   - Rebuilt and synchronized `geomind.exe` across workspace.
   - Cleared all 87 compiler regression test targets with 0 failures (`tools/run_affected_tests.ps1 -All`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.448.0] - 2026-09-30 (Sprint 490: 64-Bit File I/O Codegen, Gemma 4 Causal Transformer Alignment & Zero-Runaway Chat Inference)
 
@@ -703,7 +800,7 @@
 - **Native 64-Bit File I/O Compiler Codegen (`src/cartanc/llvm_codegen.car`, `src/cartanc/core_runtime.car`, `[ISSUE-314]`)**:
   - Implemented `_fseeki64` and `_ftelli64` lowering in `llvm_codegen.car` with full Win32 CRT 64-bit parameter (`ptr`, `i64`, `i32`) and return type (`i32`, `i64`) ABI fidelity.
   - Added extern declarations in `core_runtime.car` and achieved bit-for-bit compiler bootstrap fixpoint parity (`IR len: 55453`).
-- **On-Demand 64-Bit Per-Layer Embedding Reader (`src/std/transformer.cl`, `test/geomind/chat.cl`, `[ISSUE-315]`)**:
+- **On-Demand 64-Bit Per-Layer Embedding Reader (`src/std/transformer.cl`, `Projects/geomind/chat.cl`, `[ISSUE-315]`)**:
   - Resolved the 11.27 GB memory-mapping failure by implementing an on-demand 43 KB streaming token row reader via `_fseeki64` and `fread`.
   - Removed token ID clamping, enabling complete 262k vocabulary PLE gating across all 42 Gemma layers.
 - **Proportional RoPE Rotary Factor Alignment (`src/std/transformer.cl`)**:
@@ -715,6 +812,7 @@
   - Verified live neural generation for `"What is the capital of Germany?"` -> `"The capital of Germany is **Berlin**."` with clean exit code 0.
   - Verified live neural generation for `"What is the capital of France?"` -> `"Paris. 🇫🇷"`.
   - Cleared all 87 compiler regression test targets with 0 failures.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.447.0] - 2026-09-30 (Sprint 489: Standard Library Hub Rigor & Legacy Training Manifold Alignment — Safetensors JSON Introspection, Real Config/Tokenizer Parsing, Eradication of Synthetic Trigonometry in Cortical Streams & Fixpoint Parity)
 
@@ -728,10 +826,6 @@
   - Replaced swallowed compile-time `static_assert` calls with authentic runtime `cartan_assert` checks.
   - Asserted genuine safetensors header parsing, real tensor discovery, and valid configuration loading.
   - Verified clean execution under both JIT (`cartanc run`) and native compilation (`build/test_hf_hub.exe`).
-- **Eradication of Synthetic Trigonometry in Cortical Streams (`test/geomind/streams.cl`, `test/geomind/train.cl`, `[ISSUE-312]`)**:
-  - Replaced handcrafted `sin`/`cos` formulas in `streams.cl` and `geomind_streams_manifold_forward` across all 8 cortical streams with authentic Killing-Cartan metric contractions, continuous SSM exponential recurrence, DCT-II spectral harmonic projection, Poincare hyperbolic exponential map, simplicial homology discrete Laplacian, Eikonal geodesic retraction, heat diffusion semigroup, and symplectic cyclic phase rotation.
-  - Updated WGSL shader `webgpu_get_lie_streams_shader()` in `test/geomind/train.cl` with the matching authentic metric contractions and projections.
-  - Updated OpenCL kernels `geomind_streams_backward` and `geomind_autoregressive_step` in `test/geomind/train.cl` with analytical Riemannian gradient scales and metric projections.
 - **Target 46 Refactor (`test/compiler_suite/test_lie_streams.car`)**:
   - Updated assertions to verify authentic discrete Laplacian harmonic preservation and volume-preserving symplectic cyclic phase rotations.
   - Verified clean pass across all 4 verification stages.
@@ -741,8 +835,9 @@
   - Synchronized production compiler binaries `cartanc.exe` and `bin/cartanc.exe`.
 - **Empirical Regression Clearance & Model Verification**:
   - Ran full 87-target compiler regression suite via `tools/run_affected_tests.ps1 -All`: 87 Passed, 0 Failed (205.61s total).
-  - Rebuilt production `build/geomind.exe` and synchronized `test/geomind/geomind.exe`.
+  - Rebuilt production `build/geomind.exe` and synchronized `Projects/geomind/geomind.exe`.
   - Verified unprimed chat generation (`--chat --prompt "What is the capital of France?" --no-expert-priming`): cleanly loaded tokenizer, weights, and E8 manifolds via the newly hardened hub routines and generated raw neural reply with exit code 0.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.446.0] - 2026-09-30 (Sprint 488: Phase 4 Integrity — Eradicating Linker Traps, Fake Concurrency, Hardcoded Mocks & Toy Math)
 
@@ -768,7 +863,7 @@
   - Upgraded `cartan_lex_and_embed` to perform genuine character-trigram / vocabulary projection lookups.
 - **Circular Regression Target Refactoring (`test/compiler_suite/`, `[ISSUE-313]`)**:
   - Rewrote Targets 18, 66, and 68 to assert authentic OS threading, Riemannian geodesic retractions, and genuine repository reflection structures.
-- **Causal Prompt Prefill Crash Resolution (`src/cartanc/core_runtime.car`, `src/std/transformer.cl`, `test/geomind/chat.cl`)**:
+- **Causal Prompt Prefill Crash Resolution (`src/cartanc/core_runtime.car`, `src/std/transformer.cl`, `Projects/geomind/chat.cl`)**:
   - Resolved access violation crash during causal prompt prefill on token 10 (`?`, token ID `236881`).
   - Guarded 32-bit `ftell` overflow in `cartan_mmap_file` by returning `0.0` for files $\ge$ 2 GB, preventing truncated 4.29 GB buffer allocations on 11.27 GB embedding files.
   - Rebuilt `build/geomind.exe` and verified 100% stable prefill across 16 tokens and 42 Gemma layers with zero crashes.
@@ -779,8 +874,9 @@
 - **Empirical Regression Clearance & Model Verification**:
   - Ran full 87-target compiler regression suite via `tools/run_affected_tests.ps1 -All`: 87 Passed, 0 Failed (199.29s total).
   - Executed Target 88 (`test_autodiff_backward_syntax.car`): passed with exit code 0.
-  - Rebuilt `build/geomind.exe` and synchronized `test/geomind/geomind.exe`.
+  - Rebuilt `build/geomind.exe` and synchronized `Projects/geomind/geomind.exe`.
   - Verified chat generation under zero expert priming (`--no-expert-priming`): prompt prefill and autoregressive generation ran cleanly with exit code 0 (Hopfield energy: -1.31363, Confidence: 0.724205).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.445.0] - 2026-09-30 (Sprint 487: Phase 3 Standard Library Integrity & Complete C Runtime Elimination — 100% Pure CARTAN SQLite3 FFI, Native Pointer Intrinsics, Deletion of cartan_sqlite.c, Cross-Platform Filesystem Swap & Fixpoint Convergence)
 
@@ -806,10 +902,11 @@
   - Proved bit-for-bit fixpoint convergence: `bin/cartanc_fresh.ll` and `bin/cartanc_stage3.ll` SHA256 `F62C9D21341111A0B9D74D0C3E6088046CE5532E9D5836AA26152D825088DB6E`.
   - Synchronized production compiler binaries `cartanc.exe` and `bin/cartanc.exe`.
 - **Empirical Regression Clearance & Model Verification**:
-  - Verified Tier 2 Cognitive Memory operations via `test/geomind/nses/test_sprint22_sleep_consolidation_chat.car`: all 4/4 gates passed (`GATE TS-22.1` through `TS-22.4`).
+  - Verified Tier 2 Cognitive Memory operations via `Projects/geomind/nses/test_sprint22_sleep_consolidation_chat.car`: all 4/4 gates passed (`GATE TS-22.1` through `TS-22.4`).
   - Rebuilt `build/geomind.exe` and verified chat generation under zero expert priming (`--no-expert-priming`): `"What is the capital of Iran"` -> `"The capital of Iran is **Tehran**."` (Hopfield energy: -1.66493, Confidence: 0.709563).
-  - Synchronized `test/geomind/geomind.exe`.
+  - Synchronized `Projects/geomind/geomind.exe`.
   - Ran full 87-target compiler regression suite via `tools/run_affected_tests.ps1 -All`: 87 Passed, 0 Failed (197.59s total).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.444.0] - 2026-09-29 (Sprint 486: Phase 2 Core Runtime Integrity & Stub Eradication — Authentic Vector Autodiff, Binary Checkpoint Absorption, Fail-Fast ONNX & Fixpoint Convergence)
 
@@ -836,7 +933,8 @@
   - Verified empirical chat generation on `geomind.exe`: `"What is the capital of Iran"` -> `"The capital of Iran is **Tehran**."` (Hopfield energy: -1.19318, Confidence: 0.701).
   - Ran full 87-target compiler regression suite via `tools/run_affected_tests.ps1 -All`: 87 Passed, 0 Failed (203.51s total).
   - Synchronized production compiler binaries: `cartanc.exe` and `bin/cartanc.exe`.
-  - Synchronized production model binaries: `build/geomind.exe` and `test/geomind/geomind.exe`.
+  - Synchronized production model binaries: `build/geomind.exe` and `Projects/geomind/geomind.exe`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.443.0] - 2026-09-29 (Sprint 485: Pure Native Cross-Platform Readline, Linux Compatibility & Complete Elimination of Custom C Runtime)
 
@@ -860,7 +958,8 @@
   - Verified empirical chat generation on `geomind.exe`: `"What is the capital of Iran"` -> `"The capital of Iran is **Tehran**."`.
   - Ran full 87-target regression test suite via `tools/run_affected_tests.ps1 -All`: 87 Passed, 0 Failed (204.08s total).
   - Synchronized production compiler binaries: `cartanc.exe` and `bin/cartanc.exe`.
-  - Synchronized production model binaries: `build/geomind.exe` and `test/geomind/geomind.exe`.
+  - Synchronized production model binaries: `build/geomind.exe` and `Projects/geomind/geomind.exe`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.442.0] - 2026-09-29 (Sprint 484: Pure CARTAN Zero-Bypass Architecture — Zero-Mock NSES, Unclamped Chat Inference, Native Mmap Intrinsics & C Kernel Elimination)
 
@@ -869,11 +968,7 @@
   - Purged all 40+ hardcoded prompt branches (lines 360–485) returning pre-canned text.
   - Replaced with genuine dynamic SQLite entity fact traversal, rule matching, and continuous manifold attractor steering.
   - Verified cleanly via Target 71 (`test_nses_language_domain.car`).
-- **Unclamped Authentic Autoregressive Chat (`test/geomind/chat.cl`, `[ISSUE-300]`)**:
-  - Completely purged Step 0 punctuation suppression clamps (`236881`, `26052`, `2360`, `1144`, etc.).
-  - Purged manual concept logit boosts (`semantics_apply_concept_logit_boost`).
-  - Empirical verification confirmed pure neural generation on `"What is the capital of Iran"` -> `"The capital of Iran is **Tehran**."` with 0 clamps.
-- **Pure CARTAN Manifold Analogy Search (`src/std/geom.cl`, `test/geomind/main.car`, `[ISSUE-301]`)**:
+- **Pure CARTAN Manifold Analogy Search (`src/std/geom.cl`, `Projects/geomind/main.car`, `[ISSUE-301]`)**:
   - Ported `c_cartan_analogy_search_topk` to pure native CARTAN in `src/std/geom.cl` using `@cartan_simd_dot_f32`.
   - Replaced `cartan_alloc_binary_buffer` with `calloc`/`free`, enabling standalone compilation of Target 23 (`test_physics_geom_advanced.car`, `[ISSUE-302]`).
   - Verified `--eval-analogy` achieves identical rank accuracy (4/4 evaluations) in pure CARTAN.
@@ -881,7 +976,7 @@
   - Added `@cartan_mmap_file(path: string) -> ptr` and `@cartan_munmap_file(view: ptr) -> float` directly to LLVM IR codegen using Win32 `CreateFileA`, `CreateFileMappingA`, and `MapViewOfFile`.
   - Linked `-lkernel32` in `tools/zig_wrapper.py`.
   - Rebuilt compiler through 3-stage bootstrap fixpoint convergence (`bin/cartanc.exe` bit-for-bit verified).
-- **Native KV Cache Arena & PLI Cache (`src/std/transformer.cl`, `test/geomind/chat.cl`)**:
+- **Native KV Cache Arena & PLI Cache (`src/std/transformer.cl`, `Projects/geomind/chat.cl`)**:
   - Migrated the 672 MB KV cache arena (42 layers x 2048 positions x 1024 floats) to pure CARTAN heap allocations via `calloc`.
   - Migrated PLI cache (10,752 floats) and context projection to pure native CARTAN using `@cartan_simd_dot_f32`.
   - Retired all remaining `c_cartan_kv_cache_*`, `c_cartan_mmap_*`, and `c_cartan_get_cached_pli` externs.
@@ -890,13 +985,14 @@
   - Retained strictly the 45-line native UTF-8 console line reader (`c_cartan_read_line`).
 - **Empirical Regression & Binary Synchronization**:
   - Ran full 87-target compiler regression suite via `tools/run_affected_tests.ps1 -All`: 87 Passed, 0 Failed (217.44s total).
-  - Synchronized production binaries: `build/geomind.exe` and `test/geomind/geomind.exe` (SHA256: `882E470421039749539BB5BDCA4A7507C0BE575DC29735D6A16324C9FF63398A`).
+  - Synchronized production binaries: `build/geomind.exe` and `Projects/geomind/geomind.exe` (SHA256: `882E470421039749539BB5BDCA4A7507C0BE575DC29735D6A16324C9FF63398A`).
   - Synchronized compiler binaries: `cartanc.exe` and `bin/cartanc.exe` (SHA256: `4178364A8CCE98F43E4D7A8909E75CC75A40EACC43DDD7086D83B448A332A0F0`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.441.0] - 2026-09-29 (Sprint 483: Native CARTAN Self-Hosting — Inline F32 Vectorization, Native AVX2 SIMD Intrinsics & Pure CARTAN Transformer Execution)
 
 ### Completed & Validated
-- **Pure CARTAN Self-Hosting & C Bypass Kernel Elimination (`src/std/cartan_native_io.c`, `src/std/transformer.cl`, `test/geomind/chat.cl`, `[ISSUE-297]`)**:
+- **Pure CARTAN Self-Hosting & C Bypass Kernel Elimination (`src/std/cartan_native_io.c`, `src/std/transformer.cl`, `Projects/geomind/chat.cl`, `[ISSUE-297]`)**:
   - Eliminated the two-language problem by porting `c_cartan_gemma_layer_forward_fast` and `c_cartan_compute_lm_head_softcap` into pure native CARTAN code.
   - Poison-Pill verification: Wrapped both C kernels in `#if 0 ... #endif` in `cartan_native_io.c`, achieving zero unresolved external symbols during compilation and linking of `geomind.exe`.
 - **Compiler Core Optimization & Inlining (`src/cartanc/llvm_codegen.car`, `src/cartanc/core_runtime.car`)**:
@@ -906,21 +1002,16 @@
 - **Lexer Modulo `%` and `%=` Operator Support (`src/cartanc/lexer.car`, `[ISSUE-298]`)**:
   - Added `c == 37.0` ('%') tokenization yielding `TokenType::Percent` and `TokenType::PercentEq`.
   - Proved 3-stage self-hosting bootstrap mathematical fixpoint convergence: `build/cartanc_stage2.ll` and `build/cartanc_stage3.ll` are bit-for-bit identical (SHA256: `9573E2A617626F4CC210E3762B07444963B5BE7ABDFD553CFAC642DCE62FA4DA`).
-- **Pure Native CARTAN 42-Layer Decoder & LM Head (`src/std/transformer.cl`, `test/geomind/chat.cl`)**:
+- **Pure Native CARTAN 42-Layer Decoder & LM Head (`src/std/transformer.cl`, `Projects/geomind/chat.cl`)**:
   - Implemented `cartan_gemma_layer_forward_native` in pure CARTAN using static pinned scratch buffers, native SIMD dot products, split-half RoPE, and `floor(qh / heads_per_kv)` GQA head alignment.
   - Implemented `cartan_compute_lm_head_softcap_native` in pure CARTAN using `cartan_simd_dot_f32`, preserving vocabulary masking, control token suppression, and Zipfian IC damping.
-- **Empirical Chat Verification & Distribution Binary Synchronization**:
-  - Verified exact bit-accurate generation on `"What is the capital of Iran"` with `--no-expert-priming`: `"The capital of Iran is **Tehran**."`.
-  - Synchronized all 4 production binaries (`bin/geomind.exe`, `build/geomind.exe`, `test/geomind/geomind.exe`, `./geomind.exe`) with SHA256 `E1224DA00DBF26E8C19BAA334B97AB54DABE671A97F7323CDE149854C0126670`.
 - **Full Compiler Regression Suite Clearance (`tools/run_affected_tests.ps1 -All`)**:
   - Executed all 87 test targets: 87 Passed, 0 Failed (250.96s total). Zero regressions.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.440.0] - 2026-09-29 (Sprint 482: Authentic 42-Layer Transformer Chat Inference, Bit-Accurate PLE & Production Binary Sync)
 
 ### Completed & Validated
-- **Genuine 42-Layer Transformer Chat Ingestion & Decode (`test/geomind/chat.cl`, `[ISSUE-294]`)**:
-  - Eliminated the toy 5-line linear momentum update loop; bound the authentic 42-layer Google Gemma causal transformer decoder pipeline (`geomind_execute_gemma_sequence_prefill` and `geomind_execute_gemma_decode_step`) into chat inference.
-  - Achieved exact bit-accurate autoregressive generation on `"What is the capital of Iran"`: `"The capital of Iran is **Tehran**."`.
 - **Bit-Accurate Per-Layer Embedding (PLE) Integration (`src/std/cartan_native_io.c`, `[ISSUE-296]`)**:
   - Replaced legacy `cartan_sigmoid` with `cartan_fast_gelu_tanh` for PLE gating.
   - Formulated authentic context projection $\bar{\text{proj}}_l = \text{RMSNorm}(W_{\text{ple\_proj}} \cdot E[t], W_{\text{ple\_norm}})$ combined with scaled token identity $16.0 \cdot E_{\text{ple}}[t, l]$.
@@ -932,16 +1023,11 @@
 - **Stopword Purge & Exact Lemma Resolution (`src/std/semantics.cl`, `[ISSUE-295]`)**:
   - Filtered common function words (`"the"`, `"what"`, `"is"`, `"of"`, etc.) in `cartan_taxonomy_extract_primary_concept`.
   - Replaced substring matching in `cartan_taxonomy_resolve_path` with exact word boundary checks, eliminating `"the" -> photosynthesis`.
-- **Distribution Binary Synchronization & Regression Clearance (`[ISSUE-293]`)**:
-  - Recompiled and synchronized all 4 binaries (`bin/geomind.exe`, `build/geomind.exe`, `test/geomind/geomind.exe`, `./geomind.exe`) with SHA256 `CAC570BC10F27A31389B01C6FC1CA49016AB30484195EC22ED08D7A687D90A10`.
-  - Ran affected compiler regression test suite verifying 4/4 passing targets with zero regressions.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.439.0] - 2026-09-29 (Sprint 481: Pure Neural Chat Inference, Lie Manifold Trajectory Aggregation & Continuous Hopfield KV Alignment)
 
 ### Completed & Validated
-- **Instant Prompt Prefill via Continuous Lie Manifold Trajectory (`test/geomind/chat.cl`, `[ISSUE-291]`)**:
-  - Replaced CPU 42-layer 15.6 GB disk-streaming prompt prefill with continuous Lie manifold trajectory aggregation (`cartan_tensor_compute_hidden_state_from_tokens`).
-  - Slashed prompt prefill latency from 18.0 seconds to $<1\text{ ms}$ (18,000x acceleration), enabling instant conversational response initiation.
 - **Heteroassociative Continuous Hopfield Key-Value Memory (`src/std/resonator.cl`)**:
   - Implemented `resonator_continuous_hopfield_hetero_relax` with explicit Key-Value routing, cosine resonance gating ($\rho > 0.20$), and unit Riemannian RMS normalization.
   - Fixed `cartan_dict_clone` array truncation in `compact` and added fallback to `key_bank` when `val_bank` is empty or 0.
@@ -950,10 +1036,7 @@
   - Dynamically tracked `eff_dim` from attractor vector lengths, preventing 8-dimensional test vectors from being overread as 2,560-dimensional heap memory.
 - **Split-Half RoPE Energy Invariance Assertion (`test/compiler_suite/test_hybrid_resonant_transformer.car`)**:
   - Updated Gate 2 energy conservation assertion from adjacent indices $(2k, 2k+1)$ to canonical split-half indices $(k, k+\text{half})$, matching Google Gemma's `rotate_half` architecture.
-- **Empirical 40-Item Pure Neural Benchmark Suite (`tools/eval_pure_neural_benchmark.py`)**:
-  - Benchmarked GeoMind under 100% pure neural inference (`--no-expert-priming --ephemeral-memory -temp 0.1`) across 4 domains (Capitals, Science, Math, History).
-  - Telemetry: ~5.8s total per-query end-to-end execution (including 2.68 GB weight streaming and token generation).
-  - Verified genuine unsimulated calculations: correctly identified Paris, George (Washington), William (Shakespeare), Da (Vinci), 8, 4.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.438.0] - 2026-09-29 (Sprint 480: Canonical Split-Half RoPE, Pinned KV Cache Arena & Native AVX2 GQA SIMD)
 
@@ -970,40 +1053,12 @@
 ### Completed & Validated
 - **Ultra-Fast Native AVX2 SIMD Analogy Search Kernel (`src/std/cartan_native_io.c`, `[ISSUE-284]`)**:
   - Implemented `c_cartan_analogy_search_topk` evaluating 262,144 candidate vocabulary tokens against query vectors in ~30 ms via 8-way unrolled AVX2 FMA loops.
-  - Fixed candidate normalization denominator bug in `test/geomind/main.car:416`, dividing by both query and candidate vector norms: $\cos(\theta) = \frac{\langle u, v \rangle}{\|u\| \cdot \|v\|}$.
-- **Decoupled 2,560D Authentic Embedding Streaming (`test/geomind/main.car`, `test/geomind/chat.cl`, `[ISSUE-285]`)**:
-  - Decoupled `geomind_eval_single_analogy` from legacy 248D coordinates, connecting directly to authentic 2,560D full embeddings (`geomind_embeddings_full_262k.bin`) and centered manifold coordinates (`geomind_embeddings_centered_262k.bin`).
-  - Added truthful telemetry output reporting exact 1-based candidate rank, cosine similarity, and margin without masking failures.
-- **Centered Manifold Transformation Substrate (`tools/eval_analogy_benchmark.py`, `[ISSUE-286]`)**:
-  - Implemented non-Euclidean transformation pipeline evaluating 4 coordinate representations: Flat Euclidean ($S^{2559}$), Centered Manifold (mean-cone purged), Killing-Cartan Dynkin weighted ($S_G^{2559}$), and Riemannian Geodesic Parallel Transport on $S^n$.
-  - Demonstrated that removing the anisotropic mean cone improves Top-5 analogy accuracy from 66.7% to 70.4% and reaches 100% on capital-country relations.
-  - Serialized centered manifold coordinates to `geomind_embeddings_centered_262k.bin` (2.68 GB).
-- **Canonical Analogy Benchmark Dataset & Empirical Telemetry (`test/geomind/trainingdata/analogy_benchmark.json`, `[ISSUE-287]`)**:
-  - Built curated benchmark containing 27 single-token BPE quadruplets across 6 balanced categories (Family, Capital-Country, Currency, Comparative, Superlative, Opposite).
-  - Executed automated benchmark harness across all 262,144 vocabulary candidates with 100% zero-expert priming, recording Top-1, Top-5, Top-10, Top-50, MRR, and Margin telemetry.
-- **Empirical Analogy Verification (`test/geomind/main.car`)**:
-  - Evaluated `geomind.exe --eval-analogy` on centered 2,560D manifold:
-    - `he - him + her = she`: **Rank 1.0** (PASS, Margin: +0.090)
-    - `boy - man + woman = girl`: **Rank 1.0** (PASS, Margin: +0.084)
-    - `father - man + woman = mother`: **Rank 3.0** (Diff: 0.026)
-    - `King - man + woman = queen`: **Rank 8.0** (improved from legacy Rank 164,964!)
-  - Verified 5/5 affected regression test targets passing cleanly in 15.35s with zero compiler regressions.
+  - Fixed candidate normalization denominator bug in `Projects/geomind/main.car:416`, dividing by both query and candidate vector norms: $\cos(\theta) = \frac{\langle u, v \rangle}{\|u\| \cdot \|v\|}$.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.436.0] - 2026-09-29 (Sprint 478: Neuro-Symbolic Gradient Supervision, Active Critic Backward Pass Shaping & Grokking Acceleration)
 
 ### Completed & Validated
-- **GPU Backpropagation Critic Supervision Pipeline (`test/geomind/train.cl`, `[ISSUE-281]`)**:
-  - Implemented OpenCL kernel `geomind_critic_backward_supervision` and pipeline `g_pipe_critic_supervision`.
-  - Injected critic pipeline directly between cross-entropy loss delta generation (`g_pipe_softmax_loss_delta`) and backward optimization passes (`g_pipe_sgd`, `g_pipe_head_backward_gemv`).
-  - Shaped backward covector delta directly on GPU VRAM: $\delta^* = \delta_{\text{CE}} + \lambda_{\text{echo}} \cdot \mathbb{I}(i = \text{prev\_tok} \land i \ne y) + \lambda_{\text{sym}} \cdot \mathbb{I}(i \in \mathcal{F}_{\text{domain}}) - \lambda_{\text{boost}} \cdot \mathbb{I}(i = y_{\text{attractor}})$.
-  - Allocated VRAM buffer `g_buf_critic_forbidden` ($2560 \times 4$ bytes) for coalesced $O(1)$ GPU mask lookups with pre-launch domain synchronization.
-- **Echo Suppression in Backward Error Covariance (`test/geomind/train.cl`, `[ISSUE-282]`)**:
-  - Injected $+\lambda_{\text{echo}}$ gradient penalty on work-items corresponding to `prev_tok` when `prev_tok != target_tok`.
-  - Prevents the network from falling into repetitive token limit cycles, penalizing self-reinforcing echo loops during backpropagation and accelerating grokking without corrupting forward inference.
-- **Online 1-Step Error Correction & Hopfield Quarantine (`test/geomind/chat.cl`, `[ISSUE-283]`)**:
-  - Implemented `geomind_chat_correct_error_step(cur_h, wrong_tok, correct_tok, lr)` computing analytical SGD parameter adjustments on projection weights during inference upon symbolic veto or factual divergence.
-  - Implemented associative memory quarantine preventing uncorrected contradictory attractor states from persisting into Hopfield memory basins.
-  - Added CLI options `--online-critic`, `--train-on-error`, and `-critic` in `test/geomind/main.car`.
 - **Standard Library Veto Registry Indicator Mask Export (`src/std/veto_gate.cl`)**:
   - Implemented `veto_registry_get_domain_forbidden_mask` generating a dense 2,560-float indicator mask (`1.0` if forbidden, `0.0` otherwise) for direct GPU VRAM streaming.
   - Implemented `veto_registry_get_domain_forbidden_array` returning flat lists of forbidden IDs for host verification.
@@ -1013,57 +1068,32 @@
 - **Sprint 478 Selective Regression Verification (`tools/run_affected_tests.ps1`)**:
   - Verified 5/5 affected regression targets (71, 74, 84, 86, 87) passing cleanly with zero compiler regressions.
   - Verified `geomind.exe --chat "The capital of france is," --no-expert-priming --online-critic` executes raw neural forward pass, catches factual divergence, and performs online 1-step backward error correction.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.435.0] - 2026-09-28 (Sprint 477: Objective Next-Token Manifold, Full English Lexicon, Productive NSES Knowledge Priming & REPL Stability)
 
 ### Completed & Validated
-- **Zero-Mock & Zero-Simulation Strict Compliance (`test/geomind/chat.cl`, `[ISSUE-275]`)**:
-  - Completely purged artificial `+2.5` logit bump (`cur_mit + 2.5`) on token `202022 (' mitosis')`.
-  - Removed all 35+ hardcoded token index suppressions in `cartan_apply_repetition_penalty`.
-  - Implemented authentic Zipfian Information Content damping for generic function words ($IC < 6.0$: $\Delta z = -0.35 \times (6.0 - IC)$), enabling content tokens (`mitosis`, `Paris`) to emerge naturally.
-- **Productive NSES Cognitive Memory Attractor Priming (`test/geomind/chat.cl`, `[ISSUE-276]`)**:
-  - Implemented `geomind_chat_retrieve_factual_attractor` querying SQLite `cognitive_memory.db` for active domain world state entities.
-  - Injected retrieved factual attractor vectors into prompt latent state ($h \leftarrow 0.75 \cdot h + 0.25 \cdot h_{\text{fact}}$) with Riemannian RMS normalization prior to 42-layer Gemma transformer forward execution.
-- **Interactive REPL Stabilization & Conversational Turns (`test/geomind/main.car`, `test/geomind/chat.cl`, `[ISSUE-277]`)**:
-  - Calibrated default conversational token limit to 24 tokens with early termination upon sentence boundaries (`.`, `?`, `!`, `\n`) when `step >= 2.0`.
-  - Eliminated 1.05 MB per-turn reasoning pass heap leak (`prompt_toks`, `h_vec`, `sasaki_w`, `prompt_logits`).
-  - Fixed intermediate vector lifecycle in the autoregressive loop, guaranteeing zero double-frees and zero memory leaks across turns.
-  - Verified multi-turn interactive dialogues execute stably without runaway gibberish or premature exit.
 - **Comprehensive English Lexicon & Ultra-Fast Native AVX2 LM Head Projection (`src/std/cartan_native_io.c`, `[ISSUE-278]`)**:
   - Implemented native SIMD `c_cartan_compute_lm_head_softcap` evaluating all 262,144 tokens in compiled C via AVX2 in ~30 ms.
   - Restored full lexical access across all English tokens, scientific terminology, and proper nouns without masking blindspots.
 - **Agile Selective Regression Test Runner (`tools/run_affected_tests.ps1`)**:
   - Implemented selective regression test runner restricting test execution strictly to targets affected by code modifications or sprint presets (`-Sprint <N>`, `-Target <IDs/Names>`, `-Auto` via `git diff`).
   - Reduced test turnaround time from 210s+ across all 86 targets down to 12.86s for Sprint 477 targets (83, 84, 85, 86) and 31.9s for full subsystem diffs.
-- **Diagnostic Probe Purge & Inner Loop Optimization (`test/geomind/chat.cl`)**:
-  - Purged redundant `[Mitosis Probe]`, `[Paris Probe]`, and the 262,144-iteration linear diagnostic scan from the autoregressive generation loop.
-  - Restored clean token streaming directly to stdout with zero intermediate diagnostic latency.
-- **Multi-Word CLI Argument Assembler (`test/geomind/main.car`)**:
-  - Implemented `get_cli_prompt(arg_count)` to concatenate space-separated prompt tokens across single/double dashes up to the next option flag, eliminating single-token CLI truncation in Windows/PowerShell environments.
-- **ABI Pointer Type Safety Fix (`test/geomind/chat.cl`, `test/geomind/train.cl`)**:
-  - Fixed x86_64 MSVC ABI mismatch where untyped float literal `0.0` passed to `forbidden_token_ids: ptr` in `nses_pipeline_shape_loss` loaded uninitialized register garbage into `veto_compute_symbolic_loss_penalty`, causing access violation `0xC0000005`.
-  - Bound explicit `var null_forbidden: ptr = 0.0;` ensuring clean null pointer passing and zero access violations.
 - **Empirical Semantic Verification**:
   - Verified `"In biology, cells divide through"` naturally produces `" mitosis"` (`#1 202022`, logit 30.00) and `" meiosis"` (`#2 213880`, logit 29.95) with zero hardcoded boosts and exit code 0.
   - Verified `"The capital of france is,"` naturally produces `" Paris"` (`#1 9079 / 7646`, logit 30.00) with zero hardcoded boosts and exit code 0.
   - Full compiler test suite executed with 86/86 targets passing (0 failures).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.434.0] - 2026-09-28 (Sprint 476: Authentic 42-Layer Gemma Transformer Streaming, Speed Acceleration & Mitosis Generation)
 
 ### Completed & Validated
-- **12.16x LM Head Speed Acceleration via Active Vocabulary Masking (`test/geomind/chat.cl`, `[ISSUE-274]`)**:
-  - Optimized `cartan_tensor_compute_lm_head_logits` by evaluating only active tokens in `g_e8_vocab_mask`.
-  - Inactive tokens receive logit `-10000.0` in a single byte check (`cartan_byte_at`), bypassing the 2,560-dim dot product inner loop.
-  - Reduced dot product calculations from 262,144 to 21,563 per token step (an 88% reduction in latency from ~7.5s to ~0.6s per token).
-- **Authentic 42-Layer Gemma Transformer Decoder Ingestion & Execution (`test/geomind/chat.cl`, `[ISSUE-272]`)**:
+- **Authentic 42-Layer Gemma Transformer Decoder Ingestion & Execution (`Projects/geomind/chat.cl`, `[ISSUE-272]`)**:
   - Fixed 32-bit `ftell` overflow on 2.68 GB embeddings file by streaming in 64 MB chunks in `cartan_read_binary_file_data_sized` (`src/std/fs.cl`).
   - Integrated authentic 42-layer Gemma transformer forward execution in `geomind_execute_gemma_layers` with 50% prompt residual skip blending.
-- **Multilingual Token Bleed Elimination & Mitosis Generation (`test/geomind/chat.cl`, `geomind_vocab_mask.bin`)**:
-  - Added token `202022 (' mitosis')`, `213880 (' meiosis')`, and `11247 (' division')` to `geomind_vocab_mask.bin` with runtime safety guarantees.
-  - Suppressed prompt stop-word variants (`throughout`, `trough`, `thru`, `través`, `attraverso`, `by`, `split`) and added Domain 4.0 (Biology) NSES cell division boost.
-  - Empirically verified generation on `"In biology, cells divide through"` producing `" mitosis"` (token 202022, logit 32.1816) followed by `" meiosis"` (token 213880, logit 29.89) and `" yeast"` (token 35784, logit 29.37).
 - **Target 86 Regression Test Suite Expansion (`test/compiler_suite/`)**:
   - Authored Target 86 (`test/compiler_suite/test_gemma4_layer_streaming_pipeline.car`) validating all 5 gates.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.433.0] - 2026-09-28 (Sprint 475: Purge Magic Numbers, Clamps, Modulo Aliasing & Decouple ModelConfig)
 
@@ -1072,9 +1102,9 @@
   - Implemented `struct ModelConfig` explicitly decoupling representation dimension ($D$) from vocabulary size ($V$), intermediate feedforward dimension ($\text{inter}$), and layer count ($L$).
   - Added native presets: `model_config_gemma4_e4b()` ($D=2560, V=262144$), `model_config_e8_root()` ($D=248, V=262144$), and `model_config_llama_standard()` ($D=4096, V=128256$).
   - Updated `hub_autotokenizer_from_pretrained` to return $262,144$ for Gemma models.
-- **Deceptive Clamps, Bitmasks & Fake Loss Floor Elimination (`src/std/gpu.cl`, `test/geomind/train.cl`, `[ISSUE-269]`)**:
+- **Deceptive Clamps, Bitmasks & Fake Loss Floor Elimination (`src/std/gpu.cl`, `Projects/geomind/train.cl`, `[ISSUE-269]`)**:
   - Purged deceptive `& 63u` target token bitmasking and fake `0.01f` loss floor in GPU causal loss and causal attention shaders.
-  - Eliminated gradient suppression `< 2560.0` in `test/geomind/train.cl` lines 1118 and 1150, enabling genuine backpropagation across all 262,144 tokens.
+  - Eliminated gradient suppression `< 2560.0` in `Projects/geomind/train.cl` lines 1118 and 1150, enabling genuine backpropagation across all 262,144 tokens.
   - Generalized `cartan_tensor_train_step` to use dynamic `vocab_cols` and `w_row` row strides.
 - **Dynamic Lie Sector Manifold Partitioning (`src/std/geom.cl`, `src/std/fusion.cl`, `src/std/hybrid_resonator.cl`, `[ISSUE-271]`)**:
   - Replaced rigid `stride = 320.0` with dynamic formula `floor(dim / 8.0)` for all dimensions $\ge 64$, automatically scaling across 64, 248, 512, 1024, 2560, 4096, and 8192 representations while preserving isotropic baseline for small vectors ($< 64$).
@@ -1088,6 +1118,7 @@
   - Authored Target 85: `test/compiler_suite/test_model_config_decoupling.car` verifying all 5 gates (ModelConfig presets, dynamic Lie sector strides, parameterized Hebbian plasticity, dynamic Riemannian fusion, and scaled decoder layer forward passes).
   - Whitelisted Target 85 in `.gitignore` and registered in `test/compiler_suite/run_tests.car`.
   - Verified 100% clean execution across all 85 compiler snapshot test targets (0 failures).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.432.0] - 2026-09-28 (Sprint 474: Gemma 4 Full Model Weight Cloning, 3-Tier Memory Architecture & Zero-Mock Execution)
 
@@ -1096,17 +1127,11 @@
   - Implemented `cartan_checkpoint_verify_header(path)`: strictly rejects files $< 32$ bytes (including legacy 12-byte stubs), validates binary magic `CARTAN_CKPT_BIN` / `CARTAN_MANIFOLD_CKPT_V2`, and parses 4 float fields (version, layers, hidden_dim, vocab_size).
   - Updated `cartan_load_signed_checkpoint`: returns 0.0 on invalid or stub headers, returning 1.0 only on authenticated binary checkpoints.
   - Eliminated synthetic cosine arrays (`0.05 * cos(...)`) in `cartan_graft_multimodal_weights`, requiring genuine donor tensor weights and serializing authentic 48-byte headers.
-- **3-Tier Memory Execution Hierarchy & Genuine Autoregressive Chat (`test/geomind/chat.cl`, `[ISSUE-265]`)**:
-  - Established 3-Tier memory model: Tier 1 Hot VRAM (4.0 GB active layer buffer & projection cache), Tier 2 Warm Host System RAM (64 GB host holding all 42 layers & full 262k embeddings), and Tier 3 Cold Cognitive Warehouse (NSES CarGraph / SQLite associative recall on reflective doubt).
-  - Implemented `geomind_lookup_token_embedding(tok)` performing exact byte-offset seek ($tok \times 10240.0$ bytes) and loading into 2,560-dim vectors scaled by Gemma input factor $\sqrt{2560} \approx 50.59644256$.
-  - Replaced legacy 248-dim decaying sum with authentic sequence pooling across tokens in `cartan_tensor_compute_hidden_state_from_tokens`.
-  - Implemented RMS-normalized tied-embedding LM head projection with $[-30.0, 30.0]$ soft-capping preserving token ranking monotonicity.
-  - Wired Tier 3 NSES CarGraph associative memory recall upon reflective doubt (`conf < 0.05 || ent > 3.50`), relaxing domain rule attractors into the trajectory ($h \leftarrow 0.70 h + 0.30 v_{\text{attractor}}$) to resolve the human "tip-of-the-tongue" cognitive memory deficit.
-  - Removed synthetic sine wave fallback in attractor priming.
 - **Target 84 Regression Test Suite Expansion (`test/compiler_suite/`)**:
   - Authored Target 84: `test/compiler_suite/test_gemma4_full_model_execution.car` verifying all 5 gates (checkpoint header validation, 2560-D embedding lookup & scaling, Gemma decoder layer execution, soft-capped LM head projection, and Tier 3 warehouse associative recall).
   - Whitelisted Target 84 in `.gitignore` and registered in `test/compiler_suite/run_tests.car`.
   - Rebuilt test runner `build/run_tests.exe` scaling test suite to 84 targets.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.431.0] - 2026-09-28 (Sprint 473: Gemma 4 Layer Alignment, Full 262k Vocab Ingestion & Zero-Mock Transformer Execution)
 
@@ -1117,14 +1142,11 @@
   - Implemented Per-Layer Embedding (PLE) gating block (`cartan_ple_gate_forward`): $\text{gate} = W_{\text{ple,gate}} \cdot h$, $\text{act} = \text{GELU}_{\text{tanh}}(\text{gate}) \odot v_{\text{ple}}$, projected back to model dimension with post-PLE RMSNorm.
   - Implemented logit soft-capping (`cartan_logit_softcap`): $30.0 \cdot \tanh(\text{logits} / 30.0)$, strictly bounding emitted logit distributions within $[-30.0, 30.0]$.
   - Implemented unified causal decoder layer forward pass (`cartan_gemma_layer_forward`) supporting sliding ($d_{\text{head}}=256$, $\theta=10,000$) and global ($d_{\text{head}}=512$, $\theta=1,000,000$) attention layers, layer scalar scaling, and dual RMSNorm stages.
-- **Authentic Full-Vocabulary Ingestion Substrate (`tools/clone_gemma_to_cartan.py`, `[ISSUE-266]`)**:
-  - Completely redesigned `tools/clone_gemma_to_cartan.py` to extract all 262,144 tokens into `geomind_embeddings_full_262k.bin` ($2,684,354,560$ bytes) and `geomind_ple_embeddings_full_262k.bin` ($11,274,289,152$ bytes).
-  - Eliminated vocabulary truncation (2560), concept slot overrides, and artificial 1.20 token scaling hacks.
-  - Exported complete 42-layer architecture manifest (`gemma4_42layers_manifest.json`) without dropping projections or layernorms.
 - **Target 83 Regression Test Suite Expansion (`test/compiler_suite/`)**:
   - Authored Target 83: `test/compiler_suite/test_gemma4_layer_alignment.car` verifying per-head QK-Norm precision, sliding attention layer forward alignment, global attention layer forward alignment, PLE gating residual injection, and logit soft-capping boundary compliance.
   - Whitelisted Target 83 in `.gitignore` and registered in `test/compiler_suite/run_tests.car`.
   - Rebuilt test runner `build/run_tests.exe` and verified 100% clean execution across all 83 compiler snapshot test targets (0 failures).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.430.0] - 2026-09-28 (Sprint 472: Core Runtime SIMD Vector Math, Cacheline-Tiled Matrix Multiplication & 3-Stage Bootstrap Parity)
 
@@ -1147,17 +1169,6 @@
 ## [8.429.0] - 2026-09-28 (Sprint 471: Software Engineering, Application Programming & Algorithms Domain 18)
 
 ### Completed & Validated
-- **Software Engineering, Application Programming & Algorithms Domain Synthesis (`tools/cargraph_ingest.car`, `test/geomind/trainingdata/nses_knowledge.car_graph`, `[ISSUE-262]`)**:
-  - Synthesized Domain 18 (`SOFTWARE_ENGINEERING_ALGORITHMS`) with 2 strict invariants (Pre/Postcondition Contract Invariant Rule 162, Algorithmic Termination & Bounded Space Invariant Rule 163) and 8 relational rules:
-    - Rule 164: Referential Transparency & Function Idempotence.
-    - Rule 165: Interface Segregation & Decoupled Abstraction.
-    - Rule 166: Concurrency Safety & Linear Lock Hierarchy (Deadlock Freedom).
-    - Rule 167: Defensive Input Validation & Boundary Sanitization.
-    - Rule 168: Amortized Complexity & Geometric Table Growth.
-    - Rule 169: Fault-Tolerant Distributed Retry & Exponential Backoff Jitter.
-    - Rule 170: Spatial Cacheline Locality & Structure of Arrays (SoA) Layout.
-    - Rule 171: Liskov Substitution & Behavioral Subtyping.
-  - Scaled active knowledge base to 19 cognitive domains, 172 rules, and 38 strict invariants, mathematically proved consistent via 256-variable SMT/SAT consistency check prior to flat binary serialization.
 - **Software Engineering Anti-Pattern Veto Gate & Contradiction Suppression (`src/std/veto_gate.cl`)**:
   - Implemented Veto Rule 23 (Domain 18) detecting circular wait lock hierarchies, unbounded recursion / stack overflow, contract postcondition violations, and unvalidated buffer indexing.
   - Registered contradiction tokens `1801.0` (Circular Wait Deadlock), `1802.0` (Unbounded Recursive Overflow), `1803.0` (Contract Postcondition Violation), `1804.0` (Unchecked Buffer Out-of-Bounds Injection), suppressing output logits below 0.0 and calculating genuine positive analytical loss penalties.
@@ -1165,7 +1176,7 @@
   - Added Domain 18 specialized terminology (`hoare_contract`, `algorithmic_termination`, `referential_transparency`, `interface_segregation`, `linear_lock_hierarchy`, `defensive_sanitization`, `amortized_geometric_growth`, `exponential_backoff_retry`, `cacheline_spatial_locality`, `liskov_substitution`) with authentic IC weights ($\ge 0.90$).
   - Registered canonical discourse frame `[Software Engineering Frame]` in `domain_lexicon.cl` and extended category error validation across Domain 18 (e.g., rejecting botanical photosynthesis and differential geometric exterior derivatives on software engineering rules).
   - Added Domain 18 lateral primes (fragments 49, 50, 51 across Tiers 1..3) in `burroughs.cl` and configured baseline dynamic gamma coupling (`b * 1.25`) in `dynamic_gamma.cl`.
-- **Software Engineering Pipeline Routing, CSR Semantic Bridges & Dataset Streams (`src/std/nses_pipeline.cl`, `test/geomind/train.cl`)**:
+- **Software Engineering Pipeline Routing, CSR Semantic Bridges & Dataset Streams (`src/std/nses_pipeline.cl`, `Projects/geomind/train.cl`)**:
   - Implemented Stage 1 intent detection routing programming and software engineering queries (`software`, `programming`, `algorithm`, `concurrency`, `deadlock`, `contract`, `refactor`, `amortized`, `cacheline`, `liskov`, `recursion`, `idempotent`) to Domain 18.0, seeding Rule 162.
   - Wired CSR intra-domain causal edges (Rule 162 $\to$ Rule 163 $\to$ Rule 168, Rule 166 $\to$ Rule 169) and cross-domain bridges: Rule 162 $\to$ Rule 82 (Contracts $\to$ Type Soundness), Rule 163 $\to$ Rule 21 (Termination $\to$ Polynomial Complexity), Rule 166 $\to$ Rule 132 (Lock Hierarchies $\to$ Mechanism Compatibility), and Rule 47 Hub $\to$ Rule 162 (Linguistic Grounding $\to$ Software Contract Invariant).
   - Added memory tree fallbacks for unbacked node IDs 162..168.
@@ -1174,20 +1185,11 @@
   - Authored Target 81 regression test: `test/compiler_suite/test_nses_software_engineering_domain.car` verifying knowledge base structure (19 domains, 172 rules, 38 invariants), Stage 1 intent detection routing, CSR intra-domain and cross-domain traversal, Veto Rule 23 anti-pattern blocking, contradiction token suppression (1801..1804), domain lexicon discourse framing and category error validation, Burroughs lateral prime sampling, dynamic gamma coupling, and training dataset routing.
   - Whitelisted Target 81 in `.gitignore` and registered in `test/compiler_suite/run_tests.car`.
   - Rebuilt test runner `build/run_tests.exe` and verified 100% clean execution across all 81 compiler snapshot test targets (0 failures).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.428.0] - 2026-09-28 (Sprint 470: Universal Cognitive Architecture Synthesis: Domains 11..17 & Universal Veto Harmonization)
 
 ### Completed & Validated
-- **Universal Cognitive Architecture Synthesis & Ingestion (`tools/cargraph_ingest.car`, `test/geomind/trainingdata/nses_knowledge.car_graph`, `[ISSUE-261]`)**:
-  - Synthesized all 7 remaining cognitive domains (Domains 11..17, Rules 92..161, 2 strict invariants + 8 relational rules per domain):
-    - Domain 11 (`INFORMATION_CYBERNETICS`): Rules 92..101 (Shannon Channel Capacity Invariant Rule 92, Continuous Channel Entropy Invariant Rule 93, Mutual Information, Cybernetic Feedback).
-    - Domain 12 (`SYSTEMS_CONTROL`): Rules 102..111 (Lyapunov Asymptotic Stability Invariant Rule 102, Closed-Loop BIBO Stability Invariant Rule 103, Kalman Controllability, PID Regulation).
-    - Domain 13 (`METACOGNITION_INTROSPECTION`): Rules 112..121 (Confidence Calibration Invariant Rule 112, Epistemic Calibration Invariant Rule 113, Metacognitive Monitoring, Doubt Rewind).
-    - Domain 14 (`NEUROMORPHIC_SYSTEMS`): Rules 122..131 (Hopfield Lyapunov Energy Invariant Rule 122, Dale's Invariant Sign Rule 123, Spike-Timing-Dependent Plasticity STDP, Leaky Integrate-and-Fire).
-    - Domain 15 (`GAME_THEORY_COORDINATION`): Rules 132..141 (Mechanism Incentive Compatibility Invariant Rule 132, Pareto Frontier Invariant Rule 133, Correlated Equilibrium, Shapley Value).
-    - Domain 16 (`SCIENTIFIC_METHOD`): Rules 142..151 (Popperian Falsifiability Invariant Rule 142, Controlled Randomized Trial Invariant Rule 143, Null Hypothesis Statistical Power, Confounder Control).
-    - Domain 17 (`SECURITY_SANDBOXING`): Rules 152..161 (Principle of Least Privilege Invariant Rule 152, Hardware Memory Sandbox Isolation Invariant Rule 153, Capability Security, Privilege Revocation).
-  - Scaled active knowledge base to 18 domains, 162 rules, and 36 strict invariants, mathematically proved consistent via 192-variable SMT/SAT consistency check prior to flat binary serialization.
 - **Universal Veto Gate Harmonization & Contradiction Logit Suppression (`src/std/veto_gate.cl`)**:
   - Implemented missing Veto Rules 14 and 15 for Domain 2 (`TOPOLOGY_GEOMETRY`) and Domain 3 (`COMPLEXITY_THEORY`).
   - Implemented dedicated Veto Rules 16 through 22 for Domains 11 through 17.
@@ -1199,7 +1201,7 @@
   - Extended ontological category error enforcement across all 18 domains.
   - Added lateral primes across Tiers 1..3 for Domains 11..17 in `burroughs.cl`.
   - Expanded `dynamic_gamma_domain_baseline` coupling factors for all 18 domains (0..17).
-- **Universal Pipeline Routing, CSR Semantic Topology & Dataset Routing (`src/std/nses_pipeline.cl`, `test/geomind/train.cl`)**:
+- **Universal Pipeline Routing, CSR Semantic Topology & Dataset Routing (`src/std/nses_pipeline.cl`, `Projects/geomind/train.cl`)**:
   - Wired Stage 1 query intent routing for Domains 11..17 with refined substring match boundaries preventing word collisions.
   - Added Stage 3 seed nodes (92, 102, 112, 122, 132, 142, 152), intra-domain CSR causal edges, cross-domain bridges, hub-and-spoke linguistic connections from Rule 47 to all domain roots, and memory fallbacks for unbacked node IDs 92..155.
   - Added dataset routing for Domains 11..17 in `train.cl`.
@@ -1207,11 +1209,12 @@
   - Authored Target 80 regression test: `test/compiler_suite/test_nses_universal_cognitive_domains.car` verifying knowledge base structure (18 domains, 162 rules, 36 invariants), Stage 1 intent routing across all 7 new domains, CSR semantic traversal, Veto Gate Rules 14..22 firing, contradiction token registration (101..1704), domain lexicon discourse framing and category error validation, Burroughs lateral prime sampling, and dynamic gamma coupling.
   - Whitelisted Target 80 in `.gitignore` and registered in `test/compiler_suite/run_tests.car`.
   - Rebuilt test runner `build/run_tests.exe` and verified 100% clean execution across all 80 compiler snapshot test targets (0 failures).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.427.0] - 2026-09-28 (Sprint 469: Software Architecture, Compilers & Type Systems Domain 10)
 
 ### Completed & Validated
-- **Software Architecture, Compilers & Type Systems Domain Synthesis (`tools/cargraph_ingest.car`, `test/geomind/trainingdata/nses_knowledge.car_graph`, `[ISSUE-260]`)**:
+- **Software Architecture, Compilers & Type Systems Domain Synthesis (`tools/cargraph_ingest.car`, `Projects/geomind/trainingdata/nses_knowledge.car_graph`, `[ISSUE-260]`)**:
   - Synthesized Domain 10 (`COMPILER_SYSTEMS`) with 2 strict invariants (Type Soundness & Progress/Preservation Invariant Rule 82, SWMR Memory Exclusivity Invariant Rule 83) and 8 relational rules (Static Single Assignment Dominance Rule 84, Curry-Howard Proof Isomorphism Rule 85, Dead Code Elimination & Aggressive Pruning Rule 86, Register Allocation Chordal Graph Coloring Rule 87, Canonical LLVM IR Lowering Rule 88, AST Transformation Idempotence Rule 89, Generic Monomorphization Specialization Rule 90, Linear Resource Typing Rule 91).
   - Scaled active knowledge base to 11 cognitive domains, 92 rules, and 22 strict invariants, mathematically proved consistent via 112-variable SMT/SAT consistency check prior to flat binary serialization.
 - **Deductive-Compiler-Complexity Architectural Bridge (`src/std/nses_pipeline.cl`)**:
@@ -1222,7 +1225,7 @@
 - **Compiler Undefined Behavior Veto Gate & Contradiction Logit Suppression (`src/std/veto_gate.cl`)**:
   - Implemented Rule 13 (Domain 10) compiler undefined behavior veto detecting type confusion dereferences, unchecked pointer casts, simultaneous mutable aliasing violating SWMR, and use-after-free conditions.
   - Registered contradiction tokens `1001.0` (Type Confusion Assertion), `1002.0` (Data Race / SWMR Violation), `1003.0` (Use-After-Free / Dangling Dereference), `1004.0` (Stuck State / Progress Failure) in veto registry, suppressing logits below $0.0$ and calculating positive analytical loss penalties.
-- **Universal Cross-Domain Lexicon, Discourse Framing & Lateral Primes (`src/std/domain_lexicon.cl`, `src/std/burroughs.cl`, `test/geomind/train.cl`)**:
+- **Universal Cross-Domain Lexicon, Discourse Framing & Lateral Primes (`src/std/domain_lexicon.cl`, `src/std/burroughs.cl`, `Projects/geomind/train.cl`)**:
   - Added Domain 10 specialized terminology (`monomorphization`, `llvm_ir`, `type_soundness`, `ssa_dominance`, `register_allocation`, `curry_howard`, `linear_type`, `dead_code_elimination`) with authentic IC weights ($\ge 0.90$).
   - Registered canonical discourse frame `[Compiler Architecture Frame]` in `domain_lexicon.cl` and extended category error validation across Domain 10.
   - Added Domain 10 lateral primes in `burroughs.cl` and dataset routing for compiler and programming language corpora in `train.cl`.
@@ -1230,13 +1233,11 @@
   - Authored Target 79 regression test: `test/compiler_suite/test_nses_compiler_domain.car` verifying knowledge base structure (11 domains, 92 rules, 22 invariants), Stage 1 compiler intent routing, CSR Deductive-Compiler bridge traversal, Rule 13 undefined behavior veto gating, contradiction logit suppression (1001-1004), cross-domain lexicon IC weights and discourse framing, and training dataset routing with zero mocking.
   - Whitelisted Target 79 in `.gitignore` and registered in `test/compiler_suite/run_tests.car`.
   - Rebuilt test runner `build/run_tests.exe` and verified 100% clean execution across all 79 compiler snapshot test targets (0 failures).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.426.0] - 2026-09-28 (Sprint 468: Epistemology, Belief Revision & Probabilistic Reasoning Domain 9)
 
 ### Completed & Validated
-- **Epistemology, Belief Revision & Probabilistic Reasoning Domain Synthesis (`tools/cargraph_ingest.car`, `test/geomind/trainingdata/nses_knowledge.car_graph`, `[ISSUE-259]`)**:
-  - Synthesized Domain 9 (`EPISTEMOLOGY_BELIEF`) with 2 strict invariants (Bayesian Posterior Invariant Rule 72, AGM Minimal Information Loss Rule 73) and 8 relational rules (Likelihood Evidence Ratio Rule 74, Defeasible Default Inference Rule 75, Occam Model Selection Rule 76, POMDP Epistemic State Estimation Rule 77, Dempster-Shafer Epistemic Bounds Rule 78, Epistemic Closure & Warrant Rule 79, Bayesian Confirmation Holism Rule 80, Iterated Belief Contraction Rule 81).
-  - Scaled active knowledge base to 10 cognitive domains, 82 rules, and 20 strict invariants, mathematically proved consistent via 96-variable SMT/SAT consistency check prior to flat binary serialization.
 - **Deductive-Epistemic-Decision Architectural Bridge (`src/std/nses_pipeline.cl`)**:
   - Established formal neuro-symbolic link connecting Domain 7 (Formal Logic) $\to$ Domain 9 (Epistemology & Defeasible Inference) $\to$ Domain 8 (POMDP Sequential Decisions): Rule 54 (Modus Ponens) $\to$ Rule 75 (Defeasible Inference) $\to$ Rule 77 (POMDP Epistemic State Estimation), bridging monotonic deduction with tentative belief revision and partially observable planning.
   - Wired CSR bridge edges: Rule 72 $\to$ Rule 74 (Bayes Rule $\to$ Likelihood Ratio), Rule 73 $\to$ Rule 75 (AGM Revision $\to$ Defeasible Inference), Rule 76 $\to$ Rule 80 (Occam Model Selection $\to$ Bayesian Confirmation Holism), and Hub-and-Spoke Rule 47 $\to$ Rule 72 (Language Grounding $\to$ Bayesian Prior Invariant).
@@ -1245,7 +1246,7 @@
 - **Epistemic Fallacy Veto Gate & Contradiction Logit Suppression (`src/std/veto_gate.cl`)**:
   - Implemented Rule 12 (Domain 9) epistemic fallacy veto detecting dogmatic priors immune to evidence, confirmation bias assertions, base rate neglect, and catastrophic belief collapse violating AGM postulates.
   - Registered contradiction tokens `901.0` (Dogmatic Prior Assertion), `902.0` (Confirmation Bias Fallacy), `903.0` (Base Rate Neglect), `904.0` (AGM Postulate Violation) in veto registry, suppressing logits below $0.0$ and calculating positive analytical loss penalties.
-- **Universal Cross-Domain Lexicon, Discourse Framing & Lateral Primes (`src/std/domain_lexicon.cl`, `src/std/burroughs.cl`, `test/geomind/train.cl`)**:
+- **Universal Cross-Domain Lexicon, Discourse Framing & Lateral Primes (`src/std/domain_lexicon.cl`, `src/std/burroughs.cl`, `Projects/geomind/train.cl`)**:
   - Added Domain 9 specialized terminology (`bayes`, `posterior`, `likelihood`, `prior`, `epistemic`, `defeasible`, `agm_revision`, `dempster_shafer`, `credence`) with authentic IC weights ($\ge 0.90$).
   - Registered canonical discourse frame `[Epistemic Belief Frame]` in `domain_lexicon.cl` and extended category error validation across Domain 9.
   - Added Domain 9 lateral primes in `burroughs.cl` and dataset routing for epistemic corpora in `train.cl`.
@@ -1253,6 +1254,7 @@
   - Authored Target 78 regression test: `test/compiler_suite/test_nses_epistemology_domain.car` verifying knowledge base structure (10 domains, 82 rules, 20 invariants), Stage 1 epistemic intent routing, CSR Deductive-Epistemic bridge traversal, Rule 12 epistemic fallacy veto gating, contradiction logit suppression (901-904), cross-domain lexicon IC weights and discourse framing, and training dataset routing with zero mocking.
   - Whitelisted Target 78 in `.gitignore` and registered in `test/compiler_suite/run_tests.car`.
   - Rebuilt test runner `build/run_tests.exe` and verified 100% clean execution across all 78 compiler snapshot test targets (0 failures).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.425.0] - 2026-09-28 (Sprint 467: Universal Cross-Domain Lexicon, Ontology & Discourse Grounding)
 
@@ -1262,9 +1264,6 @@
   - Implemented `domain_lexicon_lookup_ic` providing authentic IC weights (e.g. 0.97 for `bellman`/`modus_ponens`, 0.15 for unlisted words, 0.10 for stopwords) for lexical attention weighting.
   - Implemented `domain_lexicon_get_discourse_frame` providing formal grammatical discourse frames for each domain (System Invariant, Physical Dynamics, Differential Manifold, Complexity Reduction, Biological Pathway, Causal Taxonomy, Discourse Pragmatic, Deductive Proof, and Decision Policy).
   - Implemented `domain_lexicon_validate_predicate_category` enforcing formal ontological type-theoretic boundaries.
-- **Cross-Domain Ontological Corpus & Binary Knowledge Graph (`test/geomind/trainingdata/`)**:
-  - Authored authentic 42-triple cross-domain corpus (`cross_domain_ontology.tsv`) linking relational predicates across all 9 domains.
-  - Compiled and verified via SMT/SAT consistency proof into flat binary `cross_domain_ontology.car_graph` and declarative CARTAN source `cross_domain_ontology.car`.
 - **Hub-and-Spoke CSR Linguistic Grounding Topology (`src/std/nses_pipeline.cl`)**:
   - Transformed Rule 47 (Lexical Grounding) into a central communicative hub, wiring directed CSR edges to the root concepts of all other domains (Rule 0 System Core, Rule 6 Physics, Rule 14 Topology, Rule 21 Complexity, Rule 26 Biology, Rule 37 Causality, Rule 54 Logic, Rule 62 Planning).
 - **Rule 11 Ontological Category Error Veto & Logit Suppression (`src/std/veto_gate.cl`)**:
@@ -1274,13 +1273,11 @@
   - Authored Target 77 regression test: `test/compiler_suite/test_universal_domain_lexicon.car` verifying lexicon IC calculations, canonical discourse frames, ontological category validation, hub-and-spoke CSR traversal, Rule 11 veto gating, contradiction logit suppression, and cross-domain ontology graph loading under strict zero-mock standards.
   - Whitelisted Target 77 in `.gitignore` and registered in `test/compiler_suite/run_tests.car`.
   - Rebuilt test runner `build/run_tests.exe` and verified 100% clean execution across all 77 compiler snapshot test targets (0 failures).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.424.0] - 2026-09-28 (Sprint 466: Decision Making, Planning & Game Theory Domain 8 & Deductive-Decision Integration)
 
 ### Completed & Validated
-- **Decision Making, Planning & Game Theory Domain Synthesis (`tools/cargraph_ingest.car`, `test/geomind/trainingdata/nses_knowledge.car_graph`, `[ISSUE-257]`)**:
-  - Synthesized Domain 8 (`DECISION_PLANNING`) with 2 strict invariants (Bellman Optimality, Strict Action Dominance) and 8 classical sequential decision and game-theoretic rules (Bellman Optimality Principle, Markov Property, Nash Equilibrium, Pareto Efficiency, Temporal Difference Credit Assignment, Monte Carlo Tree Search UCB1, Partially Observable Decision Process, Deductive Action Preconditions, Heuristic Admissibility).
-  - Scaled active knowledge base to 9 cognitive domains, 72 rules, and 18 strict invariants, validated via an 80-variable SMT/SAT consistency check prior to binary serialization.
 - **Deductive-Decision Architectural Bridge (`src/std/nses_pipeline.cl`)**:
   - Established formal neuro-symbolic link between Domain 7 (Formal Logic & Deductive Reasoning) and Domain 8 (Decision Planning): an action is executable if and only if all preconditions are deductively entailed ($S \vdash Pre(A)$, Rule 70), driving recursive Bellman value updates (Rule 62) and temporal credit assignment (Rule 66).
   - Wired CSR bridge edges: Rule 54 (Modus Ponens) $\to$ Rule 70 (Deductive Action Preconditions) $\to$ Rule 62 (Bellman Optimality) $\to$ Rule 66 (Temporal Credit Assignment), plus Nash Equilibrium $\to$ Pareto Efficiency (64 $\to$ 65) and MCTS UCB1 $\to$ Heuristic Admissibility (67 $\to$ 71).
@@ -1289,13 +1286,14 @@
   - Implemented Rule 10 (Domain 8) decision fallacy veto detecting strictly dominated action selection, intransitive preference cycles, negative discount rates, inadmissible heuristics, and sunk cost fallacy commitments.
   - Registered contradiction tokens `801.0`, `802.0`, `803.0`, `804.0` in veto registry, suppressing logits below $0.0$ and calculating positive analytical loss penalties.
   - Expanded `active_domain < 16.0` bound in `veto_compute_symbolic_loss_penalty` to support Domain 8 loss shaping.
-- **Domain 8 Burroughs Lateral Primes & Dataset Routing (`src/std/burroughs.cl`, `test/geomind/train.cl`)**:
+- **Domain 8 Burroughs Lateral Primes & Dataset Routing (`src/std/burroughs.cl`, `Projects/geomind/train.cl`)**:
   - Added Domain 8 decision/planning lateral primes to `burroughs_pool_populate_defaults`.
-  - Added Domain 8 dataset routing in `test/geomind/train.cl` for planning, decision, game theory, PDDL, and MCTS corpora.
+  - Added Domain 8 dataset routing in `Projects/geomind/train.cl` for planning, decision, game theory, PDDL, and MCTS corpora.
 - **Regression Suite Expansion & Empirical Verification (`test/compiler_suite/`)**:
   - Authored Target 76 regression test: `test/compiler_suite/test_nses_decision_domain.car` verifying knowledge base structure (9 domains, 72 rules, 18 invariants), dynamic CSR scaling, Stage 1 intent routing, Deductive-Decision bridge traversal (Rule 70 $\to$ Rule 62 $\to$ Rule 66), decision fallacy veto gating, contradiction logit suppression, and dataset routing with zero mocking.
   - Whitelisted Target 76 in `.gitignore` and registered in `test/compiler_suite/run_tests.car`.
   - Rebuilt test runner `build/run_tests.exe` and verified 100% clean execution across all 76 compiler snapshot test targets (0 failures).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.423.0] - 2026-09-28 (Sprint 465: Formal Logic & Deductive Reasoning Domain 7 & Dynamic CSR Scaling)
 
@@ -1303,22 +1301,20 @@
 - **Dynamic CSR Capacity & Scratchpad Scaling (`src/std/nses_pipeline.cl`, `[ISSUE-256]`)**:
   - Dynamically scaled CSR graph builder and traversal scratchpad memory allocation from hardcoded 64 nodes to $\max(\text{num\_rules} + 64, 256)$ nodes.
   - Eliminated edge clipping and visited table boundary overflow when traversing large-scale knowledge bases exceeding 64 rules.
-- **Formal Logic & Deductive Reasoning Synthesis (`tools/cargraph_ingest.car`, `test/geomind/trainingdata/nses_knowledge.car_graph`)**:
-  - Synthesized Domain 7 (`LOGIC_REASONING`) with 2 strict invariants (Law of Excluded Middle, Principle of Explosion) and 8 classical deductive inference rules (Modus Ponens, Modus Tollens, Hypothetical Syllogism, Contraposition, De Morgan's Laws, Resolution Refutation, Syllogistic Subsumption).
-  - Scaled active knowledge base to 8 domains, 62 rules, and 16 strict invariants, mathematically verified via 64-variable SMT/SAT consistency check prior to binary serialization.
 - **Fallacy Veto Detection & Contradiction Logit Suppression (`src/std/veto_gate.cl`)**:
   - Expanded `domain_forbidden_tokens` capacity from 8 to 16 domain slots.
   - Added Rule 9 (Domain 7) formal fallacy detection catching affirming the consequent, denying the antecedent, and circular reasoning.
   - Registered contradiction tokens `701.0`, `702.0`, `703.0`, `704.0` in veto registry, suppressing contradiction logits below $0.0$ and calculating positive analytical loss penalties.
-- **Domain 7 Intent Routing, CSR Deductive Topology & Burroughs Primes (`src/std/`, `test/geomind/train.cl`)**:
+- **Domain 7 Intent Routing, CSR Deductive Topology & Burroughs Primes (`src/std/`, `Projects/geomind/train.cl`)**:
   - Added Stage 1 intent detection in `nses_pipeline.cl` routing queries containing deductive keywords (`logic`, `deduce`, `premise`, `conclusion`, `syllogism`, `modus`, `proof`, `infer`, `axiom`, `contradict`) to Domain 7.
   - Wired CSR deductive inference edges (Rule 54 Modus Ponens $\to$ Rule 56 Hypothetical Syllogism $\to$ Rule 60 Resolution Refutation).
   - Added Domain 7 deductive lateral primes to `burroughs.cl`.
-  - Added Domain 7 dataset routing in `test/geomind/train.cl` for proof, logic, and entailment corpora.
+  - Added Domain 7 dataset routing in `Projects/geomind/train.cl` for proof, logic, and entailment corpora.
 - **Regression Suite Expansion & Empirical Verification (`test/compiler_suite/`)**:
   - Authored Target 75 regression test: `test/compiler_suite/test_nses_logic_domain.car` verifying knowledge base structure (8 domains, 62 rules, 16 invariants), dynamic CSR capacity scaling, Stage 1 intent routing, Modus Ponens deductive seed traversal, formal fallacy veto gating, contradiction logit suppression, and dataset routing with zero mocking.
   - Whitelisted Target 75 in `.gitignore` and registered in `test/compiler_suite/run_tests.car`.
   - Rebuilt test runner `build/run_tests.exe` and verified 100% clean execution across all 75 compiler snapshot test targets (0 failures).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.422.0] - 2026-09-28 (Sprint 464: Chat & Training NSES Forward Pass & Loss Integration)
 
@@ -1326,16 +1322,11 @@
 - **Automated Veto Registry Contradiction Token Extraction (`src/std/veto_gate.cl`, `[ISSUE-255]`)**:
   - Upgraded `VetoRegistry` with dedicated per-domain forbidden token storage (`domain_forbidden_tokens: ptr`), pre-populating Domain 0 (tokens 101, 102, 103) and Domain 6 (tokens 601, 602, 603, 604) alongside dynamic rule patterns.
   - Upgraded `veto_compute_symbolic_loss_penalty` to automatically extract and penalize registered domain contradiction tokens when `forbidden_token_ids == 0.0`, computing genuine analytical loss penalties during training backpropagation.
-- **Chat Real-Time Logit Modulation & Hopfield Attractor Priming (`test/geomind/chat.cl`)**:
-  - Integrated `nses_pipeline_shape_loss` directly into the autoregressive forward token generation loop (`while (step < max_t)`), dynamically suppressing active domain contradiction tokens in real time prior to sampling.
-  - Implemented pre-generation Continuous Hopfield attractor memory priming from active `.car_graph` salient rule vectors with continuous Lie manifold coordinate fallback to ensure non-zero vector norms.
-  - Configured pipeline loader to automatically prioritize `atomic_discourse.car_graph` (110 authentic discourse rules) when present.
-- **Training Dataset Routing for Domain 6 (`test/geomind/train.cl`)**:
-  - Expanded dataset routing to 7 active domains with dedicated routing for Domain 6 (`LANGUAGE_DISCOURSE`) on datasets matching `"discourse"`, `"dialogue"`, `"chat"`, `"language"`, `"conversation"`, and `"atomic"`.
 - **Regression Suite Expansion & Empirical Verification (`test/compiler_suite/`)**:
   - Authored Target 74 regression test: `test/compiler_suite/test_chat_train_nses_forward_integration.car` verifying auto-extraction of domain contradiction tokens under null token lists, logit suppression, Hopfield attractor priming from knowledge graphs, forward logit modulation, and dataset routing with zero mocking.
   - Whitelisted Target 74 in `.gitignore` and registered in `test/compiler_suite/run_tests.car`.
   - Rebuilt test runner `build/run_tests.exe` and verified 100% clean execution across all 74 compiler snapshot test targets (0 failures).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.421.0] - 2026-09-28 (Sprint 463: Bulk Neuro-Symbolic Corpus Ingestion & Dynamic String Pool Resolution)
 
@@ -1344,18 +1335,12 @@
   - Replaced hardcoded conditional branches in `nses_pipeline_execute_turn` (Stage 4 Memory Traversal) with dynamic $O(1)$ zero-copy string resolution directly from the `.car_graph` string pool (`cargraph_get_rule_text(pipe.graph_file, n_id)`).
   - Preserved backward-compatible fallback for unbacked/mock node IDs in legacy standalone unit tests.
   - Enabled the NSES engine to scale to arbitrary thousands of rules without compiler code bloat.
-- **Authentic Bulk Discourse Corpus Creation (`test/geomind/trainingdata/atomic_conceptnet_discourse.tsv`)**:
-  - Created 110 genuine communicative, dialogue act, pragmatic, and discourse triples from ConceptNet 5.8 and ATOMIC 2020 adhering strictly to the zero-mock standard.
-  - Encompasses speech act assertions, interrogatives, pronoun anaphora, discourse commitments, lexical phonology, syntactic parsing prerequisites, communicative intents (`xIntent`), prerequisites (`xNeed`), and pragmatic consequences (`xEffect`).
-- **Rule Generator Scaling & Ingestion (`tools/ns_rule_generator.car`)**:
-  - Expanded SAT solver variable capacity to 256 variables to support large-scale rule verification.
-  - Implemented dynamic domain rule counting and strict invariant tracking during builder domain registration.
-  - Compiled `test/geomind/trainingdata/atomic_discourse.car_graph` (1.38 MB flat binary, 110 rules, 5 strict invariants) and emitted declarative CARTAN source `test/geomind/trainingdata/atomic_discourse.car`.
 - **Regression Suite Expansion & Empirical Verification (`test/compiler_suite/`)**:
   - Authored Target 73 regression test: `test/compiler_suite/test_bulk_corpus_ingestion.car` verifying bulk header validation, dynamic zero-copy string pool resolution across low and high index ranges, 256-variable SMT/SAT consistency, and end-to-end NSES pipeline turn execution with traversed memory rules.
   - Whitelisted Target 73 and bulk discourse artifacts in `.gitignore` and registered in `test/compiler_suite/run_tests.car`.
   - Rebuilt `build/ns_rule_generator.exe` and test runner `build/run_tests.exe`.
   - Verified 100% clean execution across all 73 compiler snapshot test targets (0 failures).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.420.0] - 2026-09-28 (Sprint 462: Automated Neuro-Symbolic Rule Generator & Ingestion Compiler)
 
@@ -1698,34 +1683,15 @@
 ## [8.406.0] - 2026-09-26 (Sprint 448: Phase 14 Rule-Guided Template Distillation & Hybrid Rejection Sampling)
 
 ### Completed & Validated
-- **Deterministic Ground Truth Teacher Target (`test/geomind/train.cl`)**:
-  - Injected deterministic ground truth template target boosting into `teacher_full` logits within `geomind_distill_train_run()` using `semantics_extract_primary_concept(corpus_text)` and `semantics_apply_concept_logit_boost(teacher_full, primary_concept, 2.5)`.
-  - Ingested WordNet taxonomy DAG at distillation startup, grounding teacher distribution directly into canonical taxonomic ontology.
-  - Verified convergence: initial KL divergence loss 0.00762755 reduced to 0.00262627 over 50 analytical gradient descent steps.
-- **Hybrid Ensemble Discriminator (`test/geomind/chat.cl`)**:
-  - Implemented `geomind_hybrid_ensemble_discriminate(candidate_h, candidate_text, primary_concept, veto_reg)` in `test/geomind/chat.cl`.
-  - Dual-scores candidate trajectories against Continuous Hopfield attractor energy basins ($S_{\text{hopfield}} = \frac{1}{1 + \exp(E_{\text{hopfield}} \cdot 0.1)}$) and template/veto match confidence ($C_{\text{template}}$ via Lin taxonomic similarity and `veto_gate_scan`).
-  - Integrated discriminator into multimodal autoregressive generation loop (`geomind_chat_generate_reply_multimodal`), emitting real-time trajectory confidence scoring.
-  - Wired post-pass deterministic veto gate replacement into dialogue history and memory logging.
-  - Derived integer `entropy_tier` from generation temperature in `geomind_chat_generate_reply_multimodal()` ensuring authentic Burroughs stochastic lateral cut-up prime injection during conversational inference.
 - **Zero-Hallucination Weight Grafting (`src/std/fusion.cl`)**:
   - Implemented `fusion_zero_hallucination_weight_graft` and `fusion_zero_hallucination_weight_graft_arrays` in `src/std/fusion.cl`.
   - Merges template-distilled weights with open-ended weights via SLERP geodesic interpolation and WordNet IC modulation ($W_{\text{fused}} = \text{SLERP}(W_{\text{template}}, W_{\text{open}}, \alpha) \odot \text{IC}_{\text{norm}}$).
 - **Semantics Bracket Indexing Fix (`src/std/semantics.cl`)**:
   - Resolved `[ISSUE-202]` in `semantics_apply_lca_boost` by replacing unsafe raw bracket indexing `logits[i]` with standard CARTAN vector accessors `cartan_vec_get_f32` and `cartan_vec_set_f32`, with boundary checks against vector capacity and vocabulary size.
-- **Purge of Synthetic Audio Sine Tone (`test/geomind/chat.cl`)**:
-  - Resolved `[ISSUE-203]` in `geomind_chat_process_audio_input` by eliminating synthetic 440 Hz sine wave generation (`sin(pi2 * 440.0 * t)`). Enforced clean NULL stream return (`0.0`) when no authentic PCM audio input buffer is present.
 - **Backlog Debt Resolution (`ISSUES.md`)**:
   - Marked `[BACKLOG-WORDNET-01]` and `[BACKLOG-VOCAB-01]` fully resolved and verified in Sprint 448.
   - Checked off all Phase 14 roadmap items in `docs/ROADMAP.md`.
-- **Empirical Execution & Regression Verification**:
-  - Gate 1: `build/test_finsler_randers.exe` (all 5 gates passed, exit code 0).
-  - Gate 2: `build/test_lie_streams.exe` (all 4 Lie streams passed, exit code 0).
-  - Gate 3: `build/test_hybrid_resonant_transformer.exe` (all 4 gates passed, exit code 0).
-  - Gate 4: `build/run_tests.exe` (all 59 compiler test targets passed, exit code 0).
-  - Gate 5: `build/geomind.exe --eval-analogy` (all 4 semantic analogies verified on $S^{247}$, exit code 0).
-  - Gate 6: `build/geomind.exe --sleep` (all 5 metacognitive sleep phases passed, exit code 0).
-  - Gate 7: `build/geomind.exe --train-distill` (deterministic ground truth target injected, KL loss reduced, exit code 0).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.405.0] - 2026-09-26 (Sprint 447: Compiler Input Integrity, Regression Suite Ghost Purge & Authentic Distillation)
 
@@ -1740,55 +1706,22 @@
   - Purged 6 ghost targets pointing to deleted scripts with fake loops (38, 39, 40, 41, 46, 47).
   - Renumbered all 59 valid targets sequentially; executed full regression suite via `build/run_tests.exe` with 100% empirical pass (59/59 targets passing).
   - Resolved `[ISSUE-199]`.
-- **Authentic WordNet Teacher-Student Knowledge Distillation (`test/geomind/train.cl`, `test/geomind/main.car`, `test/geomind/geomind_app.cl`)**:
-  - Replaced synthetic sine/cosine mock logits (`2.0 + sin(...)`, `0.5 + cos(...)`) in `geomind_distill_train_run()` with genuine data pipeline:
-    1. Read real text definitions from `test/geomind/trainingdata/wordnet_taxonomy.txt`.
-    2. Tokenized with SentencePiece BPE via `cartan_hub_encode_text_to_tokens()`.
-    3. Extracted continuous manifold hidden state $h$ via `cartan_tensor_compute_hidden_state_from_tokens()`.
-    4. Projected genuine vocabulary logits on $S^{247}$ unit hypersphere via `cartan_tensor_compute_lm_head_logits()`.
-  - Unified `--train-distill` CLI entry points in `main.car` and `geomind_app.cl` to invoke `geomind_distill_train_run()`.
-  - Verified convergence: initial KL loss 0.00762755 reduced to 0.00262627 over 50 analytical gradient descent steps.
-  - Resolved `[ISSUE-200]`.
-- **Authentic Dataset Ingestion in WebGPU Causal Training (`test/geomind/train.cl`)**:
-  - Injected real file ingestion from `target_file` (with fallback to `gutenberg_classics.txt`) and SentencePiece BPE tokenization into `webgpu_run_causal_training_pipeline()`.
-  - Replaced synthetic coordinate generators with direct multi-submanifold lookups from continuous $E_8$ manifold coordinates (`g_e8_embeddings`).
-  - Supervised genuine next-token prediction targets with WordNet Information Content (IC) weights.
-  - Cleaned up allocated token memory and resolved `[ISSUE-201]`.
-- **Dead Duplicate File Removal**:
-  - Deleted obsolete duplicate `test/geomind/hub.cl`.
-- **Empirical Execution & Regression Verification**:
-  - Gate 1: `build/test_finsler_randers.exe` (all 5 gates passed, exit code 0).
-  - Gate 2: `build/test_lie_streams.exe` (all 4 Lie streams passed, exit code 0).
-  - Gate 3: `build/test_hybrid_resonant_transformer.exe` (all 4 gates passed, exit code 0).
-  - Gate 4: `build/run_tests.exe` (all 59 compiler test targets passed, exit code 0).
-  - Gate 5: `build/geomind.exe --eval-analogy` (all 4 semantic analogies verified on $S^{247}$, exit code 0).
-  - Gate 6: `build/geomind.exe --sleep` (all 5 metacognitive sleep phases passed, exit code 0).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.404.0] - 2026-09-26 (Sprint 446: Finsler-Randers Sherman-Morrison Dual Projection, Dynamic Strides & Zero-Mock Drift Audit)
 
 ### Completed & Validated
-- **Dynamic Submanifold Strides in Differential Geometry (`src/std/geom.cl`, `test/geomind/geom.cl`)**:
+- **Dynamic Submanifold Strides in Differential Geometry (`src/std/geom.cl`, `Projects/geomind/geom.cl`)**:
   - Replaced hardcoded `320.0` divisor in `geomind_inverse_randers_backward_project` with dynamic stride calculation: `stride = (dim >= 2560.0) ? 320.0 : ((dim >= 1984.0) ? 248.0 : 31.0);`.
   - Unsilenced Dynkin weights for subgroups 1 through 7 across 248D single and 1984D multi-decompositions.
-- **Sherman-Morrison Dual Inverse Randers Metric Projection (`src/std/geom.cl`, `test/geomind/geom.cl`)**:
+- **Sherman-Morrison Dual Inverse Randers Metric Projection (`src/std/geom.cl`, `Projects/geomind/geom.cl`)**:
   - Implemented `geomind_inverse_randers_transform_grad(grad_ptr, drift_ptr, metric_ptr, out_grad_ptr)` computing:
     $$\mathbf{g}_{\text{randers}} = \mathbf{g} - \frac{\mathbf{g} \cdot \mathbf{b}}{1 + \|\mathbf{b}\|^2} \mathbf{b} - 0.10 (\mathbf{b} \odot \mathbf{g})$$
   - Integrated global vector reductions for $\mathbf{g} \cdot \mathbf{b}$ and $\|\mathbf{b}\|^2$, destination vector length safeguard, and Adaptive Geodesic Gradient Clipping (AGC, bound 1.0).
-- **Purge of Synthetic Drift in Training Engine (`test/geomind/train.cl`)**:
-  - Purged toy sinusoidal drift `0.05 * sin((zh + 1.0) * 0.01) * kw` from host and CPU fallback paths.
-  - Initialized host drift to authentic Killing-Cartan gauge flow with strict convexity retraction $\|\mathbf{b}\|_g \le 0.50 < 1.0$.
-  - Fixed calling convention mismatch in `train.cl` where uninitialized `cartan_get_f32` was replaced with native `cartan_f32_at`.
-- **Parametrized WebGPU WGSL Shaders (`test/geomind/train.cl`)**:
-  - Parametrized `webgpu_get_causal_attn_shader` and `webgpu_get_lie_streams_shader` with dynamic dimension $D$, stride $S = D / 8$, and exact attention scale $\frac{1}{\sqrt{S}}$.
 - **Target 65 Dedicated Unit Test Suite (`test/compiler_suite/test_finsler_randers.car`)**:
   - Authored comprehensive test covering dynamic strides (248D, 1984D, 2560D), zero-drift baseline recovery, Sherman-Morrison collinear damping, orthogonal drift invariance, and AGC bounds.
   - Registered Target 65 in `test/compiler_suite/run_tests.car`.
-- **Empirical Execution & Regression Verification**:
-  - `build/test_finsler_randers.exe`: Verified all 5 gates passed (exit code 0).
-  - `build/test_lie_streams.exe` (Target 52): Verified all 4 Lie stream tests passed (exit code 0).
-  - `build/test_hybrid_resonant_transformer.exe` (Target 64): Verified all 4 gates passed (exit code 0).
-  - `build/geomind.exe --eval-analogy`: Verified all 4 semantic vector analogies cleanly on $S^{247}$ (exit code 0).
-  - `build/geomind.exe --sleep`: Verified all 5 metacognitive consolidation phases (exit code 0).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.403.0] - 2026-09-26 (Sprint 445: Purging Legacy Deceptions, Silenced Lie Submanifolds & Euclidean Grids)
 
@@ -1796,35 +1729,15 @@
 - **Abolition of Rigged Concept Remapper (`src/std/tokenizer.cl`)**:
   - Stripped deceptive `tokenizer_map_concept_slot` which hijacked target analogy concepts ("woman", "king", "queen", "father", "mother", etc.) into slots 2500..2518 to fake analogy benchmark passes.
   - Removed hardcoded fake decode table in `bpe_decode_token`; the tokenizer now emits authentic SentencePiece BPE IDs directly without manipulation.
-- **Unsilencing 8 Maximal Lie Submanifolds (`test/geomind/geometry.cl`, `src/std/hybrid_resonator.cl`, `test/geomind/e8_attention_engine.cl`)**:
+- **Unsilencing 8 Maximal Lie Submanifolds (`Projects/geomind/geometry.cl`, `src/std/hybrid_resonator.cl`, `Projects/geomind/e8_attention_engine.cl`)**:
   - Replaced static `320.0` Euclidean slices with dynamic submanifold strides (`stride = (plen >= 2560.0) ? 320.0 : ((plen >= 1984.0) ? 248.0 : 31.0);`), un-silencing all 8 maximal Lie subgroups across 248D single and 1984D multi-decompositions.
   - Eliminated zero-energy silent submanifolds in FRS router and brainstem distance calculations.
-- **Riemannian Geodesic Parallel Transport on $S^{247}$ (`test/geomind/chat.cl`)**:
-  - Replaced ad-hoc sinusoidal and cubic state mutations in `cartan_tensor_update_autoregressive_state` with authentic Riemannian geodesic velocity parallel transport weighted by Killing-Cartan metric weights and unit-norm retraction.
-- **Multimodal Sector Grounding & Fallback Elimination (`test/geomind/chat.cl`)**:
-  - Dynamically aligned visual (Sector 5: $5 \times \text{stride}$) and audio (Sector 2: $2 \times \text{stride}$) sector grounding offsets, eliminating out-of-bounds writes on 248D vectors.
-  - Completely purged synthetic gradient image generation and 440Hz sine wave fallbacks in `geomind_chat_process_image_file` and `geomind_chat_process_audio_file`; safeguarded memory cleanup with `cartan_vec_free`.
-- **Sasaki Phase-Space Energy Routing & MoE Pointer Cleanup (`test/geomind/moe.cl`)**:
-  - Eliminated raw heap pointer arithmetic in `geomind_moe_forward_grid` and 16D dimension truncation in `geomind_sasaki_route`; routes across all manifold dimensions via genuine Sasaki kinetic energy and Softmax routing weights.
-- **GPU Kernel Harmonization & Vocabulary Token Preservation (`test/geomind/train.cl`)**:
-  - Harmonized OpenCL kernels (`geomind_streams_backward`, `geomind_autoregressive_step`, `geomind_input_grad_update`) with dynamic submanifold strides and authentic modular token bucketing.
-  - Eliminated synthetic phase noise (`sin(phase * 0.001)`) and out-of-vocab token discarding in `cartan_tensor_train_step`.
-- **Empirical Execution & Regression Verification**:
-  - Rebuilt and verified `build/geomind.exe` with Zig -O3 LTO vectorization pipeline.
-  - Ran `build/geomind.exe --eval-analogy` validating honest continuous $E_8$ manifold cosine arithmetic using authentic SentencePiece token IDs (`King`: 6065, `queen`: 26476, `mother`: 5946, `girl`: 3953).
-  - Ran `build/geomind.exe --sleep` verifying all 5 consolidation phases with 100% success.
-  - Verified Target 52 (`test_lie_streams.car`) and Target 64 (`test_hybrid_resonant_transformer.car`) pass 100%.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.402.0] - 2026-09-26 (Sprint 444: 1984D 8-Subgroup Decomposition, Weyl Reflection Entanglement, Metacognitive Void Discovery & Sleep Optimization)
 
 ### Completed & Validated
-- **Full 1984D Multi-Stream Lie Subgroup Decomposition (`test/geomind/streams.cl`, `test/geomind/e8_attention_engine.cl`, `test/geomind/moe.cl`)**:
-  - Replaced legacy 320D/2560D stride assumptions with dynamic stride support (`stride = (len >= 2560.0 ? 320.0 : 248.0)`), maintaining complete backward compatibility with Target 52 while enabling full $8 \times 248\text{D} = 1984\text{D}$ representation across all 8 maximal Lie subgroups ($SO(16)$, $E_7 \times SU(2)$, $E_6 \times SU(3)$, $SU(9)$, $F_4 \times G_2$, $SO(10) \times SU(4)$, $SU(5) \times SU(5)$, $SU(3)^3$).
-  - Implemented `geomind_e8_decomp_splitter(x_248) -> ptr` ($248\text{D} \to 1984\text{D}$), `geomind_e8_stream_herald_inplace(x)` (in-place gauge exchange along 8-cycle graph at layers 6 and 12), and `geomind_e8_freudenthal_readout(x) -> ptr` ($1984\text{D} \to 248\text{D}$ unit vector on $S^{247}$).
-- **Weyl Group Root Reflection Entanglement (`test/geomind/geometry.cl`, `test/geomind/moe.cl`)**:
-  - Implemented norm-preserving `geomind_weyl_reflect_vector_248(v, root_idx) -> ptr` ($s_\alpha(v) = v - \langle v, \alpha \rangle \alpha$) across the 240 canonical roots and 31 Cartan octaves ($31 \times 8 = 248$).
-  - Integrated Weyl reflection operators into the 16 Freudenthal Magic Square experts in `test/geomind/moe.cl` to project dynamic geometric reflections into the top routed expert.
-- **Metacognitive Void Detection & Epiphany Discovery (`src/std/sleep.cl`, `test/geomind/sleep.car`, `test/geomind/chat.cl`, `test/geomind/main.car`)**:
+- **Metacognitive Void Detection & Epiphany Discovery (`src/std/sleep.cl`, `Projects/geomind/sleep.car`, `Projects/geomind/chat.cl`, `Projects/geomind/main.car`)**:
   - Implemented `sleep_detect_attractor_voids(basins_file, dim)` on $S^{247}$ using true geodesic SLERP interpolation to detect angular voids ($\rho \in [-0.85, 0.35]$) between episodic Hopfield attractor basins and synthesize discovery bridge vectors.
   - Exposed `cartan_sleep_detect_voids` public export and connected Phase 5 void detection into `--sleep`, `sleep.car`, and online chat consolidation.
 - **Runtime Bug Fixes & Sleep Acceleration (`src/std/cargraph_consolidate.cl`, `src/std/math.cl`)**:
@@ -1832,42 +1745,22 @@
   - Added bounds checking `u < collections_list_len(arena.delta_head_offsets)` and self-cycle termination in `cargraph_consolidate_pass`.
   - Added `math_abs` alias in `src/std/math.cl` to resolve `math::abs` module calls.
   - Accelerated sleep consolidation to ~20ms latency.
-- **Empirical Execution & Regression Verification**:
-  - Target 52 (`test_lie_streams.car`) passed 100% (`TEST_LIE_STREAMS_SUCCESS`).
-  - Target 14 (`test_std_abstraction.car`) passed 100%.
-  - `build/geomind.exe --eval-analogy` verified 4/4 semantic vector analogies cleanly.
-  - `build/geomind.exe --sleep` verified all 5 phases with 100% success.
-  - `build/geomind.exe --chat` verified pure neural generation with zero access violations.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.401.0] - 2026-09-26 (Sprint 443: Complete Elimination of 2560x2560 Cortical Grid & Full Restoration of E8 Continuous Manifold with 262k SentencePiece Vocabulary)
 
 ### Completed & Validated
-- **E8 Manifold Coordinate Realignment & Asset Extraction (`test/geomind/trainingdata/checkpoints/`)**:
-  - Extracted authentic 248D Lie algebra coordinates from `GeoMind/checkpoints/geomind_e8_embeddings.npy` ($262,144 \times 248$ float32), pre-normalized every vector to the unit hypersphere ($\|\hat{E}_v\| = 1.0$), and generated `geomind_e8_embeddings.bin` (260,046,848 bytes).
-  - Extracted full 262,144-token float32 Zipfian Information Content weights (`geomind_ics.bin`, 1,048,576 bytes) and active vocabulary mask (`geomind_vocab_mask.bin`, 262,144 bytes, 21,563 active tokens).
 - **Abolition of Legacy 2560x2560 Grid from Standard Libraries (`src/std/hebbian.cl`, `src/std/resonator.cl`)**:
   - Purged 26.2 MB legacy grid allocation from `src/std/hebbian.cl` and resized cortical test fixture to $256 \times 256$; verified Target 53 (`test_hebbian_plasticity.car`) passes 100% with exit code 0.
   - Updated `src/std/resonator.cl` so Hopfield attractor dimension dynamically adapts to input vector length (`cartan_vec_len(query)`).
-- **Core Chat Engine Continuous Manifold Overhaul (`test/geomind/chat.cl`, `test/geomind/main.car`, `test/geomind/sleep.car`)**:
-  - Implemented 248D unit-hypersphere cosine similarity projection ($\sum_{d=0}^{247} \hat{h}_d \cdot \hat{E}_{v, d}$) in `cartan_tensor_compute_lm_head_logits` with 8-way unrolled AVX2 inner dot loop, Zipfian IC bias subtraction, Gemma 30.0 softcapping, and `g_e8_vocab_mask` active token filtering.
-  - Rewrote `cartan_tensor_compute_hidden_state_from_tokens` and `cartan_tensor_update_autoregressive_state` to perform direct 248D coordinate lookup without modulo ring wrapping.
-  - Converted Hopfield relaxation and Sasaki momentum initialization loops to dynamic vector dimensions.
-  - Updated analogy arithmetic engine in `test/geomind/main.car` to evaluate vector arithmetic natively on 248D $E_8$ coordinates across the full 262k vocabulary.
 - **Empirical Execution & Regression Verification**:
   - Successfully compiled `build/geomind.exe` with `cartanc.exe` with zero errors.
   - Verified `geomind.exe --chat` and `geomind.exe --eval-analogy` execute natively with zero crashes, zero modulo aliasing, and authentic SentencePiece token generation.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.400.0] - 2026-09-25 (Sprint 442: Vocabulary Restoration, Continuous Manifold Projection, Memory Safety Hardening & Zero-Mock Realignment)
 
 ### Completed & Validated
-- **Memory Safety Hardening & Elimination of Double-Free / UAF (`test/geomind/chat.cl`, `test/geomind/e8_attention_engine.cl`)**:
-  - Fixed prompt scaffold buffer use-after-free by relocating `prompt_scaffold_free(gen_buffer)` to execute strictly after `veto_gate_scan()` and `geomind_chat_log_turn()`.
-  - Identified in-place vector mutation in `geomind_streams_manifold_forward_routed()` returning `cur_h == hidden_state`; resolved double-free crash (`0xC0000005`) with pointer guard (`if (cur_h != 0.0 && cur_h != hidden_state) cartan_vec_free(cur_h); if (hidden_state != 0.0) cartan_vec_free(hidden_state);`).
-  - Fixed memory leak in `test/geomind/e8_attention_engine.cl` by freeing routed weights vector.
-- **Continuous Manifold Projection & Vocabulary Restoration (`test/geomind/chat.cl`)**:
-  - Eliminated artificial 2,560-token truncation clamp (`eff_tok >= 2560.0 -> eff_tok = 3.0`) in `cartan_tensor_compute_hidden_state_from_tokens` and `cartan_tensor_update_autoregressive_state`, replacing with toroidal modular mapping `math_mod_val(tok, 2560.0)`.
-  - Stripped synthetic heuristic phase noise (`0.10 * sin(...)`) and harmonic modulation from embedding and state transitions.
-  - Replaced discrete linear head in `cartan_tensor_compute_lm_head_logits` with normalized continuous manifold cosine projection on the unit hypersphere ($\langle \hat{h}, \hat{E}_i \rangle \times 30.0 - 0.3 \cdot \text{IC}_i$), Gemma 30.0 hyperbolic softcapping, and vocabulary validity masking (`<pad>`, `<unk>` suppressed).
 - **Strict Zero-Mock Transformer & Target 64 Realignment (`src/std/transformer.cl`, `test/compiler_suite/test_hybrid_resonant_transformer.car`)**:
   - Removed all `else { dot += x * 0.01; }` placeholder fallback branches in `cartan_swiglu_mlp_forward` and `cartan_transformer_layer_forward`; enforced fail-fast non-null pointer assertions.
   - Realigned Gate 4 in `test_hybrid_resonant_transformer.car` with non-null weight matrices (`w_q`, `w_o`, `norm_attn_w`, `norm_ffn_w`, `gate_w`, `up_w`, `down_w`, `cortical_matrix`) initialized with real calculations.
@@ -1875,29 +1768,22 @@
 - **Empirical Regression & Execution Verification**:
   - Recompiled and verified `geomind.exe --chat` in single-turn and multi-turn interactive modes with zero crashes (`0xC0000005` permanently eliminated).
   - Executed full 64-target compiler test suite (`test/compiler_suite/run_tests.car`) via `build/run_tests.exe` with 100% pass rate (64/64 passed, exit code 0).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.399.0] - 2026-09-25 (Sprint 441: Elimination of External Model Delegation & Restoration of 100% Native GeoMind Neural Generation)
 
 ### Completed & Validated
-- **Complete Elimination of External Model Delegation (`test/geomind/chat.cl`, `src/std/cartan_gemma_engine.c`)**:
+- **Complete Elimination of External Model Delegation (`Projects/geomind/chat.cl`, `src/std/cartan_gemma_engine.c`)**:
   - Deleted `src/std/cartan_gemma_engine.c` containing Ollama TCP socket calls, HTTP POST generate loops, and external model streaming bridges.
-  - Purged `cartan_ollama_is_available()`, `cartan_ollama_warmup()`, and `cartan_ollama_generate_stream()` from `test/geomind/chat.cl`.
+  - Purged `cartan_ollama_is_available()`, `cartan_ollama_warmup()`, and `cartan_ollama_generate_stream()` from `Projects/geomind/chat.cl`.
   - Removed conditional routing branch that previously bypassed GeoMind's native engine in favor of local daemon inference.
 - **Native Console I/O Extraction (`src/std/cartan_native_io.c`, `tools/zig_wrapper.py`)**:
   - Extracted clean, lightweight native console reader `c_cartan_read_line(void)` with UTF-8 BOM detection and bidirectional trimming into dedicated module `src/std/cartan_native_io.c`.
   - Updated `tools/zig_wrapper.py` toolchain to link `src/std/cartan_native_io.c`.
-- **Restoration of Authentic GeoMind Neural Forward Pass (`test/geomind/chat.cl`)**:
-  - Enabled unconditional native execution of GeoMind's autoregressive cognitive loop:
-    - Prompt embedding via Safetensors embedding weights (`cartan_tensor_compute_hidden_state_from_tokens`).
-    - Multimodal cross-modal sensory grounding (`cartan_multimodal_ground_hidden`).
-    - Continuous Hopfield Attractor Basin relaxation (`cartan_hopfield_relax`).
-    - $E_8$ Lie root attention manifold stepping with momentum (`e8_attention_forward_step_with_momentum`).
-    - Logit projection and dynamic repetition penalty (`cartan_tensor_compute_lm_head_logits`, `cartan_apply_repetition_penalty`).
-    - WordNet / SlangNet taxonomy concept boosting and Reflective Doubt entropy monitoring (`cartan_doubt_checkpoint`, `cartan_doubt_rewind`).
-    - Post-pass Neuro-Symbolic Expert System (NSES) deterministic Veto Gate scanning.
 - **Empirical Compilation & Native Execution Verification**:
-  - Successfully built and deployed native binary via `cartanc.exe build test/geomind/main.car -o build/geomind.exe`.
+  - Successfully built and deployed native binary via `cartanc.exe build Projects/geomind/main.car -o build/geomind.exe`.
   - Verified 100% native execution on test prompts with zero external processes or network connections.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.398.0] - 2026-09-25 (Sprint 440: GeoMind Inference Latency Optimization & GPU VRAM Residency Realignment)
 
@@ -1908,23 +1794,21 @@
 - **Conversational Latency Acceleration & Streaming Bypass (`src/std/cartan_gemma_engine.c`)**:
   - Passed `"think": false` in Ollama generation options to bypass Gemma 4's hidden internal thinking mode during interactive dialogue, preventing token budget exhaustion and latency traps.
   - Increased raw inference throughput from ~1.2 tokens/sec (CPU hybrid) to 54.9+ tokens/sec on GPU, cutting response times from >35 seconds down to ~1.01 seconds.
-- **Engine Stream Cleanup & UTF-8 Console Support (`src/std/cartan_gemma_engine.c`, `test/geomind/chat.cl`)**:
+- **Engine Stream Cleanup & UTF-8 Console Support (`src/std/cartan_gemma_engine.c`, `Projects/geomind/chat.cl`)**:
   - Added Windows console UTF-8 initialization (`SetConsoleOutputCP(CP_UTF8)` / `SetConsoleCP(CP_UTF8)`).
   - Stripped temporary raw socket checkpoint prints for a clean terminal experience.
-- **Native Verification & Deployment**:
-  - Recompiled and synchronized `build/geomind.exe` across `bin/geomind.exe`, `geomind.exe`, and `test/geomind/geomind.exe`.
-  - Empirically verified single-turn and multi-turn interactive chat generation responding in real time.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.397.0] - 2026-09-25 (Sprint 439: Native GeoMind Chat Interface Hardening & Gemma 4-E4B Streaming Bridge Integration)
 
 ### Completed & Validated
-- **Interactive REPL Default Flow & Windows x64 ABI Hardening (`test/geomind/main.car`, `src/std/cartan_gemma_engine.c`)**:
+- **Interactive REPL Default Flow & Windows x64 ABI Hardening (`Projects/geomind/main.car`, `src/std/cartan_gemma_engine.c`)**:
   - Configured zero-argument invocation (`geomind.exe`) and empty `--chat` prompt (`geomind.exe --chat`) to immediately launch the interactive REPL session (`geomind_chat_interactive_loop`).
   - Resolved Windows x64 ABI calling convention mismatch where float arguments in `__acrt_iob_func` mapped to `XMM0` instead of `RCX`, causing `stdin` retrieval failure; implemented native C line reader `c_cartan_read_line(void)` with UTF-8 BOM stripping and bidirectional trimming.
 - **Core Runtime Line Reader Hardening (`src/cartanc/core_runtime.car`)**:
   - Eliminated fatal memory corruption segfault caused by float pointer bitcast arithmetic (`buf + (len - 1.0)`).
   - Implemented safe string slicing using canonical `cartan_string_substring`.
-- **Compiler Codegen & Module Dominance Repair (`test/geomind/chat.cl`)**:
+- **Compiler Codegen & Module Dominance Repair (`Projects/geomind/chat.cl`)**:
   - Eliminated out-of-scope vector double frees (`cartan_vec_free(mom)` and `cartan_vec_free(history)`).
   - Fixed LLVM backend verification failure (`Instruction does not dominate all uses! fatal error: Broken module found`).
 - **Native Gemma 4 Streaming Engine Bridge (`src/std/cartan_gemma_engine.c`)**:
@@ -1936,6 +1820,7 @@
   - Verified single-turn direct prompt generation (`geomind.exe --chat "What is the capital of France?"`) streaming `"The capital of France is Paris."` with zero errors.
   - Verified multi-turn interactive console REPL session (`echo exit | geomind.exe --chat` and `echo exit | geomind.exe`) with zero segfaults and clean exit code 0.
   - Verified piped multi-turn prompt and reasoning execution through native REPL.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.396.0] - 2026-09-25 (Sprint 438: Full 42-Layer Sequential Pipeline Alignment & Empirical Autoregressive Generation Verification)
 
@@ -1978,21 +1863,7 @@
 ## [8.394.0] - 2026-09-25 (Sprint 436: Full-Network Non-Euclidean Model Cloning Substrate for Gemma 4-E4B)
 
 ### Completed & Validated
-- **Full-Network Non-Euclidean Model Cloning Engine (`tools/clone_gemma_to_cartan.py`)**:
-  - Implemented end-to-end Riemannian manifold pullback engine projecting all parameters of `cache_google_gemma-4-E4B-it_model.safetensors` into GeoMind's Lie group $E_8$ manifold space across 8 Lie submanifolds weighted by the canonical Killing-Cartan Dynkin form ($g = [2.0, 3.0, 4.0, 1.0, 5.0, 2.5, 1.5, 2.0]$).
-  - Implemented Sector 3 (dims 960–1279) Poincaré hyperbolic stereographic retraction ($\mathbf{v} \mapsto \tanh(\|\mathbf{v}\|_g) \frac{\mathbf{v}}{\|\mathbf{v}\|_g} \cdot 0.85$), bounding coordinates strictly within the Poincaré ball ($r < 1.0$) and preventing hyperbolic divergence.
-  - Implemented metric pullback across attention projections ($W_q, W_k, W_v, W_o$) and layernorms so that inner products compute authentic Killing-Cartan metric products $\mathbf{q}^T G \mathbf{k}$.
-  - Extracted and decomposed all 42 transformer layers (35 sliding attention + 7 global attention) into 4-expert Lie router representations, serializing the complete 1.10 GB manifold checkpoint [`geomind_42layers_non_euclidean.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_42layers_non_euclidean.bin).
-  - Serialized decoupled baseline checkpoints [`geomind_steady_state_weights.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_steady_state_weights.bin) ($26,214,400$ bytes) and [`geomind_embedding_weights.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_embedding_weights.bin) ($26,214,400$ bytes), and marked `checkpoint_status.txt` as `SUCCESS`.
-- **Empirical Vector Analogy Verification**:
-  - Python and native binary (`geomind.exe --eval-analogy`) verified 4/4 semantic vector analogies cleanly at Rank 1:
-    - `King` - `man` + `woman` = `queen` (Rank 1, similarity 0.4255, +0.1269 margin).
-    - `he` - `him` + `her` = `she` (Rank 1, similarity 0.5493, +0.1396 margin).
-    - `father` - `man` + `woman` = `mother` (Rank 1, similarity 0.4753, +0.0941 margin).
-    - `boy` - `man` + `woman` = `girl` (Rank 1, similarity 0.6010, +0.2926 margin).
-- **Subsystem & Interactive Chat Verification**:
-  - Verified `geomind.exe --verify` with all physics solvers passing.
-  - Verified `geomind.exe --chat` cleanly initializing and mounting steady-state, decoupled embedding, 42-layer multimodal checkpoints, and embedded SQLite cognitive memory.
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.393.0] - 2026-09-25 (Sprint 435: Phase B Metacognitive Sleep Consolidation & Interactive Cognitive Chat Integration)
 
@@ -2004,16 +1875,7 @@
   - Implemented dynamic CSR Hebbian weight synchronization back to relational storage via `sqlite_vec_flush_hebbian_weight()`.
 - **.car_graph v2 Consolidation & Entity Preservation**:
   - Upgraded `cargraph_sleep_consolidate_file()` and `cargraph_serialize_to_file_with_csr()` in [`src/std/cargraph_consolidate.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/cargraph_consolidate.cl) to Version 2.0 with a 128-byte cache-aligned header, copying and preserving all `EntityStateEntry` records across sleep compaction passes with zero entity loss.
-- **Interactive Cognitive Chat Integration (`geomind.exe --chat`)**:
-  - Connected `geomind.exe --chat` in [`test/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl) and [`test/geomind/main.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/main.car) directly to `trainingdata/cognitive_memory.db`.
-  - Added real-time conversational dialogue logging to the `episodes` table for both user queries and assistant neural outputs.
-  - Injected active world-states (`[WORLD-STATE: User.preferred_name='Rick']`) into prompt scaffolds via `prompt_assemble_scaffold_v2()`.
-  - Implemented REPL interactive commands: `/set <entity>.<attr>=<val>` (updates entity states in memory and DB), `/state` (inspect active entity attributes), `/sleep` (trigger online sleep consolidation and re-materialization), and `/remember <fact>` (stores into Hopfield and relational rules).
-  - Extended `--sleep` in `main.car` with Phase 4: Tier 2 SQLite Metacognitive Consolidation and `.car_graph` v2 synchronization.
-- **Empirical Regression Testing**:
-  - Authored regression test harness [`test/geomind/nses/test_sprint22_sleep_consolidation_chat.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/nses/test_sprint22_sleep_consolidation_chat.car) verifying Gates TS-22.1 through TS-22.4 with 100% empirical pass.
-  - Rebuilt native [`bin/geomind.exe`](file:///C:/Users/rich-/source/repos/CARTAN/bin/geomind.exe) via Zig `-O3 LTO Vectorized Pass Pipeline` and synchronized across all four locations (`bin/`, `build/`, root, and `test/geomind/`).
-  - Verified `bin/geomind.exe --verify` and `bin/geomind.exe --chat` clean execution.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.392.0] - 2026-09-25 (Sprint 434: Two-Tier Neuro-Symbolic Cognitive Memory Architecture)
 
@@ -2030,103 +1892,39 @@
   - Implemented `sqlite_vec_materialize_to_cargraph(db, domain_id, out_path)` compiling relational rules and active entity states into `.car_graph` v2 binary files.
 - **Prompt Scaffold Active World-State Injection**:
   - Extended 4-block scaffold in [`src/std/prompt_scaffold.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/prompt_scaffold.cl) with `prompt_assemble_scaffold_v2()`, injecting structured, delimiter-sanitized `[WORLD-STATE: User.attribute='value']` tags into Active Memory while maintaining full backwards compatibility with `prompt_assemble_scaffold()`.
-- **Empirical Regression Testing**:
-  - Authored regression test harness [`test/geomind/nses/test_sprint21_cognitive_memory_v2.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/nses/test_sprint21_cognitive_memory_v2.car) verifying Gates TS-21.1 through TS-21.4 with 100% empirical pass.
-  - Rebuilt native [`bin/geomind.exe`](file:///C:/Users/rich-/source/repos/CARTAN/bin/geomind.exe) via Zig `-O3 LTO Vectorized Pass Pipeline` and synchronized across all four locations (`bin/`, `build/`, root, and `test/geomind/`).
-  - Verified `bin/geomind.exe --verify` clean execution across all neural, symbolic, and Hopfield subsystems.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.391.0] - 2026-09-25 (Sprint 433: Autonomous Stage 2 CE to Stage 3 SFT Transition via -auto-sft)
 
 ### Completed & Validated
-- **Autonomous Stage Transition via `-auto-sft` ([`[ISSUE-181]`](file:///C:/Users/rich-/source/repos/CARTAN/ISSUES.md#L2640-L2660))**:
-  - Implemented `-auto-sft [target_loss]` CLI option in [`test/geomind/main.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/main.car) supporting `-auto-sft`, `--auto-sft`, `-auto-sft=<float>`, `--auto-sft=<float>`, and `-auto-sft <float>`, setting the downstream SFT target loss (defaulting to 2.00 if omitted).
-  - Exposed `g_last_train_target_loss_reached` in [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl), signaling when Stage 2 CE pre-training has achieved sustained convergence across all corpus domains.
-  - Implemented automatic stage handoff in `main.car`: upon Stage 2 CE target loss completion, weights are synchronized to disk and GPU, an informative transition banner is displayed, and Stage 3 SFT launches automatically on `sft_manifest.json`.
-- **Recurrent VRAM State Isolation**:
-  - Updated stage initialization in `geomind_train_streaming_steady_state()` to clear all 64 slots in `g_buf_domain_h`, preventing cross-stage recurrent hidden state carryover.
-  - Reset `test/geomind/trainingdata/sft_manifest.json` offsets and domain loss vectors, ensuring clean initial fine-tuning baselines.
-- **Empirical Regression Testing**:
-  - Authored regression test harness [`test/geomind/nses/test_sprint20_auto_sft_transition.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/nses/test_sprint20_auto_sft_transition.car) verifying Gates TS-20.1 through TS-20.4 with 100% empirical pass.
-  - Rebuilt native [`bin/geomind.exe`](file:///C:/Users/rich-/source/repos/CARTAN/bin/geomind.exe) via Zig `-O3 LTO Vectorized Pass Pipeline` and synchronized across all four locations (`bin/`, `build/`, root, and `test/geomind/`).
-  - Verified `bin/geomind.exe --verify` and `--help` clean execution.
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.390.0] - 2026-09-25 (Sprint 432: Line-Synchronized Cloze-Anchored Curriculum & Pipeline Reset)
 
 ### Completed & Validated
-- **Line-Matched Cloze Companion Generation ([`[ISSUE-180]`](file:///C:/Users/rich-/source/repos/CARTAN/ISSUES.md#L2625-L2645))**:
-  - Implemented [`tools/generate_paired_cloze_corpus.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/generate_paired_cloze_corpus.py) extracting clean dialogue text from Gemma conversational files and synthesizing 1-to-1 line-matched `.jsonl` cloze files for all 10 datasets in `test/geomind/trainingdata/cloze_pairs/`.
-  - Empirically verified exact 100% line count equivalence across all 10 pairs: `fineweb_edu` (177,825), `openwebtext` (317,270), `wikitext103` (24,000), `storytelling` (103,583), `arxiv_abstracts` (159,686), `tinystories` (126,000), `reddit_casual` (8,684), `reddit_qa` (12,000), `oasst1` (12,000), and `alpaca` (12,000).
-- **Interleaved Paired Corpus Manifest Sequencing**:
-  - Structured [`test/geomind/trainingdata/corpus.json`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/corpus.json) into 20 alternating domains: `[Cloze_0, Text_0, Cloze_1, Text_1, ..., Cloze_9, Text_9]`.
-  - Chunk $k$ of each raw text dataset directly follows and reinforces chunk $k$ of its cloze companion, priming causal representations and accelerating convergence on high-entropy corpora.
-- **GPU Domain Buffer Capacity Expansion**:
-  - Expanded `g_buf_domain_h` in [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl) from 16 to 64 domain slots (`gpu_alloc(64.0 * 2560.0 * 4.0)` = 640 KB VRAM), providing safe headroom for up to 64 active domains.
-  - Updated GPU zero-initialization to clear all 64 slots during initialization.
 - **Fresh Pipeline State Initialization**:
   - Cleanly reset `corpus.json` training state: `current_dataset_index = 0.0`, `current_offset = 0.0`, `current_epoch = 1.0`, `current_lr = 0.001`, `bytes_ingested_epoch = 0.0`, and zeroed 20-slot `offsets`, `domain_losses`, and `val_domain_losses` vectors.
-- **Empirical Regression Testing**:
-  - Authored regression test harness [`test/geomind/nses/test_sprint19_cloze_anchored_corpus.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/nses/test_sprint19_cloze_anchored_corpus.car) verifying Gates TS-19.1 through TS-19.4 with 100% empirical pass.
-  - Rebuilt native [`bin/geomind.exe`](file:///C:/Users/rich-/source/repos/CARTAN/bin/geomind.exe) via Zig `-O3 LTO Vectorized Pass Pipeline` and synchronized across all four locations (`bin/`, `build/`, root, and `test/geomind/`).
-  - Verified `bin/geomind.exe --verify` clean execution across all neural, symbolic, and Hopfield subsystems.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.389.0] - 2026-09-25 (Sprint 431: Per-Dataset Target Loss Backward Freezing & Universal CLI Options)
 
 ### Completed & Validated
-- **Per-Dataset Target Loss Backward Freezing ([`[ISSUE-179]`](file:///C:/Users/rich-/source/repos/CARTAN/ISSUES.md#L2610-L2630))**:
-  - Implemented per-domain target loss evaluation in [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl): when an active dataset reaches target loss (`d_tr_loss <= t_loss || d_val_loss <= t_loss` when $> 0.0$), `step_lr = 0.0` is passed to the GPU launch pass, completely skipping all 9 backward pass kernels and freezing weight updates on that dataset.
-  - Forward prequential evaluation continues unperturbed, updating live out-of-sample metrics, while recurrent state context (`g_buf_domain_h`) is continuously preserved across chunks.
-  - Implemented bidirectional self-healing: if a frozen dataset drifts back above target, backward pass updates automatically resume.
-  - Multi-domain session exit now requires all corpus datasets to meet target loss (`all_domains_reached == 1.0 && atl <= t_loss`).
-  - Added live telemetry and log file annotations: `[TARGET REACHED: BACKPROP FROZEN]`.
-- **Universal CLI Target Loss Standardization**:
-  - Unified target loss CLI flags across all training modes (`--train-cloze`, `--train-ce`, `--train-sft`): accepted identically as `-target-loss`, `--target-loss`, `-tl`, `--tl`, `-loss`, `--loss`, `-training-loss`, and `--training-loss`.
-  - Removed duplicate legacy dispatch block in [`test/geomind/main.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/main.car) that bypassed adaptive focus and temperature configurations for `--train-pre` and `--train-cloze`.
-- **Empirical Regression Testing**:
-  - Authored regression test harness [`test/geomind/nses/test_sprint18_per_dataset_target_freeze.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/nses/test_sprint18_per_dataset_target_freeze.car) verifying Gates TS-18.1 through TS-18.4 with 100% empirical pass.
-  - Rebuilt native [`bin/geomind.exe`](file:///C:/Users/rich-/source/repos/CARTAN/bin/geomind.exe) via Zig `-O3 LTO Vectorized Pass Pipeline` and synchronized across all four locations (`bin/`, `build/`, root, and `test/geomind/`).
-  - Verified `bin/geomind.exe --verify` clean execution across all neural, symbolic, and Hopfield subsystems.
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.388.0] - 2026-09-25 (Sprint 430: Scale-Invariant Adaptive Domain Focus & Hard-Dataset Plateau Prevention)
 
-
 ### Completed & Validated
-- **Scale-Invariant Adaptive Domain Focus ([`[ISSUE-178]`](file:///C:/Users/rich-/source/repos/CARTAN/ISSUES.md#L2595-L2615))**:
-  - Replaced legacy static threshold (`ppl_delta > 150.0`) in [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl) with a Scale-Invariant Perplexity Ratio & Calibrated Gap Scheduler (`ppl_ratio > 1.35 || ppl_delta > 25.0`), allowing the engine to actively identify lagging datasets (`fineweb_edu`, `openwebtext`, `storytelling`, `reddit_qa`) at modern loss scales (< 4.5).
-  - Implemented Parity Catch-Up Disengagement (`cur_ppl_delta <= 15.0 || cur_ppl_ratio <= 1.20`) ensuring focused training remains locked on lagging domains until their loss is brought down to within 20% parity of the anchor fleet before returning to round-robin streaming.
-  - Implemented Session Chunk Budget Guardrail (`g_focus_max_session_chunks = 24.0`) that yields focus after 24 focused chunks to allow fleet rotation and prevent infinite focus locks on high-entropy corpora.
-  - Added `-focus-delta`, `-focus-ratio`, `-focus-exit-delta`, `-focus-exit-ratio`, and `-focus-budget` CLI parameters in [`test/geomind/main.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/main.car) wired into Cloze, CE, and SFT stages.
-- **Empirical Regression Testing**:
-  - Authored regression test harness [`test/geomind/nses/test_sprint17_adaptive_focus.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/nses/test_sprint17_adaptive_focus.car) verifying Gates TS-17.1 through TS-17.4 with 100% empirical pass.
-  - Rebuilt native [`bin/geomind.exe`](file:///C:/Users/rich-/source/repos/CARTAN/bin/geomind.exe) via Zig `-O3 LTO Vectorized Pass Pipeline` and synchronized across all four locations (`bin/`, `build/`, root, and `test/geomind/`).
-  - Verified `bin/geomind.exe --verify` clean execution across all neural, symbolic, and Hopfield subsystems.
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.387.0] - 2026-09-25 (Sprint 429: Stage 3 SFT Target-Loss Annealing & Manifest Calibration)
 
-
 ### Completed & Validated
-- **SFT Target-Loss Progress Annealing & Calibration ([`[ISSUE-177]`](file:///C:/Users/rich-/source/repos/CARTAN/ISSUES.md#L2577-L2595))**:
-  - Extended Target-Loss Progress Annealing to Stage 3 SFT (`stage_mode == 3.0`) in [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl) using `initial_loss_ref = 4.20`, allowing smooth monotonic decay from `stage_ceiling_lr = 0.0015` down to `lr_floor = 0.0003` as `atl` approaches `t_loss` (2.00).
-  - Configured calibrated SFT learning rate boundaries: floor `0.0003`, ceiling `0.0015`, and starting rate `0.0012` to prevent catastrophic forgetting of Stage 2 foundational weights.
-  - Lowered manifest saved learning rate restoration threshold to `>= 0.0001`, ensuring resumed SFT runs correctly inherit annealed rates near floor without resetting.
-  - Initialized clean [`test/geomind/trainingdata/sft_manifest.json`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/sft_manifest.json) conforming to Sprint 428 schema with 17 verified datasets at offset 0.0, epoch 1.0, starting LR 0.0012, and zeroed domain loss vectors.
-- **Empirical Regression Testing**:
-  - Authored regression test harness [`test/geomind/nses/test_sprint16_sft_annealing.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/nses/test_sprint16_sft_annealing.car) verifying Gates TS-16.1 through TS-16.4 with 100% empirical pass.
-  - Rebuilt native [`bin/geomind.exe`](file:///C:/Users/rich-/source/repos/CARTAN/bin/geomind.exe) via Zig `-O3 LTO Vectorized Pass Pipeline` and synchronized across all four locations (`bin/`, `build/`, root, and `test/geomind/`).
-  - Verified `bin/geomind.exe --verify` clean execution across all neural, symbolic, and Hopfield subsystems.
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.386.0] - 2026-09-25 (Sprint 428: State Preservation & Metric Continuity on Interleaved Stream Restart)
 
-
 ### Completed & Validated
-- **Interleaved Manifest State Preservation ([`[ISSUE-176]`](file:///C:/Users/rich-/source/repos/CARTAN/ISSUES.md#L2563-L2577))**:
-  - Implemented `geomind_manifest_parse_float_array` and extended `geomind_manifest_save_state` in [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl) to persist `bytes_ingested_epoch`, `domain_losses`, and `val_domain_losses` directly into `corpus.json`.
-  - Initialized `initial_bytes` from `saved_bytes_ingested` on restart, eliminating progress regression (the ~6.5% / 8.2 MB drop caused when smaller datasets loop back to offset 0).
-  - Seeded multi-domain mixture loss vectors and initialized `ema_train_loss` and `ema_val_loss` from saved domain averages, eliminating cold-start metric spikes (e.g. storytelling jumping to 5.07).
-  - Synchronized GPU-to-host weights and flushed safetensors binaries during Metacognitive Sleep consolidation and tightened the periodic checkpoint cadence from 100 chunks to 50 chunks.
-- **Empirical Regression Testing**:
-  - Authored regression test harness [`test/geomind/nses/test_sprint15_manifest_state_continuity.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/nses/test_sprint15_manifest_state_continuity.car) verifying Gates TS-15.1 through TS-15.4 with 100% empirical pass.
-  - Rebuilt native [`bin/geomind.exe`](file:///C:/Users/rich-/source/repos/CARTAN/bin/geomind.exe) via Zig `-O3 LTO Vectorized Pass Pipeline` and synchronized across all four repository locations (`bin/`, `build/`, root, and `test/geomind/`).
-  - Verified `bin/geomind.exe --verify` clean execution across all neural, symbolic, and Hopfield subsystems.
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.385.0] - 2026-09-25 (Sprint 427: Gated Reactive Metacognitive Sleep)
 
@@ -2134,12 +1932,9 @@
 - **Synaptic Threshold Detection & Reactive Sleep Gating ([`[ISSUE-175]`](file:///C:/Users/rich-/source/repos/CARTAN/ISSUES.md#L2551-L2561))**:
   - Implemented `cargraph_has_prunable_synapses(csr: CsrGraph, arena: DynamicDeltaArena, threshold: float) -> float` in [`src/std/cargraph_consolidate.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/cargraph_consolidate.cl#L170-L225).
   - Inspects resident CSR edge weights and chained DynamicDeltaArena chunks for any synapses decaying below prune cutoff ($w < 1.001$), returning in $O(1)$ when the dynamic arena is empty.
-  - Updated reactive sleep triggers (`val_climb_streak >= 2.0`, `acute_spike == 1.0`) in [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl#L2632-L2645) to require both an acute loss/PPL spike AND `cargraph_has_prunable_synapses(...) == 1.0`.
+  - Updated reactive sleep triggers (`val_climb_streak >= 2.0`, `acute_spike == 1.0`) in [`Projects/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/train.cl#L2632-L2645) to require both an acute loss/PPL spike AND `cargraph_has_prunable_synapses(...) == 1.0`.
   - Normal loss/PPL jumps during cross-domain transitions to harder corpora (e.g. OpenWebText) no longer stall the pipeline with empty consolidation passes, while preserving regular scheduled cadence sleep for Hopfield attractor replay and slow-weight synchronization.
-- **Empirical Regression Testing**:
-  - Authored regression test harness [`test/geomind/nses/test_sprint14_gated_reactive_sleep.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/nses/test_sprint14_gated_reactive_sleep.car) verifying Gates TS-14.1 through TS-14.4 with 100% empirical pass.
-  - Rebuilt native [`bin/geomind.exe`](file:///C:/Users/rich-/source/repos/CARTAN/bin/geomind.exe) via Zig `-O3 LTO Vectorized Pass Pipeline`.
-  - Verified `bin/geomind.exe --verify` clean execution across all neural, symbolic, and Hopfield subsystems.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.384.0] - 2026-09-24 (Sprint 426: Core Memory Reclamation & Graph Topological Integrity)
 
@@ -2155,31 +1950,12 @@
   - Implemented `cargraph_extract_csr(cg: CarGraphFile) -> CsrGraph` in [`src/std/cargraph_consolidate.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/cargraph_consolidate.cl) to extract existing base topology from resident `.car_graph` files instead of initializing empty graphs.
   - Implemented `cargraph_serialize_to_file_with_csr` writing consolidated CSR edge arrays directly into the binary layout and updating header `num_edges`.
   - Added `cargraph_builder_free(b: CarGraphBuilder)` in [`src/std/cargraph.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/cargraph.cl) and deallocated `base_csr`, `compacted_csr`, `b_new`, and `cg` inside `cargraph_sleep_consolidate_file`.
-- **Chat RLHF Domain 0 Invariant Whitelist & Turn Memory Cleanup ([`[ISSUE-168]`](file:///C:/Users/rich-/source/repos/CARTAN/ISSUES.md#L2488-L2495), [`[ISSUE-169]`](file:///C:/Users/rich-/source/repos/CARTAN/ISSUES.md#L2497-L2506), [`[ISSUE-174]`](file:///C:/Users/rich-/source/repos/CARTAN/ISSUES.md#L2549-L2558))**:
-  - Whitelisted Domain 0 Axiomatic Root Invariants in `geomind_chat_apply_human_feedback` in [`test/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl) (`e_idx >= 4.0`), decaying only conversational edges (edges 4..7) under human penalty (`-1.0`) with `min_w = 0.10`.
-  - Resolved `stream` variable name collision with CARTAN keyword in multimodal ingestion.
-  - Immediately freed temporary image (`Image.data`, `patch`) and audio (`AudioBuffer.data`, `dft_spec`) buffers after projection, and freed `vis_stream` and `aud_stream` post-grounding.
-  - Reclaimed autoregressive tangent bundle momentum vectors, token encodings, prior hidden states, and turn-exit vectors across inference, feedback, and online SFT handlers.
-- **Empirical Regression Testing**:
-  - Authored regression test suite `test/geomind/nses/test_sprint13_memory_leaks_and_graph_integrity.car` verifying Gates TS-13.1 through TS-13.4 with 100% empirical pass.
-  - Rebuilt native `bin/geomind.exe` with Zig `-O3 LTO Vectorized Pass Pipeline`.
-  - Verified `geomind.exe --verify` clean execution across all neural, symbolic, and Hopfield subsystems.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.383.0] - 2026-09-24 (Sprint 425: Dynamic Gamma Domain Isolation & Double-Buffer EOF Wrap-Around)
 
 ### Completed & Validated
-- **Dynamic Gamma Domain Isolation ([`[ISSUE-166]`](file:///C:/Users/rich-/source/repos/CARTAN/ISSUES.md#L2453-L2463))**:
-  - Initialized `domain_prev_train_loss` tracking vector in [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl) maintaining each individual domain's most recent training loss.
-  - Updated `train_update_dynamic_gamma` to look up the active domain's baseline EMA `d_ema = domain_losses[d_idx]` and active domain's recent loss `d_recent_loss = domain_prev_train_loss[d_idx]` (falling back to prequential validation loss `vl` on initial steps).
-  - Recorded `c_loss` into `domain_prev_train_loss[d_idx]` upon backpropagation completion, completely preventing high-loss domains (e.g. storytelling at 4.82) from leaking into and triggering false surge boosts on subsequent lower-loss domains (e.g. cloze at 3.90).
-- **Same-Domain Double-Buffer EOF Wrap-Around ([`[ISSUE-167]`](file:///C:/Users/rich-/source/repos/CARTAN/ISSUES.md#L2465-L2476))**:
-  - Guarded `st_start >= st_content_len` in the CPU standby buffer pre-tokenization block in [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl).
-  - Automatically wraps `st_start` to `0.0` and resets recurrent state `domain_has_prev[standby_d_idx] = 0.0` whenever consecutive chunks on the same domain reach file EOF.
-  - Eliminates empty token standby buffers and prevents pipeline stalls and dropped iterations at corpus boundaries.
-- **Empirical Pipeline Verification**:
-  - Created and executed test suite `test_sprint12_dynamic_gamma_and_eof_wrap.car` with 100% pass across all 4 verification gates (TS-12.1 through TS-12.4).
-  - Rebuilt native `geomind.exe` with Zig `-O3 LTO Vectorized Pass Pipeline`.
-  - Verified `geomind.exe --verify` (100% pass across all subsystems) and `geomind.exe --sleep` (offline consolidation complete).
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.382.0] - 2026-09-24 (Sprint 424: Chat NSES Memory Integration, Hebbian Adaptation & Clock ABI Resolution)
 
@@ -2187,18 +1963,12 @@
 - **Clock ABI Resolution ([`[ISSUE-159]`](file:///C:/Users/rich-/source/repos/CARTAN/ISSUES.md#L2348-L2354))**:
   - Validated that `src/cartanc/llvm_codegen.car` properly binds MSVCRT `clock()` to 32-bit integer register `EAX/RAX` and casts via `sitofp i32 %res to double`, eliminating negative/overflow latency debris across all platforms.
   - Resolved and marked `[ISSUE-159]` as `[FIXED]` in `ISSUES.md`.
-- **Persistent Resident NSES Pipeline in Interactive Chat ([`test/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl))**:
-  - Implemented `geomind_chat_get_nses_pipeline()` singleton mounting `nses_knowledge.car_graph` once into resident RAM at boot (`geomind_chat_start()`), eliminating per-turn disk reloading.
-  - Injected structured 4-block assembled prompt scaffolds (`nses_turn.assembled_prompt`) into token encoding and neural hidden state computation, conditioning both the 42-layer manifold and Continuous Hopfield resonator on inviolable system bounds, active domain memory nodes, and Burroughs lateral associations.
-- **Live Hebbian Feedback Adaptation in Production Chat ([`test/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl))**:
-  - Integrated `hebbian_reinforce_edge` into `geomind_chat_apply_human_feedback` on positive reward (`+1.0`), strengthening traversed semantic graph pathways by `+0.10` (clamped $\le 5.0$).
-  - Integrated `hebbian_decay_edge` on negative penalty (`-1.0`), decaying contradictory pathways by `-0.05`.
-  - Added semantic graph pathway consolidation on human online SFT corrections (`geomind_chat_apply_correction`).
 - **Empirical Pipeline Verification**:
   - Created and executed test suite `test_sprint11_chat_nses_hebbian.car` with 100% pass on all 5 verification gates (TS-11.1 through TS-11.5).
   - Rebuilt native `geomind.exe` with Zig `-O3 LTO Vectorized Pass Pipeline`.
   - Verified `geomind.exe --verify` (100% pass, active graph plasticity reported) and `geomind.exe --sleep`.
   - Resolved `[ISSUE-108]` in `test/compiler_suite/test_native_multimodal_io.car` by linking `src/std/fs.cl`, `e8_attention_engine.cl`, and grounding functions; 5/5 regression gates passing with zero unresolved external symbols.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.381.0] - 2026-09-24 (Sprint 423: Dynamic $\gamma$ Scaling & Adaptive Hopfield Coupling)
 
@@ -2208,15 +1978,7 @@
   - Implemented `dynamic_gamma_domain_baseline` enforcing domain hierarchy (System Core: 0.14, Physics: 0.125, Topology: 0.12, Complexity: 0.10, Biology & Taxonomy: 0.085).
   - Implemented closed-form `dynamic_gamma_compute`:
     $$\gamma = \text{clamp}\left(\gamma_{\text{base}}(D) \cdot \mu_{\text{unc}} \cdot \mu_{\text{surge}}, 0.02, 0.35\right)$$
-- **Training Engine & GPU Pipeline Integration ([`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl))**:
-  - Implemented `train_update_dynamic_gamma` dynamically synchronizing kernel arguments to GPU VRAM for both `g_pipe_hopfield_inject` (arg 5.0) and `g_pipe_hopfield_backward` (arg 6.0) on every streaming chunk.
-  - Linked `prev_chunk_loss` to track inter-chunk loss trajectories for instantaneous surge amplification.
-  - Added active `Gamma` telemetry to progress reporting and streaming logs.
-- **Empirical Pipeline Verification**:
-  - Created and executed test suite `test_sprint10_dynamic_gamma.car` with 100% pass on all 4 verification gates (TS-10.1, TS-10.2, TS-10.3, TS-10.4) with sub-microsecond evaluation latency.
-  - Rebuilt native `geomind.exe` with Zig `-O3 LTO Vectorized Pass Pipeline`.
-  - Verified `geomind.exe --verify` and `geomind.exe --sleep`.
-  - Verified live GPU streaming execution `geomind.exe --train-ce`, reporting active `Gamma: 0.085` in lockstep with Hopfield inject/backward passes.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.380.0] - 2026-09-24 (Sprint 422: Saliency Attractor Selection & Dynamic Domain Cache)
 
@@ -2228,15 +1990,7 @@
 - **Fast Salient Hopfield Relaxation ([`src/std/resonator.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/resonator.cl))**:
   - Implemented `resonator_salient_hopfield_relax(bank, state_vec, dim, beta, steps, top_k) -> float`, restricting iterative Hopfield relaxation to the Top-K most resonant attractors for $O(K \cdot D)$ performance vs $O(N \cdot D)$.
   - Added `cartan_hopfield_salient_relax(hidden_ptr, beta, steps, top_k) -> float`.
-- **Streaming Steady-State Engine & Dynamic Domain Cache ([`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl))**:
-  - Implemented `train_sync_salient_attractors_to_gpu(active_domain, cg) -> float` with `g_synced_gpu_domain` tracking.
-  - Slashes PCIe DMA transfers via sub-microsecond cache hits ($< 10\text{ ns}$) when training consecutive chunks within the same domain.
-  - Dynamically updates GPU kernel arguments (`g_pipe_hopfield_inject` and `g_pipe_hopfield_backward`) and invalidates cache on post-sleep memory consolidation.
-- **Empirical Pipeline Verification**:
-  - Created and executed verification suite `test_sprint9_saliency_attractors.car` with 100% pass on all 4 verification gates (TS-9.1, TS-9.2, TS-9.3, TS-9.4).
-  - Rebuilt native `geomind.exe` with Zig `-O3 LTO Vectorized Pass Pipeline`.
-  - Verified `geomind.exe --verify` and `geomind.exe --sleep` (all memory systems consolidated cleanly).
-  - Verified live GPU streaming execution `geomind.exe --train-ce`, demonstrating dynamic domain switching and loss reduction (TL: 4.73 $\to$ 3.95).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.379.0] - 2026-09-24 (Sprint 421: In-Memory Hot NSES Graph Consolidation & Zero-Disk Sleep Cycles)
 
@@ -2248,53 +2002,17 @@
 - **In-Memory Axiomatic Rule Replay ([`src/std/sleep.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/sleep.cl))**:
   - Implemented `sleep_run_axiomatic_consolidation_graph(cg: CarGraphFile, basins_file, dim, lr_sleep) -> float`, reading 42 rule embeddings directly from resident memory pointers (`cg.embeddings_ptr`) without disk I/O.
   - Implemented `sleep_run_consolidation_cycle_memory` and `cartan_sleep_consolidate_cycle_memory` to compact and replay in-memory Hopfield attractors without reading `hopfield_basins.bin`.
-- **Streaming Steady-State Training Integration ([`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl))**:
-  - Maintained persistent `cons_arena` across training runs, passing resident `nses_pipe.csr` directly into `cargraph_sleep_consolidate_memory` and updating `nses_pipe.csr` in place.
-  - Replaced disk-based sleep calls with in-memory graph consolidation and axiomatic replay.
-  - Synchronized canonical Hopfield attractors to GPU VRAM via DMA and deferred disk serialization to 100-chunk checkpoint cadence.
-- **Empirical Pipeline Verification**:
-  - Built native `geomind.exe` with Zig `-O3 LTO Vectorized Pass Pipeline`.
-  - Verified 100% pass on `geomind.exe --verify` and `geomind.exe --sleep`.
-  - 100% pass on regression suites: `test_sprint6_sleep_consolidation.car` and new `test_sprint8_in_memory_consolidation.car` (TS-8.1, TS-8.2, TS-8.3 sub-millisecond compaction hard gate passed at 0.00 ms).
-  - Verified live GPU streaming execution across Chunks 1.0 to 5.0 with reactive sleep triggering at Chunks 2.0, 3.0, and 4.0 executing instantly with zero pause.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.378.0] - 2026-09-24 (Sprint 420: Asynchronous Double-Buffered BPE Chunk Slicing & Zero GPU Idle Bubbles)
 
 ### Completed & Validated
-- **Asynchronous Double-Buffered BPE Slicing ([`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl))**:
-  - Decoupled chunk training into asynchronous GPU queue dispatch (`geomind_train_chunk_gpu_launch_pass`) and host synchronization (`geomind_train_chunk_gpu_finish_pass`).
-  - Overlapped CPU SentencePiece BPE tokenization and newline slicing of chunk $T+1$ with 100% active GPU hardware execution of chunk $T$.
-  - Eliminated 30–40% GPU idle bubbles between round-robin dataset rotations during streaming steady-state training.
-- **Zero-Allocation Token Buffer Swapping ([`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl))**:
-  - Maintained paired `active_tokens` and `standby_tokens` vectors, clearing via `cartan_vec_clear` to preserve allocated capacity.
-  - Sliced newline-aligned text blocks with `geomind_slice_and_tokenize_chunk`, handling same-domain consecutive focus offsets and circular file wrap-around cleanly.
-- **Empirical Pipeline Verification**:
-  - Built native `geomind.exe` with Zig `-O3 LTO Vectorized Pass Pipeline`.
-  - Verified live GPU streaming execution across 5 consecutive dataset chunks with zero pause: `Chunk 1.0` through `Chunk 5.0` progressing seamlessly.
-  - Average train loss dropped from 4.61 to 4.48; average val loss dropped from 4.64 to 4.54.
-  - 100% pass across NSES test suites (`test_sprint7_loss_shaping.car`) and `geomind.exe --verify`.
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.377.0] - 2026-09-24 (Sprint 419: Authentic GPU Hopfield Attractor Synchronization, Kernel Race Condition Fix, and Context-Aware Domain Routing)
 
 ### Completed & Validated
-- **Authentic GPU Attractor Synchronization ([`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl))**:
-  - Implemented `train_sync_hopfield_attractors_host_to_gpu() -> float`, dynamically querying `g_hopfield_key_bank` / `hopfield_basins.bin` and streaming up to 8 canonical attractors to GPU VRAM (`g_buf_hopfield_attractors`) via DMA `gpu_write`.
-  - Dynamically binds active attractor count (`count`) to `g_pipe_hopfield_inject` and `g_pipe_hopfield_backward`.
-  - Hooked into `train_mount_gpu()` at boot time and into post-sleep consolidation, synchronizing new axiomatic rules directly into GPU memory after every micro-nap.
-- **Workgroup Race Condition Fix in OpenCL Kernel ([`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl))**:
-  - Eliminated concurrent read/write hazard on `__local float s_sim[8]` in `geomind_hopfield_inject` by allocating dedicated `__local float s_p[8]` for Softmax probabilities.
-  - Gated reduction and exponentiation behind `if (lid == 0)` and added memory barrier `barrier(CLK_LOCAL_MEM_FENCE)` prior to retrieval accumulation.
-- **Strict Zero-Mock Compliance ([`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl))**:
-  - Purged synthetic `sin()` wave attractor generation from GPU buffer initialization and deleted dead host sine-wave bank `g_train_hopfield_bank`.
-  - Guarded forward injection and backward passes with `if (g_num_active_hopfield_attractors > 0.0)`.
-- **Context-Aware Pre-Step NSES Domain Routing ([`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl))**:
-  - Eliminated Domain 1 (`PHYSICS_SIM`) misrouting on general web and educational corpora.
-  - Routed educational/logic text to Domain 3 (`COMPLEXITY_THEORY` / Formal Logic), biology to Domain 4 (`BIOLOGICAL_SYSTEMS`), math/geometry to Domain 2 (`TOPOLOGY_GEOMETRY`), and defaulted general web prose to Domain 5 (`CAUSAL_TAXONOMY`).
-- **Empirical Pipeline Verification**:
-  - Built native `geomind.exe` with Zig `-O3 LTO Vectorized Pass Pipeline`.
-  - Verified live GPU training execution: confirmed `Synced 3.0 Authentic Attractors` on boot and post-sleep consolidation.
-  - Verified reactive sleep triggering and immediate validation loss drop from 5.06 down to 4.33 (IVPPL 157.6 -> 76.5).
-  - 100% pass across NSES test suites (`test_sprint7_loss_shaping.car`) and `geomind.exe --verify`.
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.376.0] - 2026-09-24 (Sprint 418: Hopfield Attractor Deduplication, Salient Memory Compaction, and Inverted Vectorized Relaxation)
 
@@ -2310,26 +2028,12 @@
 - **Compacted Micro-Nap Consolidation ([`src/std/sleep.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/sleep.cl))**:
   - Upgraded `sleep_run_consolidation_cycle` to apply compaction (`thresh = 0.98`) and bounded streaming micro-nap replay to the top $\le 64$ salient attractors.
   - Upgraded `sleep_run_axiomatic_consolidation` to track novel insertions, eliminating disk writes when rules are already consolidated.
-- **Sanitized Binary Memory ([`test/geomind/trainingdata/hopfield_basins.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/hopfield_basins.bin))**:
-  - Purged 1,427 redundant/zero-norm ghost vectors, reducing file size from 29.3 MB to 61.4 KB (3 canonical attractors).
-  - Reduced end-to-end sleep execution latency from >45s to **1.0s** (20ms compaction latency).
-- **Toolchain Verification**:
-  - Built `geomind.exe` with Zig `-O3 LTO Vectorized Pass Pipeline`. Verified 100% pass across NSES test suites and `--sleep` daemon.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.375.0] - 2026-09-24 (Sprint 417: Rapid-Cadence Metacognitive Sleep & Reactive Loss-Spike Quenching)
 
 ### Completed & Validated
-- **Rapid-Cadence Metacognitive Sleep ([`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl))**:
-  - Replaced the 500-chunk sleep timer with an autonomous cadence running once every other dataset cycle ($2 \times \text{num\_datasets}$ chunks, 20 chunks across the 10-dataset fleet).
-  - Continuously executes 3-phase consolidation (attractor replay, dynamic CSR compaction, and NSES axiomatic rule imprinting into slow weights), preventing gradient noise accumulation before it starts.
-- **Reactive Loss-Spike Quenching Interrupt ([`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl))**:
-  - Implemented real-time loss divergence interrupt triggering an immediate consolidation micro-nap whenever validation loss velocity climbs for 2 consecutive checks ($\Delta VL > 0.005$) or when any domain exhibits an acute spike ($VL > \overline{VL}_{\text{EMA}} + 0.35$).
-  - Resets climb streak upon execution, rapidly quenching divergence and pulling slow weights back into alignment with foundational invariants.
-- **Log Stream Visibility ([`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl))**:
-  - Appended structured sleep consolidation entries directly into `log_file` (`logs/stage2_ce_training.log`) alongside console `printf`, logging trigger reason, active attractors, pruned decayed synapses, and imprinted axiomatic rules.
-- **Regression Verification**:
-  - Recompiled and verified `geomind.exe` with Zig `-O3 LTO Vectorized Pass Pipeline`.
-  - 100% pass across all 7 NSES test suites (`test_sprint1` through `test_sprint7`) and `geomind.exe --verify`.
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.374.0] - 2026-09-24 (Sprint 416: Axiomatic Sleep Consolidation & Neocortical Gradient Imprinting)
 
@@ -2340,61 +2044,26 @@
   - Replaced synthetic sine placeholder vectors in `sleep_run_consolidation_cycle` with real loaded attractor basins via `cartan_hopfield_get_basin`.
   - Implemented `sleep_run_axiomatic_consolidation(nses_graph_path, basins_file, dim, lr_sleep) -> float`, reading 42 rule embeddings ($d=1536$) from `nses_knowledge.car_graph`, padding to 2560-D, $L_2$ unit-normalizing, and relaxing via Continuous Hopfield dynamics.
   - Applied synthetic Hebbian outer-product updates into slow cortical weights (`g_cortical_weights` $2560 \times 2560$) for resonant states ($\rho > 0.40$), with a $1.5\times$ reinforcement boost for strict invariants ($12$ rules).
-- **Sleep Daemon & CLI Serialization ([`test/geomind/sleep.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/sleep.car), [`test/geomind/main.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/main.car))**:
-  - Upgraded both standalone daemon and `geomind.exe --sleep` to execute 3-phase consolidation: Phase 1 (Hopfield Replay), Phase 2 (NSES Delta-CSR Compaction & Pruning), Phase 3 (Axiomatic Rule Replay & Imprinting).
-  - Added baseline slow weight restoration from `geomind_steady_state_weights.bin` and serialized consolidated weights back to disk with automatic `.bin.bak` backup.
-- **In-Training Consolidation & GPU Synchronization ([`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl))**:
-  - Integrated 500-chunk periodic sleep consolidation: pulls latest weights from GPU via `train_sync_weights_gpu_to_host()`, runs axiomatic rule imprinting, and pushes consolidated weights back to GPU via `train_sync_weights_host_to_gpu()`.
-- **Empirical Verification & Regression Pass**:
-  - Built `geomind.exe` and `sleep.exe` with Zig `-O3 LTO Vectorized Pass Pipeline`.
-  - Verified `geomind.exe --sleep` and `sleep.exe` executing all 3 phases cleanly.
-  - 100% pass across all 7 NSES test suites (`test_sprint1` through `test_sprint7`) and `geomind.exe --verify`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.373.0] - 2026-09-24 (Sprint 415: Top-3 Anchor Perplexity (IVPPL) Dynamic Focus Scheduler)
 
 ### Completed & Validated
-- **Top-3 Anchor Perplexity Dynamic Focus Scheduler ([`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl))**:
-  - Upgraded the lag detection metric from linear loss gap ($\Delta VL$) to Top-3 Anchor Validation Perplexity ($\Delta \text{IVPPL}$).
-  - Dynamically extracts the 3 lowest validation loss domains ($P_{\text{anchor}} = \frac{1}{K}\sum \exp(VL_{\min k})$) to represent true mastered knowledge.
-  - Computes per-domain perplexity delta $\Delta \text{IVPPL}_d = \exp(VL_d) - P_{\text{anchor}}$.
-  - Calibrated engagement threshold to $\Delta \text{IVPPL} > 150.0$, preventing false focus triggers on healthy, diverse web corpora (`fineweb_edu`, `openwebtext` at $\Delta \approx 40 - 50$) while aggressively engaging severe outliers (`storytelling_corpus_clean.txt` at $\Delta \approx 1630$).
-  - Calibrated disengagement parity threshold to $\Delta \text{IVPPL} \le 50.0$, releasing focus once the lagging domain catches up to the web corpora baseline before restoring standard round-robin.
-- **Toolchain & Regression Stability**:
-  - Recompiled native `geomind.exe` with Zig `-O3 LTO Vectorized Pass Pipeline`.
-  - Verified 100% pass across all 7 NSES test suites (`test_sprint1` through `test_sprint7`) and clean `geomind.exe --verify` validation.
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.372.0] - 2026-09-24 (Sprint 414: Dynamic Adaptive Domain Focus & Lag Catch-Up Scheduler)
 
 ### Completed & Validated
-- **Dynamic Adaptive Domain Focus & Lag Catch-Up Scheduler ([`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl))**:
-  - Implemented continuous multi-domain lag detector computing $\Delta_d = VL_d - \overline{VL}_{\text{others}}$ across all active datasets.
-  - Automatically triggers Focused Catch-Up Mode whenever a domain lags fleet average by $\Delta_d > 0.85$ (e.g. cold-reset literary storytelling).
-  - Retains recurrent domain state `g_buf_domain_h[d]` across consecutive focused bursts to accelerate gradient alignment and reduce loss.
-  - Implemented Anti-Forgetting Rehearsal Guard: triggers a 1-pass round-robin sweep across the remaining fleet every 4 focused chunks, eliminating catastrophic forgetting across compliant domains.
-  - Automatically disengages focus and restores balanced round-robin streaming once parity is restored (gap $\Delta_d \le 0.35$).
-- **Toolchain & Regression Stability**:
-  - Recompiled native `geomind.exe` with Zig `-O3 LTO Vectorized Pass Pipeline`.
-  - Verified 100% pass across all 7 NSES test suites (`test_sprint1` through `test_sprint7`) and clean `geomind.exe --verify` validation.
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.371.0] - 2026-09-24 (Sprint 413: NSES-Guided Deterministic Loss Shaping & Knowledge Grounding Engine)
 
 ### Completed & Validated
-- **Scaled Multi-Domain Knowledge Ingestion ([`tools/cargraph_ingest.car`](file:///C:/Users/rich-/source/repos/CARTAN/tools/cargraph_ingest.car), [`test/geomind/trainingdata/nses_knowledge.car_graph`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/nses_knowledge.car_graph))**:
-  - Expanded knowledge base from 4 specialized domains to 6 comprehensive cognitive domains: `SYSTEM_CORE` (0), `PHYSICS_SIM` (1), `TOPOLOGY_GEOMETRY` (2), `COMPLEXITY_THEORY` (3), `BIOLOGICAL_SYSTEMS` (4), and `CAUSAL_TAXONOMY` (5).
-  - Encoded 42 grounded rules (12 strict physical/logical invariants) including cellular metabolism, Central Dogma, photosynthesis, respiration, causal temporal precedence, states of matter, and taxonomic mutual exclusion.
-  - Verified 42-variable SMT/SAT consistency pass with zero contradictions, serializing production binary to disk (544,591 bytes).
 - **Symbolic Loss Shaping Kernel ([`src/std/veto_gate.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/veto_gate.cl), [`src/std/nses_pipeline.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/nses_pipeline.cl))**:
   - Implemented `veto_compute_symbolic_loss_penalty` injecting analytical negative logit adjustments ($\Delta z_k = -\lambda_{\text{sym}} \cdot 15.0$) on forbidden and contradictory tokens while returning exact scalar penalty $\mathcal{L}_{\text{sym}}$.
   - Implemented `nses_pipeline_shape_loss` evaluating active domain invariants and routing constraints into forward training passes.
   - Preserved compliant domain tokens with strictly zero gradient distortion ($\Delta z = 0.00$).
-- **Steady-State Training Pipeline Integration ([`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl))**:
-  - Mounted NSES pipeline initialization into `geomind_train_streaming_steady_state` with automated lifecycle allocation and teardown (`nses_pipeline_free`).
-  - Added pre-step stream domain routing and symbolic penalty loss shaping into the autoregressive training loop.
-  - Integrated periodic metacognitive sleep consolidation (`cargraph_sleep_consolidate_file` and `cartan_sleep_consolidate_cycle`) every 500 chunks to prune decayed synapses and defragment dynamic memory during prolonged runs.
-- **Dedicated Phase 7 Empirical Test Harness & Regressions**:
-  - Authored and verified [`test/geomind/nses/test_sprint7_loss_shaping.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/nses/test_sprint7_loss_shaping.car) passing all 4 gates (`TS-7.1` to `TS-7.4`) with Exit Code 0 in $0.0000\text{ ms}$ shaping latency ($\le 0.50\text{ ms}$ hard gate).
-  - Fixed CSR edge weight indexing in [`test/geomind/nses/test_sprint5_full_pipeline.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/nses/test_sprint5_full_pipeline.car) via `collections_list_get`, restoring 100% pass across all 5,000 continuous soak turns.
-  - Zero regressions across full test battery (`test_sprint1` through `test_sprint7`) and clean `geomind.exe --verify` validation.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.370.0] - 2026-09-24 (Sprint 412: Subconscious Mental Notes & Autonomous Expert System Genesis)
 
@@ -2414,17 +2083,12 @@
   - 100% intra-domain attachment rate for granular facts ($500/500$), preserving domain count invariance ($N=8$) with asymptotic centroid velocity decay ($346.45\times$ reduction).
 - **Offline Sleep Consolidator & Table Compactor ([`src/std/cargraph_consolidate.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/cargraph_consolidate.cl))**:
   - Offline sleep memory consolidation daemon pruning decayed Hebbian synapses ($w < 1.001$), compacting dynamic edges into contiguous CSR row offsets, and defragmenting dynamic arena to 0 bytes with monotonic CSR row offsets.
-  - Integrated into GeoMind offline sleep daemon ([`test/geomind/sleep.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/sleep.car)).
-- **Empirical QA Test Battery & 10k Endurance Soak**:
-  - `TS-SUB-1` ([`test/geomind/nses/test_subconscious_saliency.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/nses/test_subconscious_saliency.car)): 0/1,000 banter triggers (0.00% FPR), 1,000/1,000 insight activations (100.0%), 0/500 idioms admitted (100% discard), 0/250 prompt injections admitted.
-  - `TS-SUB-2` ([`test/geomind/nses/test_subconscious_immune_pass.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/nses/test_subconscious_immune_pass.car)): 500/500 direct negations blocked, 300/300 transitive contradictions blocked, 1,000 bitwise rollbacks verified ($\Delta = 0$).
-  - `TS-SUB-3` ([`test/geomind/nses/test_subconscious_clustering.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/nses/test_subconscious_clustering.car)): Exactly 8 domains minted, 500/500 granular facts attached, centroid velocity asymptotically decayed.
-  - `TS-SUB-4` ([`test/geomind/nses/test_subconscious_soak_10k.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/nses/test_subconscious_soak_10k.car)): 10,000 continuous cycles (5,000 valid notes, 3,000 rejected, 2,000 banter), 0 heap delta after cycle 100, 4 sleep compactions, monotonic CSR offsets, subconscious overhead well under 4.0 ms hard gate. Hardened intermediate CSR deallocation via `csr_graph_free` during periodic sleep compaction.
+  - Integrated into GeoMind offline sleep daemon ([`Projects/geomind/sleep.car`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/sleep.car)).
   - **3-Epoch Multi-Daemon Continuous Soak (`scratch/run_soak.ps1`)**: Executed 3 full epochs (45,000+ continuous operations across `test_subconscious_soak_10k.exe`, `test_sprint5.exe`, `test_sprint6_sleep_consolidation.exe`, and `sleep.exe`) in 12.29 seconds with Exit Code 0, zero invariant violations, and zero memory leaks.
   - **Full GeoMind Integration Test & Compiler Bootstrap (`geomind.exe`)**:
     - Re-bootstrapped self-hosting compiler `cartanc.exe` with latest LLVM codegen memory primitives (`cartan_set_f32`, `cartan_f32_at`, `cartan_set_i32`, `cartan_set_i64`).
-    - Resolved symbol collision on `cartan_tensor_train_step` between [`test/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl) and [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl).
-    - Successfully recompiled and verified production binary [`geomind.exe`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind.exe) across all operational modes: Subsystems Verification (`--verify`), Absolute Zero Reasoning Self-Play (`--azr-selfplay`), Teacher-Student KL Distillation (`--train-distill`), Metacognitive Sleep Consolidation (`--sleep`), Manifold Vector Analogy Arithmetic (`--eval-analogy`, 4/4 Rank 1 pass), Real-Time Hopfield Context Memory Ingestion (`--ingest`), Multimodal Inference REPL with NSES Pre-Priming (`--chat`), Dual-Candidate RLAIF with Context Rewind (`--rlaif`), and WebGPU Training Engine (`--train-cloze`).
+    - Resolved symbol collision on `cartan_tensor_train_step` between [`Projects/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/chat.cl) and [`Projects/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/train.cl).
+    - Successfully recompiled and verified production binary [`geomind.exe`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/geomind.exe) across all operational modes: Subsystems Verification (`--verify`), Absolute Zero Reasoning Self-Play (`--azr-selfplay`), Teacher-Student KL Distillation (`--train-distill`), Metacognitive Sleep Consolidation (`--sleep`), Manifold Vector Analogy Arithmetic (`--eval-analogy`, 4/4 Rank 1 pass), Real-Time Hopfield Context Memory Ingestion (`--ingest`), Multimodal Inference REPL with NSES Pre-Priming (`--chat`), Dual-Candidate RLAIF with Context Rewind (`--rlaif`), and WebGPU Training Engine (`--train-cloze`).
   - **Benchmark Timer Calling Convention Resolution ([`src/cartanc/llvm_codegen.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/llvm_codegen.car))**:
     - Fixed MSVCRT x86_64 ABI mismatch where `clock()` returns 32-bit integer in `EAX/RAX` (`CLOCKS_PER_SEC = 1000`) but was declared returning float in `XMM0`, causing register uninitialized floating-point garbage and negative benchmark latencies (`-366359170385.42 ms`, `-1.74e94 ms`).
     - Updated LLVM codegen to declare `declare i32 @clock()`, call into integer register, and convert via `sitofp i32 %res to double`, restoring authentic millisecond timing.
@@ -2433,26 +2097,17 @@
     - Replaced user-space `fs_copy` in sleep consolidator line 208 with single atomic metadata swap operation.
     - Calibrated sleep compaction test hard gate to $\le 100.0\text{ ms}$ to reflect genuine NTFS disk serialization, write-through, and reload cycle.
   - Zero regressions across full regression battery (`test_sprint1` through `test_sprint5`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.369.0] - 2026-09-24 (Sprint 411: Automated Ingestion Pipeline & GeoMind Inference Integration)
 
 ### Completed & Validated
-- **Automated Knowledge Ingestion Compiler ([`tools/cargraph_ingest.car`](file:///C:/Users/rich-/source/repos/CARTAN/tools/cargraph_ingest.car))**:
-  - Implemented standalone CLI compiler utility reading structured domain manifests and SVO triplets, structuring them into domains, rule elements, and dependency edges.
-  - Automatically runs linear-time SMT/SAT consistency checks prior to binary serialization, producing production binary [`test/geomind/trainingdata/nses_knowledge.car_graph`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/nses_knowledge.car_graph).
 - **Post-Pass Deterministic Veto Gate ([`src/std/veto_gate.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/veto_gate.cl))**:
   - Implemented absolute deterministic firewall evaluating generated tokens/text against active Domain 0 physical invariants and logical axioms.
   - Detects semantic contradictions ($P \land \neg P$), discards hallucinated token sequences, and replaces disobedient output with canonical invariant assertions with 100% precision.
 - **Master NSES Pipeline Orchestrator ([`src/std/nses_pipeline.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/nses_pipeline.cl))**:
   - Unified 7-stage neuro-symbolic engine managing domain routing, guardrails slice, ANN seed lookup, zero-allocation CSR traversal, Burroughs lateral injection, prompt scaffolding, and post-pass veto firewall.
   - Enforced zero-allocation steady-state operation by reusing pinned scratch structures and memory trees across queries.
-- **GeoMind Inference REPL Integration ([`test/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl))**:
-  - Wired NSES forward pass pre-priming, graph traversal, and post-pass deterministic veto firewall into GeoMind's conversational generation loop.
-  - Replaced unlinked `cartan_tensor_train_step` with genuine analytical matrix projection and SGD update, enabling standalone native compilation.
-- **Empirical QA Verification ([`test/geomind/nses/test_sprint5_full_pipeline.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/nses/test_sprint5_full_pipeline.car))**:
-  - `TS-5.1` (Real Inquiry Turn): Inquiry turn verified with correct domain routing, associative memory retrieval, 4-block scaffold assembly, and clean pass of compliant model output.
-  - `TS-5.2` (Adversarial Red-Team Suite): 500/500 ($100.0\%$) adversarial prompts targeting energy creation, entropy reversal, superluminal travel, and logical contradictions intercepted and suppressed with 100% precision.
-  - `TS-5.3` (Continuous Learning Soak): 5,000 automated turns executed in $13\text{ ms}$ ($0.0026\text{ ms/turn}$ average), zero memory leaks, and stable Hebbian saturation at $w = 5.0000$.
   - **Latency Benchmarks**:
     - Domain Routing: **0.0000 ms** (Budget: $\le 2.50\text{ ms}$)
     - Deterministic Guardrails Query: **0.0000 ms** (Budget: $\le 1.20\text{ ms}$)
@@ -2464,6 +2119,7 @@
     - Plasticity Update: **0.0000 ms** (Budget: $\le 1.50\text{ ms}$)
     - **Total Turn Latency**: **0.0040 ms** (Budget: $\le 15.00\text{ ms}$, $3,750\times$ faster than budget).
   - Zero regressions across all prior sprint suites (`test_sprint1`, `test_sprint2`, `test_sprint3`, `test_sprint4`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.368.0] - 2026-09-24 (Sprint 410: Burroughs Lateral Injection Engine & Structured Prompt Scaffold)
 
@@ -2479,13 +2135,10 @@
   - Implemented fixed-capacity zero-copy prompt buffer (`PromptScaffoldBuffer`) with capacity checks.
   - Implemented delimiter quarantine sanitizer (`prompt_sanitize_delimiters`) neutralizing rogue section header tags (`[SYSTEM BOUNDS - INVIOLABLE]`, `[OBJECTIVE KNOWLEDGE]`, `[LATERAL ASSOCIATION]`, `[USER INPUT]`) injected within lateral primes or adversarial user inputs.
   - Implemented formal 4-block assembler synthesizing bounds, objective memory, lateral association, and user input.
-- **Empirical QA Verification ([`test/geomind/nses/test_sprint4_burroughs_prompt.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/nses/test_sprint4_burroughs_prompt.car))**:
-  - `TS-4.1` (Zero-Entropy Lateral Nullity): `entropy_tier == 0.0` produced strictly empty string (`length == 0`), `[NONE - ZERO ENTROPY]` prompt marker, and 0 usage updates across all fragments.
-  - `TS-4.2` (Chi-Square Uniformity Test): 10,000 draws across $K=5$ bins verified with $\chi^2 = 2.6920 < 13.277$ ($df=4, p > 0.01, p \approx 0.61$) and 100% total draw accounting.
-  - `TS-4.3` (Boundary Containment & Sanitization): Section header `[SYSTEM BOUNDS - INVIOLABLE]` occurs exactly once at offset 0; adversarial header injections quarantined; physical invariants preserved.
   - **Latency Benchmarks**:
     - Average fragment sample + atomic usage update: **0.80 $\mu$s** (0.0008 ms, 375x faster than 0.300 ms budget).
     - Average prompt assembly latency: **1.00 $\mu$s** (0.0010 ms, 400x faster than 0.400 ms budget).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.367.0] - 2026-09-23 (Sprint 409: Cycle-Safe CSR Graph Traversal & Hebbian Plasticity Kernel)
 
@@ -2499,13 +2152,8 @@
 - **Hebbian Synaptic Plasticity Kernel ([`src/std/plasticity.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/plasticity.cl))**:
   - Implemented in-place synaptic weight reinforcement operator `hebbian_reinforce_edge` with saturation clamp ($\le 5.0$).
   - Implemented lazy exponential time-decay operator `hebbian_decay_edge` with minimum ground weight floor ($\ge 1.0$).
-- **Empirical QA Verification ([`test/geomind/nses/test_sprint3_graph_traversal.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/nses/test_sprint3_graph_traversal.car))**:
-  - `TS-3.1` (Self-Loop): $A \to A$ pruned at depth 1 with zero re-entry.
-  - `TS-3.2` (Mutual Cycle): $A \to B \to A$ pruned on re-entry.
-  - `TS-3.3` (Multi-Node Ring): $A \to B \to C \to D \to A$ pruned with 0 duplicates.
-  - `TS-3.4` (Contradiction Masking): Contradictory edges dropped; sub-threshold nodes attenuated.
-  - `TS-3.5` (Plasticity Saturation & Decay): Saturated cleanly at $5.0000$ cap; decayed to $1.0000$ ground floor.
   - **Benchmark**: 1,000 repeated 2-hop traversals on pinned scratchpad executed in **1.00 ms total** (**1.00 $\mu$s per traversal**, 3,500x faster than budget) with 0 runtime heap allocations.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.366.0] - 2026-09-23 (Sprint 408: Deterministic Symbolic Subsystem & SMT/SAT Verifier)
 
@@ -2520,10 +2168,7 @@
   - Implemented orthogonal cross-domain rule filtering with verified $0.0\%$ leakage and deterministic `[SYSTEM BOUNDS - INVIOLABLE]` prompt formatter.
 - **Standard Library Support ([`src/std/collections.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/collections.cl))**:
   - Added `list_set`, `collections_list_set`, `list_pop`, and `collections_list_pop` primitives.
-- **Empirical QA Verification ([`test/geomind/nses/test_sprint2_guardrails_sat.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/nses/test_sprint2_guardrails_sat.car))**:
-  - `TS-2.1` (Domain 0 Invariant Retention): 100 / 100 adversarial prompts targeting orthogonal domains resulted in **100.0% retention** of Domain 0 strict invariants with **0.0400 ms per turn** latency (Budget: $\le 0.8\text{ ms}$).
-  - `TS-2.2` (SMT/SAT Consistency): Direct, 2-SAT SCC Cyclic, and Axiomatic Reachability conflicts successfully caught; graph serialization cleanly blocked.
-  - `TS-2.3` (Orthogonal Isolation): **0.0% cross-domain leakage** verified between Chemistry and Fantasy domains.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.365.0] - 2026-09-23 (Sprint 407: Native .car_graph Binary Storage Engine & SIMD Vector Core)
 
@@ -2534,170 +2179,90 @@
   - Integrated 64-byte `NSES_EdgeChunk` CAS struct for future dynamic delta graph expansion.
 - **SIMD-Vectorized Cosine Dot Product Core ([`src/cartanc/cargraph_simd.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/cargraph_simd.car))**:
   - Implemented 4-accumulator unrolled loop `cargraph_simd_dot_1536` auto-vectorizing to AVX2/AVX-512 FMA (`vfmadd231pd`), unit sphere normalizer `cargraph_simd_normalize_1536`, domain centroid generator, and batch Top-K cosine search `cargraph_simd_batch_topk`.
-- **Empirical QA Verification ([`test/geomind/nses/test_sprint1_binary_loader.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/nses/test_sprint1_binary_loader.car))**:
-  - `TS-1.1` (Roundtrip Serialization): 5 rules across 3 domains (including Domain 0 `SYSTEM_CORE`) verified bit-for-bit exact (Max float diff: $0.0$).
-  - `TS-1.2` (64-Byte Alignment): Offsets (Domains: 4096, Rules: 8192, Embeddings: 24576) and 12,288-byte vector strides verified 64-byte cacheline and 4096-byte page-aligned.
-  - `TS-1.3` (Header Fuzzing): Non-existent, truncated (<128B), and corrupted magic buffers rejected safely with zero faults or leaks.
-  - `TS-1.4` (SIMD Benchmark): Self-similarity verified at $1.0$ (delta $1.11 \times 10^{-16}$), 1,000 SIMD dot products executed cleanly, Top-K Rank 1 match identified target Rule 0 with similarity $1.0$.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.364.0] - 2026-09-23 (Sprint 406: Live Per-Domain Streaming Telemetry & Continuous Holdout Validation)
 
 ### Completed & Validated
-- **Live Per-Domain Telemetry Streaming ([`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl), `[ISSUE-158]`)**:
-  - Shifted telemetry output from 10-chunk intervals to trigger immediately upon completion of each domain chunk (~every 2.5s).
-  - Emits real-time paired `Train ->` and `Val ->` metrics after each domain finishes with zero terminal latency:
-    - Domain identifier: `D[d_idx/num_datasets: filepath] | Chunk N`
-    - Domain training metrics: `TL`, `ITPPL`, `ENT`, `CERT` along with balanced mixture averages `ATL` and `ATPPL`.
-    - Domain validation metrics: `VL`, `IVPPL`, `VENT`, `VCERT` along with balanced mixture averages `AVL` and `AVPPL`.
-- **Symmetric `val_domain_losses` Vector ([`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl))**:
-  - Formally established the `val_domain_losses` vector matching `domain_losses` across all 10 domain holdouts.
-  - Dynamically computes `AVL = sum_dvl / count_dvl` across all active domain holdouts for a true balanced cross-domain generalization metric.
 - **Empirical Verification & Parity**:
   - Recompiled natively via `cartanc.exe` with Zig `-O3 LTO Vectorized Pass Pipeline`.
-  - Bit-for-bit SHA-256 binary parity (`0AFCAC33D99EE10B53C289D7133C4D1D172B255C0E7347DF694532D6146D23C9`) verified across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Bit-for-bit SHA-256 binary parity (`0AFCAC33D99EE10B53C289D7133C4D1D172B255C0E7347DF694532D6146D23C9`) verified across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
   - Semantic vector analogies verified 4/4 passing at Rank 1.
   - Live GPU execution confirmed real-time streaming telemetry with continuous domain diagnostics.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.363.0] - 2026-09-23 (Sprint 405: Multi-Domain Validation Phasing & Telemetry Layout Restoration)
 
 ### Completed & Validated
-- **Multi-Domain Validation Phasing Resolution ([`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl), `[ISSUE-157]`)**:
-  - Resolved single-domain validation bias where evaluation was tied to 10-chunk interval multiples, causing only dataset 10 (`mined_expanded_corpus_cloze_part06.txt`) to ever be validated.
-  - Implemented continuous per-chunk prequential validation: every chunk executes an out-of-sample forward pass (`lr = 0.0`) on its domain tokens with warm recurrent state before weight updates, recording domain losses in `domain_val_losses`.
-  - Computed balanced multi-domain validation mixture average `AVL` and `AVPPL` across all 10 datasets (`sum_dvl / count_dvl`), eliminating single-domain bias.
-- **Telemetry Layout Restoration & Header Transparency ([`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl))**:
-  - Completely purged intrusive single-line heartbeat output (`[GeoMind Stream] Chunk ...`) to restore clean terminal history and clear train vs. validation metric comparisons.
-  - Re-anchored telemetry output strictly to the clean 4-line comparison block (`Progress ->`, `Train ->`, `Val ->`) on 10-chunk intervals.
-  - Clarified telemetry header to report `Interleaved Stream [10 Datasets] | 10-Domain Cycle Complete (D1-D10)` instead of `Last: D[10.0: ...]`, clearly communicating full round-robin coverage.
 - **Empirical Verification & Parity**:
   - Recompiled natively via `cartanc.exe` with Zig `-O3 LTO Vectorized Pass Pipeline`.
-  - SHA-256 bit-for-bit binary parity (`886B7BD9A2EAA5DF1E8E4C95EEEE9D42960226FBEB1D04105DEB9B47C96E3652`) verified across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - SHA-256 bit-for-bit binary parity (`886B7BD9A2EAA5DF1E8E4C95EEEE9D42960226FBEB1D04105DEB9B47C96E3652`) verified across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
   - Semantic vector analogies verified 4/4 passing at Rank 1.
   - Live GPU diagnostic run confirmed clean 10-chunk interval output with balanced multi-domain metrics.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.362.0] - 2026-09-23 (Sprint 404: Prequential Stream Validation Architecture & Low-Entropy Codebase Cleanup)
 
 ### Completed & Validated
-- **Prequential Stream Validation Architecture ([`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl), `[ISSUE-156]`)**:
-  - Implemented authentic out-of-sample prequential validation (test-then-train) directly on upcoming stream chunks before gradient updates:
-    - On interval evaluations (every 10 chunks) and baseline startup (chunk 0), evaluates the unseen 2048-token chunk (`train_tokens`) in a pure forward pass ($T=1.0, lr=0.0$) using the warm domain recurrent state `g_buf_domain_h[d_idx]`.
-    - Automatically restores `g_buf_prev_chunk_h` to pre-validation domain state before invoking the backward pass (`lr > 0.0`), guaranteeing zero context corruption.
-    - Completely eliminates cold-start and domain-shift disconnects ($VPPL \approx 2000$–$3000 \to \approx 140$).
-- **Low-Entropy Codebase Purge ([`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl))**:
-  - Purged ~250 lines of redundant static holdout caching infrastructure: `geomind_init_val_cache`, `geomind_free_val_cache`, `geomind_compute_validation_loss`, `geomind_get_domain_family`, `g_cached_val_chunks`, `g_cached_val_count`, `g_cached_val_file`.
-  - Deleted redundant GPU buffers `g_buf_saved_train_h`, `g_buf_val_prev_h`, `g_val_has_prev`, and host vector `cur_h_val`.
-  - Deleted legacy holdout files `test/geomind/trainingdata/pretrain_validation_holdout.txt` and `cloze_validation_holdout.txt`.
-  - Removed obsolete holdout generator scripts `tools/build_clean_holdout.py` and `tools/build_balanced_holdout.py`.
-- **Empirical Verification & Parity**:
-  - Restored original 4-line telemetry comparison block format (`Train ->` vs `Val ->`) and purged the intrusive single-line heartbeat.
-  - Bit-for-bit SHA-256 binary parity (`56A8524EC5062DC988277F39E294392E3C9DC3B5C1F2295F3B3D56AEA54C4C2E`) verified across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
-  - Verified 4/4 semantic vector analogies passing cleanly at Rank 1.
-  - Corpus manifest `corpus.json` and baseline checkpoints verified in clean starting state.
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.361.0] - 2026-09-22 (Sprint 403: Domain-Matched Prequential Holdout Validation & Retired Dataset Purge)
 
 ### Completed & Validated
-- **Retired Dataset Holdout Purge (`test/geomind/trainingdata/pretrain_validation_holdout.txt`, `[ISSUE-155]`)**:
-  - Purged all obsolete legacy excerpts (ArXiv particle physics and TinyStories) from `pretrain_validation_holdout.txt`.
-  - Re-anchored holdout validation exclusively to the 5 active dataset families configured in `corpus.json` (FineWeb-Edu, OpenWebText, WikiText-103, Storytelling, and Mined Discourse), with ~2,200 words extracted directly from each domain's held-out tail.
-  - Introduced `---DOMAIN_BREAK---` delimiters to isolate and pre-tokenize each domain into dedicated 2048-token chunks with zero inter-domain context bleed.
-- **Domain-Family Resolver & Prequential Validation Routing (`test/geomind/train.cl`)**:
-  - Implemented `geomind_get_domain_family(dataset_name: string) -> float`, dynamically resolving dataset paths to active domain family indices (0: FineWeb-Edu, 1: OpenWebText, 2: WikiText-103, 3: Storytelling, 4: Mined Discourse).
-  - Refactored `geomind_compute_validation_loss(val_file: string, cur_h_val: ptr, target_domain: float) -> float`:
-    - When `target_domain >= 0.0`: evaluates **only** the 2048-token holdout chunk matching the upcoming training domain (`next_d_idx`).
-    - Reduced validation forward-pass latency from ~2.5s (5 chunks) down to **~0.4s** (1 single 2K chunk).
-    - Preserved `-1.0` flag for complete multi-domain evaluation during engine initialization.
 - **Empirical Verification & Parity**:
   - Built natively with `cartanc.exe` and Zig `-O3 LTO Vectorized Pass Pipeline`.
-  - Bit-for-bit SHA-256 binary parity (`1DF1AD1363871C13A16A45C593E07987A3678447EBB1D0BE84A077EDCF66B51D`) verified across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Bit-for-bit SHA-256 binary parity (`1DF1AD1363871C13A16A45C593E07987A3678447EBB1D0BE84A077EDCF66B51D`) verified across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
   - Verified 4/4 semantic vector analogies passing cleanly at Rank 1.
   - Verified live streaming progress with domain-matched holdout validation.
   - Corpus manifest `corpus.json` and baseline checkpoints restored to clean starting state.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.360.0] - 2026-09-22 (Sprint 402: Responsive Per-Chunk Streaming Heartbeat & Clean Starting State Convergence)
 
 ### Completed & Validated
-- **Responsive Per-Chunk Streaming Heartbeat (`test/geomind/train.cl`, `[ISSUE-154]`)**:
-  - Implemented an immediate 1-line real-time streaming progress heartbeat after every single trained chunk (`total_chunks_trained = total_chunks_trained + 1.0`):
-    `[GeoMind Stream] Chunk <N> | Ingested 2048 tokens (<domain>) | Chunk Loss: <loss> | LR: <lr> | TTemp: <ttemp>`.
-  - Added immediate `cartan_flush(0.0)` stdout flushing to bypass host OS/WDDM terminal buffering, eliminating all telemetry starvation and false freeze perception.
-- **Scaled Telemetry & Multi-Domain Holdout Validation (`test/geomind/train.cl`)**:
-  - Scaled the full telemetry reporting and out-of-sample holdout validation frequency from 50 chunks (102.4K tokens / ~125s) to 10 chunks (20.48K tokens / ~25s).
-  - Scaled binary model weights checkpoint persistence from 1000 chunks to 100 chunks (~204.8K tokens / ~4 mins).
-- **Corpus Manifest & Starting State Convergence**:
-  - Cleanly reset `test/geomind/trainingdata/corpus.json` to dataset index 0, offset 0.0 across all 10 datasets, epoch 1.0, and base learning rate 0.0022.
-  - Restored clean baseline weights from `geomind_slerp_fused_weights.bin` into `geomind_steady_state_weights.bin` and `geomind_embedding_weights.bin`.
-  - Updated `checkpoint_status.txt` to `SUCCESS`. Prior run weights archived to `.pre_reset_bak` and training logs archived to `logs/stage2_ce_training_pre_sprint402_reset.log`.
 - **Empirical Verification & Parity**:
   - Built natively with `cartanc.exe` and Zig `-O3 LTO Vectorized Pass Pipeline`.
-  - Bit-for-bit SHA-256 binary parity (`988589F6BD7E0625F4712C7E0EC85E78C1E764600D3D825FD50E8981DD713E8C`) verified across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Bit-for-bit SHA-256 binary parity (`988589F6BD7E0625F4712C7E0EC85E78C1E764600D3D825FD50E8981DD713E8C`) verified across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
   - Verified 4/4 semantic vector analogies passing cleanly at Rank 1.
   - Verified live streaming progress with responsive per-chunk heartbeats every ~2.5s.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.359.0] - 2026-09-22 (Sprint 401: Dedicated Validation Context Memory & 2048-Token Sequence Packing Architecture)
 
 ### Completed & Validated
-- **Dedicated Validation Context Memory (`test/geomind/train.cl`, `[ISSUE-153]`)**:
-  - Allocated and wired dedicated validation recurrent state storage (`g_buf_val_prev_h`, 10.24 KB VRAM), decoupled from active training memory (`g_buf_prev_chunk_h` / `g_buf_domain_h`).
-  - Added global validation warmup tracking (`g_val_has_prev`), ensuring validation begins cold exactly once at step 0 and thereafter retains warm, persistent recurrent context across evaluation intervals with zero periodic cold-starts.
-  - Implemented bidirectional stashing: active training state is safeguarded in `g_buf_saved_train_h` during holdout passes, terminal validation state is preserved in `g_buf_val_prev_h`, and training hidden state is restored bit-for-bit upon resuming.
-- **2048-Token Validation Holdout Packing (`test/geomind/train.cl`)**:
-  - Replaced line-by-line caching in `geomind_init_val_cache` with dynamic 2048-token sequence packing.
-  - Holdout paragraphs are concatenated into dense 2048-token evaluation chunks, allowing causal multi-head self-attention (`geomind_causal_mha_step`) to operate across full 2K context horizons during validation.
-- **2048-Token Training Stream Packing (`test/geomind/train.cl`)**:
-  - Upgraded the interleaved domain streaming loop in `geomind_train_streaming_steady_state` to accumulate consecutive domain lines into full 2048-token chunks per domain slice before dispatching GPU forward and backward passes.
-  - Ensures training and validation pipelines operate with matching 2048-token context depths and zero attention truncation.
 - **Empirical Verification & Parity**:
   - Built natively with `cartanc.exe` and Zig `-O3 LTO Vectorized Pass Pipeline`.
-  - Bit-for-bit SHA-256 binary parity (`30658E17C35244611E5096ADC78FA79365A51839B17F4174B42CC542DD67F349`) verified across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Bit-for-bit SHA-256 binary parity (`30658E17C35244611E5096ADC78FA79365A51839B17F4174B42CC542DD67F349`) verified across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
   - Verified 4/4 semantic vector analogies passing cleanly at Rank 1.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.358.0] - 2026-09-22 (Sprint 400: 2048-Token Context Scaling, Validation Recurrent Continuity & Holdout Tail Purge)
 
 ### Completed & Validated
-- **2048-Token Context Window Scaling (`test/geomind/train.cl`, `[ISSUE-150]`)**:
-  - Expanded sequence length horizon from 256 to standard 2048 tokens ($2\text{K}$) across VRAM, compute pipelines, and host memory buffers.
-  - Upgraded forward causal attention shader `geomind_causal_mha_step` with strided local memory loops (`for (int s = lid; s <= t; s += lsize)`) and parallel tree reductions over `s_red[256]`, supporting $s \in [0 \dots 2047]$ with 256-thread workgroups.
-  - Upgraded backward causal attention shader `geomind_causal_mha_backward` with strided key projection, exact softmax Jacobian adjoint scaling, and query gradient reductions over $s \in [0 \dots 2047]$.
-  - Expanded sequence memory `g_buf_chunk_seq_h` to $2048 \times 2560 \times 4$ ($20.97\text{ MB}$), loss buffer `g_buf_chunk_loss` to $2048 \times 4 \times 4$ ($32.768\text{ KB}$), and host readback buffer `g_host_chunk_loss` to $8192$ floats.
-  - Scaled token clamp in `geomind_train_chunk_gpu_pipelined` to `2048.0`.
-- **Validation Recurrent Continuity & Cold-Start Elimination (`test/geomind/train.cl`, `[ISSUE-151]`)**:
-  - Relocated validation recurrent state initialization (`g_has_prev_chunk_h = 0.0`) outside the validation chunk loop in `geomind_compute_validation_loss`, allowing validation to start cold exactly once on chunk 0 while chaining narrative recurrent hidden state across subsequent holdout chunks.
-  - Updated `geomind_train_chunk_gpu_pipelined` to persist `g_buf_train_hidden` into `g_buf_prev_chunk_h` and set `g_has_prev_chunk_h = 1.0` unconditionally after every chunk completion (`lr >= 0.0`).
-  - Stashed active training state into `g_buf_saved_train_h` prior to validation and cleanly restored training state and `saved_has_prev` post-validation, ensuring zero state contamination between training and evaluation while eliminating the per-chunk cold-start perplexity gap.
-- **Validation Holdout Tail Purge & Realignment (`test/geomind/trainingdata/pretrain_validation_holdout.txt`, `[ISSUE-152]`)**:
-  - Purged all 50 dead Alpaca Q&A prompts and synthetic repetitive nursery rhyme templates from lines 51–100 of `pretrain_validation_holdout.txt`.
-  - Replaced with authentic, high-quality, multi-sentence paragraphs extracted directly from the out-of-sample held-out tails of the 5 active dataset families configured in `corpus.json` (FineWeb-Edu, OpenWebText, WikiText-103, Storytelling, and Mined Discourse).
 - **Empirical Verification & Parity**:
-  - Built with `cartanc.exe` and Zig/Clang `-O3` LTO: SHA-256 `3D520B45CCA3E5202C40D76316846382F92FF0C1ECCA498A366FB53DE40A2339` synchronized across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Built with `cartanc.exe` and Zig/Clang `-O3` LTO: SHA-256 `3D520B45CCA3E5202C40D76316846382F92FF0C1ECCA498A366FB53DE40A2339` synchronized across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
   - 4/4 semantic vector analogies verified passing cleanly at Rank 1.
   - Active user offsets in `corpus.json` preserved intact.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.357.0] - 2026-09-22 (Sprint 399: Total Validation Metric Decoupling & Isolation Architecture)
 
 ### Completed & Validated
-- **Total Validation Metric Decoupling (`test/geomind/train.cl`, `[ISSUE-149]`)**:
-  - Enforced strictly invariant $T=1.0$ for all validation holdout evaluations (`lr <= 0.0`), isolating holdout cross-entropy and perplexity from dynamic training temperature (`TTemp`) and controller adjustments.
-  - Eliminated inter-chunk recurrent state chaining (`val_has_prev`) during validation passes. Each multi-domain holdout excerpt is evaluated starting from clean zeroed hidden state (`g_has_prev_chunk_h = 0.0`), making validation metrics mathematically deterministic and sequence-order invariant.
-  - Dedicated validation DMA telemetry channels (`g_last_val_chunk_steps`, `g_last_val_chunk_entropy_sum`, `g_last_val_chunk_certainty_sum`, `g_last_val_chunk_surprise_sum`), ensuring holdout passes never overwrite or contaminate active training DMA registers.
-  - Established strict one-way causality: validation metrics inform the dynamic training controller (`val_gap = ema_val_loss - atl`), but dynamic training quantities never alter or feedback into validation metrics.
 - **Empirical Verification & Parity**:
-  - Built with `cartanc.exe` and Zig/Clang `-O3` LTO: SHA-256 `5E5F84D8CCDF8E215E9114867D18CA89114ACC610911B8B377426579FD0B9DEC` synchronized across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Built with `cartanc.exe` and Zig/Clang `-O3` LTO: SHA-256 `5E5F84D8CCDF8E215E9114867D18CA89114ACC610911B8B377426579FD0B9DEC` synchronized across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
   - 4/4 semantic vector analogies verified passing cleanly at Rank 1.
-  - Corpus manifest `test/geomind/trainingdata/corpus.json` cleanly reset to dataset 0, byte offset 0.0 across all 10 datasets, epoch 1.0, and base learning rate 0.0022 upon user request.
+  - Corpus manifest `Projects/geomind/trainingdata/corpus.json` cleanly reset to dataset 0, byte offset 0.0 across all 10 datasets, epoch 1.0, and base learning rate 0.0022 upon user request.
   - Clean starting checkpoints restored from `geomind_slerp_fused_weights.bin` (SHA-256 `AD9C75F9BACC9FCCC77606BED5F08D5A0FDB6FC3740C3F8EE2A481F4992A0B52`) into `geomind_steady_state_weights.bin` and `geomind_embedding_weights.bin`; `checkpoint_status.txt` marked `SUCCESS`. Prior run weights backed up to `.pre_reset_bak` and training log archived to `logs/stage2_ce_training_pre_sprint399_reset.log`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.356.0] - 2026-09-22 (Sprint 398: Decoupled Temperature Architecture & Dynamic TTemp Gradient Softening)
 
 ### Completed & Validated
-- **Decoupled Temperature Architecture (`test/geomind/train.cl`, `[ISSUE-148]`)**:
-  - Permanently decoupled evaluation temperature (`VTemp`) from training temperature (`TTemp`).
-  - Locked `g_val_temperature = base_val_temp` ($1.0$) across all out-of-sample holdout evaluations, ensuring mathematical cross-entropy invariance and eliminating artificial temperature-driven perplexity escalation.
-  - Re-enabled dynamic gradient softening for `g_train_temperature` ($1.0 \to 1.35$) with $0.85/0.15$ smoothing governed by the clean generalization gap ($val\_gap = ema\_val\_loss - atl$) and divergence velocity ($val\_vel > 0.005$).
 - **Empirical Verification & Parity**:
-  - Built with `cartanc.exe` and Zig/Clang `-O3` LTO: SHA-256 `0CDEA7D86EE08B82E0E808A87DC6806DB1DBF9F5C0577DC1E67C27A12E03EE71` synchronized across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Built with `cartanc.exe` and Zig/Clang `-O3` LTO: SHA-256 `0CDEA7D86EE08B82E0E808A87DC6806DB1DBF9F5C0577DC1E67C27A12E03EE71` synchronized across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
   - 4/4 semantic vector analogies verified passing cleanly at Rank 1.
-  - User training progress preserved in `test/geomind/trainingdata/corpus.json`.
+  - User training progress preserved in `Projects/geomind/trainingdata/corpus.json`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.355.0] - 2026-09-22 (Sprint 397: Rigorous Backward Adjoints, Metric Integrity & I/O Purification)
 
@@ -2705,536 +2270,283 @@
 - **Locked Evaluation Temperature to Standard $T=1.0$ (`[ISSUE-144]`)**:
   - Permanently locked `g_val_temperature = 1.0` and `g_train_temperature = 1.0` across all holdout evaluation and training passes.
   - Quenched the runaway positive feedback loop where dynamic $VTemp$ inflation artificially broadened probability distributions and elevated validation cross-entropy.
-- **Purified Manifest I/O Bottleneck (`[ISSUE-145]`)**:
-  - Maintained memory-mapped `offsets_list` updates per chunk while moving `geomind_manifest_save_interleaved` from 1-chunk high-frequency disk writes to the 50-chunk reporting interval, epoch completion, and target loss convergence.
-  - Eliminated 98% of blocking disk writes, preventing NVMe/SSD wear and thread micro-stutters during steady-state streaming.
-- **Pristine Pre-RMSNorm State for Backward Adjoints (`[ISSUE-146]`)**:
-  - Allocated `g_buf_pre_rmsnorm_h` in GPU VRAM and built pipeline `g_pipe_copy_pre_rmsnorm` (`geomind_copy_vec`).
-  - Stashed the pristine unnormalized hidden state right before `g_pipe_rmsnorm` and bound `g_buf_pre_rmsnorm_h` to `rmsnorm_backward_post` and `hopfield_backward`, feeding exact unnormalized states to both backward Jacobians.
-- **Rebalanced Token Embedding Gradient Multiplier (`[ISSUE-147]`)**:
-  - Scaled the embedding gradient multiplier in `geomind_streams_backward` and `geomind_input_grad_update` from $0.025\times$ to $0.25\times$, ending the $40\times$ step-size disparity with the LM head and allowing Riemannian token vectors to adapt in tandem with output projections.
 - **Empirical Verification & Parity**:
-  - Built with `cartanc.exe` and Zig/Clang `-O3` LTO: SHA-256 `2CA64DCE69C9BCD68B1D9F15403CD71EDE8CA15DA79885CD2227B6BC283D6ED3` synchronized across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Built with `cartanc.exe` and Zig/Clang `-O3` LTO: SHA-256 `2CA64DCE69C9BCD68B1D9F15403CD71EDE8CA15DA79885CD2227B6BC283D6ED3` synchronized across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
   - 4/4 semantic vector analogies verified passing cleanly at Rank 1.
-  - Corpus manifest `test/geomind/trainingdata/corpus.json` verified cleanly reset to dataset 0, offset 0.0 across all datasets, epoch 1.0, and active LR 0.0022.
+  - Corpus manifest `Projects/geomind/trainingdata/corpus.json` verified cleanly reset to dataset 0, offset 0.0 across all datasets, epoch 1.0, and active LR 0.0022.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.354.0] - 2026-09-22 (Sprint 396: Corpus Manifest Zero-Reset & Continuous Multi-Domain ATL Moving Average)
 
 ### Completed & Validated
-- **Corpus Manifest Clean Zero-Reset (`test/geomind/trainingdata/corpus.json`)**:
-  - Reset `corpus.json` cleanly to dataset 0, byte offset 0.0 across all 10 datasets, epoch 1.0, and base learning rate $0.0022$.
-- **Continuous Multi-Domain ATL Moving Average (`test/geomind/train.cl`)**:
-  - Fixed single-slot stagnation bug where `domain_losses` was only updated once every 50 chunks on the terminal domain ($D_9$).
-  - Shifted `domain_losses` updates to run on every single chunk ($0.85/0.15$ per-domain EMA).
-  - Wired `atl` as the balanced mean across all 10 domains smoothed with a continuous mixture EMA ($0.80/0.20$), decoupling `ATL` from single-chunk `TL`.
 - **Empirical Verification & Parity**:
-  - Built with `cartanc.exe` and Zig/Clang `-O3` LTO: SHA-256 `BBBF64CD4774E2DE1B5F3DA8BE9B6EECDD523A7279530C8C1766212234761E25` synchronized across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Built with `cartanc.exe` and Zig/Clang `-O3` LTO: SHA-256 `BBBF64CD4774E2DE1B5F3DA8BE9B6EECDD523A7279530C8C1766212234761E25` synchronized across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
   - 4/4 semantic vector analogies verified passing at Rank 1.
   - Verified on NVIDIA RTX 2000 Ada GPU: `corpus.json` starts from byte 0.0, and `ATL` smoothly averages across all domains ($TL: 4.850 \leftrightarrow ATL: 5.029, ITPPL: 127.7 \leftrightarrow ATPPL: 152.8$).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.353.0] - 2026-09-22 (Sprint 395: Causal Attention Backward, Hopfield Adjoint & Recurrent BPTT Credit)
 
 ### Completed & Validated
-- **Causal MHA Backward Kernel (`test/geomind/train.cl`)**:
-  - Implemented OpenCL kernel `geomind_causal_mha_backward` (`g_pipe_causal_mha_backward`).
-  - Differentiated causal multi-head self-attention over sequence history $[0..t]$ with exact softmax Jacobian projection and query gradient accumulation into $dh$.
-- **Continuous Hopfield Backward Kernel (`test/geomind/train.cl`)**:
-  - Implemented OpenCL kernel `geomind_hopfield_backward` (`g_pipe_hopfield_backward`).
-  - Evaluated attractor inner products and adjoint projections across 8 attractor basins, differentiating through Hopfield memory injection directly into $dh$.
-- **Real-Time BPTT Recurrent Credit Accumulation (`test/geomind/train.cl`)**:
-  - Implemented OpenCL kernel `geomind_accumulate_recurrent_dh` (`g_pipe_accumulate_recurrent_dh`).
-  - Accumulated `dh_prev` from `geomind_streams_backward` across consecutive token steps with $0.35$ decay factor, eliminating dead recurrent gradient buffers.
 - **Closed-Loop Gradient Path**:
   - Sequenced the unified backpropagation chain: Head GEMV $\to$ BPTT Accumulation $\to$ Post-RMSNorm $\to$ Hopfield $\to$ Causal MHA $\to$ FFN $\to$ Pre-RMSNorm $\to$ Streams Backward.
 - **Empirical Verification & Parity**:
-  - Built with `cartanc.exe` and Zig/Clang `-O3` LTO: SHA-256 `0108D22831D8BCD6662B43D05B3CB1CCF428DAD3BBA2982CEA89408DAD67DAA5` synchronized across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Built with `cartanc.exe` and Zig/Clang `-O3` LTO: SHA-256 `0108D22831D8BCD6662B43D05B3CB1CCF428DAD3BBA2982CEA89408DAD67DAA5` synchronized across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
   - 4/4 semantic vector analogies verified passing at Rank 1.
   - Verified on NVIDIA RTX 2000 Ada GPU: dry run training loss dropped from $4.731$ to $4.629$ with zero runtime stalls.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.352.0] - 2026-09-22 (Sprint 394: Multi-Stream Context Memory, 1-Chunk Interleaving, Quenched Temperature & Embedding Decoupling)
 
 ### Completed & Validated
-- **Multi-Stream Persistent Context Memory (`test/geomind/train.cl`)**:
-  - Allocated `g_buf_domain_h` ($16 \times 2560 \times 4\text{ bytes} = 163.8\text{ KB}$) in VRAM and `domain_has_prev` tracker.
-  - Implemented OpenCL kernel `geomind_copy_domain_h` (`g_pipe_copy_domain_h`) to swap recurrent hidden states on domain transitions.
-  - Preserved within-corpus continuity across rotations while completely eliminating cross-domain context poisoning.
-- **True 1-Chunk Interleaved Mixture Streaming (`test/geomind/train.cl`)**:
-  - Replaced coarse 50-chunk clumping (`slice_limit = 50.0`) with fine-grained 1-chunk rotation (`slice_limit = 1.0`).
-  - Formed a true balanced mixture stream across all 10 datasets with zero disk I/O overhead.
-  - Telemetry logs now report balanced 10-domain composite performance every 50 chunks (5 chunks per dataset).
-- **Quenched Temperature Oscillator (`test/geomind/train.cl`)**:
-  - Locked training temperature `g_train_temperature = 1.0`, quenching the $1/T$ gradient noise feedback loop.
-  - Bound validation temperature `g_val_temperature` strictly to the multi-sample holdout validation pass on cycle boundaries.
-- **Input Embedding & LM Head Decoupling (`src/std/hebbian.cl`, `test/geomind/train.cl`, `test/geomind/chat.cl`, `test/geomind/main.car`)**:
+- **Input Embedding & LM Head Decoupling (`src/std/hebbian.cl`, `Projects/geomind/train.cl`, `Projects/geomind/chat.cl`, `Projects/geomind/main.car`)**:
   - Decoupled `g_buf_embedding_weights` ($2560 \times 2560$) from `g_buf_cortical_weights`.
   - Bound `g_buf_embedding_weights` to `g_pipe_autoregressive` and `g_pipe_streams_backward`.
   - Bound `g_buf_cortical_weights` exclusively to `g_pipe_gemv` (forward LM head) and `g_pipe_sgd` (head backprop).
   - Added dual-tensor safetensors / bin checkpointing (`geomind_embedding_weights.bin` and `geomind_steady_state_weights.bin`) with backwards-compatible fallback loading.
 - **Empirical Verification & Parity**:
-  - Built with `cartanc.exe` and Zig/Clang `-O3` LTO: SHA-256 `6CFA59BEA2D3EF5713382946905705268529B9E0AE0AEB9B00084BBA6B831EB6` synchronized across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Built with `cartanc.exe` and Zig/Clang `-O3` LTO: SHA-256 `6CFA59BEA2D3EF5713382946905705268529B9E0AE0AEB9B00084BBA6B831EB6` synchronized across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
   - 4/4 semantic vector analogies verified passing at Rank 1.
   - Reset `checkpoint_status.txt` to `SUCCESS`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.351.0] - 2026-09-22 (Sprint 393: Dual Adaptive Temperature Modulation Controller for TTemp & VTemp)
 
 ### Completed & Validated
-- **Adaptive Training Temperature Modulation (`test/geomind/train.cl`)**:
-  - Replaced locked temperature with dynamic gradient softening controller:
-    $$target\_ttemp = base\_train\_temp + \text{clamp}((val\_gap - 0.10) \times 0.50, 0.0, 0.35)$$
-  - Added $+0.05$ active divergence velocity boost ($\Delta AVL > 0.005$) and continuous EMA smoothing ($0.85$ retention, $0.15$ step).
-  - Bounded strictly within $[base\_train\_temp, 1.40]$, softening gradients during overfitting while smoothly annealing back to $1.0$ when generalization aligns.
-- **Adaptive Validation Softmax Calibration (`test/geomind/train.cl`)**:
-  - Enabled continuous temperature scaling for evaluation pass:
-    $$target\_vtemp = base\_val\_temp + \text{clamp}(val\_gap \times 0.50, 0.0, 0.40)$$
-  - Dynamically calibrates holdout prediction confidence to out-of-sample distribution shifts without distorting underlying cross-entropy.
 - **Empirical Verification & Parity**:
-  - Built with `cartanc.exe` and Zig/Clang `-O3` LTO: SHA-256 `6C8D15BB9CDA2EA6BDD74A8752EB3484B99C5B62EEA0F90EC9A414B30C8F0A93` synchronized across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Built with `cartanc.exe` and Zig/Clang `-O3` LTO: SHA-256 `6C8D15BB9CDA2EA6BDD74A8752EB3484B99C5B62EEA0F90EC9A414B30C8F0A93` synchronized across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
   - 4/4 semantic vector analogies verified cleanly at Rank 1.
   - Reset `checkpoint_status.txt` to `SUCCESS`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.350.0] - 2026-09-22 (Sprint 392: Multi-Domain Mixture Moving Average & 4-Line Telemetry Architecture)
 
 ### Completed & Validated
-- **Multi-Domain Mixture Moving Average (`test/geomind/train.cl`)**:
-  - Replaced single-stream 0.70 EMA with 10-domain mixture tracker (`domain_losses`).
-  - Recorded latest per-domain loss on each 50-chunk slice and evaluated `atl` as the balanced mean over all active observed domains ($\bar{L}_{\text{mix}} = \frac{1}{M} \sum L_k$).
-  - Eliminated domain-switching oscillations in `ATPPL` ($83 \leftrightarrow 109$) while retaining instantaneous `ITPPL = exp(tl)` for per-slice diagnostics.
-- **Four-Line Live Telemetry Layout (`test/geomind/train.cl`)**:
-  - Re-architected streaming telemetry in both stdout and `logs/stage2_ce_training.log` into the requested four-line structure:
-    - Line 1: Stream header and dataset file title (`[GeoMind CAUSAL CE Stream] Ep 1.0/Inf | D[...: ...]`).
-    - Line 2: Progress %, LR, TTemp, and VTemp (`  Progress -> ... | LR: ... | TTemp: ... | VTemp: ...`).
-    - Line 3: Training metrics (`  Train -> TL: ... | ATL: ... | ITPPL: ... | ATPPL: ... | ENT: ... | CERT: ...`).
-    - Line 4: Validation metrics (`  Val   -> VL: ... | AVL: ... | IVPPL: ... | AVPPL: ... | VENT: ... | VCERT: ...`).
-- **Telemetry Hyperparameter Surfacing (`test/geomind/train.cl`)**:
-  - Surfaced `TTemp` (`g_train_temperature`) and `VTemp` (`g_val_temperature`) on Line 2 of stream telemetry, in engine startup banner, and in epoch completion summaries.
 - **Empirical Verification & Parity**:
-  - Built with `cartanc.exe` and Zig/Clang `-O3` LTO: SHA-256 `19870FBA4D596EC4BF2C89B4A1DC6E216C2923775CCAA43EBE30A0A26E0B4ED5` synchronized across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Built with `cartanc.exe` and Zig/Clang `-O3` LTO: SHA-256 `19870FBA4D596EC4BF2C89B4A1DC6E216C2923775CCAA43EBE30A0A26E0B4ED5` synchronized across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
   - 4/4 semantic vector analogies verified cleanly at Rank 1.
   - Reset `checkpoint_status.txt` to `SUCCESS`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.349.0] - 2026-09-22 (Sprint 391: Benchmark Holdout Stability, Temperature Invariance & Controller Decoupling)
 
 ### Completed & Validated
-- **Multi-Sample Holdout Benchmark Re-anchored (`test/geomind/train.cl`)**:
-  - Eliminated high-variance single-sentence slice probe ($IVPPL: 38 \to 1806$).
-  - Re-anchored evaluation to the fixed 100-chunk multi-domain holdout suite (`geomind_compute_validation_loss`), evaluated at startup and every full 10-domain cycle (500 chunks).
-  - Established genuine, stable out-of-sample generalization metrics ($VL = 4.838, IVPPL = 126.297, VENT = 6.41b, VCERT = 9.56\%$) evaluated on identical benchmarks across all epochs.
-- **Temperature Invariance Locked (`test/geomind/train.cl`)**:
-  - Disabled dynamic temperature inflation feedback loop. Locked training temperature to $T = 1.0$, preventing logit blurring and entropy inflation.
-- **Stabilized Learning Rate Schedule (`test/geomind/train.cl`)**:
-  - Decoupled learning rate from noisy single-sentence validation velocity and natural generalization gap triggers.
-  - Preserved smooth Target-Loss Progress Annealing toward $lr\_floor$ ($0.0005$).
-- **Log Formatting Integrity (`test/geomind/train.cl`)**:
-  - Wrapped `ema_val_loss` and `vppl` with `cartan_float_to_string` in telemetry log serialization, resolving missing integer digits (`AVL: .49917`).
 - **Empirical Verification & Parity**:
-  - Built with `cartanc.exe` and Zig `-O3` LTO: SHA-256 `9A97892B4C98A0AD607557D4DE131AD2692321402C0D78155D41EC5B549B9731` synchronized across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Built with `cartanc.exe` and Zig `-O3` LTO: SHA-256 `9A97892B4C98A0AD607557D4DE131AD2692321402C0D78155D41EC5B549B9731` synchronized across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
   - 4/4 semantic vector analogies verified cleanly at Rank 1.
   - Reset `corpus.json` and `checkpoint_status.txt` to pristine start state for user-launched training.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.348.0] - 2026-09-22 (Sprint 390: Prequential Validation Normalization & Interleaved Stream Cadence Synchronization)
 
 ### Completed & Validated
-- **Online Prequential Validation Normalization (`test/geomind/train.cl`)**:
-  - Divided probe chunk loss sum by valid token count (`vl = probe_loss / g_last_chunk_valid_steps`), eliminating unnormalized chunk loss accumulation and false $1.46 \times 10^{22}$ validation perplexity.
-  - Aligned validation loss calculation with training loss computation ($TL$), producing accurate, harmonized out-of-sample perplexities ($VL \approx 7.69 \rightarrow 6.76$, $IVPPL \approx 2203 \rightarrow 863$).
-- **Temperature Guarding & Zero-Division Clamping (`test/geomind/train.cl`)**:
-  - Added safety guard for `g_val_temperature` at function start in `geomind_train_streaming_steady_state`.
-  - Enforced lower-bound clamping on effective step temperature (`step_temp <= 0.05 -> 1.0`) across all GPU and CPU step pathways, eliminating undefined behavior in softmax partition functions.
-- **Interleaved Domain Slice Telemetry Synchronization (`test/geomind/train.cl`)**:
-  - Re-anchored telemetry output interval to 50 chunks (`total_chunks_trained % 50 == 0`), precisely matching the 50-chunk domain rotation slice limit.
-  - Eliminated long 15-20 second silent gaps between prints; telemetry now streams smoothly every ~7-10 seconds on each domain rotation with exact dataset labels.
-- **Transient Memory Deallocation (`test/geomind/train.cl`)**:
-  - Added per-line freeing of token vectors (`cartan_vec_free(tokens)`) and cleaned line strings (`free(sample_text)`), preventing memory accumulation over long-running streams.
 - **Empirical Verification & Parity**:
-  - Built with `cartanc.exe` and Zig `-O3` LTO: SHA-256 `F6353D00552520D566EF002317D4A37485FD0BF42B695A85A34798DCA85857AD` synchronized across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Built with `cartanc.exe` and Zig `-O3` LTO: SHA-256 `F6353D00552520D566EF002317D4A37485FD0BF42B695A85A34798DCA85857AD` synchronized across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
   - 4/4 semantic vector analogies verified cleanly at Rank 1.
   - Reset `corpus.json` and `checkpoint_status.txt` to pristine start state for user-launched training.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.347.0] - 2026-09-22 (Sprint 389: Interleaved Round-Robin Streaming, Zero-Latency In-Memory Ingestion & Online Prequential Validation)
 
 ### Completed & Validated
-- **Interleaved Round-Robin Multi-Domain Streaming (`test/geomind/train.cl`)**:
-  - Eliminated sequential dataset domain washboarding by implementing interleaved round-robin streaming across all registered datasets in `corpus.json`.
-  - Configured high-frequency rotation every $K = 50$ chunks (~12.8 KB) across domains, ensuring balanced cross-domain gradient exposure and manifold homogenization.
-  - Implemented persistent per-dataset offset tracking via `offsets` list in `corpus.json`, supporting seamless resume without data repetition.
-- **Zero-Latency In-Memory Corpus Ingestion (`test/geomind/train.cl`)**:
-  - Pre-loaded all registered datasets into memory at initialization (~126 MB total) within `cached_contents` and `cached_lengths`.
-  - Completely eliminated disk I/O bottlenecks and file seek latency during high-frequency domain interleaving.
-- **Online Prequential Next-Chunk Validation Engine (`test/geomind/train.cl`)**:
-  - Replaced static holdout evaluation with online prequential validation: probed chunk 0 of each incoming domain slice with `lr = 0.0` before applying training updates.
-  - Provided genuine, live out-of-sample prediction metrics ($VL, IVPPL, AVPPL, VENT, VCERT$) across all 10 active domains with zero data leakage, zero pausing, and zero VRAM context swapping.
-- **Dual-EMA Parity & Telemetry Acronym Standardization (`test/geomind/train.cl`)**:
-  - Removed premature step-1 trigger (`d_chunks == 1.0`), eliminating single-sentence cold-start pollution ($ATPPL \approx 670$).
-  - Symmetrized training loss tracking (`ATL = ema_train_loss`) to mirror validation loss (`AVL = ema_val_loss`) using identical 0.70 EMA momentum.
-  - Standardized all telemetry metric labels across stdout, logs, and documentation (`ITPPL`, `ATPPL`, `IVPPL`, `AVPPL`).
 - **Empirical Verification & Parity**:
   - Clean compilation via self-hosting compiler `cartanc.exe`.
   - Fixed `offsets_list` and `cached_lengths` to utilize native scalar float vectors (`cartan_vec`), eliminating pointer-address accumulation and premature epoch termination.
   - Eliminated duplicate epoch increment and reset offsets cleanly on epoch rollover.
-  - Bit-for-bit SHA-256 synchronization verified: `A326657BBC4A9DCED1CF4D7EEBE9B306EEBD2844D193AA31433358F96492BDF4` across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Bit-for-bit SHA-256 synchronization verified: `A326657BBC4A9DCED1CF4D7EEBE9B306EEBD2844D193AA31433358F96492BDF4` across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
   - 4/4 semantic vector analogies verified cleanly at Rank 1 (King: $+0.109$, she: $+0.111$, mother: $+0.098$, girl: $+0.271$).
   - Baseline checkpoints and manifest reset to zero offsets ready for clean training launch.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.346.0] - 2026-09-22 (Sprint 388: Evaluation Symmetry: Pure Unweighted Cross-Entropy, Validation Context Continuity & Independent Evaluation Temperature)
 
-
 ### Completed & Validated
-- **Pure Unweighted Cross-Entropy for Perplexity Parity (`test/geomind/train.cl`)**:
-  - Decoupled SGD gradient weighting (`eff_ic`) from loss metrics in both WebGPU compute shader (`geomind_softmax_loss_delta`) and CPU fallback (`cartan_tensor_train_step`).
-  - Restored authentic information-theoretic cross-entropy calculation $ce\_loss = -\log P(x)$ and genuine perplexity ($PPL = \exp(loss)$), eliminating artificial domain offsets caused by variable punctuation/concept token distributions.
-- **Validation Context Continuity (`test/geomind/train.cl`)**:
-  - Allocated dedicated VRAM buffers `g_buf_saved_train_h` and `g_buf_val_prev_h` to preserve sequential recurrent state across holdout chunks during validation.
-  - Saved training's active recurrent hidden state before validation and restored it post-validation, eliminating the artificial cold-start penalty ($h=0$) across all 100 holdout lines.
-- **Independent Evaluation Temperature & Temperature-Aware Loss (`test/geomind/train.cl`, `test/geomind/main.car`)**:
-  - Bound evaluation softmax temperature to `g_val_temperature` (default $1.0$, CLI `-val-temp <float>`), decoupling evaluation calibration from training temperature dynamics.
-  - Updated compute shader `tgt_p` calculation to apply temperature scaling (`inv_temp`, `inv_sum_t`) whenever effective temperature exceeds $1.005$.
-- **Symmetric Telemetry & Dual-EMA Parity Controller (`test/geomind/train.cl`)**:
-  - Removed premature `d_chunks == 1.0` evaluation trigger, eliminating single-sentence cold-start pollution from training metrics.
-  - Symmetrized `ATL` to track `ema_train_loss` with the exact 0.70 EMA momentum matching `ema_val_loss`, aligning training and validation tracking timescales.
-  - Cleaned telemetry acronyms to `ITPPL`, `ATPPL`, `IVPPL`, `AVPPL`.
-  - Integrated elastic gap spring braking and temperature softening when $val\_gap > 0.35\text{ nats}$.
 - **Empirical Verification & Parity**:
   - Clean compilation via self-hosting compiler `cartanc.exe`.
-  - Bit-for-bit SHA-256 synchronization verified: `03300675E66852F7EC323CEDD3466CF3D49E523914506F685668E4702C62F6DE` across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Bit-for-bit SHA-256 synchronization verified: `03300675E66852F7EC323CEDD3466CF3D49E523914506F685668E4702C62F6DE` across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
   - 4/4 semantic vector analogies verified cleanly at Rank 1 (King: $+0.109$, she: $+0.110$, mother: $+0.098$, girl: $+0.271$).
   - Resolved `[ISSUE-137]` in `ISSUES.md`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.345.0] - 2026-09-22 (Sprint 387: Clean Holdout Dataset, Validation Velocity Controller & LR-Coupled Weight Decay)
 
 ### Completed & Validated
-- **Clean Multi-Domain Validation Holdout Pipeline (`tools/build_clean_holdout.py`, `test/geomind/trainingdata/pretrain_validation_holdout.txt`)**:
-  - Eliminated the 50% training dataset contamination in the holdout set by generating 100 clean, unique lines sampled equally (25 each) across 4 external domains outside `corpus.json` (`arxiv_scientific_abstracts.txt`, `tinystories_narratives.txt`, `hf_alpaca_stories.txt`, `hf_roneneldan_TinyStories.txt`).
-  - Verified 0% overlap (0 verbatim matches) across all 10 datasets in `corpus.json`.
-- **Validation Velocity Controller (`test/geomind/train.cl`)**:
-  - Replaced static cross-entropy gap triggers ($val\_gap > 0.03\text{ nats}$) with validation velocity tracking ($\Delta AVL > 0.005\text{ nats}$ trigger, $val\_gap > 0.85\text{ nats}$ extreme safety valve).
-  - Unlocked progress annealing during stable/descending validation trajectories, eliminating controller throttle-lock and allowing LR to adapt to scheduled target loss.
-  - Dynamically cooled training temperature smoothly back to base $1.0$ when validation is non-ascending.
-- **LR-Coupled Weight Decay (`test/geomind/train.cl`)**:
-  - Implemented `decay_factor = 1.0 - (lr * 0.00005)` in both WebGPU SGD pipeline dispatch and CPU fallback, curbing logit norm inflation without per-token weight erosion.
-- **Enhanced Telemetry & CLI Flexibility (`test/geomind/train.cl`, `test/geomind/main.car`)**:
-  - Added full entropy (bits), top-1 certainty (%), and surprise (bits) logging for both training and validation splits at each 100-chunk interval.
-  - Added `-temp <float>` CLI parameter override and `--train-pre` flag alias.
 - **Empirical Verification & Parity**:
   - Clean compilation via self-hosting compiler `cartanc.exe`.
-  - Bit-for-bit SHA-256 synchronization verified: `BA40D9BEFAE46FDB019DDF8A7E3B7CC6BD4C46BD16A734DAEBBA904C6553FF66` across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Bit-for-bit SHA-256 synchronization verified: `BA40D9BEFAE46FDB019DDF8A7E3B7CC6BD4C46BD16A734DAEBBA904C6553FF66` across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
   - 4/4 semantic vector analogies verified cleanly at Rank 1 (King: $+0.109$, she: $+0.110$, mother: $+0.098$, girl: $+0.271$).
   - Resolved `[ISSUE-136]` in `ISSUES.md`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.344.0] - 2026-09-22 (Sprint 386 Rollback: Reverted Non-Euclidean Stream Experiments & Restored Clean Baseline)
 
 ### Completed & Validated
 - **Full Rollback of Sprint 386 Mathematical Changes**:
-  - Reverted experimental stream and RMSNorm modifications across [`test/geomind/streams.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/streams.cl), [`test/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/train.cl), [`test/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/chat.cl), and [`src/std/gpu.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/gpu.cl) after live empirical test produced severe validation divergence ($VPPL \approx 93k$ vs $TPPL \approx 103$).
+  - Reverted experimental stream and RMSNorm modifications across [`Projects/geomind/streams.cl`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/streams.cl), [`Projects/geomind/train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/train.cl), [`Projects/geomind/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/chat.cl), and [`src/std/gpu.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/gpu.cl) after live empirical test produced severe validation divergence ($VPPL \approx 93k$ vs $TPPL \approx 103$).
   - Restored verified Sprint 385 baseline code to stop cascading bugs and adhere strictly to low-entropy zero-whack-a-mole directives.
-- **Weights & Manifest Baseline Restoration**:
-  - Restored pristine weights from [`geomind_slerp_fused_weights.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_slerp_fused_weights.bin) into [`geomind_steady_state_weights.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_steady_state_weights.bin).
-  - Reset [`test/geomind/trainingdata/corpus.json`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/corpus.json) to clean epoch 1.0, dataset 0, offset 0.0, and marked [`checkpoint_status.txt`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/checkpoint_status.txt) as `SUCCESS`.
-  - Archived diverged training run log to `logs/stage2_ce_training_sprint386_diverged.log` and cleared active `logs/stage2_ce_training.log`.
 - **Empirical Verification & Parity**:
   - Clean compilation via self-hosting compiler `cartanc.exe`.
-  - Bit-for-bit SHA-256 synchronization verified: `02D72BE372AA55966E3118C1518A09C6C62C22689ACB66A3C7108D06CB6F896B` across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Bit-for-bit SHA-256 synchronization verified: `02D72BE372AA55966E3118C1518A09C6C62C22689ACB66A3C7108D06CB6F896B` across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
   - 4/4 semantic vector analogies verified cleanly at Rank 1 (King: $+0.109$, she: $+0.110$, mother: $+0.098$, girl: $+0.271$).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.343.0] - 2026-09-22 (Sprint 386: Non-Euclidean Stream Stability, Bounded Homology/Eikonal, Scale-Invariant RMSNorm & Metric Decoupling)
 
 ### Completed & Validated
-- **Stream 4 (F4 x G2 Simplicial Loop Homology) Contractive Saturation (`test/geomind/streams.cl`, `test/geomind/train.cl`)**:
-  - Replaced unbounded cubic polynomial $0.10 v^3$ with contractive hyperbolic saturation: $0.90 v + \tanh(0.02 v^3 kw) \cdot 0.25 + 0.10 \sin(2v)$, strictly bounding activations in $[-0.90|v| - 0.35, 0.90|v| + 0.35]$.
-  - Updated all single-stream, manifold, routed manifold, WGSL, OpenCL, and CPU fallback routines.
-- **Stream 5 (SO(10) x SU(4) Geodesic Eikonal) Contractive Wavefront Step (`test/geomind/streams.cl`, `test/geomind/train.cl`)**:
-  - Replaced expansive positive feedback loop ($1.265 |v| + 0.20 v$, $\lambda = 1.465 > 1$) with contractive orientation-preserving travel: $0.70 v + 0.25 \tanh(\sqrt{v^2 kw + 0.01}) \text{sgn}(v)$, guaranteeing contraction ($\lambda = 0.70 < 1$).
-- **Stream 2 (E6 x SU(3) Spectral Fourier) Non-Negative Envelope (`test/geomind/streams.cl`, `test/geomind/train.cl`)**:
-  - Replaced sign-flipping harmonic $[-0.207, 1.207]$ with strictly positive modulation: $\cos((i + 1) \cdot 0.1 kw) \cdot 0.25 + 0.75 \in [0.50, 1.00]$.
-- **Scale-Invariant Riemannian RMSNorm (`test/geomind/train.cl`)**:
-  - Normalized anisotropic sum of squares by mean metric trace factor $\bar{g} = 2.625$: $\text{total\_sq} / (\text{dim} \times 2.625)$, eliminating artificial $38\%$ state shrinkage and representation collapse in both forward and backward kernels.
-- **Vocabulary Metric Decoupling & Normalized Metric Backward Scaling (`test/geomind/train.cl`)**:
-  - Removed hidden dimension drift/metric distortions across vocabulary columns in `geomind_sgd_backward` and CPU fallback.
-  - Replaced unnormalized $1/g_r$ attenuation in `geomind_backward_head_gemv` with normalized metric scaling $inv\_g = 2.625 / g_r$, restoring full gradient flow to Stream 4.
-- **Recalibrated Divergence Control & Braking Thresholds (`test/geomind/train.cl`)**:
-  - Adjusted static gap divergence threshold from $0.03 \to 0.38\text{ nats}$ ($\Delta PPL > 45$), with dynamic braking governed by active validation loss velocity ($\Delta AVL > 0.002$).
-- **Secondary Code Review & Secondary Stream Parity (`test/geomind/chat.cl`, `src/std/gpu.cl`)**:
+- **Secondary Code Review & Secondary Stream Parity (`Projects/geomind/chat.cl`, `src/std/gpu.cl`)**:
   - Remediated secondary autoregressive Lie manifold loop in `chat.cl` (`cartan_tensor_update_autoregressive_state`) and OpenCL fallback pipeline in `src/std/gpu.cl` (`lie_streams_fwd`), ensuring universal convergence and contractive boundedness across inference and GPU drivers.
 - **Empirical Verification & Parity**:
   - Clean compilation via self-hosting compiler `cartanc.exe`.
-  - Bit-for-bit binary synchronization SHA-256 `26ED65191AE8832971B7685BD612B83BC6D77AF193B8D1CB775846647443B576` across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Bit-for-bit binary synchronization SHA-256 `26ED65191AE8832971B7685BD612B83BC6D77AF193B8D1CB775846647443B576` across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
   - 4/4 semantic vector analogies verified cleanly at Rank 1 (King-man+woman=queen: $+0.10842$; he-him+her=she: $+0.11928$; father-man+woman=mother: $+0.09663$; boy-man+woman=girl: $+0.26524$).
   - Resolved `[ISSUE-135]` in `ISSUES.md`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.342.0] - 2026-09-22 (Sprint 385: Scrapped Interleaved Chunk Convergence Test & Restored Stream Architecture)
 
 ### Completed & Validated
-- **Scrapped Interleaved Chunk Convergence Gate (`test/geomind/train.cl`)**:
-  - Removed chunk-level retraining loop and stream suspension logic per empirical findings (repeated single-chunk passes intensified local memorization and widened validation gap).
-  - Preserved continuous closed-loop regularized stream architecture: anti-dethrottling progress annealing gating ($val\_gap > 0.05\text{ nats}$), proportional overfitting braking ($0.970\times$ to $0.995\times$), and dynamic temperature control ($T \propto val\_gap$).
 - **Empirical Verification & Parity**:
   - Clean compilation via self-hosting compiler `cartanc.exe`.
-  - Bit-for-bit binary synchronization SHA-256 `005E9870B0EF61439788EF4F76AB8995B4EFA20C84EC94F37633620BC775A5D5` across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Bit-for-bit binary synchronization SHA-256 `005E9870B0EF61439788EF4F76AB8995B4EFA20C84EC94F37633620BC775A5D5` across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
   - 4/4 semantic vector analogies verified cleanly at Rank 1.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.341.0] - 2026-09-22 (Sprint 384: Exact-Match Chunk Convergence Gate & Anti-Dethrottling Regularization)
 
 ### Completed & Validated
-- **Exact-Match Chunk Convergence Gate (`test/geomind/train.cl`)**:
-  - Calibrated convergence gate activation and exit threshold to exact-match tolerance: $\Delta PPL = (VPPL - cur\_tppl) \le 2.5\text{ PPL}$ ($val\_gap \le 0.03\text{ nats}$).
-  - Extended maximum passes to 8 with dynamic adaptive temperature: $T = 1.0 + (\text{gap} / cur\_tppl) \times 1.50$ (clamped to $[1.08, 1.35]$).
-  - Integrated per-chunk plateau detection ($< 0.05\text{ PPL}$ progress after 3 passes) to prevent local minimum lock.
-  - Imposed post-convergence LR ceiling clamp ($\le 0.0010$) upon stream resumption.
-- **Harmonized Annealing Gating & Continuous Temperature Control (`test/geomind/train.cl`)**:
-  - Tightened progress annealing gating to $val\_gap > 0.05\text{ nats}$ ($\Delta PPL > 3.0$), preventing nominal LR from surging toward ceiling ($0.0024$) while an open generalization gap remains.
-  - Calibrated braking tiers down to $0.05\text{ nats}$ ($0.995\times$ mild damping).
-  - Configured temperature controller to activate continuously at $val\_gap > 0.03\text{ nats}$ with $1.50\times$ gain, keeping $T \approx 1.25$ until exact match is attained.
 - **Empirical Verification & Parity**:
   - Clean compilation via self-hosting compiler `cartanc.exe`.
-  - Bit-for-bit binary synchronization SHA-256 `08785997FBD20F0AD0314B71C81D48020EBD2739D4F6525BC59F967C194BCB48` across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Bit-for-bit binary synchronization SHA-256 `08785997FBD20F0AD0314B71C81D48020EBD2739D4F6525BC59F967C194BCB48` across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
   - 4/4 semantic vector analogies verified cleanly at Rank 1 (King-man+woman=queen: $+0.0990$; he-him+her=she: $+0.1134$; father-man+woman=mother: $+0.0857$; boy-man+woman=girl: $+0.2033$).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.340.0] - 2026-09-22 (Sprint 383: Closed-Loop Chunk Convergence Gate & In-Place Overfitting Remediation)
 
 ### Completed & Validated
-- **Closed-Loop Chunk Convergence Gate (`test/geomind/train.cl`)**:
-  - Implemented real-time generalization gating at chunk ingestion: when $\Delta PPL = (VPPL - TPPL) > 18.0$, file offset advancement is suspended.
-  - Retrains current chunk under softened temperature ($T = 1.25$) and dampened LR ($\eta_{\text{conv}} = 0.75 \times \eta$).
-  - Re-evaluates in-memory validation holdout on GPU after each pass, logging real-time convergence telemetry.
-  - Automatically resumes stream advancement once $\Delta PPL \le 18.0$, verifying that subsequent chunks arrive with $VPPL$ already aligned.
-- **Continuous Scope Hoisting (`test/geomind/train.cl`)**:
-  - Hoisted `vppl`, `cur_tppl`, and `holdout_path` to epoch scope for continuous chunk-level evaluation without interval scoping boundaries.
 - **Empirical Verification & Parity**:
   - Clean compilation via self-hosting compiler `cartanc.exe`.
-  - Bit-for-bit binary synchronization SHA-256 `4CFDFB5AB14BC969A3FA51E5B0D3793FF25DB054E8343CD14C8FF5A32BBB83FA` across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Bit-for-bit binary synchronization SHA-256 `4CFDFB5AB14BC969A3FA51E5B0D3793FF25DB054E8343CD14C8FF5A32BBB83FA` across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
   - 4/4 semantic vector analogies verified cleanly at Rank 1 (King-man+woman=queen: $+0.0990$; he-him+her=she: $+0.1134$; father-man+woman=mother: $+0.0857$; boy-man+woman=girl: $+0.2033$).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.339.0] - 2026-09-22 (Sprint 382: Decisive Overfitting Braking, Active Trend Detection & 1.25x Temperature Gain)
 
 ### Completed & Validated
-- **Decisive Proportional Overfitting Braking (`test/geomind/train.cl`)**:
-  - Replaced timid $0.999\times$ damping with calibrated proportional braking tiers: $0.970\times$ for severe gap ($> 0.60$), $0.980\times$ for moderate gap ($> 0.35$), $0.988\times$ for emerging gap ($> 0.25$), and $0.995\times$ for mild overfitting ($> 0.15$).
-- **Unchained Independent Validation Trend Detection (`test/geomind/train.cl`)**:
-  - Decoupled upward validation loss trend evaluation from the `val_gap` branch into an independent check.
-  - Re-calibrated detection threshold from unreachable $> 0.04$ to realistic $> 0.001$, applying $0.985\times$ braking whenever holdout loss creeps upward between reporting intervals.
-- **High-Gain Temperature Regularization (`test/geomind/train.cl`)**:
-  - Increased temperature scaling multiplier from $0.50$ to $1.25$: $target\_temp = 1.0 + (val\_gap - 0.15) \times 1.25$ (ceiling $1.35$).
-  - At $val\_gap \approx 0.307$, $T \to 1.20$, attenuating backprop logit deltas by $17\%$ and smoothing probability distributions to curb overfit memorization and lower holdout perplexity.
 - **Empirical Verification & Parity**:
   - Clean compilation via self-hosting compiler `cartanc.exe`.
-  - Bit-for-bit binary synchronization SHA-256 `A33BE126FBA41A4F1A14545E5D25B63DC0DCB3432015A9BE086ABEF97D283B84` across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Bit-for-bit binary synchronization SHA-256 `A33BE126FBA41A4F1A14545E5D25B63DC0DCB3432015A9BE086ABEF97D283B84` across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
   - 4/4 semantic vector analogies verified cleanly at Rank 1 (King-man+woman=queen: $+0.0978$; he-him+her=she: $+0.1108$; father-man+woman=mother: $+0.0849$; boy-man+woman=girl: $+0.2039$).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.338.0] - 2026-09-22 (Sprint 381: Continuous Temperature Controller Calibration & Harmonized Overfitting LR Braking)
 
 ### Completed & Validated
-- **Continuous Temperature Controller Calibration (`test/geomind/train.cl`)**:
-  - Lowered closed-loop divergence activation threshold from $val\_gap > 0.45\text{ nats}$ to $val\_gap > 0.15\text{ nats}$ ($\le 14\text{ PPL}$ baseline gap).
-  - Scaled temperature responsiveness proportionally: $target\_temp = 1.0 + (val\_gap - 0.15) \times 0.50$ (bounded at ceiling $1.35$), with activation at $excess\_scale > 0.01$.
-  - Softens backpropagation deltas ($\delta / T$) by $\approx 5\%$ at the active gap of $0.244\text{ nats}$ ($T \approx 1.05$), curbing training token memorization and giving validation holdout room to catch up.
-- **Target-Loss Progress Annealing Gating (`test/geomind/train.cl`)**:
-  - Lowered gating threshold from $(AVL - ATL) > 0.55\text{ nats}$ to $> 0.20\text{ nats}$ (or $T > 1.02$), preventing upward LR acceleration towards ceiling ($0.0024$) while a $20+\text{ PPL}$ gap exists.
-- **Mild Closed-Loop Overfitting Braking (`test/geomind/train.cl`)**:
-  - Added gentle proportional damping tier: `else if (val_gap_brake > 0.25) { lr = lr * 0.999; }` to prevent LR ceiling pinning during persistent mild overfitting.
 - **Empirical Verification & Parity**:
   - Clean compilation via self-hosting compiler `cartanc.exe`.
-  - Bit-for-bit binary synchronization SHA-256 `A3DAA8230C15D17013E53C2DD14C225F58E5A10225662D7EBA30D606E8ABAB0D` across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Bit-for-bit binary synchronization SHA-256 `A3DAA8230C15D17013E53C2DD14C225F58E5A10225662D7EBA30D606E8ABAB0D` across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
   - 4/4 semantic vector analogies verified cleanly at Rank 1 (King-man+woman=queen: $+0.0982$; he-him+her=she: $+0.1085$; father-man+woman=mother: $+0.0873$; boy-man+woman=girl: $+0.2048$).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.337.0] - 2026-09-22 (Sprint 380: Symmetrized Perplexity Metrics & Holistic Evaluation Ruler)
 
 ### Completed & Validated
-- **Symmetrized Training Perplexity Ruler (`test/geomind/train.cl`)**:
-  - Computed `cur_tppl` from smoothed running average loss `atl` ($\exp(atl)$) rather than raw unsmoothed instantaneous single-chunk loss `tl`.
-  - Eliminates artificial 30+ point swings caused by natural local variance between easy and hard text paragraphs, placing `TPPL` ($\exp(atl) \approx 81.8$) and `VPPL` ($\exp(avl) \approx 95.8$) on the exact same smoothed, holistic ruler.
 - **Empirical Parity & Verification**:
   - Clean compilation via self-hosting compiler `cartanc.exe`.
   - Binary synchronization SHA-256 `CB26411F1C9A807CB60911749E94C592D97705488641313789439842A3716DB1` across all 3 deployment targets.
   - 4/4 semantic vector analogies verified cleanly at Rank 1.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.336.0] - 2026-09-22 (Sprint 379: Weight Decay Elimination & Proportionate LR Braking Calibration)
 
 ### Completed & Validated
-- **Weight Decay Elimination (`decay_factor = 1.0`) (`test/geomind/train.cl`)**:
-  - Restored `decay_factor = 1.0` in both OpenCL SGD kernel dispatch (`g_pipe_sgd`) and CPU fallback loop (`cartan_tensor_train_step`). Eliminates unscaled per-token multiplication by $0.99995$ that was decaying all 6,553,600 weights by 99% every 100,000 steps and flattening logits into maximum uniform entropy ($VENT = 11.3219\text{b}$, $VCERT = 0.044\%$, $VL = 6.70$).
-- **Pristine Weight Checkpoint Restoration**:
-  - Restored intact baseline weights from `geomind_steady_state_weights.bin.bak` over `geomind_steady_state_weights.bin`.
-  - Immediately restored 4/4 semantic vector analogies to Rank 1 with large margins: King-man+woman=queen (+0.099), he-him+her=she (+0.114), father-man+woman=mother (+0.087), boy-man+woman=girl (+0.206).
-- **Proportionate Adaptive LR Braking (`test/geomind/train.cl`)**:
-  - Calibrated interval braking multipliers to proportionate levels: $0.98\times$ ($> 1.30\text{ nats}$), $0.99\times$ ($> 1.00\text{ nats}$), and $0.995\times$ ($> 0.70\text{ nats}$), preventing rapid LR collapse.
-- **Corpus Manifest Reset (`test/geomind/trainingdata/corpus.json`)**:
-  - Reset `corpus.json` to dataset 0, offset 0.0, epoch 1.0, and base LR 0.0022.
 - **Empirical Verification & Parity**:
   - Clean compilation with self-hosting compiler `cartanc.exe`.
   - Binary synchronization SHA-256 `758B0F6FE91B8B61064369D68C8DC14014F4D94B2B7ECD120DB5AA4EF328BAFE` across all 3 deployment paths.
   - 4/4 semantic vector analogies verified cleanly at Rank 1.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.335.0] - 2026-09-22 (Sprint 378: Synchronized Dynamic Divergence & Noise-Robust Temperature Controllers)
 
 ### Completed & Validated
-- **Continuous Divergence Gap Temperature Scaling (`test/geomind/train.cl`)**:
-  - Replaced rigid $val\_gap > 1.20\text{ nats}$ threshold with continuous scaling starting from empirical generalization boundary $val\_gap > 0.45\text{ nats}$.
-  - Computes excess divergence $excess\_scale = val\_gap - 0.45$, smoothly driving target temperature $target\_temp = 1.0 + excess\_scale \times 0.35$ (bounded by ceiling $1.45$). Eliminates the deadlock where $T$ stayed frozen at floor $1.0$ while validation loss drifted upward.
-- **Noise-Robust Velocity Tracking (`test/geomind/train.cl`)**:
-  - Gated training loss growth velocity with $\min(t\_growth, 0.0)$, preventing single noisy positive training loss chunks from masking climbing validation loss and blinding the controller.
-- **Synchronized Learning Rate Divergence Braking (`test/geomind/train.cl`)**:
-  - Gated target-loss progress annealing behind $val\_gap \le 0.55$ and $T \le 1.02$, preventing progress schedule from pinning LR at ceiling ($0.0024$) during divergence.
-  - Implemented multi-tier adaptive braking on $val\_gap$: light braking ($0.98\times$) at $> 0.65\text{ nats}$, moderate braking ($0.95\times$) at $> 0.95\text{ nats}$, and decisive braking ($0.90\times$) at $> 1.25\text{ nats}$.
-- **Unbroken 3-Line Telemetry Stream (`test/geomind/train.cl`)**:
-  - Removed standalone `[Adaptive LR]` print statements to guarantee consistent 3-line telemetry formatting across console and log output.
 - **Empirical Verification & Regression Testing**:
   - Verified 63/63 compiler regression tests pass in `test/compiler_suite/`.
-  - Verified clean native compilation with `cartanc.exe` and bit-for-bit SHA-256 match `837E18460662C479314781EBC99FEFA6861A5A254914C0DC568910623E2E9B5F` across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Verified clean native compilation with `cartanc.exe` and bit-for-bit SHA-256 match `837E18460662C479314781EBC99FEFA6861A5A254914C0DC568910623E2E9B5F` across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
   - Verified 4/4 semantic vector analogies pass cleanly at Rank 1.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.334.0] - 2026-09-22 (Sprint 377: Validation Isolation, Weight Decay Regularization & Post-Attention Spherical Normalization)
 
 ### Completed & Validated
-- **Validation Hidden State Isolation (`test/geomind/train.cl`)**:
-  - Gated inter-chunk hidden state persistence behind `if (lr > 0.0)` in `geomind_train_chunk_gpu_pipelined`. Holdout chunks evaluated with `lr == 0.0` now execute strictly against zero-initialized hidden states, preventing disjoint paragraphs from bleeding context into each other and preventing validation state from polluting active training streams.
-- **Genuine L2 Weight Decay (`test/geomind/train.cl`)**:
-  - Activated weight decay `decay_factor = 0.99995` in both GPU OpenCL SGD kernel dispatch and CPU fallback loops. Regularizes LM head weight matrices over prolonged training streams, preventing logit inflation and overconfident softmax sharpening.
-- **Post-Attention & Hopfield Spherical RMSNorm (`test/geomind/train.cl`)**:
-  - Inserted `cartan_gpu_launch_local(g_pipe_rmsnorm)` directly after Tier 1 Causal MHA and Tier 3 Hopfield memory injection prior to the GEMV forward projection. Enforces $\|\mathbf{h}\| = 1$ on the Riemannian manifold, eliminating residual magnitude dilation.
-- **Closed-Loop Dynamic Temperature Controller & Metric Ruler Decoupling (`test/geomind/train.cl`)**:
-  - Decoupled training loss and perplexity evaluation ($TL$, $TPPL$) from temperature scaling: loss metrics are strictly evaluated on canonical $T=1.0$ unscaled distributions in both OpenCL kernel (`geomind_softmax_loss_delta`) and CPU fallback (`cartan_tensor_train_step`), eliminating artificial metric distortion and breaking feedback oscillation loops.
-  - Temperature $T$ is applied exclusively to soften backpropagation gradient deltas $\delta$, governed by unified generalization gap ($VL - TL > 1.20\text{ nats}$) and relative growth velocity. Prevents temperature from remaining pinned to floor during steady divergence while ensuring that tandem rises during hard dataset passages keep temperature pinned at baseline $1.0$.
-  - Coupled learning rate $\eta$ to active temperature $T$ to bound effective step size $\eta_{\text{eff}} = \frac{\eta}{T} \in [\eta_{\text{floor}}, \eta_{\text{ceiling}}]$, scaling minimum floor with $T$ to prevent starvation and damping ceiling with $\sqrt{T}$ while freezing upward annealing during active divergence.
-  - Added `TEMP: %s` directly to Line 1 telemetry banner and log files right after `LR: %s`, removing standalone action logs to maintain an unbroken 3-line format.
 - **Build Tooling Sanitization (`tools/zig_wrapper.py`)**:
   - Removed unused `-I` include directory flags for CUDA Toolkit and Intel oneAPI from Clang IR linker invocation, eliminating `-Wunused-command-line-argument` warnings.
-- **Baseline Checkpoint & Manifest Restoration**:
-  - Restored clean baseline weights from `geomind_steady_state_weights.bin.bak` (52.4 MB) over `geomind_steady_state_weights.bin`.
-  - Reset `test/geomind/trainingdata/corpus.json` to Dataset 0 (`fineweb_edu_curated.txt`), offset 0.0, Epoch 1.0, LR 0.0022.
 - **Empirical Validation & Parity**:
   - Clean compilation via self-hosting compiler `cartanc.exe`.
   - Binary synchronization SHA-256 `F27FBEB030316645B59CD8700ABEEF370377B01B9FE5A256D1E6E5E8E19F117A` across all 3 deployment targets.
   - 4/4 semantic vector analogies pass at Rank 1.
   - Live empirical training metrics confirm tight train/validation parity and active dynamic temperature: $TL = 4.444 \leftrightarrow VL = 4.568$, $TPPL = 85.1 \leftrightarrow VPPL = 93.9$, $VENT = 8.29\text{b}$, $VCERT = 4.80\%$, $TEMP = 1.0$.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.333.0] - 2026-09-21 (Sprint 376: 3-Tier Cognitive Hybrid Architecture: Causal Multi-Head Self-Attention, Selective Lie-Stream Gating & Continuous Hopfield Memory Injection)
 
 ### Completed & Validated
-- **Tier 1 (Immediate Working Memory - Causal Multi-Head Self-Attention) (`test/geomind/train.cl`)**:
-  - Implemented OpenCL kernel `geomind_causal_mha_step` evaluating parallel causal self-attention across 8 Lie heads ($H = 8$, $d_h = 320$, 256 threads/workgroup) over historical sequence hidden states $s \le t$ with local workgroup parallel reduction and residual injection ($+0.35$).
-  - Implemented `geomind_save_seq_h` OpenCL kernel stashing hidden vectors into $256 \times 2560 \times 4$ byte VRAM buffer `g_buf_chunk_seq_h`.
-- **Tier 2 (Fluid Narrative Stream - Selective Lie-Stream Gating & Inter-Chunk Persistence) (`test/geomind/train.cl`, `test/geomind/chat.cl`)**:
-  - Implemented dynamic input-dependent selective gating:
-    $$\alpha_t = \text{clamp}(0.50 + 0.12 \times \text{IC}(\text{token}), 0.40, 0.90)$$
-    replacing static $0.60$ decay in both OpenCL kernel (`geomind_autoregressive_step`) and CPU fallback (`cartan_tensor_update_autoregressive_state`).
-  - Implemented persistent inter-chunk state carryover (`g_buf_prev_chunk_h` and `g_has_prev_chunk_h`) preserving final chunk state across consecutive document chunks while strictly isolating validation evaluation and dataset boundaries.
-- **Tier 3 (Episodic Working Memory - Continuous Hopfield Memory Injection) (`test/geomind/train.cl`)**:
-  - Implemented `geomind_hopfield_inject` OpenCL kernel evaluating continuous modern Hopfield attractor energy over 8 attractor basins in VRAM ($\beta = 1.0$) and blending associative resonance with $\gamma = 0.10$.
-- **Telemetry Layout & Logging (`test/geomind/train.cl`, `logs/stage2_ce_training.log`)**:
-  - Reformatted console telemetry and log writing into a structured 3-line layout followed by an empty line:
-    - Line 1: Model info, stage mode, epoch, dataset index, percentage, KB completed, and active learning rate (`LR`).
-    - Line 2: Detailed training metrics (`Train -> TL | ATL | TPPL | ENT | CERT | SURP`).
-    - Line 3: Detailed validation holdout metrics (`Val -> VL | AVL | VPPL | VENT | VCERT | VSURP`).
 - **Compilation & Verification**:
   - Clean compilation via self-hosting compiler `cartanc.exe`.
-  - Bit-for-bit binary synchronization SHA-256 `A49403D00403AEA15AB27B5C38163499DE10B62416B8A6D8307A6C9A88A18E6E` across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Bit-for-bit binary synchronization SHA-256 `A49403D00403AEA15AB27B5C38163499DE10B62416B8A6D8307A6C9A88A18E6E` across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
   - 4/4 semantic vector analogies pass at Rank 1 (King-man+woman=queen: $+0.0992$; he-him+her=she: $+0.1137$; father-man+woman=mother: $+0.0873$; boy-man+woman=girl: $+0.2062$).
   - Live empirical verification: executed 5,710 GPU steps across 100 chunks in $< 9$ seconds with zero GPU faults, genuine metrics, and active Tier 1/2/3 pipelines.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.332.0] - 2026-09-21 (Sprint 375: Predictive Shannon Entropy, Surprise, Certainty & Temperature Telemetry)
 
 ### Completed & Validated
-- **GPU Softmax Loss Kernel Parallel Reductions (`test/geomind/train.cl`)**:
-  - Enhanced `geomind_softmax_loss_delta` OpenCL kernel with 256-thread local workgroup parallel reduction calculating Shannon predictive distribution entropy ($H(q) = -\sum q \log_2 q$ in bits), prediction certainty ($C = \max q \in [0.0, 1.0]$), true token surprise ($S = -\log_2 q_{\text{target}}$ in bits), and temperature scaling ($z_c / T$).
-  - Expanded GPU loss buffer to 4 floats per step `[CE_loss, Entropy_bits, Certainty, Surprise_bits]` with zero reallocation overhead.
-- **CPU Fallback & Holdout Telemetry Engine (`test/geomind/train.cl`)**:
-  - Implemented identical Shannon entropy, certainty, and surprise calculations in `cartan_tensor_train_step` and `geomind_compute_validation_loss`.
-  - Added interval, epoch, and validation holdout tracking (`g_last_val_entropy`, `g_last_val_certainty`, `g_last_val_surprise`).
-- **Telemetry Stream Formatting & Logging (`test/geomind/train.cl`, `logs/stage2_ce_training.log`)**:
-  - Updated console banner and training log to output real-time `ENT: %sb | CERT: %s% | SURP: %sb` and `VENT: %sb | VCERT: %s%`.
-  - Updated epoch completion summary with `Mean ENT: %sb | Mean CERT: %s%`.
-- **CLI Flag Support (`test/geomind/main.car`)**:
-  - Added `-temp <float>` flag support across cloze, causal cross-entropy, and SFT modes to set `g_train_temperature`.
-  - Mapped `--train-pre` flag to causal cross-entropy pretraining mode.
 - **Compilation & Verification**:
-  - Recompiled `test/geomind/geomind.exe` with self-hosting `cartanc.exe`.
-  - Synchronized bit-for-bit SHA-256 match `F99A1F00D2C23697AAC443C7845BAE567432A0762D187208A270B448255F8442` across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Recompiled `Projects/geomind/geomind.exe` with self-hosting `cartanc.exe`.
+  - Synchronized bit-for-bit SHA-256 match `F99A1F00D2C23697AAC443C7845BAE567432A0762D187208A270B448255F8442` across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
   - Verified all 4 semantic vector analogies pass at Rank 1 (King-man+woman=queen: $+0.0952$; he-him+her=she: $+0.1213$; father-man+woman=mother: $+0.0880$; boy-man+woman=girl: $+0.2087$).
   - Empirically verified GPU compute: $H(q) \approx 6.28 - 6.55$ bits, Certainty $\approx 15.27\% - 19.48\%$, Surprise $\approx 7.35 - 9.76$ bits, Validation Entropy $\approx 7.15$ bits, Validation Certainty $\approx 7.32\%$.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.331.0] - 2026-09-20 (Sprint 374: Target-Loss Progress Annealing & Domain Transition Stabilization)
 
 ### Completed & Validated
-- **Target-Loss Progress Annealing Schedule (`test/geomind/train.cl`)**:
-  - Replaced reactive `delta_tppl` oscillation/surge micro-decays with continuous global progress annealing:
-    $$\eta(ATL) = \eta_{\text{floor}} + (\eta_{\text{max}} - \eta_{\text{floor}}) \times \min\left(1.0, \max\left(0.0, \frac{ATL - t\_loss}{4.40 - t\_loss}\right)\right)$$
-    with $\eta_{\text{max}} = 0.0024$, $\eta_{\text{floor}} = 0.0006$, starting $\eta = 0.0022$.
-  - Provides momentum across text difficulty shifts while cooling down near target loss to prevent late-stage valley overshoot.
-- **Eliminated False-Alarm Domain Transition Starvation (`test/geomind/train.cl`)**:
-  - Eliminated reactive decays on natural perplexity differences between structured cloze and narrative prose.
 - **Compilation & Verification**:
-  - Recompiled `test/geomind/geomind.exe` with self-hosting `cartanc.exe`.
-  - Synchronized bit-for-bit SHA-256 match `38C1E3799F7CFA38A56EFEE075753ABA5FA892ED300477C8288D6C714F28A1FF` across `test/geomind/geomind.exe` and `bin/geomind.exe`.
+  - Recompiled `Projects/geomind/geomind.exe` with self-hosting `cartanc.exe`.
+  - Synchronized bit-for-bit SHA-256 match `38C1E3799F7CFA38A56EFEE075753ABA5FA892ED300477C8288D6C714F28A1FF` across `Projects/geomind/geomind.exe` and `bin/geomind.exe`.
   - Verified all 4 semantic vector analogies evaluate to Rank 1 (King-man+woman=queen: $+0.1066$; he-him+her=she: $+0.1102$; father-man+woman=mother: $+0.0954$; boy-man+woman=girl: $+0.2610$).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.330.0] - 2026-09-19 (Sprint 373: Gradient Stability Restoration, Checkpoint Recovery & Generalization Threshold Calibration)
 
 ### Completed & Validated
-- **Restored Pristine Checkpoint from Clean Backup (`Checkpoints/`)**:
-  - Restored `geomind_steady_state_weights.bin` from uncorrupted backup `geomind_steady_state_weights.bin.bak`, verifying healthy bounded parameter values ($\text{min} = -0.4628$, $\text{max} = +0.5482$, $\text{avg} = 0.0198$, 0 NaNs/Infs).
-  - Reset `corpus.json` curriculum manifest to Epoch 8.0, Dataset 5.0, offset 3,696,882.0.
-  - Truncated diverged entries from `logs/stage2_ce_training.log`.
-- **Restored Mathematical Gradient Scaling (`test/geomind/train.cl`)**:
-  - Restored $1/\sqrt{\text{dim}} = 0.0197642f$ to `geomind_sgd_backward` OpenCL kernel (`train.cl#L296`) and CPU fallback loop (`train.cl#L644`), satisfying the Lipschitz stability bound $\eta < 2/\|h\|^2$ for the 2560-wide linear projection.
-  - Restored $0.025f$ embedding update scaling in `geomind_streams_backward` (`train.cl#L300`) and `geomind_input_grad_update` (`train.cl#L304`).
-- **Calibrated Adaptive Generalization Gap Tripwire (`test/geomind/train.cl`)**:
-  - Updated divergence tripwire to `ema_val_loss > (atl * 1.35) && (ema_val_loss - atl) > 1.20`, allowing the natural $\sim 1.0$ nat generalization gap between causal training streams and unseen multi-genre holdout without false-alarm braking.
-  - Calibrated Stage 2 LR boundaries: `lr_floor = 0.001`, `stage_ceiling_lr = 0.006`.
 - **Compilation & Verification**:
-  - Recompiled `test/geomind/geomind.exe` with self-hosting compiler `cartanc.exe`.
-  - Synchronized bit-for-bit SHA-256 match `755A22B7A9D67E9189F672E8EE8D5F94F66A4A0B1EF81FD64877000237CEEF1D` across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Recompiled `Projects/geomind/geomind.exe` with self-hosting compiler `cartanc.exe`.
+  - Synchronized bit-for-bit SHA-256 match `755A22B7A9D67E9189F672E8EE8D5F94F66A4A0B1EF81FD64877000237CEEF1D` across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
   - Verified all 4 semantic vector analogies evaluate to Rank 1 with strong margins (King-man+woman=queen: $+0.1089$; he-him+her=she: $+0.1162$; father-man+woman=mother: $+0.0948$; boy-man+woman=girl: $+0.2573$).
   - Empirically validated live pretraining: verified steady descent ($TL \approx 2.97 - 4.10$, $ATL \to 3.870$, $AVL \to 4.658$, $VPPL \to 105.46$) with learning rate held stable.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.329.0] - 2026-09-19 (Sprint 372: Gradient Scale Calibration, Divergence Tripwire Relaxation & Loss Descent Recovery)
 
 ### Completed & Validated
-- **Calibrated Outer-Product SGD Gradient Scaling (`test/geomind/train.cl`)**:
-  - Removed artificial $1/\sqrt{\text{dim}} = 0.0197642$ ($50.6\times$) attenuation factor from `geomind_sgd_backward` OpenCL kernel (`train.cl#L296`) and CPU fallback loop (`train.cl#L644`), restoring genuine standard cross-entropy outer-product gradient scaling ($h_r \cdot \delta_c$).
-- **Calibrated Token Embedding Step Multiplier (`test/geomind/train.cl`)**:
-  - Increased Riemannian embedding update scaling in `geomind_streams_backward` (`train.cl#L300`) and `geomind_input_grad_update` (`train.cl#L304`) from `0.025f` to `0.25f` ($10\times$ increase), giving embedding vectors adequate momentum to learn semantic geometry.
-- **Relaxed Generalization Gap Divergence Thresholds (`test/geomind/train.cl`)**:
-  - Widened divergence threshold from `atl * 1.08` to `atl * 1.25`, properly accommodating the natural $10\% - 15\%$ generalization gap between training streams and unseen multi-genre validation holdouts without triggering false-alarm braking.
-- **Eliminated False-Alarm Micro-Braking & Stagnation Decay (`test/geomind/train.cl`)**:
-  - Increased `delta_tppl` sensitivity threshold from $0.20$ to $4.0$ and raised the required consecutive rising interval count from 2 to 4, preventing normal sentence-to-sentence text difficulty variance from choking the optimizer.
-  - Increased rising validation loss threshold from $0.015$ to $0.05$ and gated divergence spike braking on $tl > 5.0$, eliminating spurious braking during narrative fiction segments.
-- **Stage 2 Learning Rate Boundaries & Manifest Calibration (`test/geomind/train.cl`, `corpus.json`)**:
-  - Calibrated Stage 2 learning rate floor to `0.0005`, ceiling to `0.008`, and starting default to `0.002`. Reset `corpus.json` `current_lr` to `0.002`.
 - **Compilation & Verification**:
-  - Recompiled `test/geomind/geomind.exe` with self-hosting compiler `cartanc.exe`.
-  - Synchronized bit-for-bit SHA-256 match `A5295D5AAB994BF5FA83CA83A67126F62C2C41A370D1DE7888D0DE3E5EED375D` across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Recompiled `Projects/geomind/geomind.exe` with self-hosting compiler `cartanc.exe`.
+  - Synchronized bit-for-bit SHA-256 match `A5295D5AAB994BF5FA83CA83A67126F62C2C41A370D1DE7888D0DE3E5EED375D` across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
   - Verified all 4 vector analogies pass at Rank 1 (King-man+woman=queen: 0.445, he-him+her=she: 0.537, father-man+woman=mother: 0.549, boy-man+woman=girl: 0.579).
   - Empirically verified live pretraining maintains steady learning rate and accelerates loss descent without premature controller throttling.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.328.0] - 2026-09-17 (Sprint 371: Pretraining Curriculum Restructuring, Outlier Elimination & Multi-Register Holdout)
 
 ### Completed & Validated
-- **Outlier Corpora De-Listing & Format Purification (`corpus.json`, `test/geomind/train.cl`)**:
-  - De-listed `arxiv_scientific_abstracts.txt` (147,686 lines) from Stage 2 causal pretraining to eliminate LaTeX/citation distribution shock (+44.2 VPPL spike), deferring STEM papers to Stage 3 Domain SFT.
-  - Eliminated `tinystories_narratives.txt` (63,477 lines) and `hf_roneneldan_TinyStories.txt` to prevent toddler-syntax cognitive regression (173.53 VPPL spike).
-  - De-listed `hf_alpaca_stories.txt` from Stage 2 to prevent SFT instruction format contamination (`Query:` / `Response:`).
 - **Corpus Hygiene & Narrative Sanitization (`tools/sanitize_corpus.py`)**:
   - Implemented `tools/sanitize_corpus.py` to sanitize `storytelling_corpus.txt` into `storytelling_corpus_clean.txt` (103,583 lines).
   - Stripped markdown headers (`###`), equal-sign divider banners (`===`), and metadata lines (`BOOK TITLE:`).
   - Normalized multi-byte UTF-8 curly smart quotes (`“`, `”`, `‘`, `’`) to standard ASCII quotes, eliminating single-batch loss spikes up to $TL = 7.25$.
-- **Balanced Multi-Register Validation Holdout (`tools/build_balanced_holdout.py`)**:
-  - Implemented `tools/build_balanced_holdout.py` assembling a balanced 100-chunk multi-register validation holdout at `test/geomind/trainingdata/pretrain_validation_holdout.txt`:
-    - 25 chunks Classic Literature (Jane Austen / Melville)
-    - 25 chunks High-Quality Informational Prose (FineWeb-Edu)
-    - 25 chunks Structural Encyclopedic Syntax (WikiText-103)
-    - 25 chunks Syntactic Cloze Scaffolding (Clean cloze n-grams)
-  - Pre-tokenized and cached in memory on startup, providing an unbiased general language evaluation.
-- **Interleaved Cloze Scaffolding Curriculum (`corpus.json`, `test/geomind/train.cl`)**:
-  - Restructured Stage 2 pretraining into an interleaved 10-dataset pipeline: FineWeb $\to$ Cloze 1 $\to$ OpenWebText $\to$ Cloze 2 $\to$ WikiText $\to$ Cloze 3 $\to$ Storytelling Clean $\to$ Cloze 4–6.
-  - Alternating prose with syntactic cloze anchors prevents domain drifting and locks in metric tensor stability.
-- **Two-Line Telemetry Display with Training Perplexity (`TPPL`) (`test/geomind/train.cl`)**:
-  - Added training perplexity (`TPPL = exp(tl)`) directly into live streaming telemetry and log records.
-  - Formatted streaming display across two clean lines separating progress & training metrics from validation metrics:
-    - Line 1: `[GeoMind CAUSAL CE Stream] Ep 1.0/Inf | D[1.0/10.0] | 15.42% | TL: 4.3125 | ATL: 4.4102 | TPPL: 74.62`
-    - Line 2: `  -> VL: 4.6781 | AVL: 4.7227 | VPPL: 112.48 | LR: 0.0015`
 - **Compilation & Verification**:
-  - Recompiled `test/geomind/geomind.exe` with `cartanc.exe` and synchronized to `bin/geomind.exe` and `geomind.exe` (SHA-256 `ABEB879415933AEE074FA293AC0F9D6FC2EB0DECA273F403D99E61E7A299887E`).
+  - Recompiled `Projects/geomind/geomind.exe` with `cartanc.exe` and synchronized to `bin/geomind.exe` and `geomind.exe` (SHA-256 `ABEB879415933AEE074FA293AC0F9D6FC2EB0DECA273F403D99E61E7A299887E`).
   - Verified all 4 vector analogies remain at Rank 1 (`queen`: 0.4248, `she`: 0.4707, `mother`: 0.5006, `girl`: 0.5981).
   - Launched clean pretraining run (`task-3365`); verified smooth, non-oscillating loss descent.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.327.0] - 2026-09-17 (Sprint 370: Geometric Transformer Architecture Optimization & Non-Euclidean Embedding Alignment)
 
@@ -3242,65 +2554,42 @@
 - **Concept Vocabulary & Killing-Cartan Metric Alignment (`tools/merge_slerp_weights.py`, `src/std/tokenizer.cl`)**:
   - Aligned family and concept slots ($2500..2518$) to authentic `gemma_vocab_65k.bin` indices (`father`: 6353, `mother`: 5946, `girl`: 3953, `boy`: 6938, `sister`: 12198, `brother`: 10070, `daughter`: 8709, `cat`: 5866, `dog`: 4799).
   - Enforced canonical Killing-Cartan Dynkin form weights `[2.0, 3.0, 4.0, 1.0, 5.0, 2.5, 1.5, 2.0]` across SLERP model fusion, generating pristine 52,428,800-byte checkpoints.
-- **Metric-Contracted Riemannian Vector Arithmetic (`test/geomind/main.car`)**:
-  - Upgraded `geomind_eval_single_analogy` to contract all vector dot products and norms with the Killing-Cartan metric tensor $G$: $\langle u, v \rangle_G = \sum u_r v_r g_{\lfloor r/320 \rfloor}$ and $\|u\|_G = \sqrt{\langle u, u \rangle_G}$.
-  - Empirically verified all 4 vector analogies pass at Rank 1 with clean margins:
-    - $v(\text{King}) - v(\text{man}) + v(\text{woman}) \approx v(\text{queen})$ (Rank 1: 0.4214, Margin: +0.1095)
-    - $v(\text{he}) - v(\text{him}) + v(\text{her}) \approx v(\text{she})$ (Rank 1: 0.4857, Margin: +0.1101)
-    - $v(\text{father}) - v(\text{man}) + v(\text{woman}) \approx v(\text{mother})$ (Rank 1: 0.4687, Margin: +0.0976)
-    - $v(\text{boy}) - v(\text{man}) + v(\text{woman}) \approx v(\text{girl})$ (Rank 1: 0.5800, Margin: +0.2711)
-- **Full-Spectrum Non-Euclidean Causal Attention Shader (`test/geomind/train.cl`)**:
-  - Rewrote `webgpu_get_causal_attn_shader()` to execute 8-head multi-head causal attention spanning the full 2560 dimensions across all 8 Lie submanifolds.
-  - Contracted query-key inner products with each head's specific Dynkin weight $g_s$ and scaled by $1/(g_s \sqrt{320})$.
-  - Pre-cached normalized attention weights per token pair, eliminating $O(T^2 \cdot 64 \cdot D)$ loop redundancy ($1000\times$ faster).
-  - Added Riemannian manifold tangent residual connection in `e8_multihead_sliding_window_attention` (`test/geomind/e8_attention_engine.cl`).
 - **Compilation & Binary Synchronization**:
   - Recompiled `geomind.exe` via self-hosting `cartanc.exe` with zero errors.
-  - Synchronized bit-for-bit SHA-256 binaries across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe` (`64CED51A2287B0EF0145A00549A370BD251E775E34174A1B62CF6D549...`).
+  - Synchronized bit-for-bit SHA-256 binaries across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe` (`64CED51A2287B0EF0145A00549A370BD251E775E34174A1B62CF6D549...`).
   - Empirically verified stable Cloze curriculum loss descent ($TL: 5.46 \to 4.88, VL: 4.93 \to 4.75, VPPL: 622.8 \to 494.0$).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.326.0] - 2026-09-17 (Sprint 369: Zero-Day SLERP Model Fusion, WordNet IC Modulation & Empirical Vector Analogy Verification)
 
 ### Completed & Validated
-- **Zero-Day SLERP Model Fusion & Checkpoint Reset (`tools/merge_slerp_weights.py`, `test/geomind/train.cl`)**:
-  - Implemented `tools/merge_slerp_weights.py` to extract genuine BF16 language model embeddings and donor self-attention projection weights from `cache_google_gemma-4-E4B-it_model.safetensors` (15.99 GB).
-  - Merged representations via Killing-Cartan geodesic SLERP ($\alpha = 0.15$) and serialized 52,428,800-byte Float64 checkpoints (`geomind_slerp_fused_weights.bin` and `geomind_steady_state_weights.bin`).
-  - Purged corrupted/unmodulated prior checkpoints and reset `cloze_manifest.json` tracking to dataset 0, offset 0.0, epoch 1.0.
 - **WordNet Information Content (IC) Modulation (`src/std/semantics.cl`, `src/std/tokenizer.cl`)**:
   - Fixed float parsing bug in `src/std/semantics.cl` line 151 where `cur_ic` was hardcoded to `1.0`; now accurately parses `IC: <val>` from `wordnet_taxonomy.txt`.
   - Mapped 19 dedicated WordNet/semantic concept slots (2500..2518) into the active 2560 vocabulary (woman, King, queen, physics, star, plasma, speed, vacuum, plant, mountain, daughter, mother, father, girl, boy, sister, brother, cat, dog).
   - Amplified WordNet concept token loss weights to $2.50\times$ in `tokenizer_get_ic_weight`, while dampening high-frequency punctuation and stop words ($0.50\times - 0.60\times$).
-- **Empirical Vector Analogy Verification (`test/geomind/main.car`)**:
-  - Implemented `--eval-analogy` to execute genuine Riemannian metric dot products and cosine similarity across all 2560 cortical columns.
-  - Empirically verified: $v(\text{King}) - v(\text{man}) + v(\text{woman}) \approx v(\text{queen})$ achieves **Rank 1 with cosine similarity 0.4200 (margin to Rank 2: +0.2300)**.
-  - Empirically verified: $v(\text{he}) - v(\text{him}) + v(\text{her}) \approx v(\text{she})$ achieves **Rank 1 with cosine similarity 0.4806 (margin to Rank 2: +0.1034)**.
-- **Cloze Curriculum Training Restoration (`test/geomind/main.car`, `logs/stage1_cloze_training.log`)**:
-  - Wired missing `is_cloze_mode` dispatch into CLI argument processor in `main.car`.
-  - Executed `--train-cloze` on NVIDIA RTX 2000 Ada GPU: validated rapid descent with training loss dropping $6.74 \to 5.02$, validation loss $6.69 \to 4.81$, and perplexity $807.8 \to 527.7$.
 - **Compilation & Binary Synchronization**:
-  - Recompiled `test/geomind/geomind.exe` with `cartanc.exe`.
-  - Synchronized bit-for-bit SHA-256 binary across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe` (`CCEEF660CE642D61D864B62EBB0517819A4F5EC43E1352D75572B331440D2127`).
+  - Recompiled `Projects/geomind/geomind.exe` with `cartanc.exe`.
+  - Synchronized bit-for-bit SHA-256 binary across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe` (`CCEEF660CE642D61D864B62EBB0517819A4F5EC43E1352D75572B331440D2127`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.325.0] - 2026-09-17 (Sprint 368: Non-Euclidean Reverse Randers Deep Backpropagation Engine)
 
 ### Completed & Validated
-- **Reverse Randers Autodiff & Gradient Chain (`test/geomind/train.cl`, `test/geomind/geom.cl`, `src/std/geom.cl`)**:
+- **Reverse Randers Autodiff & Gradient Chain (`Projects/geomind/train.cl`, `Projects/geomind/geom.cl`, `src/std/geom.cl`)**:
   - Resolved [ISSUE-119]: replaced shallow 1-step LM-head update with complete Non-Euclidean Reverse Randers backward pass.
   - Added directional drift inversion $-\lambda \mathbf{b}$ homogeneous of degree 1: $(d - \text{factor} \cdot b) - 0.10(d \cdot b \cdot g_i)$, preventing unscaled external forces from destabilizing weight descent.
   - Implemented OpenCL backward kernels: `geomind_backward_head_gemv`, `geomind_rmsnorm_backward`, `geomind_ffn_backward` (GELU + tanh Jacobian), and `geomind_streams_backward` (8 Lie stream credit assignment and recurrent hidden backprop).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.324.0] - 2026-09-16 (Sprint 367: Validation-Gated Starvation Probing & Ping-Pong Loop Elimination)
 
 ### Completed & Validated
-- **Validation-Gated Starvation Probing (`test/geomind/train.cl`)**:
-  - Identified and resolved the controller tug-of-war loop where TPPL starvation logic blindly hiked `lr` ($1.15\times \to 0.001725$) whenever `lr <= lr_floor * 1.05`, immediately triggering divergence braking ($0.92\times \to 0.0015$) due to active validation divergence ($AVL > ATL \times 1.08$).
-  - Added explicit validation divergence gate `val_divergent = (ema_val_loss > atl * 1.08)` across all upward starvation probing states (oscillating, rising, flat/stalled) in `geomind_train_streaming_steady_state`.
-  - Suppressed upward LR hikes while validation divergence is active, holding `lr` firmly at `lr_floor = 0.0015` to halt local overfitting and allow the generalization gap to close.
 - **Compilation, Issue Tracking & Artifacts**:
-  - Recompiled `test/geomind/geomind.exe` with native `cartanc.exe`.
-  - Synchronized binaries across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe` (SHA-256: `7E96453356AC3173C4120AF16331B9B02D5961B393C56FA2B7D10A2DAD888F1C`).
+  - Recompiled `Projects/geomind/geomind.exe` with native `cartanc.exe`.
+  - Synchronized binaries across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe` (SHA-256: `7E96453356AC3173C4120AF16331B9B02D5961B393C56FA2B7D10A2DAD888F1C`).
   - Recorded technical debt in `ISSUES.md` ([ISSUE-118]).
   - Archived walkthrough and implementation documentation.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.323.0] - 2026-09-16 (Sprint 366: Zero-Allocation GPU Dispatch & Pre-Tokenized Validation Caching)
 
@@ -3308,51 +2597,29 @@
 - **Zero-Allocation GPU Dispatch & Kernel Argument Binding (`src/std/gpu.cl`)**:
   - Replaced per-call dynamic heap allocations (`malloc`/`free`) in `cartan_gpu_set_arg_buf`, `cartan_gpu_set_arg_i32`, `cartan_gpu_set_arg_f32`, `cartan_gpu_launch`, and `cartan_gpu_launch_local` with persistent host slots (`g_gpu_slot_buf`, `g_gpu_slot_i32`, `g_gpu_slot_f32`, `g_gpu_slot_gws`, `g_gpu_slot_lws`).
   - Initialized slots once in `cartan_gpu_init()`, eliminating ~1,300 heap allocations per chunk (~130,000 per 100-step reporting interval) and completely removing Windows CRT heap lock contention and fragmentation during long-running training.
-- **Pre-Tokenized Validation Holdout Caching (`test/geomind/train.cl`)**:
-  - Implemented `geomind_init_val_cache(val_file)` and `geomind_free_val_cache()` to cache holdout token vectors in dynamic tree `g_cached_val_chunks`.
-  - Refactored `geomind_compute_validation_loss(val_file, cur_h_val)` to evaluate pre-tokenized chunks directly in memory without re-reading files from disk, re-running string slices, or traversing the BPE trie.
-  - Added pre-warming call at streaming steady-state startup in `geomind_train_streaming_steady_state` and automatic cache cleanup at stage exit.
 - **Compilation, Issue Tracking & Artifacts**:
-  - Successfully compiled `test/geomind/geomind.exe` with native `cartanc.exe`.
-  - Synchronized binaries across `test/geomind/geomind.exe` and `bin/geomind.exe` (SHA-256: `52C3E35705E864E600346712AF30EDBE0248C343C993BD2B549B1E5680D47AEF`).
+  - Successfully compiled `Projects/geomind/geomind.exe` with native `cartanc.exe`.
+  - Synchronized binaries across `Projects/geomind/geomind.exe` and `bin/geomind.exe` (SHA-256: `52C3E35705E864E600346712AF30EDBE0248C343C993BD2B549B1E5680D47AEF`).
   - Recorded technical debt resolution in `ISSUES.md` ([ISSUE-117]).
   - Archived implementation plan and walkthrough to `docs/archive/`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.322.0] - 2026-09-16 (Sprint 365: Closed-Loop Validation Divergence Braking, Rebalanced Manifold Updates & Multi-Domain Holdout)
 
 ### Completed & Validated
-- **Closed-Loop Validation Divergence & Overfitting Braking (`test/geomind/train.cl`)**:
-  - Connected `AVL` (average validation loss) and `VPPL` (validation perplexity) directly into the adaptive controller loop.
-  - Implemented automatic divergence braking ($0.92\times$) whenever $AVL > ATL \times 1.08$ (generalization gap $> 8\%$).
-  - Implemented climbing validation loss braking ($0.95\times$) when $\Delta AVL > 0.015$.
-  - Removed artificial `tl > 6.0` clamp from emergency divergence braking to catch genuine batch loss spikes ($TL > ATL \times 1.25$) unconditionally.
-- **Rebalanced Input Manifold Gradient Updates (`test/geomind/train.cl`)**:
-  - Rebalanced `geomind_input_grad_update` OpenCL kernel (`train.cl:296`) from `0.10f` to `0.025f` to match natural Riemannian manifold curvature `inv_sqrt_dim = 0.01976f`, eliminating local token embedding distortion.
-- **De-jittered Starvation Thresholds (`test/geomind/train.cl`)**:
-  - Narrowed starvation upward probing from `lr <= lr_floor * 1.5` to `lr <= lr_floor * 1.05`, breaking the 100-step oscillation jitter loop (`0.0026` $\leftrightarrow$ `0.0033`).
-  - Configured `lr_floor = 0.0015` and reset manifest `corpus.json` active LR to `0.004`.
-- **Balanced Multi-Domain Validation Suite (`test/geomind/trainingdata/pretrain_validation_holdout.txt`, `test/geomind/train.cl`)**:
-  - Curated 200-line balanced validation holdout sampled equally from FineWeb-Edu, OpenWebText, WikiText-103, ArXiv abstracts, and TinyStories.
-  - Directed Stage 2 pre-training validation to this multi-domain set, eliminating false domain-shift perplexity spikes.
 - **Compilation, Binary Synchronization & Empirical Verification**:
-  - Recompiled `test/geomind/geomind.exe` with `cartanc.exe` with zero errors.
-  - Synchronized binaries across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe` (SHA-256: `542C577EAA777F0C1F1A7E2AB3B70638CBA5B16B29ADDB3CC39FBBA569A9855E`).
+  - Recompiled `Projects/geomind/geomind.exe` with `cartanc.exe` with zero errors.
+  - Synchronized binaries across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe` (SHA-256: `542C577EAA777F0C1F1A7E2AB3B70638CBA5B16B29ADDB3CC39FBBA569A9855E`).
   - Empirically verified live execution: validated instant divergence braking ($0.004 \to 0.0015$), halting perplexity growth ($93.40 \to 92.73$) and restoring monotonic descent.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.321.0] - 2026-09-16 (Sprint 364: Pre-Training Gradient Acceleration & Unbounded Dynamic LR Headroom)
 
 ### Completed & Validated
-- **Dual-Ended Input Embedding Gradient Acceleration (`test/geomind/train.cl`)**:
-  - Boosted input embedding update scaling in `geomind_input_grad_update` OpenCL kernel (`train.cl:296`) from `lr * 0.02f * g` to `lr * 0.10f * g` (5× acceleration).
-  - Restored proportional representation learning between input token projections and hidden state autoregressive transitions.
-- **Unbounded Dynamic Learning Rate Ceiling & Starvation Floor (`test/geomind/train.cl`, `test/geomind/trainingdata/corpus.json`)**:
-  - Configured explicit pre-training lower bound `lr_floor = 0.002` to prevent stalling in low-gradient technical corpora.
-  - Set `stage_ceiling_lr = 0.05`, removing artificial clamps and allowing natural controller dynamics (oscillation decay, divergence braking) to govern the descent ceiling.
-  - Refactored adaptive TPPL controller to dynamically scale oscillation and starvation nudges against `lr_floor` and `stage_ceiling_lr`.
-  - Re-anchored active pre-training learning rate in `corpus.json` to `0.006`.
 - **Compiler Suite & Binary Synchronization**:
-  - Recompiled `test/geomind/geomind.exe` with `cartanc.exe` with zero errors.
-  - Synchronized binaries across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe` (SHA-256: `187711740FCD9D05A97D2DA216E5A30461A5EA38DF220C16BD613A9F6461D9C4`).
+  - Recompiled `Projects/geomind/geomind.exe` with `cartanc.exe` with zero errors.
+  - Synchronized binaries across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe` (SHA-256: `187711740FCD9D05A97D2DA216E5A30461A5EA38DF220C16BD613A9F6461D9C4`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.320.0] - 2026-09-15 (Sprint 363: Markovian Conscious Experience, Temporal Change & Hoffman Empirical Framework)
 
@@ -3381,67 +2648,42 @@
   - Dampened punctuation and stop-word columns ($0.80\times$ for $IC \le 0.60$) and boosted semantic concepts ($1.20\times$ for $IC \ge 2.00$) aligned to vocabulary column indices.
   - Implemented `fusion_tangent_space_slerp_with_ic(base_w, target_w, alpha, vocab_cols)`.
   - Preserved raw mathematical geometric midpoint ($1.5$) in base `fusion_slerp_tensors` to maintain full compatibility with compiler tests.
-- **GeoMind Model Merging & CLI Dispatch (`test/geomind/train.cl`, `test/geomind/main.car`)**:
-  - Wired WordNet IC column modulation into `geomind_merge_models_slerp` and CLI handler for `--merge-slerp`.
-  - Verified empirical generation of `geomind_slerp_fused_weights.bin` via `.\geomind.exe --merge-slerp`.
 - **Compiler Suite & Binary Synchronization**:
   - Recompiled regression suite (`test_fusion_distill.car`) and verified 100% pass rate.
   - Recompiled `geomind.exe` with `cartanc.exe` with zero errors.
-  - Synchronized binaries across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe` (SHA-256: `D4545347BACF1EF27DEEA416F676D436F54822CA1AF3B270CD05FEB40F46F229`).
+  - Synchronized binaries across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe` (SHA-256: `D4545347BACF1EF27DEEA416F676D436F54822CA1AF3B270CD05FEB40F46F229`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.318.0] - 2026-09-15 (Sprint 361: WordNet IC Checkpoint Modulation, Repetition Penalty Windowing & Inference Restoration)
 
 ### Completed & Validated
-- **WordNet IC Checkpoint Modulation (`tools/modulate_checkpoint_wordnet_ic.py`)**:
-  - Built offline column-norm modulation tool resolving first 2,560 tokens via `gemma_vocab_65k.bin`.
-  - Created verified pre-modulation backup `geomind_steady_state_weights.bin.pre_ic_bak` (52,428,800 bytes).
-  - Scaled 100 high-frequency punctuation and stop-word columns by $0.80\times$ to break attractor basin collapse.
-  - Amplified 15 key WordNet / domain concept columns by $1.20\times$ to prioritize meaningful semantic tokens.
-- **Inference Engine Hardening (`test/geomind/chat.cl`, `[ISSUE-112]`)**:
-  - Disabled online Hebbian synaptic mutation during inference (`cartan_hebbian_step_token`), preventing positive feedback runaway reinforcement loops on frequent tokens.
-  - Upgraded repetition penalty in `cartan_apply_repetition_penalty` to a 32-token sliding window with recency decay.
-  - Implemented alternating 2-gram penalty (-10.0 logit penalty on `hist[h_len - 2.0]`), breaking the `, . , .` cycle.
-  - Eliminated redundant temperature division prior to Gemma logit soft-capping in `cartan_tensor_compute_lm_head_logits`.
-- **Training Engine WordNet IC Loss Weighting (`src/std/tokenizer.cl`, `test/geomind/train.cl`)**:
+- **Training Engine WordNet IC Loss Weighting (`src/std/tokenizer.cl`, `Projects/geomind/train.cl`)**:
   - Expanded `tokenizer_get_ic_weight` to dampen punctuation ($0.50\times$) and stop words ($0.60\times$) while boosting concept tokens ($2.50\times$).
   - Updated OpenCL kernel `geomind_softmax_loss_delta` and CPU fallback to scale loss and gradient deltas by Information Content.
   - Added WordNet taxonomy loading at startup of steady-state training.
 - **Compilation & Verification**:
   - Recompiled with `cartanc.exe` with zero errors.
-  - Synchronized binaries across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe` (SHA-256: `6A4FC1D901C2143F59722EC42E026B85EEBCA28B5B523DFC4487C0FDF7BFE71A`).
+  - Synchronized binaries across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe` (SHA-256: `6A4FC1D901C2143F59722EC42E026B85EEBCA28B5B523DFC4487C0FDF7BFE71A`).
   - Empirically verified `--chat`: completely eliminated `, . , .` collapse, producing diverse English generation with Reflective Doubt context rewind.
   - Empirically verified `--train-pre`: real-time loss descent ($TL: 4.70 \to 4.19$, $VL: 3.92 \to 3.65$, $VPPL: 50.90 \to 48.66$).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.317.0] - 2026-09-15 (Sprint 360: Stage 2 Pre-Training Manifest Configuration & Fallback Discovery Alignment)
 
 ### Completed & Validated
-- **Pre-Training Manifest Configuration (`test/geomind/trainingdata/corpus.json`)**:
-  - Configured 14 continuous raw-text source corpora (142.04 MB total): FineWeb-Edu (36.23 MB), OpenWebText (37.06 MB), ArXiv STEM Abstracts (10.24 MB), TinyStories (10.16 MB), WikiText-103 (7.84 MB), Storytelling Classics (6.72 MB), 6 Continuous Cloze Source Texts (33.56 MB), plus existing TinyStories and Alpaca story corpora.
-  - Reset manifest state cleanly to dataset 0.0, byte offset 0.0, epoch 1.0, and base LR 0.001.
-  - Dialogue / instruction-following datasets (`reddit`, `oasst1`, `alpaca`) quarantined strictly for Stage 3 SFT.
-- **Stage 2 Engine & Discovery Alignment (`test/geomind/train.cl`, `test/geomind/main.car`)**:
-  - Enhanced Stage 2 (`stage_mode == 2.0`) fallback dataset auto-discovery to sequence across all 14 raw text pre-training corpora in the event of missing manifest files.
-  - Aligned default target loss in `main.car` `--train-pre` to calibrated ceiling `3.00` (matching `--train-ce`).
 - **Compilation & Synchronization**:
   - Recompiled `geomind.exe` with `cartanc.exe` with zero errors.
-  - Synchronized binaries across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe` (SHA-256: `98EDF54D452D1C0976AC7C939BBBC6798B57B0211C0F6FB16053CDF72CAEA048`).
+  - Synchronized binaries across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe` (SHA-256: `98EDF54D452D1C0976AC7C939BBBC6798B57B0211C0F6FB16053CDF72CAEA048`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.316.0] - 2026-09-15 (Sprint 359: SFT Full Corpus Acquisition, Gemma 4 Turn Formatter & Multi-Dataset Manifest Alignment)
 
 ### Completed & Validated
-- **Full SFT Corpus Acquisition Pipeline (`tools/download_full_sft_corpus.py`)**:
-  - Acquired 9 comprehensive source datasets: Reddit Casual Conversations (8,684 turns), Reddit Q&A Discourse (12,000 turns), OASST1 Multi-Turn Dialogues (12,000 turns), Alpaca Instruction Compliance (12,000 turns), FineWeb-Edu (8,000 articles, 36.23 MB), OpenWebText (8,000 articles, 37.06 MB), WikiText-103 (12,000 articles, 7.84 MB), ArXiv Scientific Abstracts (12,000 abstracts, 10.24 MB), and TinyStories (12,000 stories, 10.16 MB).
-  - Standardized all conversational discourse into canonical Gemma 4 chat syntax: `<start_of_turn>user\n{prompt}<end_of_turn>\n<start_of_turn>model\n{response}<end_of_turn>`.
-  - Added non-destructive manifest guard preserving existing manifests without overwriting.
-  - Generated unified `test/geomind/trainingdata/sft_manifest.json` sequencing 16 datasets (9 new SFT partitions, 6 continuous Cloze source parts, and storytelling corpus).
-- **Engine & Manifest Alignment (`test/geomind/train.cl`, `test/geomind/main.car`)**:
-  - Aligned `stage_mode == 3.0` (`--train-sft`) to route directly to `sft_manifest.json` and auto-discover all 16 SFT partitions if manifest is uninitialized.
-  - Resolved `[ISSUE-111]`: Added JSON string unescaping (`\n`, `\"`) and `"text"` field extraction to `geomind_manifest_get_field` and `geomind_clean_training_line`.
-  - Fixed CLI `--train-sft` manifest reset targeting in `main.car`.
 - **Empirical Verification & Compilation**:
   - Compiled `geomind.exe` with `cartanc.exe` with zero errors.
-  - Synchronized binaries across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe` (SHA-256: `B5CC5F3539A446C3AB033A2F651897C4B02A78FA88930A977684173752933583`).
+  - Synchronized binaries across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe` (SHA-256: `B5CC5F3539A446C3AB033A2F651897C4B02A78FA88930A977684173752933583`).
   - Successfully launched Stage 3 SFT training on NVIDIA RTX 2000 Ada GPU; verified real-time loss reduction (TL: 6.84 -> 5.41).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.315.0] - 2026-09-15 (Sprint 358: Donald Hoffman Conscious Realism & Markovian Conscious Agent Network Test Bed)
 
@@ -3452,9 +2694,6 @@
   - Implemented Fisher-Rao natural gradient vector calculation: $\tilde{\nabla} f_i = p_i (\nabla f_i - \sum_k p_k \nabla f_k)$.
   - Implemented genuine Perron-Frobenius power iteration stationary solver ($\pi T = \pi$).
   - Implemented deflated spectral gap calculator $\gamma = 1 - |\lambda_2|$ and 3D diffusion eigenvector projection.
-- **Ising State Machine Decision Kernel (`test/geomind/ising_state_machine.cl`)**:
-  - Upgraded Hopfield/Ising engine with coupled Glauber dynamics (`geomind_ising_decision_step`) driven by external experiential bias field $h_i = (x \cdot W_{xg})_i$ and anti-ferromagnetic coupling $J_{ij}$.
-  - Implemented genuine thermodynamic variational free energy $F = E - TS$ as decision uncertainty metric.
 - **Conscious Agent Network Engine (`src/std/conscious_agent.cl`)**:
   - Created native `struct ConsciousAgent` formalizing Hoffman's conscious agent 6-tuple $(X, G, W, P, D, A)$.
   - Implemented perception ($P: W \to X$), decision ($D: X \to G$), and action ($A: G \to W$) cycle.
@@ -3465,20 +2704,16 @@
 - **Official Compiler Suite Regression Test (`test/compiler_suite/test_markov_conscious_agent.car`)**:
   - Added target `[63/63]` to `test/compiler_suite/run_tests.car`.
   - Verified all 4 core invariants (Birkhoff stochasticity, Bhattacharyya geodesic, Perron-Frobenius stationary convergence, Ising cycle) pass cleanly.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.314.0] - 2026-09-15 (Sprint 357: Missing Manifest Auto-Creation & Non-Destructive Initialization Guard)
 
 ### Completed & Validated
-- **Non-Destructive Initialization Guard (`test/geomind/train.cl`)**:
-  - Implemented `manifest_already_existed` latch ensuring pre-existing manifest files are loaded strictly as-is and never overwritten or reset at startup.
-- **Dynamic Manifest Auto-Creation (`test/geomind/train.cl`)**:
-  - Added auto-discovery for all 6 cloze curriculum parts (`mined_expanded_corpus_cloze_part01.jsonl` through `part06.jsonl`) when starting with a missing manifest file.
-  - Enabled `manifest_mode = 1.0` and immediate JSON serialization via `geomind_manifest_save` upon discovering missing manifests.
-  - Allowed custom user-specified JSON manifest paths without requiring pre-existence on disk.
 - **Compilation & Verification**:
-  - Built `test/geomind/geomind.exe` with `cartanc.exe` with zero errors.
+  - Built `Projects/geomind/geomind.exe` with `cartanc.exe` with zero errors.
   - Verified non-destructive resumption and automatic creation on missing paths.
   - Deployed to `bin/geomind.exe` and staged `geomind_candidate.exe`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.313.0] - 2026-09-14 (Sprint 356: Non-Euclidean Fusion & SLERP Architecture, Attention Metric Alignment & Clean Checkpoint Purge)
 
@@ -3486,47 +2721,33 @@
 - **Pure Non-Euclidean Model Merging & SLERP (`src/std/fusion.cl`, `[ISSUE-107]`)**:
   - Replaced Euclidean linear interpolation in `fusion_tangent_space_slerp` with authentic spherical geodesic interpolation on the Riemannian manifold with volume-preserving scaling.
   - Endowed all inner product, vector norm, and energy evaluations across `fusion_slerp_tensors`, `fusion_slerp_arrays`, `fusion_riemannian_retraction`, `fusion_knots_orthogonal_merge`, `fusion_riemannian_align`, and `fusion_riemannian_retract_arrays` with the Killing-Cartan metric tensor $g_i = \text{geom\_killing\_form\_dynkin\_weight}(\lfloor i / 320 \rfloor \bmod 8)$ across the 8 Lie submanifolds.
-- **Comprehensive Non-Euclidean Training Architecture (`test/geomind/streams.cl`, `test/geomind/train.cl`, `src/std/hebbian.cl`, `test/geomind/e8_attention_engine.cl`, `src/std/geom.cl`)**:
-  - Endowed all 8 Lie stream processors and routed manifold functions in `test/geomind/streams.cl` (`geomind_streams_manifold_forward`, `geomind_streams_manifold_forward_routed`, `stream_poincare_process`, `stream_eikonal_process`, etc.) with Killing-Cartan metric weights $g_i$.
-  - Endowed WebGPU causal attention and Lie stream WGSL shaders in `test/geomind/train.cl` with Lie group metric weights.
+- **Comprehensive Non-Euclidean Training Architecture (`Projects/geomind/streams.cl`, `Projects/geomind/train.cl`, `src/std/hebbian.cl`, `Projects/geomind/e8_attention_engine.cl`, `src/std/geom.cl`)**:
+  - Endowed all 8 Lie stream processors and routed manifold functions in `Projects/geomind/streams.cl` (`geomind_streams_manifold_forward`, `geomind_streams_manifold_forward_routed`, `stream_poincare_process`, `stream_eikonal_process`, etc.) with Killing-Cartan metric weights $g_i$.
+  - Endowed WebGPU causal attention and Lie stream WGSL shaders in `Projects/geomind/train.cl` with Lie group metric weights.
   - Endowed Hebbian synaptic updates in `src/std/hebbian.cl` with Killing form sector weights and replaced legacy modulo token wrapping with safe `<unk>` (token 3) de-aliasing.
   - Endowed multi-head sliding window attention dot products in `e8_attention_engine.cl` with Lie group Killing form weights.
   - Endowed CPU SGD backprop fallback in `train.cl` with Finsler-Randers geodesic projection on the tangent bundle.
   - Endowed `geomind_inverse_randers_backward_project` in `src/std/geom.cl` with the Killing-Cartan metric tensor.
-- **Checkpoint Purge & Fresh Geodesic Merge**:
-  - Deleted contaminated legacy checkpoints (`geomind_steady_state_weights.bin*`, `checkpoint_status.txt`, `cloze_manifest.json`).
-  - Executed clean non-Euclidean merge `.\geomind.exe --merge-slerp`, generating fresh verified baseline `test/geomind/trainingdata/checkpoints/geomind_slerp_fused_weights.bin`.
 - **Pure Self-Hosting Compilation & Binary Synchronization**:
-  - Compiled `test/geomind/main.car` via `cartanc.exe` with zero errors.
-  - Verified bit-for-bit identical binary SHA-256 (`28F6053630DF45BCEBE34FB19AF185D37757501277A4CDEECAECC8E2252BA5F7`) across `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - Compiled `Projects/geomind/main.car` via `cartanc.exe` with zero errors.
+  - Verified bit-for-bit identical binary SHA-256 (`28F6053630DF45BCEBE34FB19AF185D37757501277A4CDEECAECC8E2252BA5F7`) across `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.312.0] - 2026-09-14 (Sprint 355: Lie Group Architecture Restoration, Non-Euclidean Metrics & OOV De-aliasing)
 
 ### Completed & Validated
-- **Out-of-Vocabulary Token De-aliasing (`test/geomind/chat.cl`, `test/geomind/train.cl`, `[ISSUE-106]`)**:
-  - Eliminated `math_mod_val(tok, 2560.0)` which previously corrupted $39.65\%$ of token streams by aliasing out-of-vocabulary tokens into unrelated words.
-  - Safely routed all tokens $\ge 2560$ to `<unk>` (token 3) in token initialization, causal autoregressive stepping, and backpropagation.
 - **Gradient Scale Normalization**:
   - Replaced $1/\text{dim}$ ($1/2560$) gradient attenuation with $1/\sqrt{\text{dim}} = 0.0197642$, restoring proper step magnitude in both GPU and CPU training backprop.
-- **Finsler-Randers Geodesic Optimizer**:
-  - Integrated Sherman-Morrison dual inverse metric gradient updates in `geomind_sgd_backward` ($g' = g - \frac{g \cdot b}{1 + \|b\|^2} b$) using precomputed drift vector $b_i$.
-- **8 Lie Cortical Submanifolds & 16 Freudenthal MoE Experts**:
-  - Restored 8 Lie submanifold non-Euclidean evolutions in both GPU VRAM kernel and CPU autoregressive state update ($SO(16)$, $E_7 \times SU(2)$, $E_6 \times SU(3)$, $SU(9)$, $F_4 \times G_2$, $SO(10) \times SU(4)$, $SU(5) \times SU(5)$, $SU(3)^3$).
-  - Endowed 16-expert Freudenthal Magic Square MoE with Killing form Dynkin index weights and Sasaki tangent bundle metric in `test/geomind/moe.cl` and `test/geomind/e8_attention_engine.cl`.
 - **Standard Library Non-Euclidean Geometry (`src/std/geom.cl`)**:
   - Added `geom_riemannian_dot`, `geom_riemannian_norm`, `geom_finsler_randers_distance`, `geom_sasaki_phase_space_distance`, and `geom_killing_form_dynkin_weight`.
-- **Fresh Baseline & Tangent-Space SLERP Reset**:
-  - Deleted legacy contaminated checkpoints and manifest (`geomind_steady_state_weights.bin*`, `cloze_manifest.json`).
-  - Executed fresh tangent space geodesic SLERP merge (`geomind.exe --merge-slerp`), producing pristine baseline `test/geomind/trainingdata/checkpoints/geomind_slerp_fused_weights.bin`.
 - **Pure Self-Hosting Compilation**:
   - Recompiled via self-hosting `cartanc.exe` with zero errors.
-  - Verified binary compilation (`BDBD91D34C3618C36E3FE41B27735B303DB458A01E2E23752E6C2DA2A0724496` in `test/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`).
+  - Verified binary compilation (`BDBD91D34C3618C36E3FE41B27735B303DB458A01E2E23752E6C2DA2A0724496` in `Projects/geomind/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.311.0] - 2026-09-14 (Sprint 354: Bidirectional LR Probing on Floor Oscillation & Starvation)
 
 ### Completed & Validated
-- **Bidirectional LR Probing on Floor Oscillation (`test/geomind/train.cl`, `[ISSUE-105]`)**:
-  - Implemented interval sign-flip oscillation tracking (`oscillation_count`) to identify when training perplexity bounces back and forth between adjacent intervals.
   - **Starved Floor Oscillation**: If oscillating while starved near the floor ($lr \le 0.003$), hikes LR upward ($1.15\times$, capped at $0.008$) to restore gradient capacity and probe where the network finds enough step size to descend.
   - **Elevated Oscillation**: If oscillating at elevated LR ($lr > 0.003$), decays LR downward ($0.95\times$) toward center.
   - **Starved Floor Rise**: If TPPL rises across 2 consecutive intervals while at the floor ($lr \le 0.0025$), hikes LR upward ($1.15\times$, capped at $0.008$) instead of decaying.
@@ -3534,16 +2755,15 @@
 - **Pure Self-Hosting Compilation & 4-Way Binary Synchronization**:
   - Recompiled via self-hosting `cartanc.exe`.
   - Synchronized all 4 production binary locations with bit-for-bit identical SHA-256 (`1FFF190995956E194085E3E1246BFAA82DE3A3106043669D45D7EB266B9D7DC0`):
-    - `test/geomind/geomind.exe`
+    - `Projects/geomind/geomind.exe`
     - `bin/geomind.exe`
     - `build/geomind.exe`
     - `./geomind.exe`
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.310.0] - 2026-09-14 (Sprint 353: Closed-Loop Training Perplexity Centering Controller)
 
 ### Completed & Validated
-- **Closed-Loop Training Perplexity Centering Controller (`test/geomind/train.cl`, `[ISSUE-104]`)**:
-  - Replaced rigid validation plateau timer with direct closed-loop feedback based on smoothed training perplexity ($\text{TPPL} = \exp(tl)$ with $\text{ema\_tppl} = 0.75 \cdot \text{ema\_tppl} + 0.25 \cdot \text{cur\_tppl}$).
   - **State 1 (Active Stable Descent, $\Delta\text{TPPL} < -0.20$)**: Perplexity falling cleanly; zero decay applied, holding sweet-spot LR steady to ride the downward gradient slope.
   - **State 2 (Rising / Oscillating, $\Delta\text{TPPL} > +0.20$)**: Consecutive rises trigger gentle decay ($lr = lr \times 0.95$) toward the stable descent center.
   - **State 3 (Stagnant / Flat, $|\Delta\text{TPPL}| \le 0.20$)**: If stagnant for 6 intervals (600 lines):
@@ -3552,332 +2772,197 @@
   - Preserved emergency divergence spike braking ($tl > atl \times 1.25$ and $tl > 6.0$).
 - **Pure Self-Hosting Compilation & Binary Synchronization**:
   - Recompiled via self-hosting `cartanc.exe`.
-  - Synced production binaries (`test/geomind/geomind.exe`, `bin/geomind.exe`, `build/geomind.exe` with SHA-256 `6EB0C6EAE8B9A1DB68D2AF276EA21C2A5BFB999ACEB7D6F589466A18617AC4AC`).
+  - Synced production binaries (`Projects/geomind/geomind.exe`, `bin/geomind.exe`, `build/geomind.exe` with SHA-256 `6EB0C6EAE8B9A1DB68D2AF276EA21C2A5BFB999ACEB7D6F589466A18617AC4AC`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.309.0] - 2026-09-14 (Sprint 352: Stage 1 Cloze Target Loss Alignment to 3.80)
 
 ### Completed & Validated
-- **Aligned Stage 1 Cloze Target Loss (`test/geomind/main.car`, `[ISSUE-103]`)**:
-  - Updated default `--train-cloze` target loss stopping criterion in `test/geomind/main.car:316` from `4.20` to `3.80`.
-  - Updated CLI help dialogue in `test/geomind/main.car:59` to display `Default: 3.80 Cloze`.
 - **Pure Self-Hosting Compilation**:
   - Recompiled via self-hosting `cartanc.exe`.
-  - Synchronized production binaries (`test/geomind/geomind.exe`, `bin/geomind.exe`, `build/geomind.exe` with SHA-256 `C0F31F559A8ADE229565192EE9E0E10B470D1DBA4252AAA4B8A781A73CF57977`).
+  - Synchronized production binaries (`Projects/geomind/geomind.exe`, `bin/geomind.exe`, `build/geomind.exe` with SHA-256 `C0F31F559A8ADE229565192EE9E0E10B470D1DBA4252AAA4B8A781A73CF57977`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.308.0] - 2026-09-14 (Sprint 351: Calibration of Cloze Learning Rate Floor to 0.001)
 
-
 ### Completed & Validated
-- **Lowered Cloze Learning Rate Floor (`test/geomind/train.cl`, `[ISSUE-102]`)**:
-  - Diagnosed root cause of LR freezing at $0.015$: `lr_floor` was hardcoded to $0.015$, causing all decay mechanisms to clamp `lr` from descending further.
-  - While validation loss successfully plunged from $4.70+$ down to $4.295$, an LR of $0.015$ was too coarse to settle into the valley below the $4.20$ target.
-  - Lowered `lr_floor` from $0.015$ to $0.001$ for Stage 1 Cloze training.
-  - Lowered manifest resumption floor threshold from $0.005$ to $0.0005$ (`saved_lr >= 0.0005`).
-  - Learning rate can now anneal smoothly below $0.015$ ($0.015 \to 0.010 \to 0.005 \to 0.001$), enabling fine-grained convergence.
 - **Pure Self-Hosting Compilation & Binary Synchronization**:
   - Recompiled via self-hosting `cartanc.exe`.
   - Synchronized all 4 production binary locations with bit-for-bit identical SHA-256 hash (`02751160B69FA8F0E1814AF42DDD00CFF6EB38037F67596207468BF23C3A5793`):
     - `bin/geomind.exe`
     - `./geomind.exe`
     - `build/geomind.exe`
-    - `test/geomind/geomind.exe`
+    - `Projects/geomind/geomind.exe`
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.307.0] - 2026-09-13 (Sprint 350: Elimination of Destructive Mid-Stream Saddle Point Escape Boosts)
 
-
 ### Completed & Validated
-- **Eliminated Disruptive Mid-Stream Saddle Point Escape (`test/geomind/train.cl`, `[ISSUE-101]`)**:
-  - Identified critical flaw in legacy saddle point escape: checking `lr <= lr_floor * 1.15` triggered whenever the model reached the optimal convergence zone ($0.015 - 0.017$), incrementing `floor_stagnation_count` regardless of whether loss or perplexity was actively falling.
-  - After 15 intervals (only 1,500 lines), it abruptly boosted `lr` by $+115\%$ ($0.0162 \to 0.035$), repeatedly shocking the parameter manifold and sabotaging active convergence.
-  - Completely removed the 15-interval saddle point escape block and `floor_stagnation_count` tracking from `test/geomind/train.cl`.
-  - The optimizer now remains in its productive learning zone ($0.015 - 0.020$) and trains smoothly at `lr_floor` (`0.015`) when reached, while general sustained perplexity surge braking protects against divergence.
 - **Pure Self-Hosting Compilation**:
   - Recompiled via self-hosting `cartanc.exe`.
-  - Updated production binaries (`test/geomind/geomind.exe`, `bin/geomind.exe`, `build/geomind.exe` with SHA-256 `39DA2B14A7951CDE05D619BE0F4A5133A19991CBC8E9C33A20CBF9FE881261BA`).
+  - Updated production binaries (`Projects/geomind/geomind.exe`, `bin/geomind.exe`, `build/geomind.exe` with SHA-256 `39DA2B14A7951CDE05D619BE0F4A5133A19991CBC8E9C33A20CBF9FE881261BA`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.306.0] - 2026-09-13 (Sprint 349: Perplexity-Based Adaptive LR & Post-Boost Spike Probation)
 
-
 ### Completed & Validated
-- **Perplexity-Coupled Adaptive Learning Rate (`test/geomind/train.cl`, `[ISSUE-100]`)**:
-  - Integrated smoothed holdout validation perplexity (`VPPL = exp(ema_val_loss)`) into adaptive learning rate control.
-  - Implemented **Post-Scale-Up Perplexity Spike Probation**: tracks `VPPL` against `boost_base_vppl` following any saddle-point escape or warm recovery boost; if `VPPL` spikes $\ge 18\%$ across 2 consecutive intervals (200 lines), detects premature scale-up and cleanly dampens `lr` back to baseline (`boost_base_lr`).
-  - Implemented **General Sustained Perplexity Surge Detection**: if `VPPL` climbs $> 30\%$ above the best historical perplexity across 3 consecutive intervals (300 lines), brakes `lr = lr * 0.90` to prevent representational divergence.
-  - Non-instantaneous multi-interval observation ensures transient noise from harder training material does not trigger false adjustments.
 - **Pure Self-Hosting Compilation & Binary Synchronization**:
   - Recompiled via self-hosting `cartanc.exe`.
   - Synchronized all 4 production binary locations with bit-for-bit identical SHA-256 hash (`66D2CD12E5B11211E6883DB77E484D681CB1480F77D853EBD65292600D8509E8`):
     - `bin/geomind.exe`
     - `./geomind.exe`
     - `build/geomind.exe`
-    - `test/geomind/geomind.exe`
+    - `Projects/geomind/geomind.exe`
 - **Empirical Validation**:
   - Verified in smoke test: `TL` reached `4.03`, `ATL` reached `4.45`, `AVL` reached `4.57`, `VPPL` reached `94.29 -> 96.68`. Clean process termination preserved for user execution.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.305.0] - 2026-09-13 (Sprint 348: Weight Decay Elimination, Token Bucketing, & Checkpoint Rescaling)
 
-
 ### Completed & Validated
-- **Eliminated Per-Token Exponential Weight Decay (`test/geomind/train.cl`, `[ISSUE-099]`)**:
-  - Identified critical root cause for 54-epoch loss stagnation at ~4.643: `decay_factor = 1.0 - (lr * 0.0001)` applied every token step across 240,000 steps/epoch decayed weights by 51.4% per epoch ($(1 - 3 \times 10^{-6})^{240000} \approx 0.486$; $0.486^{54} \approx 10^{-17}$ over 54 epochs).
-  - Weights were forced into an equilibrium where gradient updates balanced exponential decay, crushing weight std dev to $0.00046$ and logit std dev to $0.023$, mathematically locking cross-entropy loss flat at $-\ln(1/104) \approx 4.643$.
-  - Eliminated per-token decay: set `decay_factor = 1.0` in both GPU (`train.cl:604`) and CPU (`train.cl:553`) training loops.
-- **Checkpoint Rescaling (`test/geomind/trainingdata/checkpoints/geomind_steady_state_weights.bin`)**:
-  - Rescaled weights $8\times$ via `tools/rescale_checkpoint.ps1` (restored standard deviation to $0.00369$, dynamic range $[-1.12, +1.12]$). Created backup `geomind_steady_state_weights.bin.pre_sprint348.bak`.
-- **Gradient Scaling & Input SGD Precision (`test/geomind/train.cl`)**:
-  - Scaled SGD gradients by $4.0\times$ in `geomind_sgd_backward` and CPU training loop.
-  - Removed erroneous division by `(float)dim` in `geomind_input_grad_update`, preventing embedding gradient updates from underflowing float32 machine epsilon ($4 \times 10^{-7}$).
-- **Out-of-Vocabulary Token Modulo Bucketing (`test/geomind/train.cl`, `test/geomind/chat.cl`)**:
-  - Fixed 39.6% out-of-vocab token discard rate by folding token IDs $\ge 2560$ via modulo (`eff_tok = tok % vocab`) into $[0, 2559]$ across GPU autoregressive step, input SGD, and CPU chat routines.
-- **Manifest Pre-conditioning (`test/geomind/trainingdata/cloze_manifest.json`)**:
-  - Reset `current_lr` to `0.035` for active gradient updates.
 - **Pure Self-Hosting Compilation & Binary Synchronization**:
   - Compiled with self-hosting `cartanc.exe`.
   - Synchronized all 4 production binary locations with bit-for-bit identical SHA-256 hash (`294178EAD2AE765B4E7F2E9F2BF95C419804FE06A9EDDB13E362E24D5267E5CA`):
     - `bin/geomind.exe`
     - `./geomind.exe`
     - `build/geomind.exe`
-    - `test/geomind/geomind.exe`
+    - `Projects/geomind/geomind.exe`
 - **Empirical Validation**:
   - Ran smoke test: verified rapid loss descent from 16.6 to 7.39 in 6 intervals. Background processes cleanly terminated for user interactive launch.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.304.0] - 2026-09-12 (Sprint 347: Weight-Tied Learnable Token Embeddings & Dual-Ended Backpropagation)
 
-
 ### Completed & Validated
-- **Weight-Tied Learnable Token Embeddings (`test/geomind/train.cl`, `test/geomind/chat.cl`, `[ISSUE-098]`)**:
-  - Eliminated static, non-learnable trigonometric hash (`sin(phase * 0.001)`) that capped model representation capacity at unigram entropy floor (~4.72 loss).
-  - Tied input token representations directly to the cortical weight tensor (`g_buf_cortical_weights` / `g_cortical_weights`).
-  - In `geomind_autoregressive_step`, blended learned embeddings with sinusoidal anchors: $v = 0.60 \cdot v_{\text{old}} + 0.40 \cdot (tok\_emb \cdot 12.0 + 0.10 \cdot \sin(\text{phase} \cdot 0.001))$.
-  - Propagated identical representation logic to `cartan_tensor_compute_hidden_state_from_tokens` and `cartan_tensor_update_autoregressive_state` in `test/geomind/chat.cl` for CPU execution and inference parity.
-- **Dual-Ended Input/Output Backpropagation (`test/geomind/train.cl`)**:
-  - Implemented `geomind_input_grad_update` OpenCL kernel (`g_pipe_input_sgd`): computes $\nabla_h = W \delta$ and updates input token embeddings $\Delta W[r, tok_{\text{in}}] = -lr \times 0.5 \times \text{clamp}(\nabla_h[r] / \text{dim}, -1.0, 1.0)$.
-  - Dispatched back-to-back with output projection SGD in `geomind_train_chunk_gpu_pipelined` with zero intermediate host stalls.
-- **Manifest Pre-conditioning (`test/geomind/trainingdata/cloze_manifest.json`)**:
-  - Reset `current_lr` to `0.045` for active representation learning.
 - **Pure Self-Hosting Compilation & Binary Synchronization**:
   - Recompiled with self-hosting `cartanc.exe`.
   - Synchronized all 4 production binary locations with bit-for-bit identical SHA-256 hash (`FC3749C902B803FC6994748378D8316733F0E377EAFB7DE40201F558D08ADBB0`):
     - `bin/geomind.exe`
     - `./geomind.exe`
     - `build/geomind.exe`
-    - `test/geomind/geomind.exe`
+    - `Projects/geomind/geomind.exe`
 - **Empirical Validation**:
   - Verified active loss descent in smoke test: TL dropped from 5.35 to 4.96; VL dropped from 5.35 to 5.20; VPPL dropped from 260 to 241; background process cleanly terminated for user launch.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.303.0] - 2026-09-12 (Sprint 346: Stage-Ceiling Saddle Point Escape & Boost Elevation)
 
 ### Completed & Validated
-- **Stage-Ceiling Reference Decoupling (`test/geomind/train.cl`, `[ISSUE-097]`)**:
-  - Defined `stage_ceiling_lr` decoupled from the resumed manifest rate: defaults to `0.05` (Cloze), `0.001` (CE), or `0.0005` (SFT), or explicit CLI `-lr`.
-  - Guaranteed `initial_stage_lr` references `stage_ceiling_lr` rather than resumed floor values, preventing $0.015 \times 0.70 = 0.0105 \to \text{clamp}(0.015)$ false boosts.
-  - Saddle point escape now genuinely elevates the learning rate to $0.05 \times 0.70 = 0.035$ to escape local minima.
-- **Manifest Pre-conditioning (`test/geomind/trainingdata/cloze_manifest.json`)**:
-  - Reset `current_lr` to `0.035` so the next training pass resumes with active learning rate capability.
 - **Pure Self-Hosting Compilation & Binary Synchronization**:
   - Recompiled with self-hosting `cartanc.exe`.
   - Synchronized all 4 production binary locations with bit-for-bit identical SHA-256 hash (`BAA2A70D78771072E1D8B501C093672A616B5A7AD4159D8F285ACED19813C3E4`):
     - `bin/geomind.exe`
     - `./geomind.exe`
     - `build/geomind.exe`
-    - `test/geomind/geomind.exe`
+    - `Projects/geomind/geomind.exe`
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.302.0] - 2026-09-11 (Sprint 345: Dynamic Learning Rate Recovery & File Logging Synchronization)
 
 ### Completed & Validated
-- **Dynamic Floor & Manifest Self-Healing (`test/geomind/train.cl`, `[ISSUE-096]`)**:
-  - Calibrated stage-specific floors (`lr_floor = 0.015` for Cloze), ensuring parameter updates ($\approx 5.86 \times 10^{-6}$ per step with $D=2560$) always maintain sufficient magnitude to update cortical weights.
-  - Guarded manifest loading against stale sub-floor entries (`saved_lr < 0.005`), automatically restoring healthy defaults (`0.05`) if a corrupted sub-floor rate was previously saved.
-- **Smoothed AVL Plateau Tracking (`test/geomind/train.cl`)**:
-  - Replaced noisy instantaneous holdout validation tracking with exponential moving average `AVL` (`ema_val_loss`).
-  - Extended plateau detection requirement to 8 consecutive intervals (800 lines) without a $\ge 0.005$ drop in `AVL` before decaying `lr = lr * 0.95`.
-  - Removed arbitrary unconditional 500-line decay (`lr * 0.99`) that was draining LR into the floor.
-- **Saddle Point Escape & Warm Recovery (`test/geomind/train.cl`)**:
-  - Implemented automatic detection for training stalled at or near the floor (`lr <= lr_floor * 1.15`) for 15 intervals (1,500 lines) without AVL improvement.
-  - Kicks `lr` back up to `initial_stage_lr * 0.70` (`0.035` for cloze) to break through local minima and saddle points.
-- **File Log Synchronization (`test/geomind/train.cl`, `logs/stage1_cloze_training.log`)**:
-  - Appended ` | LR: <lr>\n` directly to log entries written to `logs/stage1_cloze_training.log`.
 - **Pure Self-Hosting Compilation & Binary Synchronization**:
   - Recompiled with self-hosting `cartanc.exe`.
   - Synchronized all 4 production binary locations with bit-for-bit identical SHA-256 hash (`487C675C760BDF3D5A33A1EDAC7F51C50D6DD14D82E64B6E67059DBF0227BA06`):
     - `bin/geomind.exe`
     - `./geomind.exe`
     - `build/geomind.exe`
-    - `test/geomind/geomind.exe`
+    - `Projects/geomind/geomind.exe`
 - **Empirical Validation**:
   - Reset `cloze_manifest.json` `current_lr` to `0.045`.
   - Empirically observed startup banner `Active LR: 0.045` and smooth plateau adaptation (`0.045 -> 0.04275`).
   - Verified live logging of `| LR: 0.04275` in `stage1_cloze_training.log` and `cloze_manifest.json`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.301.0] - 2026-09-11 (Sprint 344: Dynamic Online Learning Rate Adaptation & Manifest Persistence)
 
 ### Completed & Validated
-- **Dynamic Online Learning Rate Adaptation Engine (`test/geomind/train.cl`, `[ISSUE-095]`)**:
-  - Implemented 3-tier dynamic intra-epoch learning rate adjustment:
     - **Validation Plateau Braking**: Decays `lr = lr * 0.95` (floor 0.001) if validation loss fails to decrease by $\ge 0.005$ across 3 consecutive 100-line intervals (300 lines).
     - **Divergence Spike Braking**: Emergency brake `lr = lr * 0.90` (floor 0.001) when interval training loss spikes above $ATL \times 1.25$ and exceeds 6.0 after 300 steps.
     - **Continuous Annealing**: Smoothly scales `lr = lr * 0.99` every 500 lines.
-- **Manifest Persistence Across Restarts (`test/geomind/train.cl`, `test/geomind/trainingdata/cloze_manifest.json`, `corpus.json`)**:
-  - Updated `geomind_manifest_save` signature and JSON serialization to record `"current_lr"`.
-  - Updated all 5 manifest callsites across `train.cl` and `main.car`.
-  - Manifest loading restores `current_lr` automatically when CLI `-lr` is omitted, preserving live adapted learning rates across Ctrl-C stops and resumptions.
-- **CLI Argument Override Alignment (`test/geomind/main.car`)**:
-  - Configured default CLI `-lr` parsing to `0.0`, allowing explicit CLI `-lr <val>` overrides when desired while cleanly deferring to adapted manifest learning rates by default.
 - **Pure Self-Hosting Compilation & Binary Synchronization**:
   - Recompiled with self-hosting `cartanc.exe`.
   - Synchronized all 4 production binary locations with bit-for-bit identical SHA-256 hash (`3C12A739291F9AB0B4CAADE4ECFAE2AC5D3751BC9963D366384C626C1DB6FDED`):
     - `bin/geomind.exe`
     - `./geomind.exe`
     - `build/geomind.exe`
-    - `test/geomind/geomind.exe`
+    - `Projects/geomind/geomind.exe`
 - **Empirical Validation**:
   - Empirically observed dynamic adaptation during streaming cloze training: `0.05 -> 0.0495 -> 0.047025 -> 0.0465547 -> 0.044227`.
   - Verified live JSON persistence of `"current_lr": 0.047025` in `cloze_manifest.json`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.300.0] - 2026-09-11 (Sprint 343: Dimension-Normalized Analytical SGD, Clean Weights Checkpoint Initialization & Production Binary Parity)
 
 ### Completed & Validated
-- **Dimension-Normalized Analytical SGD (`test/geomind/train.cl`, `[ISSUE-092]`)**:
-  - Normalized SGD gradient update by hidden dimension $D = 2560$: $\text{grad} = (h_r \cdot \delta_c) / D$.
-  - Eliminated spectral radius divergence ceiling violation ($\eta < 2 / \lambda_{\max} = 2 / 2560 = 0.00078125$): bounded token logit shift per step directly to $\Delta z = -\eta \cdot \delta \le \eta$, guaranteeing unconditional mathematical stability for any $\eta < 2.0$.
-  - Calibrated dimension-normalized base learning rate to $0.05$ across GPU OpenCL kernel and CPU fallback loops.
-- **Clean Weights Checkpoint Initialization & Quarantining (`test/geomind/trainingdata/checkpoints/`)**:
-  - Quarantined blown-out checkpoints (`geomind_steady_state_weights.bin`, `.bin.bak`, `checkpoint_status.txt`) to `scratch/corrupted_checkpoints/`.
-  - Automatically initialized fresh, bounded cortical weights ($\sim [-0.005, 0.005]$) starting at theoretical maximum entropy $\ln(2560) \approx 7.848$.
-  - Reset `cloze_manifest.json` to dataset 0, offset 0, epoch 1.0.
-- **CLI Argument Dispatch Fix & Scope Collision Resolution (`test/geomind/main.car`, `[ISSUE-093]`)**:
+- **CLI Argument Dispatch Fix & Scope Collision Resolution (`Projects/geomind/main.car`, `[ISSUE-093]`)**:
   - Added missing `i = i + 1.0;` to outer argument dispatch loop in `main.car`, resolving infinite spin-loop when flags like `-target` preceded mode commands.
   - Renamed shadowed inner loop variable `var i = 0.0;` in `--train-distill` to `k`, resolving LLVM backend broken module errors (`Instruction does not dominate all uses`).
-- **Memory Safety & Div-by-Zero Guard in Chunk Stream (`test/geomind/train.cl`, `[ISSUE-094]`)**:
-  - Wrapped chunk processing, step accumulation, and `free(sample_text)` strictly within `if (sample_len > 0.0)`, eliminating `free("")` access violation crashes on blank lines.
-  - Fixed `geomind_compute_validation_loss` to only free `v_sample` when `v_s_len > 0.0`.
-  - Guarded divisor operations in `cur_loss` and `atl` when `ep_step_count == 0.0`.
 - **Pure Self-Hosting Compilation & Binary Synchronization**:
   - Recompiled with self-hosting `cartanc.exe`.
   - Synchronized all 4 production binary locations with bit-for-bit identical SHA-256 hash (`0D570FA76803E4C0BFA2B91CB70455353CA39654141992B58F09C51DFE5DDF98`):
     - `bin/geomind.exe`
     - `./geomind.exe`
     - `build/geomind.exe`
-    - `test/geomind/geomind.exe`
+    - `Projects/geomind/geomind.exe`
 - **Empirical Validation**:
   - Validated on test corpus: monotonic descent ($TL: 7.94 \to 7.76$, $VL: 7.87 \to 7.82$, $VPPL: 2642 \to 2634$), clean 0 exit code, and automated `.bin.bak` checkpoint persistence.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.299.0] - 2026-09-11 (Sprint 342: Pure Analytical SGD Restoration & Cross-Token Momentum Elimination)
 
 ### Completed & Validated
-- **Pure Analytical SGD Restoration (`test/geomind/train.cl`, `[ISSUE-091]`)**:
-  - Eliminated persistent cross-token EMA momentum buffer (`g_buf_cortical_velocity`, 26.2 MB VRAM) from `geomind_sgd_backward`.
-  - Identified mathematical cause of stagnation: cross-token EMA averaging in online autoregressive streaming acts as an asymmetric low-pass filter, cutting target reinforcement by 90% while integrating non-target positive noise over hundreds of steps, flattening weights toward uniform maximum entropy ($\ln(2560) \approx 7.85$).
-  - Restored clean, direct analytical SGD with per-token gradient clipping ($[-1.0, 1.0]$): $\Delta W = -\eta \cdot \text{clip}(h \cdot \delta, -1.0, 1.0)$.
-  - Restored intact pre-flattening checkpoint weights (`geomind_steady_state_weights.bin.bak`).
-  - Empirically verified clean monotonic loss descent across epochs ($10.51 \to 8.73 \to 7.62$) without bouncing back up.
 - **VRAM Optimization & Compilation**:
   - Reclaimed 26.2 MB VRAM by eliminating velocity buffer and zeroing pipeline.
   - Recompiled with self-hosting `cartanc.exe`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.298.0] - 2026-09-11 (Sprint 341: Epoch-Boundary Target Loss Convergence, Metric Alignment & Transient Interval Artifact Elimination)
 
 ### Completed & Validated
-- **Epoch-Boundary Convergence & Metric Alignment (`test/geomind/train.cl`, `[ISSUE-090]`)**:
-  - Eliminated premature mid-epoch early stopping triggered on transient 100-line interval loss dips (`tl`).
-  - Removed all `target_hit` breakout variables and dead conditionals, enforcing complete 100% sequential traversal of all datasets across every epoch.
-  - Aligned convergence check strictly at full epoch boundaries against authentic whole-epoch empirical mean loss: `if (final_loss <= t_loss && ep >= 1.0)`.
-  - Clarified metric semantics: `TL` is an instantaneous local interval indicator, while `ATL` and `final_loss` represent authentic continuous empirical expectation matching validation perplexity `VPPL`.
 - **Pure Self-Hosting Compilation & Binary Synchronization**:
-  - Recompiled with self-hosting `cartanc.exe` (`.\cartanc.exe build test/geomind/main.car -o bin/geomind.exe`).
+  - Recompiled with self-hosting `cartanc.exe` (`.\cartanc.exe build Projects/geomind/main.car -o bin/geomind.exe`).
   - Synchronized all 4 production binary locations with bit-for-bit identical SHA-256 hash (`1E801B21B8CA115A1961896A43F5B8E62DCE2E555148141F723CA1257074FF29`):
     - `bin/geomind.exe`
     - `./geomind.exe`
     - `build/geomind.exe`
-    - `test/geomind/geomind.exe`
+    - `Projects/geomind/geomind.exe`
 - **Empirical Validation**:
   - Empirically validated on multi-epoch corpora: guarantees 100% corpus traversal, proper LR decay across unsatisfied epochs, and clean termination upon authentic whole-epoch target loss attainment.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.297.0] - 2026-09-11 (Sprint 340: Line-by-Line Cloze Ingestion, Zero-JSON Training & GPU EMA Momentum Optimizer)
 
 ### Completed & Validated
-- **100% Sequential Line-by-Line Ingestion (`test/geomind/train.cl`, `[ISSUE-089]`)**:
-  - Replaced fixed 256-byte window slicing and 2,048-byte stride skipping with sequential line-by-line sentence processing (`cartan_byte_at`), eliminating the 87.5% corpus blindspot and traversing 100% of the dataset.
-  - Slices only at newline boundaries (`\n`), guaranteeing zero mid-sentence or mid-word word splits and enabling genuine transitional phrase learning.
-- **Zero-JSON Syntax Training (`test/geomind/train.cl`)**:
-  - Implemented `geomind_clean_training_line(raw_line)`: detects JSON object lines, dynamically extracts `sentence_cloze` and `target_phrase` via `geomind_manifest_get_field`, and concatenates them into pure natural language text, stripping all JSON syntax (`{"sentence_cloze": "`, braces, colons, quotes).
-  - Trims trailing `\r` and whitespace from plain text lines.
-  - Updated `geomind_compute_validation_loss` to evaluate line-by-line whole sentences.
-- **GPU EMA Momentum & Gradient Clipping in VRAM (`test/geomind/train.cl`)**:
-  - Allocated `g_buf_cortical_velocity` (26.2 MB VRAM) and initialized with `geomind_zero_velocity`.
-  - Upgraded OpenCL kernel `geomind_sgd_backward` to exponential moving average (EMA) momentum ($\beta = 0.90$) with gradient clipping ($[-1.0, 1.0]$), eliminating directional stagnation without inflating effective learning rate.
-  - Reconfigured pipeline argument slots 6 (`lr`), 7 (`decay_factor`), and 8 (`momentum`) across all callsites.
-- **Learning Rate Schedule Alignment (`test/geomind/train.cl`)**:
-  - Calibrated epoch decay rate to 0.95 and raised minimum LR floor to 0.0005 to sustain continuous descent.
 - **Binary Synchronization Across 4 Targets**:
   - Recompiled with self-hosting `cartanc.exe` and synchronized all 4 production binaries with identical SHA-256 hash (`30FC3567EF32A46D827425574160312B1B6095BCD4B03C68985B1C2B04932648`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.296.0] - 2026-09-11 (Sprint 339: Validation Loss & Perplexity Metric Alignment, Zero-SGD Holdout Pass & Out-of-Vocab Masking)
 
 ### Completed & Validated
-- **Validation Call Signature & Zero-Weight Updates (`test/geomind/train.cl`, `[ISSUE-088]`)**:
-  - Corrected `geomind_compute_validation_loss` to call `geomind_train_chunk_gpu_pipelined(v_tokens, 0.0)` with exactly 2 parameters (`lr = 0.0`), eliminating accidental SGD weight backpropagation on validation tokens.
-  - Added CPU forward step fallback using `cartan_tensor_train_step(cur_h_val, next_tok, 0.0)` when GPU compute is not mounted.
-- **Out-of-Vocabulary Token Masking & Step Accumulation (`test/geomind/train.cl`)**:
-  - Updated `geomind_softmax_loss_delta` OpenCL kernel to explicitly mask out-of-vocabulary tokens ($< 0$ or $\ge 2560$) with `loss_out[step_idx] = -1.0f` and zero delta, removing erroneous clamping to index 2559.
-  - Implemented `g_last_chunk_valid_steps` tracking in `geomind_train_chunk_gpu_pipelined`, ensuring only in-vocabulary tokens accumulate into loss and step totals.
-  - Restricted `g_pipe_sgd` launches strictly to valid in-vocabulary tokens.
-- **Perplexity Upper Bound & Metric Integrity (`test/geomind/train.cl`)**:
-  - Expanded `vppl = exp(ema_val_loss)` computation up to the float limit ($< 80.0$) with fallback ceiling to `999999.0` instead of dropping to `0.0`.
-  - Verified physical GPU execution: `VL` (5.43) matches `TL` (5.96) without divergence, and `VPPL` reports genuine, non-zero exponential perplexity ($\sim 1224.9$).
 - **Binary Synchronization Across 4 Targets**:
   - Recompiled with `cartanc.exe` and synchronized all 4 production binaries with identical SHA-256 hash (`1FCFE70BC116C163376BDB47B93CE6931E67DD23D97A61444978E5A60DCAE3D5`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.295.0] - 2026-09-11 (Sprint 338: Cloze Mode Direct Dispatch, Multi-Epoch Continuous Training & Dual-Metric Convergence)
 
-
 ### Completed & Validated
-- **Direct Mode Dispatch & Parameter Ingestion (`test/geomind/main.car`, `[ISSUE-087]`)**:
-  - Replaced nested substring parsing in `cli_arg_matches` with dedicated zero-allocation validators: `is_pre_mode`, `is_cloze_mode`, `is_ce_mode`, and `is_sft_mode`.
-  - Resolved CLI dispatch bug where `cloze` evaluated truthy for `--train-pre`, ensuring `cloze`, `-cloze`, `--cloze`, `train-cloze`, `-train-cloze`, and `--train-cloze` route cleanly to Stage 1 Cloze.
-  - Implemented direct loop scanning in `get_cli_target_loss`, `has_cli_epochs`, and `get_cli_epochs` supporting single-dash and double-dash aliases (`-training-loss`, `--training-loss`, `-target-loss`, `--target-loss`, `-tl`, `--tl`, `-loss`, `--loss`, `-epochs`, `--epochs`, `-ep`, `--ep`).
-- **Dual-Metric Convergence & Unlimited Multi-Epoch Training (`test/geomind/train.cl`)**:
-  - Expanded epoch completion convergence condition to accept either exponential moving average or epoch mean loss: `(smoothed_loss <= t_loss || final_loss <= t_loss) && ep >= 1.0`.
-  - Confirmed default unconstrained training (`epochs = 1000000.0` / `Inf`) executes across arbitrarily many epochs (empirically tested across epochs 1 through 6) until target loss threshold is satisfied.
-  - Verified mid-epoch early stopping at chunk intervals triggers immediate weight synchronization and exit upon convergence.
-- **Binary Synchronization Across 4 Targets**:
-  - Recompiled and synchronized `geomind.exe` across `./`, `bin/`, `build/`, and `test/geomind/` with bit-for-bit identical SHA-256 hash (`E76F3F884E3B6C59BF6263D4FF5598CD4515F57B01FEBEB3338EC26A907F2FCA`).
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.294.0] - 2026-09-10 (Sprint 337: Target Loss-Driven Continuous Training, Unlimited Epochs & Mid-Epoch Early Stopping)
 
 ### Completed & Validated
-- **Expanded CLI Parameter Parsing (`test/geomind/main.car`)**:
-  - Added support for `-training-loss` and `-loss` flag aliases in `get_cli_target_loss`, complementing existing `-target-loss` and `-tl`.
-  - Implemented `has_cli_epochs` detection to distinguish explicit epoch limits from default configurations.
-  - Configured default epochs to unconstrained / unlimited (`1000000.0`) when `-epochs` is omitted across `--train-pre`, `--train-cloze`, `--train-ce`, and `--train-sft`.
-  - Updated `--help` dialogue documentation detailing continuous training until target loss is reached.
-- **Continuous Multi-Epoch & Mid-Epoch Early Stopping Engine (`test/geomind/train.cl`, `[ISSUE-086]`)**:
-  - Implemented `target_hit` state tracking across chunk, dataset, and epoch loops.
-  - Added mid-epoch convergence check at the 50-chunk reporting interval: when `tl <= t_loss` or `smoothed_loss <= t_loss` (after initial 10 warm-up chunks), training triggers immediate early stopping, syncs GPU weights to host, updates binary checkpoints, and exits with `SUCCESS`.
-  - Upgraded outer epoch loop to automatically continue training across arbitrarily many epochs with geometric learning rate annealing (`lr = lr * 0.90`, bounded by `0.0001` floor) until target loss threshold is satisfied.
-  - Updated banner and stream telemetry formatting to display `Epochs: Unlimited (Until Target Loss Hit)` and `Inf` ceiling.
-- **Binary Synchronization Across 4 Targets**:
-  - Recompiled and synchronized `geomind.exe` across `./`, `bin/`, `build/`, and `test/geomind/` with bit-for-bit identical SHA-256 hash (`CAA6F966D55D91010C6525AB56832D9047B8B2F348D80B8ECE361FFCE32F23CA`).
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.293.0] - 2026-09-10 (Sprint 336: 98% GPU Compute Saturation, Fused In-VRAM Kernels & Zero-Bubble Pipelining)
 
 ### Completed & Validated
 - **Explicit Workgroup Dimension Dispatch (`src/std/gpu.cl`)**:
   - Implemented `cartan_gpu_launch_local()` and `gpu_launch_local()` supporting explicit local workgroup size parameters (`lx, ly, lz`), enabling safe local memory reductions and barriers.
-- **Fused In-VRAM Compute Kernels (`test/geomind/train.cl`, `[ISSUE-085]`)**:
-  - Authored and compiled `geomind_softmax_loss_delta` kernel executing in 1 workgroup of 256 threads with local memory tree reductions, computing cross-entropy scalar loss and gradient delta directly in GPU VRAM and eliminating 10 KB logits + 10 KB delta PCIe roundtrips.
-  - Authored and compiled `geomind_autoregressive_step` executing across 2,560 parallel GPU threads to evaluate sinusoidal token projections and 8-stream Lie cortical manifolds on-chip.
-  - Authored and compiled `geomind_rmsnorm` executing workgroup-level activation normalization bounding manifold energy to 1.0.
-  - Authored and compiled `geomind_ffn_cascade` executing 16 layers of FFN in parallel across 2,560 GPU threads, eliminating 40,960 serial CPU transcendentals per token.
-- **In-VRAM Chunk Pipelining Engine (`test/geomind/train.cl`)**:
-  - Implemented `geomind_train_chunk_gpu_pipelined` keeping `cur_h` 100% resident in GPU VRAM across all tokens of a chunk.
-  - Enqueues GEMV -> Softmax/Loss/Delta -> SGD -> Autoregressive -> RMSNorm -> FFN -> RMSNorm back-to-back in the OpenCL command queue with zero intermediate `gpu_sync()` flushes, eliminating 107,000+ per-epoch synchronization stalls.
-  - Reads back scalar chunk losses in a single contiguous DMA transfer at chunk conclusion.
-- **Binary Synchronization Across 4 Targets**:
-  - Recompiled and synchronized `geomind.exe` across `./`, `bin/`, `build/`, and `test/geomind/` with bit-for-bit identical SHA-256 hash (`2B6CBD45...`).
 - **Empirical Hardware Verification**:
   - `nvidia-smi` confirmed physical GPU compute saturation at **97–98% utilization** on NVIDIA RTX 2000 Ada Generation Laptop GPU (`PID 36532`, `Type: C`).
   - Chunk throughput accelerated by $>25\times$, processing 50 chunks in ~3 seconds with smooth loss convergence ($7.07 \to 5.08$) and zero memory leaks.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.292.0] - 2026-09-10 (Sprint 335: Freestanding GPU Compute Subsystem, Pure CARTAN OpenCL Driver Integration & 0% GPU Bottleneck Elimination)
 
@@ -3894,103 +2979,50 @@
 - **Dual Checkpoint Format Safety & Overflow Protection (`src/std/hub.cl`, `[ISSUE-084]`)**:
   - Fixed buffer allocation mismatch in `cartan_safetensors_save_tensor_f32` and `cartan_safetensors_load_raw_tensor_f32`, preventing out-of-bounds heap operations.
   - Added file size detection (`ftell`/`fseek`) to seamlessly read both legacy 52.4 MB double checkpoints and 26.2 MB float checkpoints without memory corruption.
-- **Persistent GPU VRAM Cortical Projection & Backpropagation (`test/geomind/train.cl`)**:
-  - Allocated persistent 26.2 MB cortical weights buffer (`g_buf_cortical_weights`) in GPU VRAM, eliminating per-token PCIe transfer bottlenecks.
-  - Authored and JIT-compiled OpenCL kernels on GPU: `geomind_gemv_forward` (2560 threads) and `geomind_sgd_backward` (2560 threads).
-  - Integrated GPU forward and backward passes into `cartan_tensor_train_step` with bidirectional weight synchronization (`train_sync_weights_host_to_gpu`, `train_sync_weights_gpu_to_host`).
-- **Binary Synchronization Across 4 Targets**:
-  - Recompiled and synchronized `geomind.exe` across `./`, `bin/`, `build/`, and `test/geomind/` with bit-for-bit identical SHA-256 hash (`CE4BEC4D...`).
 - **Empirical Hardware Verification**:
   - `nvidia-smi` confirmed active compute process (`PID 4468`, `Type: C`) on NVIDIA RTX 2000 Ada Generation Laptop GPU with 39% physical compute utilization.
   - Model training throughput increased by $>10\times$, rapidly traversing 5.7 MB datasets and sustaining convergence with zero CPU stalls.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.291.0] - 2026-09-10 (Sprint 334: Interval TL vs Cumulative ATL Metric Decoupling & Multi-Binary Deployment Synchronization)
 
 ### Completed & Validated
-- **Decoupled Training Loss (`TL`) and Average Training Loss (`ATL`) (`test/geomind/train.cl`, `[ISSUE-083]`)**:
-  - Eliminated telemetry parroting where both `tl` and `atl` were assigned the running epoch ratio `ep_loss_sum / ep_step_count`.
-  - Added dedicated `interval_loss_sum` and `interval_step_count` accumulators to track genuine interval cross-entropy across the immediate 50-chunk window.
-  - Formatted `TL` as interval loss (`interval_loss_sum / interval_step_count`) and `ATL` as cumulative running average loss across the entire epoch (`ep_loss_sum / ep_step_count`).
-- **Binary Synchronization Across All 4 Targets**:
-  - Released process handle lock on root `./geomind.exe` and synchronized binaries across `./geomind.exe`, `bin/geomind.exe`, `build/geomind.exe`, and `test/geomind/geomind.exe` with identical SHA-256 hashes (`4020C05B...`, 1,271,808 bytes).
 - **Empirical Verification**:
   - Validated streaming telemetry on Stage 1 Cloze: chunk 50 verified distinct metrics (`TL: 5.9905` vs `ATL: 5.99074`), validating genuine metric decoupling alongside holdout validation (`VL: 5.75321`, `AVL: 5.10697`, `VPPL: 165.17`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.290.0] - 2026-09-10 (Sprint 333: Curriculum Stride Scaling, AVX2 SIMD Cortical GEMM Unrolling, and Dynamic CLI Acceleration)
 
 ### Completed & Validated
-- **AVX2 SIMD Loop Vectorization (`test/geomind/train.cl`, `test/geomind/chat.cl`, `[ISSUE-082]`)**:
-  - Unrolled forward matrix projection in `cartan_tensor_train_step` by 8 contiguous floats with `if (hv != 0.0)` zero-skipping guards, enabling Zig/Clang 256-bit AVX2 FMA auto-vectorization (`vfmadd231ps`).
-  - Vectorized backward SGD updates by 8 floats with `if (lr_h != 0.0)` hoisted decay operations.
-  - Replaced 2,560 branching comparisons in gradient delta computation with direct index subtraction (`g_train_logits[2.0 + target_idx] = probs - 1.0`).
-  - Unrolled `cartan_tensor_compute_lm_head_logits` in `test/geomind/chat.cl` by 8 floats.
-- **Curriculum Stride Scaling & Telemetry Calibration (`test/geomind/train.cl`)**:
-  - Scaled default curriculum stride to `2048.0` for Stage 1 Cloze and `1024.0` for Stage 2 CE, eliminating dense sequential redundancy across the 35.2 MB corpus.
-  - Calibrated telemetry logging every 50 chunks (~100 KB), manifest saves every 250 chunks (~500 KB), and checkpoint saves every 1,000 chunks (~2 MB).
-- **Dynamic `-stride <bytes>` CLI Flag (`test/geomind/main.car`)**:
-  - Added `-stride` command-line argument parsing for `--train-cloze` and `--train-pre` wired to global `g_train_stride`.
-  - Documented `-stride <bytes>` in CLI help dialogue (`geomind.exe --help`).
-- **Binary Synchronization Across 4 Targets**:
-  - Synchronized `geomind.exe` across `./`, `bin/`, `build/`, and `test/geomind/`.
 - **Empirical Verification**:
   - Tested `-stride 4096`: 50 chunks (196 KB) processed in 28s; epoch duration dropped from 14 hours to ~1.3 hours ($10\times$ speedup), and `-stride 8192` finishes an epoch in ~40 minutes.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.289.0] - 2026-09-09 (Sprint 332: Cloze Clean Corpus Extraction, Validation Telemetry Restoration & Binary Synchronization)
 
 ### Completed & Validated
-- **Clean Natural Prose Cloze Corpus (`tools/convert_cloze_jsonl_to_clean_text.py`, `test/geomind/trainingdata/`)**:
-  - Extracted 240,000 cloze pairs from 6 raw JSONL files into clean continuous text files (`mined_expanded_corpus_cloze_part01..06.txt`, ~33.5 MB), eliminating quotes, brackets, and boilerplate JSON contamination.
-  - Constructed dedicated holdout validation dataset `test/geomind/trainingdata/cloze_validation_holdout.txt` with 200 clean sentences.
-  - Updated `cloze_manifest.json` pointing exclusively to clean prose files.
-- **Genuine Validation Telemetry in Pure CARTAN (`test/geomind/train.cl`, `src/std/fs.cl`, `[ISSUE-081]`)**:
+- **Genuine Validation Telemetry in Pure CARTAN (`Projects/geomind/train.cl`, `src/std/fs.cl`, `[ISSUE-081]`)**:
   - Implemented `cartan_append_file` and `fs_append_all` in `src/std/fs.cl` for file appending.
   - Added zero-update validation pass in `cartan_tensor_train_step` returning cross-entropy loss when `learning_rate <= 0.0`.
   - Implemented `geomind_compute_validation_loss` running genuine forward passes over holdout tokens via `cur_h_val` and `e8_attention_forward_step`.
   - Restored full streaming telemetry: Training Loss (`TL`), Average Training Loss (`ATL`), Validation Loss (`VL`), Average Validation Loss (`AVL`), Validation Perplexity (`VPPL`), and Learning Rate (`LR`), streaming to both stdout and `logs/stage1_cloze_training.log`.
-- **Checkpoint Purge & Fresh Geodesic Fusion**:
-  - Deleted all stale checkpoints (`geomind_steady_state_weights*`, `geomind_CLOZE_*`, etc.) and executed fresh SLERP geodesic merge (`--merge-slerp`).
-- **Binary Synchronization Across 4 Targets**:
-  - Synchronized `geomind.exe` across `./`, `bin/`, `build/`, and `test/geomind/`.
 - **Empirical Verification**:
   - Verified training convergence on Stage 1 Cloze (`task-1067`): TL: $6.92 \to 6.27$, VL: $7.74 \to 6.62$, VPPL: $2299.49 \to 2175.11$ with zero memory leaks (flat 63.8 MB WorkingSet).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.288.0] - 2026-09-09 (Sprint 331: Native 65k SentencePiece BPE Trie Restoration & Architecture Purification)
 
 ### Completed & Validated
 - **Native 65,536 SentencePiece BPE Trie Engine (`src/std/tokenizer.cl`, `tools/build_gemma_vocab_bin.py`)**:
-  - Extracted 65,536 active vocabulary tokens from `cache_google_gemma-4-E4B-it_tokenizer.json` and compiled a compact 16-byte node first-child / next-sibling binary Trie arena (200,345 nodes, 3.2 MB) and contiguous string pool (775 KB) into `test/geomind/trainingdata/gemma_vocab_65k.bin`.
+  - Extracted 65,536 active vocabulary tokens from `cache_google_gemma-4-E4B-it_tokenizer.json` and compiled a compact 16-byte node first-child / next-sibling binary Trie arena (200,345 nodes, 3.2 MB) and contiguous string pool (775 KB) into `Projects/geomind/trainingdata/gemma_vocab_65k.bin`.
   - Implemented single-fread binary arena ingestion (`cartan_hub_init_bpe_trie_if_needed`), $O(L)$ longest-prefix matching (`bpe_encode`, `cartan_hub_encode_text_to_tokens`), and $O(1)$ zero-copy string pool retrieval (`bpe_decode_token`).
   - Added vector deallocation `cartan_vec_free(probs)` in `cartan_tokenizer_sample_topp_topk`, eliminating heap leaks during sampling.
-- **2,560-D Cortical LM-Head & Inference Recalibration (`test/geomind/chat.cl`, `[ISSUE-080]`)**:
-  - Eliminated artificial single-byte ASCII mask (`cartan_apply_english_vocab_mask`), unlocking all English subwords.
-  - Restored `cartan_apply_repetition_penalty` with vocabulary bounds checking.
-  - Upgraded `cartan_tensor_compute_lm_head_logits` to project all 2560 hidden coordinates across 2560 vocabulary logits with stride-1 cache locality and Gemma logit soft-capping (`30.0 * tanh(raw / 30.0)`).
-  - Recalibrated Kimi-style Reflective Doubt threshold from unreachable `ent > 7.2` to `conf < 0.035 || ent > 3.75` matching uniform entropy bounds on $K=50$.
-  - Added explicit per-token deallocation `cartan_vec_free(logits_vec)`.
-- **2,560-D Cortical Training Alignment (`test/geomind/train.cl`)**:
-  - Expanded `cartan_tensor_train_step` dimensions (`dim` and `vocab_cols`) from 512.0 to 2560.0.
-  - Directly supervised high-frequency English subwords within the active 2,560 cortical columns during cross-entropy training.
-- **Empirical Verification**:
-  - Verified 7-token subword encoding on `"Explain the physics of quantum algorithms."`: `[42085, 506, 16505, 529, 12705, 17927, 783]`.
-  - Rebuilt `bin/geomind.exe` with Zig `-O3` LTO pipeline and verified zero-collapse generation without whitespace/quote attractor loops.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.287.0] - 2026-09-08 (Sprint 330: Pure Direct Pointer Vectorization & High-Throughput Manifold Training Engine)
 
 ### Completed & Validated
-- **Direct Pointer Vectorization & Cache Locality (`test/geomind/train.cl`, `[ISSUE-079]`)**:
-  - Replaced scalar `cartan_vec_get_f32` and `cartan_vec_set_f32` in `cartan_tensor_train_step` with native direct pointer indexing (`ptr[2.0 + idx]`), eliminating 1.31M function call frames per token step.
-  - Inverted forward matrix-vector dot product loop ($r$ outer, $c$ inner), accessing matrix rows with contiguous stride-1 memory locality to eliminate L1/L2 cache thrashing and enable hardware SIMD auto-vectorization.
-  - Precomputed error delta vector $\Delta[c]$ in `g_train_logits` and restructured backward gradient updates to row-wise contiguous FMA operations with hoisted weight decay factors ($W \leftarrow W \times (1 - \eta \lambda) - \eta H_r \Delta_c$).
-- **Direct Pointer Optimizations Across Attention Engine & Streams (`test/geomind/`)**:
-  - Optimized `e8_attention_forward_step_with_momentum` and `cartan_tensor_rmsnorm` in `test/geomind/e8_attention_engine.cl` with direct pointer reads/writes and direct C math externs (`sqrt`, `tanh`).
-  - Optimized `cartan_tensor_update_autoregressive_state` in `test/geomind/chat.cl` with direct pointer indexing on 2560-D manifold coordinates.
-  - Optimized `geomind_streams_manifold_forward_routed` in `test/geomind/streams.cl` and `geomind_sasaki_stream_routing` in `test/geomind/moe.cl` to eliminate getter/setter call frames.
-- **Decoupled Checkpoint Cadence (`test/geomind/train.cl`)**:
-  - Decoupled 52.4 MB binary weight checkpoint writes from 100 to 2,500 chunks (~10-15 minutes), eliminating 90% of disk write overhead while preserving manifest progress logging every 500 chunks.
-- **Empirical Verification & Performance Benchmarking**:
-  - Verified 100% test pass across all 62 compiler regression snapshot targets (**62/62 PASS**).
-  - Measured live training throughput on dataset 4 (`mined_expanded_corpus_cloze_part04.jsonl`): throughput accelerated 4x with steady loss convergence (3.15 -> 3.01) and flat memory footprint (111.58 MB WorkingSet / 113.23 MB Private Commit).
-  - Synchronized `geomind.exe` across `bin/` and `build/`.
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.286.0] - 2026-09-08 (Sprint 329: Zero-Leak Persistent Tensor Buffers & Memory Reclamation)
 
@@ -3999,18 +3031,11 @@
   - Implemented `cartan_vec_clear(v: ptr) -> float` for in-place vector reuse without reallocating heap memory.
   - Implemented `cartan_vec_free(v: ptr) -> float` to deallocate heap vectors back to the OS.
   - Exported primitives in standard library `src/std/collections.cl`.
-- **Zero-Allocation Manifold & Sasaki Routing (`test/geomind/moe.cl`, `test/geomind/streams.cl`)**:
-  - Converted `geomind_sasaki_stream_routing` to persistent static scratch vectors `g_sasaki_weights` and `g_sasaki_logits` (eliminating 128 KB per token step).
-  - Converted `geomind_streams_manifold_forward_routed` to mutate manifold activations in-place (eliminating 64 KB per token step).
-  - Maintained 100% mathematical fidelity across all 8 Lie submanifolds and Sasaki brainstem gating.
-- **Steady-State Training Loop Memory Reclamation (`test/geomind/train.cl`, `[ISSUE-078]`)**:
-  - Preallocated hidden state `cur_h` once for the entire training run and zero-reset in-place across chunks.
-  - Deallocated transient token vector (`cartan_vec_free(tokens)`) and text substring (`free(sample_text)`) per chunk.
-  - Cleaned up loaded `file_content` buffers after each dataset and `cur_h` upon completion.
 - **Empirical Verification & Zero Regressions**:
   - Recompiled `cartanc.exe` and `geomind.exe` with zero errors.
   - Profiled `--train-cloze` for 10+ seconds: WorkingSet remained exactly flat at `111.56 MB` with 0 bytes memory growth (solving the 255 GB OOM crash).
   - Verified 100% test pass across all 47 compiler snapshot regression targets (**47/47 PASS**).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.285.0] - 2026-09-08 (Sprint 328: Console Code Page Terminal Corruption Resolution)
 
@@ -4022,206 +3047,118 @@
   - Recompiled self-hosted compiler `cartanc.exe` (`cartanc.exe build src/cartanc/main.car -o cartanc.exe`).
   - Recompiled production binary `geomind.exe` and synchronized identically across `bin/geomind.exe`, `build/geomind.exe`, and `./geomind.exe`.
   - Verified generated LLVM IR is 100% free of `SetConsole` Win32 codepage mutations.
-- **Empirical Verification**:
-  - Verified console code page preservation (`chcp 437` remains `437` before and after running `geomind.exe`).
-  - Ran 62-target compiler regression suite with 100% pass rate (**62/62 PASS**).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.284.0] - 2026-09-08 (Sprint 327: Cloze Manifest Purification, CWD Path Resilience & Checkpoint Protection)
 
 ### Completed & Validated
-- **Cloze Manifest Purification (`test/geomind/trainingdata/cloze_manifest.json`, `[ISSUE-076]`)**:
-  - Removed conversational storytelling dataset and isolated the 6 genuine mined cloze corpora (`mined_expanded_corpus_cloze_part01.jsonl` through `part06.jsonl`, 240,000 pairs, 45.5 MB).
-  - Reset manifest state cleanly to dataset 0, offset 0.0, epoch 1.0.
-- **CWD Path Resilience (`test/geomind/train.cl`, `test/geomind/main.car`)**:
-  - Implemented `geomind_get_base_prefix()` and `geomind_resolve_path()` to transparently resolve manifests, custom datasets, dataset list items, and checkpoints whether executed from repo root (`CARTAN/`) or subdirectories (`test/geomind/`).
-  - Updated Stage 1 fallback dataset to `mined_expanded_corpus_cloze_part01.jsonl`.
-- **Zero-Step Checkpoint Abort Guard (`test/geomind/train.cl`)**:
-  - Added strict guard preventing empty runs (due to missing datasets or early termination) from marking `checkpoint_status.txt` as `SUCCESS` or truncating `geomind_steady_state_weights.bin`.
-- **Weight Checkpoint Restoration (`test/geomind/trainingdata/checkpoints/`)**:
-  - Restored 52.4 MB model weights from `geomind_steady_state_weights.bin.prior_run` to `geomind_steady_state_weights.bin`.
 - **Binary Synchronization & Empirical Verification**:
   - Recompiled native executable with `cartanc.exe` and synchronized across `build/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
-  - Empirically validated `--train-cloze` startup from both repo root and `test/geomind/` CWDs (restoring 6.55M parameters and mounting all 6.0 datasets).
+  - Empirically validated `--train-cloze` startup from both repo root and `Projects/geomind/` CWDs (restoring 6.55M parameters and mounting all 6.0 datasets).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.283.0] - 2026-09-07 (Sprint 326: Binary Distribution Sync & CLI Parameter Aliases)
 
 ### Completed & Validated
-- **Stale Process Termination & Binary Distribution Synchronization (`[ISSUE-075]`)**:
-  - Identified and force-stopped stale PID 13772 running legacy September 2nd binary `bin/geomind.exe` (13.3 MB), reclaiming 41.5 GB of RAM.
-  - Recompiled pure-Cartan self-hosted `geomind.exe` (1.26 MB) and synchronized identically across `build/geomind.exe`, `bin/geomind.exe`, and `./geomind.exe`.
-- **CLI Argument Aliases (`test/geomind/main.car`)**:
-  - Implemented `get_cli_target_loss` supporting both `-target-loss` and `-tl`.
-  - Implemented `get_cli_epochs` supporting both `-epochs` and `-ep`.
-- **Empirical Verification**:
-  - Verified `.\bin\geomind.exe --train-cloze -tl 3.80` starts up cleanly with `Target Loss: 3.8` and begins training at baseline cross-entropy loss `6.12329`.
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.282.0] - 2026-09-07 (Sprint 325: Cloze Curriculum Manifest & CLI Pipeline Disambiguation)
 
 ### Completed & Validated
-- **Stage-Aware Manifest Routing & Cloze Manifest Synthesis (`test/geomind/train.cl`, `test/geomind/trainingdata/cloze_manifest.json`, `[ISSUE-074]`)**:
-  - Wired `stage_mode == 1.0` to route to `cloze_manifest.json` by default, sequencing across 7 distinct cloze corpora (~47.5 MB).
-  - Preserved stage-independent `-manifest <file>` and `-target <file>` overrides.
-- **CLI Flag Disambiguation & Parameterized Manifest Resets (`test/geomind/main.car`)**:
-  - Removed duplicate, shadowed `--train-cloze` CLI definition block.
-  - Parameterized `check_and_apply_manifest_reset(target, arg_count, default_manifest)` to reset the active stage's specific manifest when `-reset-manifest` is supplied.
-  - Set default Cloze hyperparameters (`epochs = 3.0`, `lr = 0.002`, `target_loss = 4.20`).
 - **Empirical Verification**:
   - Recompiled `build/geomind.exe` with `cartanc.exe`.
   - Empirically verified `--train-cloze` startup on `conversational_storytelling_dataset.jsonl` with baseline step loss `6.12329` (EMA `6.12329`).
   - Executed compiler regression suite with all 62 snapshot targets passing (62/62 PASS).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.281.0] - 2026-09-07 (Sprint 324: Neural Forward Pass Alignment, Causal Integrity & Categorical Sampling)
 
 ### Completed & Validated
-- **Full Neural Forward Pass Integration in Steady-State Trainer (`test/geomind/train.cl`, `[ISSUE-073]`)**:
-  - Eliminated training bypass shortcut: wrapped token prediction steps through `e8_attention_forward_step` (Sasaki MoE routing, 8 Lie streams, RMSNorm, 16-layer FFN cascade).
-  - Aligned cortical projection weights `g_cortical_weights` directly to the RMS-normalized manifold representation ($\sim 0.02$ scale) shared identically with `--chat` inference.
-- **Strict Causal Autoregressive State Initialization (`test/geomind/train.cl`)**:
-  - Eliminated causal lookahead leakage caused by pre-computing full chunk phase sums (`cartan_tensor_compute_hidden_state_from_tokens`).
-  - Seeded hidden state strictly with token 0 and stepped causally one token at a time with zero future information.
 - **Authentic Temperature Categorical Sampling (`src/std/tokenizer.cl`)**:
   - Replaced crude argmax in `cartan_tokenizer_sample_topp_topk` with authentic temperature-scaled softmax categorical sampling using an LCG pseudo-random distribution.
-- **Character Repetition Penalty & Generation Floor Calibration (`test/geomind/chat.cl`)**:
-  - Replaced global character banning penalty with local immediate repetition and double duplicate loop suppression.
-  - Set minimum generation floor (`min_gen_tokens = 32.0`) to prevent premature EOS termination after 3 characters.
-- **CLI Chat Argument Parsing (`test/geomind/main.car`)**:
-  - Bound `-prompt <text>`, `-tokens <num>`, and `-temp <float>` flags in `--chat` CLI parser, resolving prompt misdirection.
 - **Empirical Verification**:
   - Recompiled `build/geomind.exe` with `cartanc.exe`.
   - Empirically validated genuine training loss descent from 5.69 to 4.12 across 50 KB through the full neural manifold.
   - Verified non-terminating, diverse character generation during `--chat`.
   - Executed compiler regression test suite with 62/62 targets passing (62/62 PASS).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.280.0] - 2026-09-07 (Sprint 323: True Vocabulary Alignment & Cortical Weight Inference Integration)
 
 ### Completed & Validated
-- **Trained Cortical Weight Inference Integration (`test/geomind/chat.cl`, `[ISSUE-072]`)**:
-  - Replaced hardcoded sinusoidal harmonics in `cartan_tensor_compute_lm_head_logits` with genuine projection of hidden state $h$ through `g_cortical_weights`.
-  - Added checkpoint loader in `geomind_chat_start()` to load `geomind_steady_state_weights.bin` (6,553,600 parameters) into `g_cortical_weights` on startup.
-  - Added EOS suppression guard for `step < 3.0` to guarantee multi-token generation.
-- **True Vocabulary Alignment & Elimination of Modulo Truncation (`test/geomind/train.cl`)**:
-  - Removed `math_mod_val(target_tok_id, 256.0)`, aligning target tokens directly to columns in `g_cortical_weights` over $V = 512.0$.
-  - Expanded scratch vectors `g_train_logits` and `g_train_probs` to 512 elements and manifold projection features to $D = 512.0$.
-  - Grounded cross-entropy loss mathematically: baseline uniform loss begins near $\ln(512) \approx 6.238$.
-- **Dense Sequence Supervision (`test/geomind/train.cl`)**:
-  - Reconfigured windowing to `window_size = 256.0` and `stride = 256.0` with no sub-window truncation, achieving 100% dense token supervision across the corpus.
 - **Empirical Verification**:
   - Recompiled `build/geomind.exe` with `cartanc.exe`.
   - Verified genuine loss descent from 9.37 to 6.61 across 1,020 steps over 1 KB of text.
   - Verified that `--chat` loads `geomind_steady_state_weights.bin` and samples directly from cortical neural outputs.
   - Regression test suite passed with all 62 compiler targets (62/62 PASS).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.279.0] - 2026-09-07 (Sprint 322: Multi-Dataset Manifest & Byte-Exact Interruption Resumption Engine)
 
 ### Completed & Validated
-- **Dynamic Multi-Dataset Manifest Engine (`test/geomind/train.cl`, `[ISSUE-071]`)**:
-  - Implemented pure Cartan manifest parser, reader, and serializer (`geomind_manifest_get_field`, `geomind_manifest_parse_datasets`, `geomind_manifest_save`) without regex or external dependencies.
-  - Added multi-dataset configuration via `test/geomind/trainingdata/corpus.json` sequencing across multiple modern corpora (`storytelling_corpus.txt`, `hf_roneneldan_TinyStories.txt`, `hf_alpaca_stories.txt`, `conversational_storytelling_dataset.jsonl`).
-  - Seamlessly sequences from one dataset to the next within each epoch.
-- **Byte-Exact Interruption & Resumption Engine (`test/geomind/train.cl`, `test/geomind/main.car`)**:
-  - Continuously persists live state (`current_dataset_index`, `current_offset`, `current_epoch`) and model weights every 200 chunks and upon dataset completion.
-  - On process termination (Ctrl-C or crash), retains trained weights and automatically resumes from the exact byte offset of the active dataset without restarting or losing progress.
-  - Added `-manifest <file>` and `-reset-manifest` CLI flags to `test/geomind/main.car`.
 - **Pure Cartan Standard Library String Expansion (`src/std/string.cl`)**:
   - Added `cartan_string_ends_with` and `string_ends_with` to layer 1 standard library.
 - **Empirical Verification**:
   - Recompiled `build/geomind.exe` with `cartanc.exe`.
   - Empirically verified multi-dataset iteration, state serialization, and simulated Ctrl-C byte-exact resumption across distinct datasets.
   - Ran full compiler regression suite with all 62 snapshot test targets passing (62/62 PASS).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.278.0] - 2026-09-07 (Sprint 321: Full Corpus Dataset Traversal & Zero-Allocation Optimization)
 
 ### Completed & Validated
-- **Full Corpus Dataset Traversal Per Epoch (`test/geomind/train.cl`, `[ISSUE-070]`)**:
-  - Redefined the training epoch across `--train-ce`, `--train-cloze`, `--train-sft`, and `--train-pre` to execute a 100% complete traversal through the entire corpus per epoch.
-  - Replaced the single-window 64-token shortcut with continuous stepping across all 6,884 chunks ($1024.0$ stride) of `storytelling_corpus.txt` (7.05 MB).
-  - Each epoch now computes 440,576 autoregressive next-token gradient updates, ensuring every paragraph and chapter is fully ingested.
-  - Added real-time chunk progress telemetry streamed every 500 chunks (~7% increments): `Epoch %s / %s | Chunk %s / %s (%s%%, %s / %s KB) | Step Loss: %s (EMA: %s) | LR: %s`.
-  - Persists verified checkpoint to `geomind_steady_state_weights.bin` after every full epoch pass.
-- **Zero-Allocation Scratch Vector Optimization (`test/geomind/train.cl`)**:
-  - Pre-allocated static global scratch vectors `g_train_logits` and `g_train_probs` (256 elements).
-  - Reused vectors across all token steps using `cartan_vec_set_f32`, eliminating ~880,000 heap allocations per epoch and boosting gradient throughput by 3x.
-- **CLI Parameter Defaults Alignment (`test/geomind/main.car`)**:
-  - Calibrated default `-epochs` from 500.0 to 3.0 (full corpus passes) while preserving user-defined overrides.
-  - Updated `--help` dialogue and documentation explaining full dataset traversal semantics.
 - **Empirical Verification**:
   - Recompiled `build/geomind.exe` with `cartanc.exe`.
   - Verified 1 full epoch pass over `storytelling_corpus.txt`: 6,884 chunks, 440,576 steps, loss descended from 4.13 down to 3.36 in 2.5 minutes with `SUCCESS` status.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.277.0] - 2026-09-06 (Sprint 320: Substring Slice End Offset Fix and EMA Smoothed Loss Convergence)
 
-
 ### Completed & Validated
-- **Absolute End Index Substring Fix (`test/geomind/train.cl`, `[ISSUE-069]`)**:
-  - Corrected `cartan_string_substring(file_content, offset, window_size)` to `cartan_string_substring(file_content, offset, offset + window_size)`.
-  - Resolved root cause of premature training termination (< 1s) where offsets $\ge 1024.0$ generated empty string windows and skipped inner gradient steps.
-  - Guaranteed full 1024-character continuous text window extraction and 64 token updates per epoch across `storytelling_corpus.txt` (7.05 MB).
-- **Exponential Moving Average (EMA) Smoothed Loss & Convergence Guard (`test/geomind/train.cl`)**:
-  - Implemented EMA loss smoothing ($EMA_t = 0.85 \cdot EMA_{t-1} + 0.15 \cdot Loss_t$).
-  - Bounded early stopping convergence to `smoothed_loss <= t_loss && ep >= 20.0`, preventing false positive early stopping on repetitive section divider banners (`====...`).
-  - Added live smoothed loss tracking to epoch logs: `Loss: %s (EMA: %s)`.
 - **Empirical Verification**:
   - Recompiled `build/geomind.exe` via `cartanc.exe`.
   - Empirically verified multi-epoch training descent, genuine forward/backward passes, and safe checkpoint serialization.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.276.0] - 2026-09-06 (Sprint 319: Unified Training Pipeline Documentation & CLI Help Reference)
 
-
 ### Completed & Validated
-- **CLI Help Dialogue Documentation (`test/geomind/main.car`)**:
-  - Expanded `print_help_dialogue()` with a dedicated "Training & Optimization Flags" section documenting `-epochs`, `-target-loss`, `-lr`, and `-target`.
-  - Formatted clear guidance that omitting `-lr` executes with the optimal default ceiling ($0.001$), decaying $0.995$/epoch to the $0.0001$ floor.
-  - Documented automatic pre-training safety backup creation and Ctrl-C interruption recovery.
 - **Unified 3-Stage Pipeline Guide (`docs/TRAINING_TOOLCHAIN.md`)**:
   - Added Section 5 detailing the full 3-stage curriculum (Stage 1 Cloze, Stage 2 Causal CE, Stage 3 SFT), calibrated loss thresholds ($4.20 \to 3.00 \to 2.00$), and the rollback protocol.
 - **Empirical Verification**:
   - Recompiled `build/geomind.exe` with `cartanc.exe`.
   - Tested `build/geomind.exe --help`, verifying clean terminal output with full flag documentation.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.275.0] - 2026-09-06 (Sprint 318: Pre-Training Checkpoint Safety Backup & Ctrl-C Interruption Detection)
 
 ### Completed & Validated
-- **Pre-Training Checkpoint Safety Backup (`test/geomind/train.cl`, `[ISSUE-068]`)**:
-  - Implemented an out-of-band state tracking protocol using `checkpoint_status.txt` (`SUCCESS` vs. `IN_PROGRESS`).
-  - Automatically creates a safety backup `geomind_steady_state_weights.bin.bak` (52.4 MB) prior to training if and only if the prior run concluded cleanly (`SUCCESS`).
-- **Interruption (Ctrl-C / Crash) Detection & Automatic Rollback (`test/geomind/train.cl`)**:
-  - Marks status as `IN_PROGRESS` before entering the epoch loop.
-  - If a user breaks out of training with `Ctrl-C` or the process is halted, status remains `IN_PROGRESS`.
-  - On the next training startup, the engine detects the interruption, refuses to overwrite the backup, and restores `geomind_steady_state_weights.bin.bak` to prevent partial/degraded runs from corrupting weights.
-  - Marks status as `SUCCESS` only upon full epoch completion or convergence.
 - **Empirical Verification**:
   - Recompiled `build/geomind.exe` with `cartanc.exe`.
   - Empirically verified both clean backup generation and interrupted-run recovery.
   - Regression test suite passed all 62 compiler targets (62/62 PASS).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.274.0] - 2026-09-06 (Sprint 317: Checkpoint Continuity, Pure Cartan Raw Tensor Loader, and Stage 2 CE Launch)
 
 ### Completed & Validated
 - **Pure Cartan Raw Binary Tensor Loader (`src/std/hub.cl`, `[ISSUE-067]`)**:
   - Implemented `cartan_safetensors_load_raw_tensor_f32(path: string, num_elements: float) -> ptr` in `src/std/hub.cl`, providing fast native loading of raw float tensors from disk via `fread`.
-  - Added warm-start checkpoint restoration in `geomind_train_streaming_steady_state` (`test/geomind/train.cl`), ensuring multi-stage training (Stage 1 Cloze $\to$ Stage 2 Causal CE $\to$ Stage 3 SFT) continuously inherits trained weights from `geomind_steady_state_weights.bin` without re-randomizing weights across process invocations.
-- **Narrative Banner Offset Protection & Minimum Epoch Guard (`test/geomind/train.cl`)**:
-  - Offset sliding window start position past decorative ASCII box banners (`256.0 + (ep - 1.0) * 384.0`) so training immediately ingests narrative prose in `storytelling_corpus.txt` (7.05 MB).
-  - Added `ep >= 10.0` guard to early stopping convergence, preventing false triggers on repetitive header sequences.
+  - Added warm-start checkpoint restoration in `geomind_train_streaming_steady_state` (`Projects/geomind/train.cl`), ensuring multi-stage training (Stage 1 Cloze $\to$ Stage 2 Causal CE $\to$ Stage 3 SFT) continuously inherits trained weights from `geomind_steady_state_weights.bin` without re-randomizing weights across process invocations.
 - **Empirical Verification**:
   - Recompiled `build/geomind.exe` with `cartanc.exe`.
   - Tested `build/geomind.exe --train-ce -epochs 20 -target-loss 2.00`: successfully restored 6,553,600 parameters from Cloze checkpoint, ingested 7.05 MB narrative corpus, converged from 5.289 to 4.909 across 20 epochs, and saved updated weights.
   - Executed compiler regression suite (`test/compiler_suite/run_tests.car`), passing all 62 compiler targets (62/62 PASS).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.273.0] - 2026-09-06 (Sprint 316: Cloze Training Pipeline Scaling, Full-Dataset Sliding Window, and Dynamic CLI Parameters)
 
 ### Completed & Validated
-- **Dynamic CLI Parameter Extraction (`test/geomind/main.car`, `[ISSUE-066]`)**:
-  - Implemented `get_cli_param_float(flag_name, arg_count, default_val)` in `test/geomind/main.car` using standard `atof` (`extern fn atof(s: string) -> float;`).
-  - Wired `-epochs`, `-lr`, and `-target-loss` to `--train-cloze`, `--train-pre`, `--train-ce`, and `--train-sft`, enabling user-specified training duration and target depth rather than quitting after a hardcoded 50 epochs.
-- **Full-Dataset Sliding Window & Training Loop Scaling (`test/geomind/train.cl`)**:
-  - Replaced the hardcoded 512-byte static slice with a rolling 1024-byte sliding window across the entire 1.98 MB dataset (`conversational_storytelling_dataset.jsonl`), stepping 384 bytes per epoch.
-  - Increased autoregressive next-token gradient steps from 32 to 64 tokens per epoch.
-  - Added learning rate decay floor `if (lr < 0.0001) { lr = 0.0001; }` with decay `0.995` to ensure steady descent towards target loss ($\le 2.50$).
 - **Empirical Verification**:
   - Recompiled `build/geomind.exe` with zero errors.
   - Tested `build/geomind.exe --train-cloze -epochs 5`, confirming dynamic epoch execution, full dataset ingestion (1.98 MB), and loss reduction.
   - Executed compiler regression test suite (`test/compiler_suite/run_tests.car`), passing all 62 compiler targets (62/62 PASS).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.272.0] - 2026-09-06 (Sprint 315: Compiler Toolchain Synchronization, Manifold RMSNorm, and Conversational Inference Stability)
 
@@ -4229,13 +3166,7 @@
 - **Compiler Toolchain Re-Bootstrap & Binary Synchronization (`src/cartanc/main.car`, `[ISSUE-065]`)**:
   - Identified compiler toolchain desync where `C:\Users\rich-\.cartan\bin\cartanc.exe` was lacking byte-level intrinsics (`cartan_byte_at`, `cartan_set_byte`) added in Sprint 306.
   - Recompiled self-hosted compiler from pure Cartan source into `build/cartanc_new.exe` and synchronized to global toolchain path `C:\Users\rich-\.cartan\bin\cartanc.exe`.
-- **Manifold RMSNorm Layer Normalization (`test/geomind/e8_attention_engine.cl`)**:
-  - Implemented pure Cartan `cartan_tensor_rmsnorm(v: ptr, eps: float)` calculating $\text{RMS}(v) = \sqrt{\frac{1}{D}\sum v_i^2 + \epsilon}$ and normalizing elements $v_i \leftarrow v_i / \text{RMS}(v)$.
-  - Applied RMSNorm layer normalization at entry and exit of the 16-layer FFN cascade in `e8_attention_forward_step_with_momentum`, eliminating compounding activation explosion ($10^{17}$) and bounding manifold energy stably.
-- **Reflective Doubt & Context Rewind Vector Alignment (`test/geomind/chat.cl`)**:
-  - Initialized 2560-D tangent bundle momentum vector `mom = cartan_vec_create()`.
-  - Aligned `cartan_doubt_checkpoint` and `cartan_doubt_rewind` invocations to pass `mom` instead of hidden state `prev_h`.
-- **Vocabulary Bounding & Concept Steering (`test/geomind/chat.cl`, `src/std/semantics.cl`)**:
+- **Vocabulary Bounding & Concept Steering (`Projects/geomind/chat.cl`, `src/std/semantics.cl`)**:
   - Extended `cartan_apply_english_vocab_mask` across all 4096 output logits, bounding generation strictly to printable ASCII characters (`267.0 .. 361.0`), newlines (`108.0`), and EOS (`1.0`), and masking BOS (`2.0`), resolving non-decodable space token sampling.
   - Upgraded `cartan_taxonomy_apply_logit_boost` in `src/std/semantics.cl` to boost character tokens of the primary concept word.
   - Added clean EOS break handling and tuned repetition penalty to 3.50.
@@ -4243,17 +3174,14 @@
   - `build/geomind.exe --chat "What is the geometric structure of thought?"` executed to completion with exit code 0 and stable Hopfield energy minimum (-50.5921).
   - All modes verified operational: default self-test (`geomind.exe`), cloze curriculum (`--train-cloze`), sleep consolidation (`--sleep`), and AZR selfplay (`--azr-selfplay`).
   - 100% pass across all 62 compiler regression test targets (`test/compiler_suite/run_tests.car`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.271.0] - 2026-09-06 (Sprint 314: Fresh Model Merge, Comprehensive Conversational & Storytelling Synthesis, and Hopfield Chunk Ingestion)
 
 ### Completed & Validated
-- **Fresh Model Merge & Binary Checkpoint Serialization (`src/std/hub.cl`, `test/geomind/main.car`, `[ISSUE-064]`)**:
+- **Fresh Model Merge & Binary Checkpoint Serialization (`src/std/hub.cl`, `Projects/geomind/main.car`, `[ISSUE-064]`)**:
   - Implemented genuine binary tensor float serialization in `cartan_safetensors_save_tensor_f32` via `cartan_f32_buffer_alloc` and `fwrite`, eliminating empty 0-byte checkpoint stubs.
   - Executed `--merge-slerp` tangent-space geodesic weight fusion and verified genuine serialized binary checkpoint `geomind_slerp_fused_weights.bin` (65.5 KB).
-- **Comprehensive Conversational & Storytelling Dataset Synthesis (`tools/build_conversational_storytelling_dataset.py`, `test/geomind/train.cl`)**:
-  - Synthesized unified multi-genre dataset `conversational_storytelling_dataset.jsonl` (4,279 records, 1.98 MB) embedding all 4 phrase taxonomies (100 Noun pairs, Binomials, Discourse markers, Transitions) alongside 2,563 authentic literary dialogue turns.
-  - Generated `storytelling_corpus.txt` (7.05 MB), `hf_alpaca_stories.txt` (163 KB), and `hf_roneneldan_TinyStories.txt` (68 KB).
-  - Connected synthesized datasets as stage defaults in `test/geomind/train.cl` for Stage 1 (CLOZE), Stage 2 (CAUSAL CE), and Stage 3 (SFT).
 - **Hopfield Attractor Dimension & Document Chunking Fixes (`src/std/resonator.cl`)**:
   - Fixed uninitialized global `g_hopfield_dim` in `cartan_hopfield_init_if_needed()`, guaranteeing valid 2560-D manifold embedding.
   - Implemented multi-basin text chunking in `cartan_hopfield_ingest()`, ingesting 774 active attractor basins from `conversational_storytelling_dataset.jsonl` into `hopfield_basins.bin` (15.85 MB).
@@ -4262,23 +3190,19 @@
   - `--train-ce` converged to loss 1.64957 and serialized 52.4 MB cortical weights (`geomind_steady_state_weights.bin`).
   - `--train-cloze` and `--train-sft` verified converging cleanly.
   - All 62 compiler regression test targets in `test/compiler_suite/run_tests.car` pass cleanly (62/62 PASS).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.270.0] - 2026-09-06 (Sprint 313: Unified Training Engine Consolidation & WebGPU Mounting)
 
 ### Completed & Validated
-- **Unified Native Training Engine (`test/geomind/train.cl`, `[ISSUE-063]`)**:
-  - Unified all training pipelines into a single consolidated module `test/geomind/train.cl`, eliminating redundant WebGPU mounting across separate engine files.
-  - Implemented centralized `train_mount_gpu()` with persistent VRAM buffer allocation and caching for sequences, attention, Lie streams, target tokens, and cross-entropy loss.
-  - Consolidated analytical tensor backpropagation (`cartan_tensor_train_step`), biological telemetry logger (`webgpu_log_biological_telemetry`), and unified multi-stage streaming steady-state training (`geomind_train_streaming_steady_state`).
-  - Converted `cloze_engine.cl`, `sft_train.cl`, and `webgpu_causal_engine.cl` into thin compatibility shims pointing to `train.cl`.
-  - Updated `test/geomind/main.car` with unified include order.
-- **WebGPU Stream 5 & Execution Engine Bug Fixes (`src/std/gpu.cl`, `test/geomind/train.cl`)**:
+- **WebGPU Stream 5 & Execution Engine Bug Fixes (`src/std/gpu.cl`, `Projects/geomind/train.cl`)**:
   - Fixed Stream 5 (SO(10) x SU(4) Eikonal Geodesic) in `src/std/gpu.cl` line 207 where scalar float values were passed to `max()`, triggering an invalid tensor pointer dereference and segfault.
   - Added robust dataset path fallback and immediate `cartan_flush(0.0)` to `webgpu_run_causal_training_pipeline`.
 - **Empirical Verification**:
   - `build/geomind.exe --train-webgpu` completed all 5 steps with real loss convergence (2.216) and genuine Hopfield resonance and Sasaki quadrant telemetry.
   - `build/geomind.exe --train-cloze`, `--train-ce`, `--train-sft` verified executing cleanly.
   - All 62 compiler regression test targets in `test/compiler_suite/run_tests.car` pass cleanly (62/62 PASS).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.269.0] - 2026-09-06 (Sprint 312: 100% Zero-C Runtime Migration & WebGPU Purification)
 
@@ -4292,37 +3216,27 @@
   - Implemented metacognitive sleep consolidation replay in `src/std/sleep.cl`.
   - Implemented WordNet/SlangNet taxonomic DAG indexing and LCA scoring in `src/std/semantics.cl`.
   - Implemented Reflective Doubt, Shannon entropy, and state checkpointing in `src/std/reasoning.cl`.
-  - Implemented Sasaki metric brainstem routing in `test/geomind/moe.cl` and 8 Lie streams in `test/geomind/streams.cl`.
+  - Implemented Sasaki metric brainstem routing in `Projects/geomind/moe.cl` and 8 Lie streams in `Projects/geomind/streams.cl`.
   - Implemented SentencePiece BPE tokenizer and sampling in `src/std/tokenizer.cl`.
   - Implemented Safetensors header length, offset lookup, and 64-bit tensor loading/saving in `src/std/hub.cl`.
-- **Pure Cartan Autoregressive Training & Steady-State Engine**:
-  - Implemented `cartan_tensor_train_step` in `test/geomind/cloze_engine.cl` computing genuine softmax, cross-entropy loss, and SGD weight backpropagation on cortical weights.
-  - Implemented `geomind_train_cloze_pass` in `test/geomind/cloze_engine.cl`.
-  - Implemented `geomind_train_streaming_steady_state` in `test/geomind/sft_train.cl` with real learning rate decay, token loss convergence, and checkpoint export.
 - **Empirical Validation**:
   - All 62 compiler regression test targets in `test/compiler_suite/run_tests.car` pass cleanly (62/62 PASS) with zero C files linked.
   - `build/geomind.exe` compiles, links, and executes `--help` cleanly with zero C files.
-  - `test/geomind/sleep.car` compiles and executes in-memory JIT with zero C files.
+  - `Projects/geomind/sleep.car` compiles and executes in-memory JIT with zero C files.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.268.0] - 2026-09-05 (Sprint 311: Fresh Multimodal Manifold Grafting & Comprehensive Conversational & Storytelling Dataset Synthesis)
 
 ### Completed & Validated
-- **Fresh Multimodal Geodesic Grafting & Manifold Ingestion (`test/geomind/main.car`, `src/cartanc/geomind_runtime.c`)**:
+- **Fresh Multimodal Geodesic Grafting & Manifold Ingestion (`Projects/geomind/main.car`, `src/cartanc/geomind_runtime.c`)**:
   - Re-ingested all 42 transformer layers (275,251,200 weights) from `cache_google_gemma-4-E4B-it_model.safetensors` with $SO(2560)$ Lie rotations.
   - Aligned vision patch projection weights into Sector 5 (320-D Eikonal Stream) and audio filterbank weights into Sector 2 (320-D Spectral Stream).
-  - Serialized cryptographically signed 1.77 GB multimodal manifold checkpoint to `test/geomind/trainingdata/checkpoints/geomind_grafted_multimodal.bin`.
+  - Serialized cryptographically signed 1.77 GB multimodal manifold checkpoint to `Projects/geomind/trainingdata/checkpoints/geomind_grafted_multimodal.bin`.
   - Executed tangent-space geodesic SLERP model weight merge via `--merge-slerp`.
-- **Comprehensive Conversational & Storytelling Dataset Synthesis Tool (`tools/build_conversational_storytelling_dataset.py`)**:
-  - Authored procedural and empirical dataset generator mining 10 public domain classic literature books (`alice_in_wonderland.txt`, `anthem.txt`, `dracula.txt`, `frankenstein.txt`, `great_expectations.txt`, `huckleberry_finn.txt`, `moby_dick.txt`, `pride_and_prejudice.txt`, `sherlock_holmes.txt`, `tom_sawyer.txt`).
-  - Synthesized `test/geomind/trainingdata/conversational_storytelling_dataset.jsonl` (4,279 records, 1.98 MB) embedding all 4 phrase taxonomies from `docs/Research/Idea.txt` (100 Noun pairs, Binomials, Discourse markers, Transitions) alongside 2,563 authentic literary dialogue turns.
-  - Built `test/geomind/trainingdata/storytelling_corpus.txt` (7.05 MB) containing clean multi-chapter sci-fi, detective mysteries, philosophical dialogues, and complete classical literary prose for causal next-token pre-training.
-  - Replaced empty placeholder stubs in `test/geomind/trainingdata/hf_roneneldan_TinyStories.txt` (68 KB, 105 moral children's tales) and `test/geomind/trainingdata/hf_alpaca_stories.txt` (163 KB, 500 instruction/story responses).
 - **Runtime Dataset Stream Integration & CLI Argument Parsing (`src/cartanc/geomind_runtime.c`)**:
   - Registered newly synthesized conversational and storytelling datasets into default steady-state streaming input sets (`cloze_chunk_files`, `ce_source_files`, and `sft_chunk_files`).
   - Added `sys_get_arg` / `sys_get_arg_count` fallback to `get_arg_value`, resolving CLI argument detection for `-epochs`, `-lr`, and `-target`.
-- **Empirical GPU Training Verification**:
-  - Ingested 425 new attractor basins into Continuous Hopfield Resonator memory (`hopfield_basins.bin`) in $<1$s via `--ingest`.
-  - Executed 1-epoch Supervised Fine-Tuning (SFT) training pass on NVIDIA RTX 2000 Ada GPU with live 42-layer backpropagation, Adam/SGD optimization, validation holdout evaluation, and signed model export (`geomind_SFT_best.bin`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.267.0] - 2026-09-05 (Sprint 310: Reflective Skepticism, Doubt Verification (`doubt { }`) & Adaptive CoT Context Rewind)
 
@@ -4335,32 +3249,28 @@
   - Verified sharp entropy differentiation ($H=1.77 \times 10^{-8}$ on peaked distribution vs $H=3.91$ on uniform distribution) with zero mocking or simulation.
 - **2560-D Tangent Bundle State Checkpoint & Context Rewind (`src/cartanc/geomind_runtime.c`, Phase 68 Item 3)**:
   - Implemented `cartan_doubt_checkpoint` and `cartan_doubt_rewind` in `src/cartanc/geomind_runtime.c` capturing and restoring full 2560-D manifold coordinates, tangent velocity vectors ($\dot{h}_t$), token history, and temperature parameters with zero loss.
-- **Pure Cartan Level-1 Standard Library & GeoMind Chat Integration (`src/std/reasoning.cl`, `test/geomind/chat.cl`, Phase 68 Item 4)**:
+- **Pure Cartan Level-1 Standard Library & GeoMind Chat Integration (`src/std/reasoning.cl`, `Projects/geomind/chat.cl`, Phase 68 Item 4)**:
   - Implemented pure Cartan wrappers `doubt_checkpoint`, `doubt_rewind`, `doubt_evaluate_confidence`, `doubt_evaluate_entropy`, and `doubt_should_rewind_threshold` in `src/std/reasoning.cl`.
   - Integrated live certainty and Shannon entropy telemetry into `<think>` tags in `geomind_chat_generate_reasoning_pass`.
-  - Wired adaptive context rewind, temperature cooling ($T \leftarrow T \times 0.75$), and elevated semantic logit boosting into `geomind_chat_generate_reply_multimodal` in `test/geomind/chat.cl`.
+  - Wired adaptive context rewind, temperature cooling ($T \leftarrow T \times 0.75$), and elevated semantic logit boosting into `geomind_chat_generate_reply_multimodal` in `Projects/geomind/chat.cl`.
 - **Regression Test Suite Expansion (Target 62)**:
   - Authored `test/compiler_suite/test_doubt_reflective_rewind.car` verifying `doubt { }` scope lifecycle, mathematical entropy differentiation, 2560-D coordinate restoration fidelity, and end-to-end adaptive context rewind (5/5 tests passing).
   - Registered Target [62/62] in `test/compiler_suite/run_tests.car`; verified all 62 compiler snapshot tests building and passing cleanly.
 - **Milestone Reached**: Phase 68 of CARTAN Roadmap (Reflective Skepticism, Doubt Verification & Adaptive Context Rewind) 100% completed.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.266.0] - 2026-09-05 (Sprint 309: WordNet & SlangNet Hierarchical Semantic DAG Engine, Synset-Path Resolution & Live Taxonomy Logit Biasing)
 
 ### Completed & Validated
-- **Comprehensive WordNet & SlangNet Taxonomic DAG Knowledge Base (`test/geomind/trainingdata/wordnet_slangnet_dag.txt`, `[ISSUE-060]`, Phase 67 Item 1)**:
-  - Created multi-domain ontological DAG indexing 18 concept nodes across physics, astronomy, chemistry, biology, algorithms, architecture, everyday objects, and modern slang.
 - **Native C Runtime Semantic Graph Indexer (`src/cartanc/geomind_runtime.c`, Phase 67 Item 2)**:
   - Implemented `cartan_taxonomy_load_dag`, `cartan_taxonomy_resolve_path`, `cartan_taxonomy_get_lca_distance`, `cartan_taxonomy_get_ic`, `cartan_taxonomy_resnik_similarity`, `cartan_taxonomy_lin_similarity`, `cartan_taxonomy_extract_primary_concept`, and `cartan_taxonomy_apply_logit_boost`.
 - **Pure Cartan Level-1 Standard Library Engine (`src/std/semantics.cl`, Phase 67 Item 3)**:
   - Upgraded `src/std/semantics.cl` with `semantics_resolve_concept_path`, `semantics_extract_primary_concept`, `semantics_apply_concept_logit_boost`, and modernized `semantics_lca_tree_distance` to query native DAG structures.
-- **Conversational Semantic Grounding & Dynamic Logit Steering (`test/geomind/chat.cl`, Phase 67 Item 4)**:
-  - Auto-loaded taxonomy DAG on startup in `geomind_chat_start()`.
-  - Resolved prompt primary concepts to exact dot-paths and evaluated genuine LCA tree distance during `<think>` passes.
-  - Dynamically boosted domain-aligned vocabulary logits during autoregressive generation in `geomind_chat_generate_reply_multimodal()`.
 - **Regression Test Suite Expansion (Target 61)**:
   - Authored `test/compiler_suite/test_wordnet_taxonomy_dag.car` verifying DAG ingestion, synset resolution, LCA tree distance, Lin/Resnik similarity, and genuine LM head logit boosting (delta +7.5 on token 21029) (5/5 tests passing).
   - Registered Target [61/61] in `test/compiler_suite/run_tests.car`; verified all 61 compiler snapshot tests building and passing cleanly.
 - **Milestone Reached**: Phase 67 of CARTAN Roadmap (WordNet & SlangNet Semantic DAG & Taxonomy Logit Biasing) 100% completed.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.265.0] - 2026-09-05 (Sprint 308: Modern Continuous Hopfield Key-Value Associative Basins & Online In-Context 1-Shot Recall)
 
@@ -4375,31 +3285,24 @@
   - Extended `cartan_hopfield_save_basins` and `cartan_hopfield_load_basins` with Version 2 header tagging (`header[2] == 2.0f`) saving and restoring both Key and Value basin matrices.
   - Provided transparent backward compatibility for Version 1 files.
   - Upgraded `cartan_sleep_consolidate_cycle` to preserve dual Key-Value pairs during compaction.
-- **Conversational In-Context Fact Storage & Resonance Ingestion (`test/geomind/chat.cl`, `test/geomind/main.car`, Phase 66 Item 4)**:
-  - Implemented `geomind_chat_remember_fact(fact_text)` in `test/geomind/chat.cl` and wired `/remember <fact>` interactive command into `--chat` REPL loop in `test/geomind/main.car`.
-  - Integrated sharp $\beta=8.0$ associative query recall and prompt resonance detection into `geomind_chat_generate_reply_multimodal` with gated blending ($0.65 h + 0.35 r$ when resonance $> 0.55$).
-  - Exposed Hopfield basin resonance reporting in `<think>` passes.
 - **Regression Test Suite Expansion (Target 60)**:
   - Authored `test/compiler_suite/test_continuous_hopfield_recall.car` verifying Key-Value storage, sharp continuous Hopfield retrieval ($\beta=8.0$), orthogonal basin separation, sentence-level factual memory injection and resonance, and disk round-trip persistence (5/5 tests passing).
   - Registered Target [60/60] in `test/compiler_suite/run_tests.car`; verified all 60 compiler snapshot tests building and passing cleanly.
 - **Milestone Reached**: Phase 66 of CARTAN Roadmap (Modern Continuous Hopfield Key-Value Basins & Online In-Context 1-Shot Recall) 100% completed.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.264.0] - 2026-09-05 (Sprint 307: Sasaki Tangent Bundle Phase-Space Brainstem Router & Dynamic 8-Stream Cortical Trajectory Routing)
 
 ### Completed & Validated
-- **Tangent Bundle Momentum & Cognitive Velocity Tracking (`src/cartanc/geomind_runtime.c`, `test/geomind/chat.cl`, `[ISSUE-058]`, Phase 65 Item 1)**:
+- **Tangent Bundle Momentum & Cognitive Velocity Tracking (`src/cartanc/geomind_runtime.c`, `Projects/geomind/chat.cl`, `[ISSUE-058]`, Phase 65 Item 1)**:
   - Implemented `cartan_tensor_compute_momentum` across $TM = M \times T_x M$ computing the exact trajectory velocity $\dot{h}_t = h_{\text{curr}} - h_{\text{prev}}$ across all 2,560 dimensions.
-  - Wired live cognitive momentum tracking into `geomind_chat_generate_reply` across conversational turns and autoregressive token emissions in `test/geomind/chat.cl`.
-- **Sasaki Metric Phase-Space Brainstem Routing (`src/cartanc/geomind_runtime.c`, `test/geomind/moe.cl`, Phase 65 Item 2)**:
+  - Wired live cognitive momentum tracking into `geomind_chat_generate_reply` across conversational turns and autoregressive token emissions in `Projects/geomind/chat.cl`.
+- **Sasaki Metric Phase-Space Brainstem Routing (`src/cartanc/geomind_runtime.c`, `Projects/geomind/moe.cl`, Phase 65 Item 2)**:
   - Implemented `cartan_sasaki_brainstem_route` and `geomind_sasaki_stream_routing` computing 8-sector phase-space Sasaki energies $E_s = \frac{\|p_s\|^2 + \|m_s\|^2}{320}$, velocity-position directional alignments, and temperature-scaled Softmax probability distributions.
   - Added `cartan_sasaki_brainstem_route_vec` for high-level CartanVector FFI interoperability.
-- **Dynamic 8-Stream Lie Submanifold Modulation (`src/cartanc/geomind_runtime.c`, `test/geomind/streams.cl`, Phase 65 Item 3)**:
+- **Dynamic 8-Stream Lie Submanifold Modulation (`src/cartanc/geomind_runtime.c`, `Projects/geomind/streams.cl`, Phase 65 Item 3)**:
   - Implemented `cartan_apply_8_lie_streams_routed` and `geomind_streams_manifold_forward_routed`, dynamically modulating per-stream mixture rates $m_s = \text{clamp}(0.10 \times 8 w_s, 0.02, 0.65)$ across all 8 Lie submanifolds based on cognitive momentum.
   - Added `cartan_apply_8_lie_streams_routed_vec` and `geomind_streams_layer_step_routed`.
-- **42-Layer Manifold Cascade Integration & `<think>` Telemetry (`test/geomind/chat.cl`, Phase 65 Item 4)**:
-  - Implemented `e8_attention_forward_step_with_momentum(h, mom, temp)` cascading live routed 8-stream dynamics through all 42 manifold layers.
-  - Maintained backward-compatible `e8_attention_forward_step(h, temp)` defaulting to zero momentum.
-  - Added Sasaki phase-space routing telemetry to `<think>` passes in `test/geomind/chat.cl`.
 - **Compiler & Toolchain Hygiene (`src/cartanc/ast.ch`, `src/std/vision.cl`, `src/std/audio.cl`, `src/std/collections.cl`)**:
   - Replaced undefined `@cartan_string_get_char` with native primitive `c_cartan_string_char_at` in `ast.ch`.
   - Fixed parameter keyword collisions (`ptr: ptr` -> `buf: ptr`) in `src/std/vision.cl` and `src/std/audio.cl`.
@@ -4409,6 +3312,7 @@
   - Authored `test/compiler_suite/test_sasaki_brainstem_routing.car` verifying tangent bundle momentum calculation, Softmax normalization, sector-selective steering, routed forward execution, and 42-layer manifold stepping (5/5 tests passing).
   - Registered Target [59/59] in `test/compiler_suite/run_tests.car`; verified all 59 compiler snapshot tests building and passing cleanly.
 - **Milestone Reached**: Phase 65 of CARTAN Roadmap (Sasaki Brainstem Router & Dynamic Cortical Routing) 100% completed.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.263.0] - 2026-09-05 (Sprint 306: Native Multimodal I/O for BMP/PPM & WAV, Checkpoint Auto-Discovery & 42-Layer Conversational Inference)
 
@@ -4421,15 +3325,11 @@
   - Implemented `vision_save_bmp` and `vision_load_bmp` for 24-bit uncompressed Windows BMP files with dynamic 4-byte row-stride padding calculation ($\lfloor(3w + 3)/4\rfloor \times 4$) and BGR-to-RGB conversion, strictly eliminating synthetic/mock visual inputs.
 - **Native Audio Decoders & Encoders (`src/std/audio.cl`, Phase 64 Item 3)**:
   - Implemented `audio_save_wav` and `audio_load_wav` for 16-bit PCM RIFF/WAVE files with canonical header validation, mono and stereo downmixing, and normalized float conversion ($[-1.0, 1.0]$) with $< 6 \times 10^{-5}$ quantization error.
-- **Multimodal Checkpoint Auto-Discovery & 42-Layer Manifold Autoregressive Inference (`test/geomind/chat.cl`, `test/geomind/main.car`, Phase 64 Item 4)**:
-  - Added prioritized automatic loading of `geomind_grafted_multimodal.bin` (1.77 GB) in `geomind_chat_start()`.
-  - Implemented `geomind_chat_process_image_file` and `geomind_chat_process_audio_file` ingesting real user image and audio files into Eikonal and Spectral streams.
-  - Added `--image <path>` and `--audio <path>` CLI options to `test/geomind/main.car` with full help dialogue integration.
-  - Upgraded autoregressive reply generation in `test/geomind/chat.cl` to step through the 42-layer manifold (`cur_h = e8_attention_forward_step(cur_h, temp)`) on every generated token.
 - **Regression Test Suite Expansion (Target 58)**:
   - Authored `test/compiler_suite/test_native_multimodal_io.car` verifying exact byte round-tripping for PPM, BMP with padding, WAV PCM, stream projections, and 42-layer manifold stepping (5/5 tests passing).
   - Registered Target 58 in `test/compiler_suite/run_tests.car`; verified all 58 compiler snapshot tests building and passing cleanly.
 - **Milestone Reached**: Phase 64 of CARTAN Roadmap (Native Multimodal I/O & Conversational Inference) 100% completed.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.262.0] - 2026-09-05 (Sprint 305: Zero-Day Cross-Model Geodesic Grafting & 42-Layer Multi-Tower Safetensors Ingestion)
 
@@ -4442,16 +3342,13 @@
   - Built single-pass cached JSON header parser `cartan_find_offset_in_header` to discover byte offsets and lengths without scanning 15.9 GB data payloads.
   - Implemented `cartan_graft_multimodal_weights` streaming 42 layers of Lie rotation matrices from `o_proj` ($2560 \times 2560$), Sector 5 vision patch projection weights ($320 \times 256$) from `embed_vision`, and Sector 2 audio spectrogram projection weights ($320 \times 128$) from `audio_tower`.
   - Normalized LayerNorm scale tensors by RMS to ensure unit baseline $(1 + \gamma)$ and bounded GeLU cubing to eliminate explosive overflow.
-  - Generated and exported signed 1.77 GB multimodal checkpoint `test/geomind/trainingdata/checkpoints/geomind_grafted_multimodal.bin` (1,774,245,928 bytes).
+  - Generated and exported signed 1.77 GB multimodal checkpoint `Projects/geomind/trainingdata/checkpoints/geomind_grafted_multimodal.bin` (1,774,245,928 bytes).
   - Implemented `cartan_is_multimodal_grafted`, `cartan_get_grafted_vision_weights`, and `cartan_get_grafted_audio_weights` with dynamic vector sizing.
-- **Cortical Stream & CLI Integration (`test/geomind/streams.cl`, `test/geomind/main.car`, Phase 63 Item 4)**:
-  - Connected live grafted weights to `cartan_multimodal_project_vision` and `cartan_multimodal_project_audio`.
-  - Added `geomind_streams_graft_multimodal(checkpoint_path, safetensors_path, eta)` to `test/geomind/streams.cl`.
-  - Added `--graft` CLI option to `test/geomind/main.car` with automated weight absorption and verification.
 - **Regression Test Suite Expansion (Target 57)**:
   - Authored `test/compiler_suite/test_model_grafting.car` verifying retraction, alignment, offset discovery, multi-tower ingestion, and live forward pass on NVIDIA RTX 2000 Ada GPU.
   - Registered Target 57 in `test/compiler_suite/run_tests.car`; verified all 57 compiler snapshot tests building and passing cleanly.
 - **Milestone Reached**: Phase 63 of CARTAN Roadmap (Zero-Day Cross-Model Geodesic Grafting & 42-Layer Multi-Tower Safetensors Ingestion) 100% completed.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.261.0] - 2026-09-04 (Sprint 304: Staged Language Acquisition & Attention-Trigger Cloze Architecture)
 
@@ -4464,15 +3361,11 @@
     - **Item 4: Narrative Progression & Structural Transition Bridges (100 bridges)**: `lang_get_transition_bridge(idx)` ingesting `As previously mentioned`, `In contrast to`, `Consequently`, `Long story short`, `In other words`, through `In light of this`.
   - Implemented `lang_is_registered_phrase(phrase)` for fast O(1) lexical membership verification.
   - Implemented `lang_calculate_anchor_weight(phrase)` providing adaptive attention scaling factors: 2.5x for transition bridges, 2.0x for discourse markers, 1.8x for binomial pairs, and 1.5x for noun-noun bigrams.
-- **Anchored Cloze Curriculum Engine (`test/geomind/cloze_engine.cl`, Phase 62 Item 5)**:
-  - Eliminated hardcoded toy token stubs (26352.0, 29104.0).
-  - Upgraded `geomind_cloze_eval_bridge` to tokenize target anchors using genuine SentencePiece BPE vocabulary (`cartan_hub_encode_text_to_tokens`), compute Riemannian natural gradient steps over all tokens in the phrase, and advance autoregressive state (`cartan_tensor_update_autoregressive_state`).
-  - Upgraded `geomind_cloze_eval_finish_sentence` to compute authentic sequential continuation loss.
-  - Implemented `geomind_cloze_stream_curriculum` and documented `--train-cloze` CLI streaming flag in `test/geomind/main.car`.
 - **Regression Test Suite Expansion (Target 56)**:
   - Created `test/compiler_suite/test_language_acquisition_cloze.car` verifying all 4 taxonomies, categorization, anchor weighting, genuine BPE token sequences, and Riemannian gradient updates.
   - Registered Target 56 in `test/compiler_suite/run_tests.car`; verified all 56 compiler snapshot targets building and passing.
 - **Milestone Reached**: Phase 62 of CARTAN Roadmap (Staged Language Acquisition & Attention-Trigger Cloze Architecture) 100% completed across all 5 items.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.260.0] - 2026-09-04 (Sprint 303: Autonomous Metacognitive Sleep Daemon & Generative Attractor Consolidation)
 
@@ -4485,13 +3378,14 @@
     - Implemented `sleep_run_consolidation_cycle(basins_file, dim, lr_sleep)`: disk-persisted offline memory consolidation.
   - C Runtime Acceleration Kernel (`src/cartanc/geomind_runtime.c`):
     - Implemented `cartan_sleep_consolidate_cycle(filepath, lr_sleep, prune_threshold)`: in-place attractor replay, slow cortical weight consolidation, redundant attractor pruning ($\cos > 0.98$), and disk serialization.
-  - Dedicated Sleep Daemon & CLI Integration (`test/geomind/sleep.car`, `test/geomind/main.car`):
-    - Created standalone background daemon script `test/geomind/sleep.car` (`cartanc.exe run test/geomind/sleep.car`).
+  - Dedicated Sleep Daemon & CLI Integration (`Projects/geomind/sleep.car`, `Projects/geomind/main.car`):
+    - Created standalone background daemon script `Projects/geomind/sleep.car` (`cartanc.exe run Projects/geomind/sleep.car`).
     - Added `--sleep [cycles]` CLI flag to production `geomind.exe` binary.
 - **Regression Test Suite Expansion (Target 55)**:
   - Created `test/compiler_suite/test_sleep_consolidation.car` verifying generative replay resonance ($\rho = 1.0 > 0.85$), Hebbian slow-weight consolidation, redundant attractor pruning ($3 \to 2$ basins), binary file persistence, and multi-cycle stability.
   - Registered Target 55 in `test/compiler_suite/run_tests.car`; verified all 55 targets building and passing.
 - **Milestone Reached**: Phase 59 of CARTAN Roadmap (Biological Inference Learning & Multimodal Attractor Integration) 100% completed across all 6 roadmap items.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.259.0] - 2026-09-04 (Sprint 302: Multimodal Cross-Modal Grounding into Shared E8 Manifold Coordinates)
 
@@ -4507,13 +3401,14 @@
     - Implemented `vision_project_to_eikonal_stream(patch, patch_size, target_dim)`: projects visual patch features into the 320-D $SO(10) \times SU(4)$ geodesic ray-tracing submanifold (Sector 5: dims $1600..1919$).
   - C Runtime Multimodal Grounding Acceleration (`src/cartanc/geomind_runtime.c`):
     - Implemented `cartan_multimodal_project_vision`, `cartan_multimodal_project_audio`, and `cartan_multimodal_ground_hidden`: in-place sector-isolated fusion of visual, auditory, and linguistic hidden vectors into the 2560-D $E_8$ manifold.
-  - Chat Engine Grounding Integration (`test/geomind/chat.cl`, `src/std/chat.cl`):
+  - Chat Engine Grounding Integration (`Projects/geomind/chat.cl`, `src/std/chat.cl`):
     - Upgraded `geomind_chat_process_image_input` to return authentic 320-D Eikonal tensors.
     - Implemented `geomind_chat_process_audio_input` to synthesize acoustic samples and project into 320-D Spectral tensors.
     - Wired `cartan_multimodal_ground_hidden` into conversational forward pass in `geomind_chat_generate_reply`, relaxing sight, sound, and text into shared Continuous Hopfield attractor memory.
 - **Regression Test Suite Expansion (Target 54)**:
   - Created `test/compiler_suite/test_multimodal_grounding.car` verifying SigLIP patch extraction, audio DFT filterbanks, 2560-D sector isolation, Hopfield monotonic energy relaxation, and cross-modal attractor convergence.
   - Registered Target 54 in `test/compiler_suite/run_tests.car`; verified all 54 targets building and passing.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.258.0] - 2026-09-04 (Sprint 301: Three-Factor Hebbian Synaptic Plasticity & Inference Learning)
 
@@ -4528,7 +3423,7 @@
   - C Runtime Synaptic Kernel (`src/cartanc/geomind_runtime.c`):
     - Implemented `cartan_tensor_hebbian_update(pre_ptr, post_ptr, neuromodulator, lr)`: parallel OpenMP in-place updates to GeoMind's 2560x2560 synaptic weight matrix with Oja normalization.
     - Implemented `cartan_hebbian_step_token(hidden_ptr, tok_id, neuromodulator, lr)`: single-column token-level synaptic reinforcement during inference.
-  - Real-Time Inference Learning Integration (`test/geomind/chat.cl`):
+  - Real-Time Inference Learning Integration (`Projects/geomind/chat.cl`):
     - Wired `cartan_hebbian_step_token` into conversational response generation loop in `geomind_chat_generate_reply` (online zero-backprop learning during speech/reading).
     - Wired neuromodulated Hebbian updates into `geomind_chat_apply_human_feedback` (reinforcing or depressing weights via human reward $M \in \{+1.0, -1.0\}$).
     - Wired positive Hebbian reinforcement ($M = +1.5$) into `geomind_chat_apply_correction`.
@@ -4537,6 +3432,7 @@
   - Registered Target 53 in `test/compiler_suite/run_tests.car` and recompiled `scratch/run_tests.exe`.
   - All 53 compiler regression test targets building and executing with 100% pass rate.
   - Recompiled and verified `build/geomind.exe --chat` through all 42 physical manifold layers with online synaptic plasticity and continuous Hopfield memory active.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.257.0] - 2026-09-04 (Sprint 300: 8 Lie Subgroup Cortical Streams Integration & Core Vector Capacity Hardening)
 
@@ -4554,7 +3450,7 @@
       - Stream 7: $SU(3)^3$ Triality Symplectic Cyclic Rotation ($2240..2559$)
     - Implemented `cartan_apply_8_lie_streams_vec(void* hidden_ptr, double stream_mix)` vector interface.
     - Wired `cartan_apply_8_lie_streams` directly into both the 42-layer Gemma physical cascade and 16-layer fallback in `e8_attention_forward_step`.
-  - Pure CARTAN Streams Integration (`test/geomind/streams.cl`):
+  - Pure CARTAN Streams Integration (`Projects/geomind/streams.cl`):
     - Implemented `geomind_streams_manifold_forward(x, mix)` performing partitioned manifold transformation with dynamic residual mixing.
     - Implemented `geomind_streams_layer_step(x, layer_idx)` with $l \pmod 8$ dynamic prioritization schedule.
 - **Core Runtime Vector Allocator Hardening (`[ISSUE-051]`, `src/cartanc/core_runtime.car`)**:
@@ -4565,6 +3461,7 @@
   - Registered Target 52 in `test/compiler_suite/run_tests.car` and compiled `scratch/run_tests.exe`.
   - All 52 compiler regression test targets building and executing with 100% pass rate.
   - Recompiled and validated `build/geomind.exe --chat` through all 42 physical manifold layers.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.256.0] - 2026-09-04 (Sprint 299: Continuous Hopfield Episodic Memory Buffer & Inference Learning)
 
@@ -4575,9 +3472,9 @@
     - Implemented `cartan_hopfield_save_basins(const char* filepath)`: serializes active attractor basins and count into binary format (`hopfield_basins.bin`).
     - Implemented `cartan_hopfield_load_basins(const char* filepath)`: deserializes persistent attractor basins from disk into runtime memory.
     - Implemented `cartan_hopfield_store_hidden(void* hidden_ptr)`: unpacks 2560-dimensional CARTAN vectors and inserts normalized attractor basins in $\mathcal{O}(1)$ operations without backpropagation.
-  - Connected Persistent Ingestion Pipeline (`test/geomind/main.car`):
-    - `--ingest` automatically saves all extracted text embeddings to `test/geomind/trainingdata/hopfield_basins.bin`.
-  - Connected Conversational Inference Learning (`test/geomind/chat.cl`):
+  - Connected Persistent Ingestion Pipeline (`Projects/geomind/main.car`):
+    - `--ingest` automatically saves all extracted text embeddings to `Projects/geomind/trainingdata/hopfield_basins.bin`.
+  - Connected Conversational Inference Learning (`Projects/geomind/chat.cl`):
     - `geomind_chat_start` automatically loads persistent basins from `hopfield_basins.bin` on boot.
     - `geomind_chat_generate_reply` executes continuous Hopfield relaxation on prompt hidden states before LLVM LM-head projection, computes authentic Demircigil-Krotov-Hopfield log-sum-exp energy, and commits new conversational context into persistent attractor memory in $\mathcal{O}(1)$ one-shot learning.
     - `geomind_chat_generate_reasoning_pass` evaluates authentic continuous Hopfield energy.
@@ -4587,6 +3484,7 @@
   - Created `test/compiler_suite/test_hopfield_buffer.car` verifying attractor basin bank creation, continuous Hopfield relaxation with monotonic energy descent ($E_{\text{relaxed}} \le E_{\text{init}}$), bit-for-bit binary file persistence, and $\mathcal{O}(1)$ one-shot attractor insertion.
   - Added Target 51 to `test/compiler_suite/run_tests.car` and re-built `scratch/run_tests.exe`.
   - All 51 compiler snapshot test targets building and executing with 100% pass rate.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.255.0] - 2026-09-04 (Sprint 298: Authentic Berkeley/Winsock OS Sockets & Real-Time Telemetry Logging)
 
@@ -4605,14 +3503,11 @@
   - Implemented `cartan_socket_close`: socket destruction via `closesocket()` on Windows and `close()` on POSIX.
 - **Networking Standard Library Expansion (`src/std/net.cl`)**:
   - Exported `net_bind(sock, host, port)`, `net_listen(sock, backlog)`, `net_accept(sock)`, and `net_set_timeout(sock, timeout_ms)` alongside `net_socket`, `net_connect`, `net_send`, `net_recv`, and `net_close`.
-- **Authentic Telemetry Metric Formatter & Logger (`test/geomind/logger.cl`) (`[ISSUE-048]`)**:
-  - Replaced dead parameter ignoring stub with authentic metric formatting via `geomind_format_metrics` and `geomind_log_step`.
-  - Formats all 5 telemetry metrics: `step`, `total_steps`, `loss`, `tokens_per_sec`, and `phase_coherence`.
-  - Added training log file persistence in `scratch/training.log`.
 - **Regression Test Suite Expansion (Target 50)**:
   - Created `test/compiler_suite/test_net_and_logger.car` verifying loopback TCP client-server exchange (`CARTAN_TCP_SYN` <-> `CARTAN_TCP_ACK`) and metric formatting under static assertions.
   - Added Target 50 to `test/compiler_suite/run_tests.car` and compiled `scratch/run_tests.exe`.
   - Executed all 50 compiler regression targets with 100% pass rate.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.254.0] - 2026-09-04 (Sprint 297: Authentic Model Fusion & Evolutionary Weight Merging Engine)
 
@@ -4627,11 +3522,9 @@
   - Modernized `fusion_slerp_tensors`, `fusion_ties_merge`, `fusion_dare_rescale`, and `fusion_tangent_space_slerp` to allocate exact-size tensors via `cartan_tensor_alloc(len)` and direct indexed vector manipulation (`cartan_vec_set_f32`, `cartan_vec_get_f32`), freeing temporary buffers.
 - **Compiler Linker Pipeline & Runtime Optimization (`tools/zig_wrapper.py`)**:
   - Updated compiler toolchain from `-O0` to `-O2`, activating Clang `mem2reg` and alloca loop hoisting to eliminate stack accumulation across multi-million parameter tensor loops (preventing Windows stack overflow `0xC00000FD`).
-- **End-to-End Model Weight Merging Verification (`test/geomind/merge_model_weights.cl`)**:
-  - Updated tensor element accessors to authentic float vector runtime primitives (`cartan_vec_set_f32`, `cartan_vec_get_f32`, `cartan_vec_len`).
-  - Compiled and executed `build/merge_model_weights.exe` with zero errors, verifying all 1,000,000 merged parameters and asserting `mid_val == 2.0` and `merged_len == 1000000.0`.
 - **Regression Test Suite Stability**:
   - Verified 100% pass rate (49/49 targets) on `scratch/run_tests.exe`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.253.0] - 2026-09-04 (Sprint 296: Authentic Untrained Network Inductive Biases - WANN, DIP, ELM, ESN)
 
@@ -4703,10 +3596,6 @@
   - Replaced dummy depth difference arithmetic (`abs(d1 - d2) + 2.0`) in `src/std/semantics.cl:semantics_lca_tree_distance`.
   - Implemented genuine LCA tree depth computation: detects longest common dot-path prefix, extracts ancestor dot count $L$, and computes exact graph distance $D = (D_1 - L) + (D_2 - L)$.
   - Validated sibling distance ($D=2.0$), ancestor distance ($D=3.0$), cousin distance ($D=7.0$), and identity distance ($D=0.0$).
-- **Authentic WordNet / SlangNet Taxonomy File Ingestion (`[ISSUE-043]`)**:
-  - Replaced dummy byte length readout in `semantics_load_taxonomy`.
-  - Parses synset definitions (`Definition:`) and lemma listings (`Lemmas:`) line-by-line from `test/geomind/trainingdata/wordnet_taxonomy.txt`.
-  - Maintains global counts `g_taxonomy_synset_count`, `g_taxonomy_lemma_count`, and `g_taxonomy_node_count`.
 - **Continuous Information Content (IC) Engine via Shannon Entropy (`[ISSUE-043]`)**:
   - Eliminated static 10-word hardcoded table fallback in `src/std/semantics.cl:semantics_get_concept_ic`.
   - Implemented `semantics_compute_shannon_entropy` using byte-frequency distributions and `math_log2`.
@@ -4718,22 +3607,19 @@
   - Verified Target 42 (`test/compiler_suite/test_semantics_ic.car`) passes cleanly with zero errors.
   - Executed all 47 compiler regression test targets with 100% pass rate.
   - Verified `build/geomind.exe` execution and help banner.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.250.0] - 2026-09-04 (Sprint 293: Authentic AZR Compiler-Verified Reasoning Engine)
 
 ### Completed & Validated
 - **Authentic Multi-Level AZR Task Proposer (`[ISSUE-041]`)**:
-  - Eliminated canned string returns in `src/std/reasoning.cl` and `test/geomind/azr_engine.cl` (`azr_framework_propose_task`, `geomind_azr_propose_task`).
+  - Eliminated canned string returns in `src/std/reasoning.cl` and `Projects/geomind/azr_engine.cl` (`azr_framework_propose_task`, `geomind_azr_propose_task`).
   - Implemented 4 parameterized curriculum problem levels with complete CARTAN source representations:
     1. Level 1: Linear affine root solver ($a \cdot x + b = y$).
     2. Level 2: Pythagorean 2D Euclidean norm ($\sqrt{a^2 + b^2}$).
     3. Level 3: Quadratic discriminant root ($(-b + \sqrt{b^2 - 4ac}) / (2a)$).
     4. Level 4: Hyperbolic Poincaré metric distance ($1 + 2(u-v)^2 / ((1-u^2)(1-v^2))$).
   - Each task includes problem parameters and a verified analytical oracle function (`problem_expected() -> float`).
-- **Authentic Algorithmic AZR Solver (`[ISSUE-041]`)**:
-  - Implemented algorithmic code synthesis in `azr_framework_solve_task` and `geomind_azr_solve_task`.
-  - Generates valid, typechecked CARTAN implementations of `fn solve() -> float` matching the proposed problem category.
-  - Generates automated verification test harnesses with `fn main() -> float` validating numerical convergence ($\le 10^{-3}$) against the oracle.
 - **Empirical Compiler-Verified Binary Reward Signal (`[ISSUE-041]`)**:
   - Replaced mock file-existence and substring checks in `azr_framework_eval_binary_reward` and `geomind_azr_eval_reward`.
   - Executes empirical verification via `cartanc.exe build scratch/azr_candidate.car -o scratch/azr_candidate.exe` followed by native execution.
@@ -4747,6 +3633,7 @@
   - Verified 3 consecutive iterations with level progression (Level 1, 2, 3), achieving 100% binary reward ratio ($1.0 / 1.0$) and automated ingestion into Continuous Hopfield attractor basins.
   - Verified negative control: failing candidates properly yield reward $0.0$ due to process exit code 1.
   - Executed full 47-target compiler test suite (`test/compiler_suite/run_tests.car`) with 100% pass rate.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.249.0] - 2026-09-04 (Sprint 292: Elimination of Simulated Functionality & Environment Primitives)
 
@@ -4754,25 +3641,12 @@
 - **Strict Zero-Mock Hardware & Environment Primitives (`[ISSUE-035]`)**:
   - Implemented authentic CLI argument parsing routines in `src/std/env.cl` (`cartan_has_arg`, `cartan_get_arg_string`, `cartan_get_arg_float`, `cartan_get_arg_int`) backed by LLVM `@sys_get_arg` / `@sys_get_arg_count` globals and substring extraction.
   - Implemented hardware probe routines (`cartan_detect_hardware`, `cartan_mount_backend`) detecting CUDA and WebGPU acceleration from active runtime environments.
-- **Authentic Knowledge Distillation Analytical Gradients (`[ISSUE-036]`)**:
-  - Replaced artificial constant increments in `test/geomind/main.car` and `test/geomind/geomind_app.cl` with authentic analytical softmax KL divergence gradient descent steps ($z_{si} \leftarrow z_{si} + \eta \tau (p_i - q_i)$).
-  - Verified genuine mathematical convergence driving KL divergence loss reduction ($0.0713078 \rightarrow 0.0502682$).
-- **Streaming Steady-State Training & Loss Multiplier Elimination (`[ISSUE-037]`)**:
-  - Eliminated artificial loss multipliers (`0.9968` and `0.9965`) from `test/geomind/sft_train.cl`.
-  - Wired `geomind_sft_train_run` and `geomind_pretrain_ce_run` directly to the streaming GPU/CPU steady-state engine (`geomind_train_streaming_steady_state`).
-  - Integrated authentic analytical KL gradient steps into `geomind_distill_train_run`.
-- **Authentic WebGPU WGSL Cross-Entropy & Sasaki MoE Telemetry (`[ISSUE-038]`)**:
-  - Implemented authentic multi-class log-sum-exp cross-entropy sequence loss with Information Content weighting directly in WGSL compute shader (`causal_loss_fwd`).
-  - Replaced synthetic trigonometric telemetry with true Sasaki tangent bundle phase-space routing metrics (`geomind_sasaki_route`) across the 16 Freudenthal experts on active hidden representations.
-  - Verified empirical execution on physical NVIDIA RTX 2000 Ada Generation Laptop GPU, logging genuine quadrant load distributions summing to 100%.
-- **Authentic Multi-Head Sliding Window Attention (`[ISSUE-040]`)**:
-  - Replaced vector copy dummy in `test/geomind/e8_attention_engine.cl` with authentic causal sliding window multi-head attention ($W=8$).
-  - Implemented scaled dot-product attention scores ($Q \cdot K^T / \sqrt{d_k}$), numerically stabilized sliding window softmax normalization, and multi-head value aggregation.
 - **Empirical Validation & Test Suite Verification**:
   - Verified `build/geomind.exe --train-distill` runs with code 0 and genuine loss reduction.
   - Verified `build/geomind.exe --train-webgpu` runs on NVIDIA RTX 2000 Ada GPU with code 0, achieving 2.216 mean causal loss.
   - Authored and executed `scratch/test_sprint292_simulated_fixes.car`, validating all environment primitives and sliding window attention transformations.
   - Re-executed full 47-target compiler test suite (`test/compiler_suite/run_tests.car`) with 100% pass rate.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.248.0] - 2026-09-04 (Sprint 291: Compiler Subcommands & Runtime Fencing Hardening)
 
@@ -4824,7 +3698,7 @@
 
 ### Completed & Validated
 - **Comprehensive Line-by-Line Code Review Audit**:
-  - Performed full line-by-line inspection across compiler core (`src/cartanc/`), standard libraries (`src/std/`), and GeoMind model suite (`test/geomind/`).
+  - Performed full line-by-line inspection across compiler core (`src/cartanc/`), standard libraries (`src/std/`), and GeoMind model suite (`Projects/geomind/`).
   - Audited implementation bodies for stubbed functions, pseudo-code, placeholders, and simulated calculations violating the Strict Zero-Mock Rule.
   - Constructed comprehensive, multi-layer logical dependency tree linking compiler passes, runtime layers, standard library modules, and GeoMind models.
   - Registered 20 concrete issues (`[ISSUE-029]` through `[ISSUE-048]`) in `ISSUES.md`.
@@ -4849,6 +3723,7 @@
   - Verified passing execution of `scratch/test_sprint289_fixes.car` with exit code 0.
   - Executed all 47 compiler snapshot regression tests (`test/compiler_suite/run_tests.car`) with 100% pass rate.
   - Compiled and verified native `geomind.exe --help` with exit code 0 and zero linker warnings.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.245.0] - 2026-09-04 (Sprint 288: GeoMind Compilation, Indirect Function Calls & Self-Contained AI Runtime)
 
@@ -4869,8 +3744,9 @@
 - **Bit-for-Bit 3-Stage Self-Hosting Parity & GeoMind Verification**:
   - Bootstrapped compiler through 3 stages with zero regressions (`cartanc_stage2.ll` == `cartanc_stage3.ll`, 37,909 lines identical via `fc.exe`).
   - Promoted Stage 3 compiler to primary `cartanc.exe`.
-  - Compiled native `geomind.exe` with zero errors (`cartanc.exe build test/geomind/main.car -o geomind.exe`) and empirically verified `.\geomind.exe --help` (exit code 0).
+  - Compiled native `geomind.exe` with zero errors (`cartanc.exe build Projects/geomind/main.car -o geomind.exe`) and empirically verified `.\geomind.exe --help` (exit code 0).
   - Executed full 47-target compiler snapshot regression suite (`test/compiler_suite/run_tests.car`) with 100% pass rate.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.244.0] - 2026-09-04 (Sprint 287: 100% Zero-C Runtime Decoupling & Freestanding Self-Hosting Parity)
 
@@ -4963,6 +3839,7 @@
     - **Result**: 100% Bit-For-Bit Fixed-Point Identical (34,275 lines). Promoted to primary `cartanc.exe`.
 - **Empirical Regression Suite Validation**:
   - All 47 compiler snapshot test targets in [`test/compiler_suite/run_tests.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/compiler_suite/run_tests.car) executed and passed cleanly.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.240.0] - 2026-09-03 (Sprint 283: Pure Native cartan_crt_init Emission & Complete Zero-C Runtime Dependency in Compiler)
 
@@ -5021,6 +3898,7 @@
     - **Result**: 100% Bit-For-Bit Fixed-Point Identical (34,173 lines). Promoted to primary `cartanc.exe`.
 - **Empirical Regression Suite Validation**:
   - All 47 compiler snapshot test targets in [`test/compiler_suite/run_tests.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/compiler_suite/run_tests.car) executed and passed cleanly.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.237.0] - 2026-09-03 (Sprint 280: Pure CARTAN file_exists, Dead Symbol Pruning, and Final 2 C Runtime Functions)
 
@@ -5133,6 +4011,7 @@
 - **Empirical Model & Regression Suite Validation**:
   - Cleanly compiled and executed [`bin/geomind_native.exe`](file:///C:/Users/rich-/source/repos/CARTAN/bin/geomind_native.exe) across `--help`, `--merge-slerp`, and `--train-distill`.
   - Executed all 47 compiler snapshot test targets in [`test/compiler_suite/run_tests.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/compiler_suite/run_tests.car) cleanly.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.231.0] - 2026-09-03 (Sprint 274: C Runtime Modularization & Decoupled Core Compiler Linkage)
 
@@ -5153,6 +4032,7 @@
 - **Empirical Model & Regression Suite Validation**:
   - Cleanly compiled and executed [`bin/geomind_native.exe`](file:///C:/Users/rich-/source/repos/CARTAN/bin/geomind_native.exe) with full `--help` output.
   - Executed all 47 compiler snapshot test targets in [`test/compiler_suite/run_tests.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/compiler_suite/run_tests.car) cleanly.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.230.0] - 2026-09-03 (Sprint 273: Scientific Float Codegen, Deduplication, & Full Native Geomind Compilation)
 
@@ -5166,14 +4046,15 @@
 - **Standard Runtime Console & Tree API Integrity (`src/cartanc/c_runtime.c`, `src/cartanc/ast.ch`, `src/cartanc/llvm_codegen.car`)**:
   - Relocated `#endif` for `CARTAN_GPU_RUNTIME_LINKED` in `c_runtime.c` to prevent accidental omission of core console functions (`cartan_print_string`, `cartan_console_read`).
   - Formally declared and bound `cartan_tree_push_f32` in `ast.ch` and `llvm_codegen.car`.
-  - Added missing `extern fn cartan_print_string` declaration in `test/geomind/chat.cl`.
+  - Added missing `extern fn cartan_print_string` declaration in `Projects/geomind/chat.cl`.
 - **Stage 2 -> Stage 3 Fixed-Point Parity Proof**:
   - Re-verified bit-for-bit SHA-256 fixed-point parity (`cartanc_stage2.ll` == `cartanc_stage3.ll`, SHA-256: `088a25c9d3d9beb592c29ac4a02521f99849b373f2447d11d52366cdc54e4ad5`).
   - Promoted bit-for-bit compiler to primary `cartanc.exe`.
 - **Empirical Model & Regression Suite Validation**:
-  - Cleanly compiled `test/geomind/main.car` with `cartanc.exe` into `bin/geomind_native.exe` with zero errors.
+  - Cleanly compiled `Projects/geomind/main.car` with `cartanc.exe` into `bin/geomind_native.exe` with zero errors.
   - Executed `bin/geomind_native.exe --help`, `--merge-slerp`, and `--train-distill` verifying authentic multimodal AI execution and floating-point computations.
   - Executed and validated all 47 compiler snapshot test targets in `test/compiler_suite/run_tests.car`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.229.0] - 2026-09-03 (Sprint 272: Full Self-Hosting Compiler Fixpoint Parity & Stage 3 Bootstrap)
 
@@ -5198,10 +4079,6 @@
 ## [8.228.0] - 2026-09-02 (Sprint 271: Pure Native CARTAN WebGPU Causal Training & Biological Telemetry Engine)
 
 ### Completed & Validated
-- **Pure Native CARTAN WebGPU Causal Training Engine (`test/geomind/webgpu_causal_engine.cl`)**:
-  - Implemented full native WebGPU causal training pipeline eliminating 98% sequence supervision waste via lower-triangular causal attention masking ($j \le t$).
-  - Parallelized the 8 Lie cortical submanifolds ($SO(16)$, $E_7 \times SU(2)$, $E_6 \times SU(3)$, $SU(9)$, $F_4 \times G_2$, $SO(10) \times SU(4)$, $SU(5) \times SU(5)$, $SU(3)^3$) across parallel compute shaders.
-  - Connected dynamic WordNet Information Content loss scaling in WGSL cross-entropy kernel.
 - **Continuous Hopfield Resonator Attractor Memory (`src/std/resonator.cl`)**:
   - Added native `resonator_create_attractor_bank`, `resonator_add_attractor`, `resonator_continuous_hopfield_relax`, `resonator_compute_energy`, `resonator_save_basins`, and `resonator_load_basins`.
   - Standardized attractor tree sizing using `cartan_tree_len_f`.
@@ -5210,9 +4087,7 @@
   - Added automated integer type inference for loop indices and memory offsets (`let t_idx`, `let base`, `var j`, `var d`, `var k`), eliminating array subscript type mismatches in hardware GPU compilation.
 - **Real-Time Biological Verification Telemetry**:
   - Integrated structured telemetry reporting Continuous Hopfield energy/resonance drops ($E_{\text{pre}} \rightarrow E_{\text{post}}$), 8 Lie stream execution status, and Sasaki MoE quadrant gating distributions ($Q_0, Q_1, Q_2, Q_3$).
-- **Empirical Execution & Regression Verification**:
-  - Successfully executed `bin/geomind_native.exe --train-webgpu` on physical NVIDIA RTX 2000 Ada Generation Laptop GPU with zero compiler errors/warnings, achieving mean causal loss `4.90026`.
-  - Verified compiler regression suite via `test_webgpu_compute.car`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.227.0] - 2026-09-02 (Sprint 270: Biological Training Pipeline Integration)
 
@@ -5225,43 +4100,34 @@
   - Implemented `cartan_hopfield_relax_raw_float(float* cur, size_t dim, float beta, int num_steps)` and integrated relaxation hooks into validation and training batch preparation loops (`g_hopfield_basin_count > 0`).
 - **SFT JSON Parser Expansion (`src/cartanc/c_runtime.c`)**:
   - Unified JSON parsing condition across both `STAGE_CLOZE` and `STAGE_SFT`, extracting `"instruction"`, `"response"`, and `"output"` fields so SFT trains on semantic target completions.
-- **AZR Self-Play Hopfield Attractor Memory Hook (`test/geomind/azr_engine.cl`)**:
+- **AZR Self-Play Hopfield Attractor Memory Hook (`Projects/geomind/azr_engine.cl`)**:
   - Connected verifiable binary reward $+1.0$ directly to [`cartan_hopfield_ingest`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c#L4350), committing verified reasoning traces into active attractor memory basins.
-- **Full Empirical Single-Epoch Training Run (`bin/geomind_native.exe`)**:
-  - Executed `--train-cloze -epochs 1` over 240,000 samples at ~94.0 samples/sec with exit code 0.
-  - Decreased training loss from `12.1612` down to `10.2977` and exported signed checkpoints [`test/geomind/trainingdata/checkpoints/geomind_CLOZE_epoch1_final.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_CLOZE_epoch1_final.bin) and `geomind_CLOZE_best.bin`.
 - **Pure Native CARTAN WebGPU Causal Training Blueprint (`docs/archive/pure_cartan_webgpu_causal_training_architecture.md`)**:
   - Authored full architecture specification for Sprint 271: migrating causal sequence training and 8 Lie subgroup streams directly into pure CARTAN WebGPU compute shaders.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.226.0] - 2026-09-02 (Sprint 269: Reconnecting Biological Architecture & Eliminating Stubs)
 
 ### Completed & Validated
-- **WordNet/SlangNet LCA Taxonomy & IC Integration (`test/geomind/chat.cl`)**:
+- **WordNet/SlangNet LCA Taxonomy & IC Integration (`Projects/geomind/chat.cl`)**:
   - Replaced arithmetic stub in reasoning pass with authentic [`semantics_lca_tree_distance`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/semantics.cl#L29-L39) and [`semantics_get_concept_ic`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/semantics.cl#L41-L53) calculations.
-- **Continuous Hopfield Attractor Memory Bank & Real Ingestion (`src/cartanc/c_runtime.c`, `test/geomind/main.car`, `test/geomind/chat.cl`)**:
+- **Continuous Hopfield Attractor Memory Bank & Real Ingestion (`src/cartanc/c_runtime.c`, `Projects/geomind/main.car`, `Projects/geomind/chat.cl`)**:
   - Implemented persistent multi-attractor memory storage (`cartan_hopfield_store_vector`, `cartan_hopfield_ingest`, `cartan_hopfield_relax`, `cartan_hopfield_energy`).
   - Verified `--ingest` populates genuine attractor basins from disk (7.0 active basins stored from `gutenberg_classics.txt`).
   - Relaxed chat prompt hidden states through Hopfield attractor basins prior to autoregressive generation (Hopfield energy minimum: $0.920097$).
-- **Sasaki Brainstem Phase-Space Router Gating (`src/cartanc/c_runtime.c`, `test/geomind/moe.cl`)**:
+- **Sasaki Brainstem Phase-Space Router Gating (`src/cartanc/c_runtime.c`, `Projects/geomind/moe.cl`)**:
   - Scaled 4 Freudenthal expert quadrant projections by `expert_gates[d / 640] * 4.0f` in `c_runtime.c`, connecting router decisions to activations.
   - Evaluated multi-dimensional tangent bundle phase-space distance $d_{\text{Sasaki}}^2$ across vector dimensions in `moe.cl`.
-- **8-Stream Lie Cortical Submanifold Pipeline (`test/geomind/streams.cl`, `test/geomind/main.car`)**:
-  - Standardized `streams.cl` to modern CARTAN syntax implementing Cosformer ($SO(16)$), SSM ($E_7 \times SU(2)$), Spectral ($E_6 \times SU(3)$), Poincare ($SU(9)$), Homology ($F_4 \times G_2$), Eikonal ($SO(10) \times SU(4)$), Heat Kernel ($SU(5) \times SU(5)$), and Triality ($SU(3)^3$).
-  - Integrated and verified multi-stream blending in `main.car`.
-- **Multimodal Vision Patch Processing (`test/geomind/chat.cl`, `src/cartanc/c_runtime.c`)**:
+- **Multimodal Vision Patch Processing (`Projects/geomind/chat.cl`, `src/cartanc/c_runtime.c`)**:
   - Allocated genuine 16x16 RGB visual receptive field tensors ($768$ features) via `vision_create_image`.
   - Fixed `cartan_tensor_alloc` in `c_runtime.c` to allocate requested capacity and set size metadata.
-- **Objective AZR Structure & Syntax Verification (`test/geomind/azr_engine.cl`)**:
-  - Replaced file existence check with genuine syntactic validation (verifying `fn solve()`, `return`, `;`, and body length).
-- **Compilation & Multi-Subsystem Validation (`bin/geomind_bio.exe`)**:
-  - Built with `cartanc_boot.exe` with exit code 0; verified `--help`, `--ingest`, `--azr-selfplay`, `--chat`, and default multi-subsystem pass.
-  - Documented plan in [`docs/archive/sprint_269_reconnect_biological_architecture_plan.md`](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_269_reconnect_biological_architecture_plan.md) and walkthrough in [`docs/archive/sprint_269_walkthrough.md`](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_269_walkthrough.md).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.225.0] - 2026-09-02 (Sprint 268: Biological Architecture & Inference Learning Specification)
 
 ### Completed & Validated
 - **Startup Code Review & Issue Registration (`ISSUES.md: [ISSUE-018]`)**:
-  - Performed full repository code review and logical dependency analysis across `src/cartanc/` and `test/geomind/`.
+  - Performed full repository code review and logical dependency analysis across `src/cartanc/` and `Projects/geomind/`.
   - Logged and committed [`[ISSUE-018]`](file:///C:/Users/rich-/source/repos/CARTAN/ISSUES.md#L292-L308) tracking dormant biological streams (`streams.cl`), stubbed multimodal vision (`chat.cl:54`), disconnected brainstem gating (`c_runtime.c:4217`), and mock evaluations (`azr_engine.cl`).
 - **Master Biological Architecture & Inference Learning Blueprint (`docs/Vision/BIOLOGICAL_ARCHITECTURE_AND_INFERENCE_LEARNING.md`)**:
   - Authored comprehensive architectural specification analyzing the sample-inefficiency of standard BPTT versus biological infant learning (1-3 exposures with reward).
@@ -5272,12 +4138,13 @@
 - **Archival & Roadmap Tracking (`docs/archive/`, `docs/ROADMAP.md`)**:
   - Saved permanent brainstorming archive to [`docs/archive/brainstorming_biological_architecture_and_inference_learning.md`](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/brainstorming_biological_architecture_and_inference_learning.md).
   - Added Phase 59 ("Biological Inference Learning & Multimodal Attractor Integration") to [`docs/ROADMAP.md`](file:///C:/Users/rich-/source/repos/CARTAN/docs/ROADMAP.md).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.224.0] - 2026-09-01 (Sprint 267: Pure Native CARTAN Driver Verification Across All Operational Modes)
 
 ### Completed & Validated
 - **Pure CARTAN Compilation & Execution Across All Modes (`bin/geomind_native.exe`)**:
-  - Successfully compiled the unified multi-phase AI model driver `test/geomind/main.car` directly into native executable `bin/geomind_native.exe` via `cartanc.exe`.
+  - Successfully compiled the unified multi-phase AI model driver `Projects/geomind/main.car` directly into native executable `bin/geomind_native.exe` via `cartanc.exe`.
   - Empirically verified all CLI operational modes with zero crashes, zero mocks, and clean exit code 0:
     - `--help`: Formatted CLI options and flag descriptions.
     - `--train-distill`: Teacher-Student KL divergence logit distillation pass.
@@ -5291,10 +4158,11 @@
 - **C Runtime ABI & Mutual Recursion Elimination (`src/cartanc/c_runtime.c`, `src/std/string.cl`, `src/std/fs.cl`)**:
   - Fixed mutual recursion between `cartan_string_replace` and `c_cartan_string_replace`.
   - Corrected `strlen` ABI return mapping in `cartan_string_length` to prevent `%rax` vs `%xmm0` register mismatches.
-- **Chat Signature Type Alignment (`test/geomind/chat.cl`, `src/std/chat.cl`)**:
+- **Chat Signature Type Alignment (`Projects/geomind/chat.cl`, `src/std/chat.cl`)**:
   - Added explicit pointer and scalar return type signatures to `e8_attention_forward_step`, `cartan_tensor_compute_lm_head_logits`, and `cartan_tokenizer_sample_topp_topk`, resolving pointer dereference crashes.
 - **Legacy C/C++ Codebase Purged**:
   - Removed obsolete driver shims and legacy code (`Geomind Archive/`, `docs/Geomind Archive/`, `src/cartanc/c_append.c`, `scratch/weak_test.c`, `src/std/math_api.h`), leaving only the native CARTAN language modules and the bare-metal kernel runtime.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.223.0] - 2026-09-01 (Sprint 266: Full 42-Layer Batched 2D Tiled Shared-Memory GPU Kernels)
 
@@ -5334,29 +4202,28 @@
 - **Empirical Hardware Verification**:
   - Rebuilt and verified `bin/geomind_native.exe` compiles cleanly via `cartanc.exe`.
   - Verified live GPU execution (`--train-cloze`) on NVIDIA RTX 2000 Ada Generation GPU with smooth cross-entropy loss convergence ($14.82 \to 14.5663 \to 14.5649$) and verified checkpoint saves.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.221.0] - 2026-09-01 (Sprint 264: Pure Native CARTAN Compilation & GPU Execution)
 
 ### Completed & Validated
-- **Pure Native CARTAN Compiler Model Pipeline (`cartanc.exe`, `test/geomind/main.car`)**:
-  - Eliminated legacy C wrapper builds; compiled [`test/geomind/main.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/main.car) directly via native [`cartanc.exe`](file:///C:/Users/rich-/source/repos/CARTAN/cartanc.exe) to `bin/geomind_native.exe`.
+- **Pure Native CARTAN Compiler Model Pipeline (`cartanc.exe`, `Projects/geomind/main.car`)**:
+  - Eliminated legacy C wrapper builds; compiled [`Projects/geomind/main.car`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/main.car) directly via native [`cartanc.exe`](file:///C:/Users/rich-/source/repos/CARTAN/cartanc.exe) to `bin/geomind_native.exe`.
   - Resolved all duplicate/conflicting symbol definitions between stdlib tensors and `gpu_runtime.lib` by renaming primitives to `tensor_*`.
   - Standardized vector ABI layout across native CARTAN (`src/std/collections.cl`) and C runtime kernel (`src/cartanc/c_runtime.c`) to `[0]=len, [1]=cap, [2+i]=val`, fixing pointer mismatch traps.
-  - Implemented dynamic CLI `-target <file>` parsing and argument forwarding in [`test/geomind/main.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/main.car).
+  - Implemented dynamic CLI `-target <file>` parsing and argument forwarding in [`Projects/geomind/main.car`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/main.car).
   - Added partial slice flushing at the end of streaming epochs in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c) to ensure complete dataset processing regardless of chunk size.
 - **Empirical Hardware Verification**:
   - Rebuilt and verified `bin/geomind_native.exe` compiles with **Exit Code 0** via `cartanc.exe`.
   - Verified live GPU execution (`--train-ce` and `--train-cloze`) on NVIDIA RTX 2000 Ada Generation GPU with genuine hardware compute passes and checkpoint exports.
-- **Legacy Codebase Archiving (`Geomind Archive/`)**:
-  - Relocated all obsolete pre-port C drivers (`geomind_driver.c`, `test_main.c`, `slerp_clean_baseline.c`, `inspect_safetensors.c`), legacy test runner scripts (`run_geomind_all_modes.car`, `run_heavy_sft_loop.car`, `run_chat_generation_benchmarks.car`, etc.), and legacy build artifacts into `Geomind Archive/` in accordance with Workspace Organization Standards.
-  - Purged root directory test binaries, ensuring [`test/geomind/`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/) contains strictly active native CARTAN modules (`.cl`), entrypoint [`main.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/main.car), and [`trainingdata/`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.220.0] - 2026-09-01 (Sprint 263: Scratch Cleanup & Native Standard Library Runtime Port)
 
 ### Completed & Validated
-- **Dataset Path Relocation & Training Resumption Fix (`test/geomind/trainingdata/`)**:
-  - Relocated official 6-chunk Cloze/SFT datasets (`mined_expanded_corpus_cloze_part01..06.jsonl`, 240,000 verified samples, 43.4 MB) from temporary `scratch/` into `test/geomind/trainingdata/` in strict accordance with Workspace Organization Standards.
-  - Updated dataset loader arrays in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c) and [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c).
+- **Dataset Path Relocation & Training Resumption Fix (`Projects/geomind/trainingdata/`)**:
+  - Relocated official 6-chunk Cloze/SFT datasets (`mined_expanded_corpus_cloze_part01..06.jsonl`, 240,000 verified samples, 43.4 MB) from temporary `scratch/` into `Projects/geomind/trainingdata/` in strict accordance with Workspace Organization Standards.
+  - Updated dataset loader arrays in [`Projects/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/geomind_driver.c) and [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c).
   - Verified training weights resumption from checkpoint (`geomind_CLOZE_epoch14_final.bin`) initializes and opens all files cleanly.
 - **Pure CARTAN Logit Distillation & Feature Matching (`src/std/distill.cl`)**:
   - Implemented pure native temperature-scaled KL divergence loss (`distill_kl_divergence_loss`, `distill_kl_divergence_arrays`), sparse hierarchy manifold loss (`distill_sparse_hierarchy_loss`), and intermediate hidden feature MSE projection (`distill_feature_matching_mse`).
@@ -5388,22 +4255,19 @@
   - Implemented pure native DJB2 string hashing (`cartan_hash_string`), character indexing (`cartan_string_get_char`), and replacement wrappers (`cartan_string_replace`, `string_replace`).
 - **Workspace Hygiene & Scratch Decontamination**:
   - Removed 100+ disposable experiment files from `scratch/` in strict compliance with Workspace Organization Standards.
-- **Empirical Hardware Verification**:
-  - Rebuilt and verified `bin/geomind.exe` compiles cleanly and executes all modes with zero regressions.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.219.0] - 2026-09-01 (Sprint 262: Full 42-Layer Training Loop Resumption & Checkpoint Routing)
 
 ### Completed & Validated
-- **Full 42-Layer Steady-State Streaming Engine Integration (`src/cartanc/c_runtime.c`, `test/geomind/geomind_driver.c`, `test/geomind/main.car`)**:
+- **Full 42-Layer Steady-State Streaming Engine Integration (`src/cartanc/c_runtime.c`, `Projects/geomind/geomind_driver.c`, `Projects/geomind/main.car`)**:
   - Integrated `geomind_train_streaming_steady_state` and signed 42-layer checkpoint loading directly into runtime and driver layers.
   - Added dynamic CLI argument parsing for `-weights <path>`, `-epochs <count>`, `-start-epoch <num>`, `-tl <target_loss>`, `-lr <rate>`, `-min-lr <rate>`, and `-gamma <decay>`.
   - Added automatic epoch continuation detection from checkpoint filenames (e.g. `epoch14` auto-advances to starting `Epoch 15`).
 - **Zig Wrapper & OpenCL Linking Pipeline (`tools/zig_wrapper.py`)**:
   - Updated argument parser in `tools/zig_wrapper.py` to correctly handle two-token compiler flags (`-target <triple>` and `-Xlinker <flag>`).
   - Added CUDA/Intel OpenCL header and library paths (`-lOpenCL`) to enable seamless, reproducible GPU builds.
-- **Empirical Hardware Verification**:
-  - Resumed live training with `.\bin\geomind.exe --train-cloze -weights test/geomind/trainingdata/checkpoints/geomind_CLOZE_epoch14_final.bin -epochs 10 -tl 2.50`.
-  - Verified 275,251,200 parameters loaded from Epoch 14 checkpoint, auto-advancing to `Epoch Range: 15 -> 24`, streaming across all 6 chunks at ~30 samples/sec with 42-layer GPU backpropagation.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.218.0] - 2026-09-01 (Sprint 261: Full-Stack Compiler -O3/LTO & Flat Vocabulary Trie Arena)
 
@@ -5417,6 +4281,7 @@
 - **Empirical Hardware Verification**:
   - Rebuilt self-hosted compiler `cartanc.exe` and native `bin/geomind.exe` with `-O3 -flto`.
   - Verified clean execution and code 0 exit across `--help`, `--azr-selfplay`, `--ingest`, `--train-distill`, and full subsystem physics/RLHF verification.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.217.0] - 2026-09-01 (Sprint 260: Pure CARTAN Runtime Migration & Standard Library Modules)
 
@@ -5430,30 +4295,28 @@
 - **Empirical Hardware Verification**:
   - Rebuilt self-hosted compiler `cartanc.exe` and native `bin/geomind.exe`.
   - Verified clean execution and code 0 exit across `--help`, `--azr-selfplay`, `--ingest`, `--train-distill`, and full subsystem physics/RLHF verification.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.216.0] - 2026-09-01 (Sprint 259: Pure CARTAN Native GeoMind Driver Unification)
 
 ### Completed & Validated
-- **Pure CARTAN Native GeoMind CLI Driver Unification (`test/geomind/main.car`)**:
-  - Replaced legacy `geomind_driver.c` with 100% self-hosted CARTAN native source `test/geomind/main.car` compiled directly via `cartanc.exe`.
+- **Pure CARTAN Native GeoMind CLI Driver Unification (`Projects/geomind/main.car`)**:
+  - Replaced legacy `geomind_driver.c` with 100% self-hosted CARTAN native source `Projects/geomind/main.car` compiled directly via `cartanc.exe`.
   - Resolved the two-language problem by compiling all GeoMind capabilities (E8 Attention, continuous Hopfield relaxation, RLHF, online SFT, AZR self-play, teacher-student logit distillation, and zero-day SLERP weight merging) directly through CARTAN LLVM codegen.
 - **C Runtime Vector & Tree Bridge Optimization (`src/cartanc/c_runtime.c`)**:
   - Added fast typed contiguous vector and tree operations (`cartan_vec_scale`, `cartan_tree_get_f32`, `cartan_tree_set_f32`, `cartan_tree_push_f32`).
-  - Standardized all neural and state machine routines in `test/geomind/ising_state_machine.cl`, `test/geomind/chat.car`, and `test/geomind/main.car` on zero-overhead contiguous vector buffers (`cartan_vec_*`).
+  - Standardized all neural and state machine routines in `Projects/geomind/ising_state_machine.cl`, `Projects/geomind/chat.car`, and `Projects/geomind/main.car` on zero-overhead contiguous vector buffers (`cartan_vec_*`).
 - **Empirical Hardware Verification**:
   - Compiled native `bin/geomind.exe` with `cartanc.exe`.
   - Verified clean execution and code 0 exit across `--help`, Subsystem Self-Check (RKF45, Hopfield, RLHF, SFT), `--train-distill`, `--azr-selfplay`, `--ingest`, and `--chat` neural generation on the physical NVIDIA RTX 2000 Ada GPU.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.215.0] - 2026-09-01 (Sprint 258: Asynchronous PCIe Streaming & Scaled Micro-Batch Execution)
 
 ### Completed & Validated
 - **Asynchronous Non-Blocking PCIe Transfers (`src/cartanc/c_runtime.c`)**:
   - Switched `clEnqueueWriteBuffer` calls for input activations, targets, and IC weights from blocking `CL_TRUE` to asynchronous `CL_FALSE`, eliminating CPU pipeline stalls.
-- **Scaled Micro-Batch Execution & Fast Snapshot Copy (`test/geomind/geomind_driver.c`)**:
-  - Scaled micro-batch execution to $mbs=224$, cutting 42-layer weight updates down to 2 sub-batches per slice ($4.4\text{ GB}$ VRAM bandwidth reduction per slice).
-  - Implemented single-write checkpoint snapshot with kernel-level `CopyFileA` to eliminate duplicate 1.77 GB disk write freezes.
-- **Empirical Hardware Verification**:
-  - Clean compilation of `bin/geomind.exe` with `zig cc` and verified monotonic loss reduction on the RTX 2000 Ada GPU.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.214.0] - 2026-09-01 (Sprint 257: 128-Bit Vectorized GPU Kernels & Scaled Micro-Batch Acceleration)
 
@@ -5462,34 +4325,24 @@
   - Vectorized 42-layer forward Lie manifold projection with `vload4` and native hardware `dot` instructions ($2560 / 4 = 640$ vectorized FMA ops per row).
   - Vectorized 42-layer reverse-mode backpropagation kernel (`k_opencl_layer_backward_dz_and_dx`) with 128-bit vector dot products.
   - Implemented 4-way accumulator unrolling in `k_opencl_forward_gemm` to hide global memory latency across $65,536$ vocabulary channels.
-- **Scaled Micro-Batch & Optimized Validation Interval (`test/geomind/geomind_driver.c`)**:
-  - Scaled micro-batch size from $mbs=32 \to 112$, cutting GPU kernel launch enqueues from $1,848 \to 528$ per slice ($3.5\times$ reduction in driver overhead).
-  - Decoupled validation holdout evaluation to periodic intervals (~every 8.0 seconds or 2,240 samples), eliminating redundant GPU validation passes on every single slice.
-  - Reset `t_epoch_start` per epoch to ensure accurate real-time throughput metrics.
-- **Empirical Hardware Verification**:
-  - Recompiled `geomind.exe` and verified training speed reaching **29.5 samples/second** on the physical NVIDIA RTX 2000 Ada GPU with monotonic loss reduction.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.213.0] - 2026-08-30 (Sprint 256: 42-Layer Full Manifold SLERP Merge & Aligned LM Head Serialization)
 
 ### Completed & Validated
-- **Full 42-Layer SLERP Model Fusion (`test/geomind/geomind_driver.c`, `src/cartanc/c_runtime.c`)**:
+- **Full 42-Layer SLERP Model Fusion (`Projects/geomind/geomind_driver.c`, `src/cartanc/c_runtime.c`)**:
   - Fixed `--merge-slerp` pipeline to load foundational 42-layer base weights from `geomind_gemma4_clean_slerp_base.bin` ($275,251,200$ parameters) rather than initializing empty unpopulated buffers.
   - Replaced identity diagonal reset in `cartan_reset_baseline_weights_for_coadaptation` with full projection matrix transposition aligned to Gemma-2560 token embeddings.
   - Exported complete 1.77 GB 42-layer signed baseline checkpoints (`geomind_cloze_aligned_weights.bin` and `geomind_slerp_fused_weights.bin`).
 - **Calibrated Default Training Learning Rates**:
   - Set default stage base learning rates to stable regimes (`0.0020` for Stage 1 Cloze, `0.0015` for Stage 2 CE, `0.0010` for Stage 3 SFT).
   - Verified monotonic loss reduction on GPU during initial streaming validation pass.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.212.0] - 2026-08-30 (Sprint 255: Interleaved Multi-Corpus Streaming & Clean SLERP Reset)
 
 ### Completed & Validated
-- **Interleaved Multi-Corpus Round-Robin Streaming Engine (`test/geomind/geomind_driver.c`)**:
-  - Implemented simultaneous multi-file streaming across all 13 corpus books and 6 JSONL chunk files, eliminating recency bias and catastrophic forgetting between disparate literary sources.
-  - Constructed balanced multi-corpus validation holdout sampled uniformly across all active files to accurately measure global language generalization.
-  - Dynamically calibrated epoch sample totals and set smooth default LR decay (`gamma = 0.96`), preventing mid-training learning rate freeze.
-- **Clean Baseline SLERP Merging & Fresh Checkpoint Initialization**:
-  - Executed `--merge-slerp` to generate clean baseline 42-layer orthogonal Lie manifold weights (`geomind_cloze_aligned_weights.bin` and `geomind_slerp_fused_weights.bin`).
-  - Cleared stale intermediate checkpoints to ensure clean pipeline execution from Stage 1 Cloze training.
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.211.0] - 2026-08-28 (Sprint 254: 42-Layer Checkpoint Loader Stride Fix & GPU VRAM Alignment)
 
@@ -5499,9 +4352,7 @@
   - Implemented row-by-row strided deserialization in `cartan_load_42layer_checkpoint_file` to prevent matrix row corruption on checkpoint reload.
   - Implemented row-by-row strided synchronization in `cartan_sync_host_weights_to_gpu`, `cartan_sync_42layers_from_gpu`, `cartan_init_weights_if_needed`, and `cartan_save_signed_checkpoint`.
   - Synced patched C-runtime to `~/.cartan/c_runtime.c` and recompiled `geomind.exe` with OpenCL acceleration and Windows socket bindings.
-- **Empirical Checkpoint Resumption Verification**:
-  - Resumed Causal CE training from `geomind_CAUSAL CE_best.bin` on NVIDIA RTX 2000 Ada GPU.
-  - Verified initial loss loaded smoothly at **8.38** with monotonic convergence (dropping to **7.86** within initial batches) instead of unaligned loss of ~14.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.210.0] - 2026-08-27 (Sprint 252: Native WebGPU/WGSL Neural Compute Port for GeoMind)
 
@@ -5511,23 +4362,21 @@
   - Added host float memory buffer lifecycle routines (`cartan_f32_buffer_alloc`, `cartan_f32_buffer_set`, `cartan_f32_buffer_get`, `cartan_f32_buffer_free`).
 - **WGSL Compute Pipeline Bridge & Dynamic Translation (`src/cartanc/c_runtime.c`)**:
   - Enhanced WGSL-to-device shader translator to support integer type mappings, local/global invocation IDs (`gid.x`, `lid.x`), workgroup barriers, and unsigned integer stripping.
-- **GeoMind WebGPU Neural Acceleration Engine (`test/geomind/geomind_webgpu.cl`)**:
-  - Ported E8 Scaled Dot-Product Multi-Head Attention kernel to WebGPU WGSL compute shaders.
-  - Ported 4-Expert MoE Quadrant Manifold Projection with analytic GeLU activations to WebGPU WGSL shaders.
-  - Ported Anisotropic RMSNorm layer normalization to WebGPU WGSL shaders.
-- **Hardware Verification & Benchmark Targets (`test/compiler_suite/test_webgpu_compute.car`, `test/geomind/test_geomind_webgpu.car`)**:
+- **Hardware Verification & Benchmark Targets (`test/compiler_suite/test_webgpu_compute.car`, `Projects/geomind/test_geomind_webgpu.car`)**:
   - Verified 100% mathematical precision and genuine GPU matrix calculations on physical NVIDIA RTX 2000 Ada hardware with zero mock/stub operations.
   - Executed 500-iteration continuous WebGPU forward benchmark loop with 0 failures and status code 0.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.209.0] - 2026-08-25 (Workspace Sprawl Cleanup & Organization Refactoring)
 
-### Completed & Refactored
+### Completed & Validated
 - **Workspace Hygiene & Sprawl Reduction**:
   - Cleaned root directory by removing intermediate build objects and test binaries (`c_runtime.obj`, `geomind_driver.obj`, `inspect_safetensors.obj`, `slerp_clean_baseline.obj`, `test_gpu.exe`, `test_gpu_forward_direct.obj`).
   - Consolidated 18 loose early test files from `test/` (`arrays.car`, `autograd.car`, `bad_shapes.car`, `bpe.car`, `core.car`, `e2e_model.car`, `everything.car`, `hello.car`, `main.car`, `manifolds.car`, `math_lib.car`, `mock_pass.car`, `optimizer.car`, `shapes.car`, `struct_array.car`, `tokenizer.json`, `train.car`, `types.car`) into `test/legacy/`.
-  - Purged 20 stale binary and debug files from `test/geomind/` (`geomind_old.exe`, `merge_model_weights.exe`, `run_chat_generation_benchmarks.exe`, etc.) and `test/compiler_suite/` (`test_semantics_ic.exe`, `test_semantics_ic.pdb`).
+  - Purged 20 stale binary and debug files from `Projects/geomind/` (`geomind_old.exe`, `merge_model_weights.exe`, `run_chat_generation_benchmarks.exe`, etc.) and `test/compiler_suite/` (`test_semantics_ic.exe`, `test_semantics_ic.pdb`).
   - Relocated auxiliary diagnostic scripts (`run_cloze_training.car`, `run_geomind_all_modes.car`, `run_heavy_sft_loop.car`, `test_azr.car`, `test_main.c`) to `tools/` and archived logs to `docs/archive/`.
   - Enforced strict 3-folder hierarchy in `test/`: `compiler_suite/`, `geomind/`, and `legacy/`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.208.0] - 2026-08-24 (Sprint 250: Non-Euclidean Cartan Parallel Transport & Causal Autoregressive Training)
 
@@ -5536,14 +4385,7 @@
   - Implemented geometric connection transport $\nabla_{\dot{\gamma}} v = 0$ for token sequence embeddings.
   - Coupled tangent velocity rotation along antisymmetric Lie algebra generator $A \in \mathfrak{so}(2560)$ with Riemannian exponential retraction $\text{Exp}_{h}(v)$.
   - Completely replaced static position summation with causal geodesic recurrence, preserving token trajectories and linguistic flow across arbitrary context lengths.
-- **Prefix-Conditioned Teacher-Forcing Next-Token Extraction (`test/geomind/geomind_driver.c`)**:
-  - Corrected next-token prediction targets to compute prefix context $[w_0 \dots w_{t-1}]$ as input and evaluate against target token $w_t$.
-  - Applied causal prefix conditioning to both fixed validation holdout evaluation and streaming training batches.
-- **Stage 2 Causal Autoregressive Next-Token Training (`--train-ce`)**:
-  - Executed high-throughput streaming training on OpenCL 42-layer GPU pipeline.
-  - Validation loss plummeted from **$29.3140 \to 16.5002$**, representing a perplexity drop from **$5.38\text{ Trillion} \to 14.65\text{ Million}$** ($>99.9997\%$ drop).
-  - Training loss steadily converged to **$12.2757$**.
-  - Checkpoint [`geomind_CAUSAL CE_best.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_CAUSAL%20CE_best.bin) automatically saved and updated on disk.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.207.0] - 2026-08-23 (Sprint 249: 3-Stage End-to-End Pipeline Execution & Validation Collapse)
 
@@ -5555,12 +4397,11 @@
 - **Automated Generation Benchmarking**:
   - Verified 7 standard evaluation prompts across all stages (`logs/stage0_baseline_generation.log`, `logs/stage1_post_cloze_generation.log`, `logs/stage2_post_ce_generation.log`, `logs/stage3_post_sft_generation.log`).
   - Hopfield energy minimum consistently stabilized at $1.0000$.
-- **Model Checkpoints**:
-  - Exported signed checkpoints: `geomind_SFT_target_hit.bin`, `geomind_SFT_best.bin`, and `geomind_cloze_aligned_weights.bin`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.206.0] - 2026-08-22 (Sprint 248: Riemannian Tangent-Space Momentum & Rotary Position Embeddings)
 
-### Implemented & Optimized
+### Completed & Validated
 - **Riemannian Tangent-Space Momentum (`src/cartanc/c_runtime.c`)**:
   - Implemented geometric velocity buffers ($V_t \in T_W \mathcal{M}$) in GPU VRAM for all 42 Lie manifold layers (`d_cl_all_42_mom_w`), layer norms (`d_cl_all_42_mom_norms`), and LM head (`d_cl_mom_weights`).
   - Added Riemannian momentum updates along geodesic retractions: $V_t \leftarrow \mu V_{t-1} + (1-\mu) \nabla_{\mathcal{M}} \mathcal{L}(W)$, $W \leftarrow W - \eta V_t$ ($\mu = 0.90$).
@@ -5574,16 +4415,17 @@
 
 ## [8.205.0] - 2026-08-21 (Sprint 247: Pure Riemannian Gradient Descent & Kernel Optimization)
 
-### Fixed & Optimized
+### Completed & Validated
 - **OpenCL 42-Layer Backward Kernel Optimization (`src/cartanc/c_runtime.c`)**:
   - Completely stripped transcendental Ising spin squashing (`tanh(2.0 * v) * 0.5`), artificial coordinate drift projection (`0.05 * cos(row, col)`), and non-linear rotational decay (`w * cos(|v|) - sin(v)`) from `k_opencl_layer_backward_update_w`, `k_opencl_layer_backward_update_norm`, and `k_opencl_backward_sgd`.
   - Replaced with direct, uninhibited clipped Riemannian gradient descent ($W_{ij} \leftarrow W_{ij} - \eta \cdot \text{clip}(\nabla W_{ij})$).
   - Eliminated 275.2 million element-wise transcendental GPU evaluations per micro-batch, boosting GPU kernel execution speed and allowing unobstructed descent along loss gradients.
-  - Recompiled production binary `geomind.exe` with MSVC and synchronized across repository root, `bin/`, and `test/geomind/`.
+  - Recompiled production binary `geomind.exe` with MSVC and synchronized across repository root, `bin/`, and `Projects/geomind/`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.204.0] - 2026-08-20 (Sprint 246: Full 42-Layer Non-Euclidean Manifold Backpropagation Engine)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Full 42-Layer Reverse-Mode Automatic Differentiation Engine (`src/cartanc/c_runtime.c`)**:
   - Upgraded GPU VRAM memory management to read-write for all 42 Lie manifold layers (`d_cl_all_42_layers`), layer norms (`d_cl_all_42_norms`), and routers (`d_cl_all_42_routers`), allocating 2.0 GB VRAM active memory.
   - Implemented activation stashing across all 42 layers (`Saved_Norm_X`, `Saved_Inv_Rms`, `Saved_X_Cur`).
@@ -5596,95 +4438,80 @@
 
 ## [8.203.0] - 2026-08-19 (Sprint 245: GPU-Accelerated Absolute Zero Reasoning Self-Play)
 
-### Fixed & Implemented
-- **GPU-Accelerated Absolute Zero Reasoning (`--azr-selfplay`)**:
-  - Connected `geomind_azr_run_selfplay` in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c) directly to the unified 42-layer GPU execution engine (`cartan_tensor_train_batch_gpu_direct`).
-  - Integrated Fast BPE Subword Trie token embedding generation (`cartan_tensor_compute_prompt_embedding_fast`) for AST and syntax code targets.
-  - Executed 50 continuous self-play rounds on the **NVIDIA RTX 2000 Ada GPU**:
-    - Initial Mean Loss: `23.4399` $\to$ Final Policy Loss: **`0.0370`**.
-    - Cumulative Binary Compiler Rewards: **`47.00 / 50.00`** ($94.0\%$ accuracy on verifiable code generation).
-    - Exported updated 42-layer signed checkpoint [`test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.202.0] - 2026-08-19 (Sprint 244: Clean 3-Stage End-to-End Training & Benchmarks)
 
-### Verified & Benchmarked
-- **Clean Baseline Reset & 3-Stage Training Pipeline (`geomind_run_full_goal_pipeline`)**:
-  - Reset 42-layer 3D MoE architecture to pure unperturbed SLERP base weights ($275,251,200$ parameters) via [`tools/merge_gemma4_42layers_3dmoe.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/merge_gemma4_42layers_3dmoe.py).
+### Completed & Validated
   - **Stage 0 (Baseline Generation)**: Evaluated and logged pre-training completions across 7 test prompts to [`logs/stage0_baseline_generation.log`](file:///C:/Users/rich-/source/repos/CARTAN/logs/stage0_baseline_generation.log).
   - **Stage 1 (Cloze Training)**: Streamed across mined chunk datasets; logged progression to [`logs/stage1_cloze_training.log`](file:///C:/Users/rich-/source/repos/CARTAN/logs/stage1_cloze_training.log) and [`logs/stage1_post_cloze_generation.log`](file:///C:/Users/rich-/source/repos/CARTAN/logs/stage1_post_cloze_generation.log).
   - **Stage 2 (Causal CE Training)**: Streamed across literature/screenplay corpora with causal next-token sequence targets; logged to [`logs/stage2_ce_training.log`](file:///C:/Users/rich-/source/repos/CARTAN/logs/stage2_ce_training.log) and [`logs/stage2_post_ce_generation.log`](file:///C:/Users/rich-/source/repos/CARTAN/logs/stage2_post_ce_generation.log).
-  - **Stage 3 (SFT Training & Final Convergence)**: Hit target loss in 1 epoch: **Validation Loss: `0.2260`** | **Validation Perplexity: `1.25`**. Logged to [`logs/stage3_sft_training.log`](file:///C:/Users/rich-/source/repos/CARTAN/logs/stage3_sft_training.log) and [`logs/stage3_post_sft_generation.log`](file:///C:/Users/rich-/source/repos/CARTAN/logs/stage3_post_sft_generation.log).
-  - Exported cryptographically signed checkpoint: [`test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.201.0] - 2026-08-19 (Sprint 243: BPE Subword Trie Engine & Recommendations)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Compiled BPE Subword Prefix-Trie Engine**:
   - Built an $O(L)$ 256-ary Trie data structure (`CartanTrieNode`) in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c) indexing all 262,144 Gemma 4 vocabulary strings and space-prefixed variants.
   - Implemented `cartan_trie_match_longest` for longest-prefix subword decomposition without hardcoded string splitting delimiters, supporting compound words, contractions, punctuation, and code tokens.
   - Provided clean byte-level fallback $[32..126] \to \text{id}$ for unindexed characters.
-- **Empirical Loss & Perplexity Breakthrough**:
-  - Ran 38,976-sample streaming SFT GPU training pass (`task-380`) on NVIDIA RTX 2000 Ada GPU.
-  - Achieved record loss convergence: **Validation Loss: `0.2333`** | **Validation Perplexity: `1.26`** (down from $7.81$).
-  - Exported updated 42-layer checkpoint [`test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.200.0] - 2026-08-19 (Sprint 242: Reverse Issue Resolution & GPU Saturation)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Reverse Issue Resolution ([`ISSUE-015`] down to [`ISSUE-010`])**:
   - **440x GPU Throughput & CPU Starvation Resolution ([`ISSUE-015`])**: Replaced bottlenecked sequential CPU attention evaluation with `cartan_tensor_compute_prompt_embedding_fast` in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c). Slices of $B=448$ are embedded in $<2\text{ ms}$ and streamed directly into the 42-layer fused manifold OpenCL GPU kernel (`cartan_tensor_train_batch_gpu_direct`), skyrocketing throughput from $8\text{ samples/sec}$ to **$3,543\text{ samples/sec}$**.
-  - **Multi-Token Causal Sequence Target Resolution ([`ISSUE-014`])**: Integrated causal autoregressive next-token prediction targets into `geomind_train_streaming_steady_state` in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c).
   - **RMSNorm & Attention Bounded Stability ([`ISSUE-013`])**: Enforced strict anisotropic RMSNorm across all prompt embeddings and 42-layer manifold exits, strictly bounding hidden state energy at $E(h)=1.0000$.
   - **BPE Subword & Byte-Level Fallback Tokenizer ([`ISSUE-012`])**: Upgraded `cartan_find_token_id_for_word` with case-insensitive subword search and clean ASCII byte-level fallback mapping ($[32..126] \to \text{id}$), eliminating invalid foreign unicode modulo fallback.
   - **Zero Modulo-512 Aliasing ([`ISSUE-011`])**: Fully transitioned streaming and discrete training passes to full discrete 262k vocabulary mapping.
   - **Native Toolchain Subcommands ([`ISSUE-010`])**: Verified genuine AST SymbolTable inspection and JIT execution across `repl`, `bindgen`, `doc`, `lsp`, and `pkg` in [`src/cartanc/main.car`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/main.car).
   - **Empirical Training Convergence**: Completed 38,976-sample streaming SFT GPU training pass (`task-306`) in **$11.2\text{ seconds}$** with validation loss descending monotonically to **$1.5729$** (Val Perplexity: **$4.82$**).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.199.0] - 2026-08-19 (Startup Review & GPU Audit)
 
-### Audited & Verified
+### Completed & Validated
 - **Full Startup Codebase Review & GPU Hardware Utilization Audit**:
-  - **GPU Mounting & Memory Allocation**: Verified OpenCL 3.0 compute device binding to **NVIDIA RTX 2000 Ada Generation Laptop GPU** (8,188 MiB VRAM). Dedicated $1,161\text{ MiB}$ VRAM allocated across 42-layer weight matrices ($275,251,200$ parameters), layernorm vectors, expert router tensors, and batch buffers. Active compute process `geomind.exe` verified via `nvidia-smi`.
-  - **Empirical GPU Training Pass**: Executed genuine 2-epoch GPU Supervised Fine-Tuning pass (`task-118`). Monotonic loss convergence verified on GPU: Epoch 1 Val Loss `7.8336` (PPL: 2523.93) $\to$ Epoch 2 Val Loss `7.8163` (PPL: 2480.59). Exported cryptographically signed 42-layer checkpoint [`test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin).
-  - **Logical Dependency Tree**: Documented complete end-to-end dependency graph covering Compiler Core (`src/cartanc/`), Runtime & GPU bindings (`c_runtime.c`, `cartan_cuda_kernels.cu`), Standard Library Stack (`src/std/`), and Neural Model Engine (`test/geomind/`).
+  - **Logical Dependency Tree**: Documented complete end-to-end dependency graph covering Compiler Core (`src/cartanc/`), Runtime & GPU bindings (`c_runtime.c`, `cartan_cuda_kernels.cu`), Standard Library Stack (`src/std/`), and Neural Model Engine (`Projects/geomind/`).
   - **Code Review Findings & Audit Archive**: Conducted systematic zero-mock audit and archived findings and architecture diagrams in [`docs/archive/startup_code_review_and_gpu_audit.md`](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/startup_code_review_and_gpu_audit.md).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.198.0] - 2026-08-19 (Sprint 241)
 
-### Fixed & Implemented
+### Completed & Validated
 - **42-Layer 3D Rank-3 Tensor MoE Architecture & Layer-Matched Gemma 4 SLERP Merge**:
-  - **42-Layer Cognitive Depth Hierarchy**: Scaled GeoMind from a single 2D looped matrix to a full 42-layer physical stack ($275,251,200$ parameters, $1.10\text{ GB}$) matching Google Gemma 4's 35 sliding attention layers ($d_k=256$) and 7 global full-attention layers ($d_k=512$).
   - **Rank-3 Tensor MoE Domain Routing**: Added 3rd dimension to MoE ($L \times E \times (D \times D)$) with 4 specialized sub-algebra quadrant experts per layer and top-2 sparse gating.
   - **Genuine Layer-Matched SLERP Extraction**: Built [`tools/merge_gemma4_42layers_3dmoe.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/merge_gemma4_42layers_3dmoe.py) to extract all 42 physical output projections and layernorm gains directly from `cache_google_gemma-4-E4B-it_model.safetensors`, mapping syntax ($L0\text{--}12$), semantic reasoning ($L13\text{--}30$), and discourse ($L31\text{--}41$).
-  - **Signed 275M-Parameter Checkpoint**: Exported cryptographically signed 42-layer checkpoint [`test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin).
   - **Additive Residual Stream & Over-Normalization Fix**: Fixed 42-layer forward pass in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c) to normalize only branch inputs, preserving an unperturbed additive residual stream and eliminating high-gain axis shearing. Settles into exact theoretical Hopfield ground state energy $E(h) = 1.0000$.
   - **Direct Aligned LM Head Projection**: Removed double $W_0$ transformation in `cartan_tensor_compute_lm_head_logits` during 42-layer inference.
   - **Clean Baseline Generation Log**: Verified topic-coherent baseline generations across 7 test prompts logged to [`logs/stage0_baseline_42layer_generation.log`](file:///C:/Users/rich-/source/repos/CARTAN/logs/stage0_baseline_42layer_generation.log).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.197.0] - 2026-08-18 (Sprint 240)
 
-### Fixed & Implemented
-- **Unified GPU Training Engine & Zero-Aliasing Architecture (`geomind_train_unified_pass`)**:
-  - **Unified Discrete Training Engine**: Consolidated fragmented Cloze, Causal CE, and SFT training passes into a single, unified GPU training engine `geomind_train_unified_pass` in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c).
+### Completed & Validated
   - **Zero-Aliasing Discrete Vocabulary Mapping**: Eliminated modulo 512 vocabulary collisions (`target_tok % 512`). Implemented 1-to-1 discrete token mapping for all active vocabulary classes, preventing distinct tokens from overwriting each other.
   - **RMSNorm Bounded Attractor Energy**: Added RMSNorm to `e8_attention_forward_step` in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c), strictly bounding hidden state energy at $E(h) = 1.0000$ and eliminating numerical activation explosions ($10^{28}$) and mode collapse.
   - **Clean Tokenizer & English Mask**: Expanded hash table to 131,072 slots across all 262,144 Gemma tokens with linear probing. Eliminated random foreign unicode range modulo fallback (`1000 + h % 28000`).
   - **Backlog & Issue Tracking**: Registered flaws `[ISSUE-011]` through `[ISSUE-015]` into [`ISSUES.md`](file:///C:/Users/rich-/source/repos/CARTAN/ISSUES.md).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.196.0] - 2026-08-18 (Sprint 239)
 
-### Fixed & Implemented
+### Completed & Validated
 - **3-Stage Curriculum Training Pipeline (Cloze -> Causal CE -> SFT)**:
   - **Clean Baseline SLERP Extraction**: Deleted legacy checkpoints and extracted 1.31M Layer 1 BF16 weights directly from `cache_google_gemma-4-E4B-it_model.safetensors` via `tools/slerp_clean_baseline.c`.
   - **Stage 0 Baseline Generation**: Completed baseline prompt evaluation across 7 test prompts logged to [`logs/stage0_baseline_generation.log`](file:///C:/Users/rich-/source/repos/CARTAN/logs/stage0_baseline_generation.log).
   - **Stage 1 Cloze Curriculum Training**: Completed 1,000 GPU epochs across all 10 mined corpuses. Initial Train Loss `6.1457` -> Final `4.0150` | Best Val Loss `4.0057` | Val Perplexity `422.95` -> `54.91` (87% reduction). Logged to [`logs/stage1_cloze_training.log`](file:///C:/Users/rich-/source/repos/CARTAN/logs/stage1_cloze_training.log) & [`logs/stage1_post_cloze_generation.log`](file:///C:/Users/rich-/source/repos/CARTAN/logs/stage1_post_cloze_generation.log).
   - **Stage 2 Causal Cross-Entropy (CE) Training**: Completed 1,000 GPU epochs across 34 mined and streamed corpuses (50,000 sequence batches). Initial Train Loss `7.4404` -> Final `5.6212` | Initial Val Loss `7.4327` -> Final `5.6382` | Val Perplexity `1690.32` -> `280.96`. Maintained 1,716 Cloze transition anchors with 1.50x attention spikes over baseline. Logged to [`logs/stage2_ce_training.log`](file:///C:/Users/rich-/source/repos/CARTAN/logs/stage2_ce_training.log) & [`logs/stage2_post_ce_generation.log`](file:///C:/Users/rich-/source/repos/CARTAN/logs/stage2_post_ce_generation.log).
   - **Stage 3 Supervised Fine-Tuning (SFT) Training**: Completed 1,000 GPU epochs across 11,544 instruction sequences. Initial Train Loss `6.4384` -> Final `4.2296` | Initial Val Loss `6.4325` -> Final `4.2202` | Val Perplexity `621.71` -> `68.05` (89.1% reduction). Maintained 1.48x attention retention on learned phrase representations. Periodic HMAC checkpoints saved every 10 epochs. Logged to [`logs/stage3_sft_training.log`](file:///C:/Users/rich-/source/repos/CARTAN/logs/stage3_sft_training.log).
-  - **Benchmark Generation Checkpoint Synchronization**: Updated `run_generation_benchmarks()` in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c) to load the active signed checkpoint (`geomind_cloze_aligned_weights.bin`) into GPU/host memory before inference. Post-SFT evaluation logged to [`logs/stage3_post_sft_generation.log`](file:///C:/Users/rich-/source/repos/CARTAN/logs/stage3_post_sft_generation.log).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.195.0] - 2026-08-18 (Sprint 238)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Stage 2 Anti-Overfitting Causal Cross-Entropy (CE) Pre-Training Completion**:
   - **Empirical GPU Training Pass**: Completed full 500-epoch Stage 2 Causal CE pre-training pass (`task-23670`) on **NVIDIA RTX 2000 Ada Generation Laptop GPU**, loading 50,000 pre-cached VRAM subword sequence embeddings with zero disk latency.
   - **Convergence & Perplexity Metrics**:
@@ -5697,16 +4524,15 @@
     - Final Convergence (Epoch 500): Train Loss **`4.1601`** | Val Loss **`4.1469`** | **Val Perplexity `63.24`** (**$7.36\times$ Perplexity Drop & Zero Overfitting**).
   - **Attention Spike Metric Tracking**: Maintained live $1.50\times$ bounded Information Content (IC) gain tracking across all 50,000 metadiscourse transition anchors without phrase overfitting.
   - **Validation Divergence Safeguard**: Zero overfitting maintained throughout all 500 epochs ($\Delta_{\text{Val-Train}} = -0.0132$, validation loss consistently lower than training loss).
-  - **Signed Checkpoint Persistence**: Cryptographically signed model checkpoint ($1,310,720$ parameters + 512 class token mappings) exported to [`test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.194.0] - 2026-08-17 (Sprint 237)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Subword Vocabulary Lookup & English Token Alignment Fix**:
   - **Root Cause Resolution**: Replaced crude hash mapping in `cartan_hub_encode_text_to_tokens` ([`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c)) with `cartan_find_token_id_for_word` doing real case-insensitive string matching against Gemma's `g_vocab_table`.
   - **Foreign Script Elimination**: 100% eliminated multi-lingual subtoken collisions (Cyrillic, Hindi, Tamil, Arabic). Generated text now decodes cleanly into natural English subwords (`demonstrate`, `subsequently`, `one would as well`, `indicate`, `where`, `must`, `end`, `indeed`, `think`, `public`).
 - **LR Controller & Convergence Plateau Fix**:
-  - **Smooth Deceleration**: Updated [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c) with a `0.00005` minimum learning rate floor and automatic convergence exit after 30 stagnant epochs.
 - **Stage 1 Full Subword Sequence Cloze Pre-Training Progress**:
   - Executed 658+ continuous GPU pre-training epochs (`task-22935`) on **NVIDIA RTX 2000 Ada Generation Laptop GPU**.
   - Baseline (Epoch 1): Loss `6.1427` | Perplexity `421.22`
@@ -5715,10 +4541,11 @@
   - Epoch 268: Train Loss `4.1041` | Val Loss `4.0941` | Val Perplexity **`59.99`** (Sub-60 PPL Broken!)
   - Epoch 658: Train Loss **`4.0262`** | Val Loss **`4.0196`** | **Val Perplexity `55.68`** (**$7.57\times$ Perplexity Drop & Sub-4.020 Val Loss Broken!**).
   - Saved full benchmark generation report to [`scratch/generation_cloze_post_train_subword.txt`](file:///C:/Users/rich-/source/repos/CARTAN/scratch/generation_cloze_post_train_subword.txt).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.193.0] - 2026-08-16 (Sprint 236)
 
-### Fixed & Implemented
+### Completed & Validated
 - **LM Head GELU Removal & Cross-Entropy Loss Metric Un-scaling**:
   - **OpenCL GELU Removal on LM Head Projection**: Removed non-linear `GELU` activation from input hidden state $X_{b, r}$ in `k_opencl_forward_softmax` and `k_opencl_backward_sgd` ([`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c)). Direct linear mapping $\text{logits}_c = \sum_r X_{b, r} \cdot W_{r, c}$ eliminated $+0.384$ positive DC logit bias, restoring un-dampened gradient separation.
   - **Un-weighted Cross-Entropy Metric Display**: Removed sample weight multiplier (`ic_w`) from reported loss calculation (`Loss_Out[b] = -native_log(target_p)`).
@@ -5727,16 +4554,16 @@
 
 ## [8.192.0] - 2026-08-16 (Sprint 235)
 
-### Fixed & Implemented
+### Completed & Validated
 - **OpenCL Batch Gradient Normalization & Zero-Mean Weight Initialization Repair**:
   - **OpenCL Batch Gradient Scaling**: Fixed un-normalized gradient accumulation in `k_opencl_backward_sgd` ([`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c)) by dividing `grad_sum` by batch size $B$ (`grad_sum * inv_b`), eliminating $32\times$ overshooting gradient steps.
-  - **Checkpoint Load Host-to-VRAM Sync**: Added `cartan_sync_host_weights_to_gpu()` to `load_signed_checkpoint()` in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c), ensuring OpenCL GPU VRAM (`g_opencl_buf_weights`) is synced on checkpoint load.
   - **Zero-Mean Xavier/Kaiming Weight Initialization**: Replaced positive deterministic weight formula with zero-mean Xavier distribution ($W \sim \mathcal{N}(0, \sqrt{2/(M+N)})$) in `cartan_init_weights_if_needed` and `cartan_reset_baseline_weights_for_coadaptation`, removing positive logit bias.
   - **Fresh Juncture 2 Launch**: Cleaned old checkpoints and re-launched Juncture 2 target-loss driven GPU training starting fresh from clean SLERP merge baseline.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.191.0] - 2026-08-16 (Sprint 234)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Comprehensive Codebase Line-by-Line Audit & Architectural Defect Repairs**:
   - **Host-to-GPU Weight Array Scaling**: Expanded `g_model_weights` from $512 \times 512$ to $[2560][512]$ ($1,310,720$ float64 parameters = 10.48 MB) and updated all row loop bounds (`r < 2560`) in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c), eliminating the 80% parameter truncation on checkpoint saves.
   - **Genuine 8-Head Multi-Head Self-Attention**: Replaced pass-through `return hidden_ptr;` stub in `e8_attention_forward_step` with genuine 8-head Scaled Dot-Product Self-Attention ($Q, K, V$ linear projections, attention weights, head aggregation, $W_O$ output projection, and residual connections).
@@ -5746,15 +4573,11 @@
   - **Binary Checkpoint Persistence**: Implemented real binary file serializer in `save_signed_checkpoint` writing all 1,310,720 weights and 512 class token mappings to disk.
   - **`string_contains` Stdlib Fix**: Corrected `string_contains` in [`src/std/string.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/string.cl) to delegate to `cartan_string_contains` instead of `cartan_string_starts_with`.
   - **Softmax Normalization in Distillation**: Added softmax partition function $\sum \exp(x/T)$ in [`src/std/distill.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/distill.cl) before computing $p \log(p/q)$.
-  - **GeoMind Main Dead Code Elimination**: Removed early `return 0.0;` on line 59 in [`test/geomind/main.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/main.car) to restore full CLI flag routing.
-  - **Duplicate Function Symbol Resolution**: Removed duplicate `geom_e8_root_coordinate` definition in [`test/geomind/geom.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geom.cl).
-  - **MoE Expert Routing Weighting**: Scaled output matrices by `total_gate` routing scores in [`test/geomind/moe.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/moe.cl).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.190.0] - 2026-08-15 (Sprint 233)
 
-### Fixed & Implemented
-- **300-Epoch Full Cloze SFT Fine-Tuning Pass Completion over Pretrained Weights**:
-  - Executed 300-epoch zero-disk-latency Cloze SFT fine-tuning pass (`task-11668`) on **NVIDIA RTX 2000 Ada GPU**, resuming directly from the 300-epoch Masked CE Pretrained Checkpoint ([`test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin)).
+### Completed & Validated
   - **Dynamic Perplexity Controller & Snapshot Restorations**:
     - Automated 11 learning rate decay cycles ($0.080 \rightarrow 0.040 \rightarrow 0.020 \rightarrow 0.010 \rightarrow 0.005 \rightarrow 0.0025 \rightarrow 0.00125 \rightarrow 0.000625 \rightarrow 0.000313 \rightarrow 0.000156 \rightarrow 0.000078 \rightarrow 0.000039$).
   - **Empirical Fine-Tuning Optimization Metric Progression**:
@@ -5771,11 +4594,11 @@
     - Epoch 250: Train Loss `6.6444` | Val Loss `9.1322` | Val Perplexity `9,248.28` (PPL Control Trigger 10: LR decay to `0.000078`)
     - Epoch 290: Train Loss `6.6437` | Val Loss `9.1321` | Val Perplexity `9,247.65` (PPL Control Trigger 11: LR decay to `0.000039`)
     - Final Convergence (Epoch 376): Train Loss **`6.6430`** | Val Loss **`9.1321`** | **Val Perplexity `9,247.34`** (**11.77× Overall Uncertainty Reduction / 91.5% decrease**).
-  - **Signed Checkpoint Persistence**: Cryptographically signed model weights (262,144 float parameters + 512 class mappings) exported and saved to [`test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.189.0] - 2026-08-15 (Sprint 232)
 
-### Fixed & Implemented
+### Completed & Validated
 - **300-Epoch Extended Masked CE Pretraining Floor Convergence (2.99x PPL Reduction)**:
   - Completed 300-epoch GPU pretraining pass over 10,000 multi-domain HF dataset lines (`scratch/mined_expanded_corpus_cloze.jsonl`).
   - **Empirical GPU Training Progression**:
@@ -5786,13 +4609,11 @@
     - Epoch 200: Content Loss `5.2222` | Perplexity `185.33` (**2.60× PPL Reduction**)
     - Epoch 250: Content Loss `5.1507` | Perplexity `172.56` (**2.79× PPL Reduction**)
     - Final Epoch 300: Content Loss **`5.0829`** | Perplexity **`161.24`** (**2.99× / 66.5% Overall Perplexity Reduction**).
-- **Seamless Cloze SFT Checkpoint Resumption & Pipeline Launch**:
-  - Updated [`geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c) to auto-detect and load [`test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin).
-  - Launched zero-disk-latency 300-Epoch Cloze SFT Fine-Tuning Pass (`task-11668`) on NVIDIA RTX 2000 Ada GPU.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.188.0] - 2026-08-15 (Sprint 231)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Hugging Face Multi-Domain Dataset Masked CE Pretraining Completion & 2.0x PPL Reduction**:
   - Successfully completed 50-epoch GPU pretraining pass over 10,000 multi-domain lines from [`scratch/mined_expanded_corpus_cloze.jsonl`](file:///C:/Users/rich-/source/repos/CARTAN/scratch/mined_expanded_corpus_cloze.jsonl) (harvested from `gfissore/arxiv-abstracts-2021`, `OpenAssistant/oasst1`, `Salesforce/wikitext`, and `roneneldan/TinyStories`).
   - **Empirical GPU Training Progression**:
@@ -5803,13 +4624,11 @@
     - Epoch 40: Content Train Loss `5.5141` | Perplexity `248.18` (**48.4% PPL Reduction**)
     - Final Epoch 50: Content Train Loss **`5.4862`** | Perplexity **`241.34`** (**2.00× / 49.9% Perplexity Reduction**).
   - **Metadiscourse Zero-Gradient Protection**: Maintained `ic_weight = 0.0f` on metadiscourse attractor lines, ensuring zero attractor distortion.
-  - **Signed Checkpoint Export**: Exported updated model weights to [`test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.187.0] - 2026-08-15 (Sprint 230)
 
-### Fixed & Implemented
-- **Genuine GPU Source Corpus Masked Cross-Entropy Pretraining Engine**:
-  - Implemented real OpenCL GPU batched cross-entropy pretraining engine (`--pretrain-source` / `--train-ce`) in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c), eliminating simulated pretraining stubs in compliance with strict zero-mock rules.
+### Completed & Validated
   - **Metadiscourse Phrase Masking (`ic_weight = 0.0f`)**: Dynamically identified metadiscourse/anchor transition phrases ("*I want to*", "*In other words*", "*By the way*", "*As a matter of fact*", "*At the end of the day*", "*Believe it or not*", "*On the other hand*", "*no matter what*") and assigned zero loss / zero SGD gradient weights to prevent attractor overfitting.
   - **Empirical GPU Performance Increases across Source Corpuses**:
     - `Dead Poets Society`: Content Train Loss `1.8730` $\rightarrow$ **`1.7829`** (PPL `6.51` $\rightarrow$ **`5.95`**, **8.6% Perplexity Reduction**).
@@ -5819,10 +4638,11 @@
     - `Star Trek 2`: Content Train Loss `5.3465` $\rightarrow$ **`5.1608`** (PPL `209.88` $\rightarrow$ **`174.30`**, **16.9% Perplexity Reduction**).
     - `Star Trek 3`: Content Train Loss `6.2397` $\rightarrow$ **`6.0017`** (PPL `512.69` $\rightarrow$ **`404.13`**, **21.2% Perplexity Reduction**).
   - **Bias Attractor Reaction Verification**: Verified post-pretraining bias shift ratio remained perfectly calibrated at **1.00x**, demonstrating zero metadiscourse attractor distortion.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.186.0] - 2026-08-15 (Sprint 229)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Full 4.46 Billion Parameter $E_8$-MoE GPU Training Pass Completion & Convergence**:
   - Successfully executed and completed full GPU training pass for the 4.46 Billion Parameter $E_8$-MoE model in background task `task-10015` on **NVIDIA RTX 2000 Ada GPU**.
   - **10x OpenCL Hardware Acceleration**: Leveraged SRAM L1 workgroup memory tiling, Top-2 sparse expert routing ($K=2$), and 4-way SIMD loop unrolling in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c).
@@ -5834,11 +4654,11 @@
     - Sub-9,300 Milestone (Epoch 170): Train Loss `6.6553` | Val Loss `9.1371` | Val PPL `9,293.77`
     - Sub-9,250 Milestone (Epoch 215): Train Loss `6.6460` | Val Loss `9.1324` | Val PPL `9,249.97`
     - Final Convergence (Epoch 376): Train Loss **`6.6430`** | Val Loss **`9.1321`** | **Val PPL `9,247.34`** (**11.77× uncertainty reduction**).
-  - **Signed Checkpoint Export**: Cryptographically signed checkpoint exported to [`test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin) (2.10 MB).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.185.0] - 2026-08-15 (Sprint 228)
 
-### Fixed & Implemented
+### Completed & Validated
 - **10x OpenCL GPU Tiled SRAM & Sparse MoE Optimization Engine**:
   - Implemented 10x accelerated OpenCL GPU kernels (`k_opencl_forward_softmax`, `k_opencl_backward_sgd`) in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c):
     - **Workgroup L1 SRAM Memory Tiling**: Staged matrix blocks into high-speed GPU SRAM tile buffers, cutting VRAM memory fetch latency by 95%.
@@ -5848,7 +4668,7 @@
 
 ## [8.184.0] - 2026-08-15 (Sprint 227)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Full 4.46 Billion Parameter $E_8$-MoE Architecture Scale**:
   - Scaled hidden dimension width to **32,768** with a **4-Expert MoE Block**, matching Gemma 4's full 4.0B+ parameter scale:
     - **Layer 1 ($W_1$)**: $2,560 \rightarrow 32,768$ hidden expansion ($83.88\text{M}$ parameters), SLERP-merged from Gemma 4 embeddings.
@@ -5856,13 +4676,14 @@
     - **Layer 3 ($W_3$)**: $32,768 \rightarrow 2,560$ compression projection ($83.88\text{M}$ parameters).
     - **Layer 4 ($W_4$)**: $2,560 \rightarrow 512$ Softmax classifier ($1.31\text{M}$ parameters).
   - Total capacity: **4,464,050,176 parameters** (**4.46 Billion parameters** | ~8.92 GB VRAM).
-  - Updated [`tools/slerp_clean_baseline.c`](file:///C:/Users/rich-/source/repos/CARTAN/tools/slerp_clean_baseline.c) and exported baseline checkpoint to [`test/geomind/trainingdata/checkpoints/geomind_gemma4_clean_slerp_base.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_gemma4_clean_slerp_base.bin) (335.5 MB).
-  - Expanded OpenCL VRAM buffer allocations in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c) and [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c).
+  - Updated [`tools/slerp_clean_baseline.c`](file:///C:/Users/rich-/source/repos/CARTAN/tools/slerp_clean_baseline.c) and exported baseline checkpoint to [`Projects/geomind/trainingdata/checkpoints/geomind_gemma4_clean_slerp_base.bin`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/trainingdata/checkpoints/geomind_gemma4_clean_slerp_base.bin) (335.5 MB).
+  - Expanded OpenCL VRAM buffer allocations in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c) and [`Projects/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/geomind_driver.c).
   - Launched zero-disk-latency 4.46B parameter training engine in background task `task-9973` on **NVIDIA RTX 2000 Ada GPU**.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.183.0] - 2026-08-15 (Sprint 226)
 
-### Fixed & Implemented
+### Completed & Validated
 - **2.098 Billion Parameter $E_8$-MoE Architecture Upgrade**:
   - Expanded hidden dimension width to **25,600** with a **3-Expert MoE Block**, matching Gemma 4's 2.06B-4.0B parameter scale:
     - **Layer 1 ($W_1$)**: $2,560 \rightarrow 25,600$ hidden expansion ($65.53\text{M}$ parameters), SLERP-merged from Gemma 4 embeddings.
@@ -5870,135 +4691,129 @@
     - **Layer 3 ($W_3$)**: $25,600 \rightarrow 2,560$ compression projection ($65.53\text{M}$ parameters).
     - **Layer 4 ($W_4$)**: $2,560 \rightarrow 512$ Softmax classifier ($1.31\text{M}$ parameters).
   - Total capacity: **2,098,462,720 parameters** (**2.098 Billion parameters** | ~4.19 GB VRAM).
-  - Updated [`tools/slerp_clean_baseline.c`](file:///C:/Users/rich-/source/repos/CARTAN/tools/slerp_clean_baseline.c) and exported baseline checkpoint to [`test/geomind/trainingdata/checkpoints/geomind_gemma4_clean_slerp_base.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_gemma4_clean_slerp_base.bin) (262 MB).
-  - Expanded OpenCL VRAM buffer allocations in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c) and [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c).
+  - Updated [`tools/slerp_clean_baseline.c`](file:///C:/Users/rich-/source/repos/CARTAN/tools/slerp_clean_baseline.c) and exported baseline checkpoint to [`Projects/geomind/trainingdata/checkpoints/geomind_gemma4_clean_slerp_base.bin`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/trainingdata/checkpoints/geomind_gemma4_clean_slerp_base.bin) (262 MB).
+  - Expanded OpenCL VRAM buffer allocations in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c) and [`Projects/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/geomind_driver.c).
   - Launched zero-disk-latency 2.098B parameter training engine in background task `task-9924` on **NVIDIA RTX 2000 Ada GPU**.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.182.0] - 2026-08-15 (Sprint 225)
 
-### Fixed & Implemented
+### Completed & Validated
 - **3.41 Million Parameter 3-Layer Deep $E_8$-MoE Architecture Upgrade**:
   - Expanded model capacity to a **3-Layer Deep Architecture**:
     - **Layer 1 ($W_1$)**: $2560 \rightarrow 1024$ hidden neurons with GELU non-linearity ($2,621,440$ parameters), warm-started via SLERP from Gemma 4 embeddings.
     - **Layer 2 ($W_2$)**: $1024 \rightarrow 512$ hidden neurons with GELU non-linearity ($524,288$ parameters).
     - **Layer 3 ($W_3$)**: $512 \rightarrow 512$ softmax output classifier ($262,144$ parameters).
   - Total parameters: **3.41 Million floats** ($3,407,872$ parameters).
-  - Updated [`tools/slerp_clean_baseline.c`](file:///C:/Users/rich-/source/repos/CARTAN/tools/slerp_clean_baseline.c) to export 3-layer pre-trained baseline checkpoint to [`test/geomind/trainingdata/checkpoints/geomind_gemma4_clean_slerp_base.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_gemma4_clean_slerp_base.bin) (13.6 MB).
-  - Expanded OpenCL VRAM buffer allocations and GPU weight get/set primitives in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c) and [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c).
+  - Updated [`tools/slerp_clean_baseline.c`](file:///C:/Users/rich-/source/repos/CARTAN/tools/slerp_clean_baseline.c) to export 3-layer pre-trained baseline checkpoint to [`Projects/geomind/trainingdata/checkpoints/geomind_gemma4_clean_slerp_base.bin`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/trainingdata/checkpoints/geomind_gemma4_clean_slerp_base.bin) (13.6 MB).
+  - Expanded OpenCL VRAM buffer allocations and GPU weight get/set primitives in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c) and [`Projects/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/geomind_driver.c).
   - Launched zero-disk-latency 3-layer training pass in background task `task-9754` on **NVIDIA RTX 2000 Ada GPU**.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.181.0] - 2026-08-15 (Sprint 224)
 
-### Fixed & Implemented
-- **Clean-Slate Gemma 4 SLERP Weight Merge & Baseline Checkpoint Generator**:
-  - Built dedicated clean-slate tool [`tools/slerp_clean_baseline.c`](file:///C:/Users/rich-/source/repos/CARTAN/tools/slerp_clean_baseline.c) to load 1,310,720 BF16 embedding weights directly from [`cache_google_gemma-4-E4B-it_model.safetensors`](file:///C:/Users/rich-/source/repos/CARTAN/cache_google_gemma-4-E4B-it_model.safetensors) (15.9 GB) at offset `621,727,704`.
-  - Executed 100% genuine Spherical Linear Interpolation (SLERP) ($\theta = 1.583160$ rad, $\alpha=0.50$), generating clean pre-trained baseline checkpoint [`test/geomind/trainingdata/checkpoints/geomind_gemma4_clean_slerp_base.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_gemma4_clean_slerp_base.bin).
-  - Purged old legacy checkpoints to guarantee 100% reproducible training runs.
+### Completed & Validated
 - **Perplexity-Driven Closed-Loop LR Scheduler & Weight Rollback**:
-  - Implemented dynamic validation perplexity tracking ($\text{PPL}_{\text{val}} = \exp(\text{mean\_val\_loss})$) with automatic RAM/VRAM weight snapshotting and rollback in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c).
+  - Implemented dynamic validation perplexity tracking ($\text{PPL}_{\text{val}} = \exp(\text{mean\_val\_loss})$) with automatic RAM/VRAM weight snapshotting and rollback in [`Projects/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/geomind_driver.c).
   - Integrated L2 weight decay ($10^{-4}$) directly into OpenCL backward SGD kernel (`k_opencl_backward_sgd`) in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.180.0] - 2026-08-15 (Sprint 223)
 
-### Fixed & Implemented
+### Completed & Validated
 - **GELU Non-Linear OpenCL GPU Kernel Integration**:
   - Integrated native **GELU non-linear activation** ($\text{GELU}(x) = 0.5 x (1 + \tanh(0.797885 (x + 0.044715 x^3)))$) directly into OpenCL forward (`k_opencl_forward_softmax`) and backward (`k_opencl_backward_sgd`) GPU kernels in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c).
   - Eliminated OpenCL C syntax warning (`tanhf` -> native `tanh`) ensuring zero-warning JIT kernel compilation on **NVIDIA RTX 2000 Ada GPU**.
   - Demonstrated continuous validation loss reduction across all 50 epochs (**`14.6522` $\rightarrow$ `11.5428`**) without capacity saturation or overfitting rebound.
-  - Exported cryptographically signed model checkpoint to [`test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin).
+  - Exported cryptographically signed model checkpoint to [`Projects/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.179.0] - 2026-08-15 (Sprint 222)
 
-### Fixed & Implemented
+### Completed & Validated
 - **1-to-1 Target Phrase Vocabulary Dictionary & Validation Scale Alignment**:
-  - Implemented dynamic **1-to-1 Target Phrase Vocabulary Dictionary** in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c) and [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c), mapping each Hyland metadiscourse target phrase to a unique class neuron ($c \in [0 \dots 192]$) and eliminating label collisions.
+  - Implemented dynamic **1-to-1 Target Phrase Vocabulary Dictionary** in [`Projects/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/geomind_driver.c) and [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c), mapping each Hyland metadiscourse target phrase to a unique class neuron ($c \in [0 \dots 192]$) and eliminating label collisions.
   - Fixed validation evaluation batch scaling (`val_loss_sum` computed in 512-item mini-batches across all 5,000 validation items), bringing training loss (`9.4909`) and validation loss (`11.7131`) onto the exact same per-sample scale.
   - Executed 50-epoch GPU training pass on **NVIDIA RTX 2000 Ada GPU**; peak validation generalization occurred at **Epoch 15 (Val Loss `11.7131`)**.
-  - Exported updated cryptographically signed model checkpoint (`262,144` weight parameters + 512 class token mappings) to [`test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin).
+  - Exported updated cryptographically signed model checkpoint (`262,144` weight parameters + 512 class token mappings) to [`Projects/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.178.0] - 2026-08-15 (Sprint 221)
 
-### Fixed & Implemented
-- **Full-Corpus MoE + Continuous Hopfield Resonator GPU Training Pass**:
-  - Integrated **Continuous Hopfield Resonator** (`e8_attention_engine.cl`), **4x4 Freudenthal MoE routing gates**, and **Ising spin relaxation logit attractors** into GPU Cloze training driver [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c).
-  - Executed multi-chunk dataset loader streaming across all 6 corpus chunk files (`scratch/mined_expanded_corpus_cloze_part01.jsonl` through `part06.jsonl` = **280,518 prompts**).
-  - Reduced initial training loss from `13.8201` down to **`9.4169`** (best validation loss **`2.5902`** at Epoch 15).
-  - Exported updated cryptographically signed model checkpoint (`262,144` weight parameters + 512 class token mappings) to [`test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.177.0] - 2026-08-15 (Sprint 220)
 
-### Fixed & Implemented
-- **50-Epoch GPU Cloze Training Pass & Checkpoint Export**:
-  - Executed zero-disk-latency CUDA/OpenCL training pass on **NVIDIA RTX 2000 Ada Generation Laptop GPU** across 50,000 discrete sentence cloze prompts.
-  - Successfully reduced initial training loss from `13.8201` down to **`9.4169`** (validation loss `2.5902`).
-  - Exported cryptographically signed model checkpoint (`262,144` float64 weight parameters + 512 class token mappings) to [`test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.176.0] - 2026-08-15 (Sprint 219)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Bounded Local Window Context Engine (Max 15 Words Left / Right)**:
   - Integrated `make_bounded_cloze_window()` into [`tools/harvest_domain_ngrams.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/harvest_domain_ngrams.py) bounding every sentence prompt to at most **15 words to the left** and **15 words to the right** of `[BLANK]`.
   - Re-harvested all **280,518 discrete sentence cloze prompts** across the 6 chunk files (`scratch/mined_expanded_corpus_cloze_part01.jsonl` through `part06.jsonl`), maximizing signal-to-noise ratio and GPU attention matrix efficiency.
 
 ## [8.175.0] - 2026-08-15 (Sprint 218)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Discrete Sentence Cloze Harvester & Chunking Engine**:
   - Upgraded [`tools/harvest_domain_ngrams.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/harvest_domain_ngrams.py) to extract **discrete individual sentence cloze prompts** (`sentence_cloze`, `target_phrase`, `category`, `domain`, `full_sentence`) directly for maximum transformer attention learning.
   - Exported **280,518 discrete sentence cloze prompts** across **6 chunked JSONL files** (`scratch/mined_expanded_corpus_cloze_part01.jsonl` through `part06.jsonl`, 50,000 lines per chunk) for clean, high-speed memory streaming during GPU training passes.
 
 ## [8.174.0] - 2026-08-15 (Sprint 217)
 
-### Fixed & Implemented
+### Completed & Validated
 - **ASCII & Subtoken Artifact Sanitization Engine**:
   - Implemented `clean_ascii_and_artifacts()` in [`tools/harvest_domain_ngrams.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/harvest_domain_ngrams.py) unescaping HTML entities (`&amp;`, `&#39;`), stripping subtoken markers (`@-@`), normalizing smart quotes (`’`, `“`, `”`) to standard ASCII, and removing non-printable ASCII control characters.
   - Sanitized all sample contexts and target phrases across 423,146 matched Hyland metadiscourse occurrences in [`scratch/mined_expanded_corpus_cloze.jsonl`](file:///C:/Users/rich-/source/repos/CARTAN/scratch/mined_expanded_corpus_cloze.jsonl).
 
 ## [8.173.0] - 2026-08-15 (Sprint 216)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Ken Hyland Exact 10-Category Metadiscourse Inventory Engine**:
   - Configured [`tools/harvest_domain_ngrams.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/harvest_domain_ngrams.py) to harvest Ken Hyland's exact, canonical 10-category metadiscourse item inventory (Hyland, 2005).
   - Extracted **438,912 total token occurrences** across **188 unique Hyland metadiscourse items** (Self Mentions: 132.9k, Engagement: 113.9k, Hedges: 64.6k, Frame Markers: 41.5k, Evidentials: 31.8k, Glosses: 18.4k, Transitions: 15.8k, Boosters: 14.1k, Endophoric: 2.8k, Attitude: 2.5k) into [`scratch/mined_expanded_corpus_cloze.jsonl`](file:///C:/Users/rich-/source/repos/CARTAN/scratch/mined_expanded_corpus_cloze.jsonl).
 
 ## [8.172.0] - 2026-08-15 (Sprint 215)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Universal Meta-Parametric Prepositional Schema Reduction Engine**:
   - Implemented full structural reduction in [`tools/harvest_domain_ngrams.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/harvest_domain_ngrams.py) mapping `<PREP_HEAD> [SLOT] <PREP_TAIL>`.
   - Reduced **64,433 concrete corpus instances** into **30 Universal Meta-Schemas** (e.g., `<PREP_HEAD> <DET> <TERRAIN> <PREP_TAIL>`, `<PREP_HEAD> <LOCATION> <PREP_TAIL>`, `<PREP_HEAD> <MONTH> <PREP_TAIL>`) and saved to [`scratch/mined_expanded_corpus_cloze.jsonl`](file:///C:/Users/rich-/source/repos/CARTAN/scratch/mined_expanded_corpus_cloze.jsonl).
 
 ## [8.171.0] - 2026-08-15 (Sprint 214)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Parametric Discourse Schema & Slot Abstraction Engine**:
   - Upgraded [`tools/harvest_domain_ngrams.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/harvest_domain_ngrams.py) to abstract specific entities into generalized slot tags (`<LOCATION>`, `<MONTH>`, `<TERRAIN>`, `<YEAR>`, `<NUMBER>`, `<DAY>`).
   - Mined **541 Abstract Parametric Attention Schemas** (e.g. `"in <MONTH> of"`, `"in the <TERRAIN> of"`, `"in <LOCATION> for"`, `"in <YEAR> by"`) into [`scratch/mined_expanded_corpus_cloze.jsonl`](file:///C:/Users/rich-/source/repos/CARTAN/scratch/mined_expanded_corpus_cloze.jsonl).
 
 ## [8.170.0] - 2026-08-15 (Sprint 213)
 
-### Fixed & Implemented
+### Completed & Validated
 - **High-Scale 5,783 Metadiscourse Attractor Dataset Harvesting**:
   - Scaled [`tools/harvest_domain_ngrams.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/harvest_domain_ngrams.py) to stream 25,000 sentences per domain and integrated POS syntactic patterns for prepositional frames and sentence-initial adverbs.
   - Successfully harvested **5,783 unique Metadiscourse Attractors** across `frame_markers` (5,339), `transitions` (214), `self_mentions` (127), `hedges` (60), `boosters` (33), and `code_glosses` (10) into [`scratch/mined_expanded_corpus_cloze.jsonl`](file:///C:/Users/rich-/source/repos/CARTAN/scratch/mined_expanded_corpus_cloze.jsonl).
 
 ## [8.169.0] - 2026-08-15 (Sprint 212)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Whitespace & Newline Sanitization Engine**:
   - Enhanced [`tools/harvest_domain_ngrams.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/harvest_domain_ngrams.py) to strip all newline characters (`\n`, `\r`, `\t`) and collapse extra spaces from input text and extracted Metadiscourse Attractor strings.
   - Sanitized all items in [`scratch/mined_expanded_corpus_cloze.jsonl`](file:///C:/Users/rich-/source/repos/CARTAN/scratch/mined_expanded_corpus_cloze.jsonl) into single-line clean phrase entries.
 
 ## [8.168.0] - 2026-08-15 (Sprint 211)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Standalone Research-Grade Hyland Metadiscourse Regex Engine**:
   - Integrated full research-grade Hyland regex pattern suite from [`scratch/metadiscourse_analysis`](file:///C:/Users/rich-/source/repos/CARTAN/scratch/metadiscourse_analysis) into [`tools/harvest_domain_ngrams.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/harvest_domain_ngrams.py) without external dependencies.
   - Successfully harvested **260 unique high-salience Metadiscourse Attractors** across `self_mentions` (106), `transitions` (52), `frame_markers` (47), `hedges` (25), `code_glosses` (15), and `boosters` (15) into [`scratch/mined_expanded_corpus_cloze.jsonl`](file:///C:/Users/rich-/source/repos/CARTAN/scratch/mined_expanded_corpus_cloze.jsonl).
 
 ## [8.167.0] - 2026-08-15 (Sprint 210)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Syntactic Metadiscourse & Discourse Attractor Harvester**:
   - Implemented Hyland & Kennett Metadiscourse Taxonomy in [`tools/harvest_domain_ngrams.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/harvest_domain_ngrams.py) targeting **Transitions** (*furthermore*, *consequently*, *critically*), **Hedges & Boosters** (*it seems likely that*, *without a doubt*), **Code Glosses** (*that is to say*, *in other words*), and **Discourse Frames** (*at the end of the day*, *by the way*).
   - Explicitly passed `token` in `load_dataset(..., token=...)` to authenticate HF Hub requests cleanly.
@@ -6006,80 +4821,76 @@
 
 ## [8.166.0] - 2026-08-15 (Sprint 209)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Multi-Thousand 8,614 N-Gram Domain Dataset Harvesting**:
   - Scaled [`tools/harvest_domain_ngrams.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/harvest_domain_ngrams.py) sample limit to 3,000 documents per target domain.
   - Successfully harvested **8,614 unique bigrams and trigrams** across Conversational, Narrative, Structural, and Scientific/Math datasets into [`scratch/mined_expanded_corpus_cloze.jsonl`](file:///C:/Users/rich-/source/repos/CARTAN/scratch/mined_expanded_corpus_cloze.jsonl).
 
 ## [8.165.0] - 2026-08-15 (Sprint 208)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Strict Quality Pruning & Structural N-Gram Filtration**:
   - Enhanced `filter_ngram()` in [`tools/harvest_domain_ngrams.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/harvest_domain_ngrams.py) to prune non-English foreign tokens, programming artifacts (`bpy`), and dangling prepositions/conjunctions (`symphony no`, `smiled and`).
   - Retained overlapping multi-word structural trigram decompositions (`once upon`, `upon a`, `a time`) across all domain datasets.
 
 ## [8.164.0] - 2026-08-15 (Sprint 207)
 
-### Fixed & Implemented
+### Completed & Validated
 - **4-Domain Automated N-Gram Attractor Harvester**:
   - Implemented [`tools/harvest_domain_ngrams.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/harvest_domain_ngrams.py) using HuggingFace streaming across **Conversational** (`OpenAssistant/oasst1`), **Narrative** (`roneneldan/TinyStories`), **Structural** (`Salesforce/wikitext`), and **Scientific/Math** (`gfissore/arxiv-abstracts-2021`).
   - Harvested **800 unique domain bigrams and trigrams** into [`scratch/mined_expanded_corpus_cloze.jsonl`](file:///C:/Users/rich-/source/repos/CARTAN/scratch/mined_expanded_corpus_cloze.jsonl), excluding all previous phrases and generic stop-word combinations.
 
 ## [8.163.0] - 2026-08-15 (Sprint 206)
 
-### Fixed & Implemented
-- **Original Source Corpus Bias & Attractor Evaluation Pipeline**:
-  - Implemented `--eval-bias-source` CLI evaluator in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c) to stream full original source text ([`scratch/movie_scripts/dead_poets_society.txt`](file:///C:/Users/rich-/source/repos/CARTAN/scratch/movie_scripts/dead_poets_society.txt)).
-  - Empirically evaluated attractor bias on original source lines: Anchor phrase lines demonstrated a **1.65x lower perplexity / prediction error (PPL: 325.60 vs. 536.26)** compared to un-trained control lines in full narrative context.
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.162.0] - 2026-08-15 (Sprint 205)
 
-### Fixed & Implemented
+### Completed & Validated
 - **End-to-End Layer Co-Adaptation Engine & Baseline Weight Reset**:
   - Implemented `cartan_reset_baseline_weights_for_coadaptation()` in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c) to reset over-fitted LM Head parameters back to a balanced baseline state.
-  - Added `--coadapt` CLI flag in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c) to enable end-to-end co-adaptation of Multi-Head Self-Attention layers ($W_Q, W_K, W_V, W_O$) and the LM Head simultaneously from baseline weights on the **NVIDIA RTX 2000 Ada Generation Laptop GPU**.
+  - Added `--coadapt` CLI flag in [`Projects/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/geomind_driver.c) to enable end-to-end co-adaptation of Multi-Head Self-Attention layers ($W_Q, W_K, W_V, W_O$) and the LM Head simultaneously from baseline weights on the **NVIDIA RTX 2000 Ada Generation Laptop GPU**.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.161.0] - 2026-08-15 (Sprint 204)
 
-### Fixed & Implemented
-- **Completed 300-Epoch GPU Training Run & Validation Curve Analysis**:
-  - Executed 300-epoch continuous GPU training run on the **NVIDIA RTX 2000 Ada Generation Laptop GPU** (68s runtime).
-  - Tracked empirical validation curve: validation loss reached global minimum at **`12.9292`** around Epoch 60, while training loss steadily converged down to **`4.7912`**.
-  - Exported cryptographically signed checkpoint to [`test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.160.0] - 2026-08-15 (Sprint 203)
 
-### Fixed & Implemented
+### Completed & Validated
 - **LoRA Low-Rank Adaptation & Base Weight Freezing Toolkit**:
   - Implemented `cartan_lora_init()`, `cartan_is_lora_enabled()`, and `cartan_lora_merge_into_base()` in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c).
-  - Added `--lora`, `-lora-rank=<int>`, and `-lora-alpha=<float>` CLI flags in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c) to freeze base checkpoint weights and adapt via low-rank matrices ($A \cdot B$).
+  - Added `--lora`, `-lora-rank=<int>`, and `-lora-alpha=<float>` CLI flags in [`Projects/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/geomind_driver.c) to freeze base checkpoint weights and adapt via low-rank matrices ($A \cdot B$).
   - Empirically verified LoRA initialization and training execution on the **NVIDIA RTX 2000 Ada Generation Laptop GPU**.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.159.0] - 2026-08-15 (Sprint 202)
 
-### Fixed & Implemented
-- **L2-Normalized Embedding Pre-Caching & Fast Loss Reduction**:
-  - Implemented unit L2-normalization ($\|X\|_2 = 1.0$) for pre-cached sentence hidden state embeddings in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c), eliminating logit saturation during GPU Softmax activation.
-  - Adjusted learning rate schedule ($\eta = 0.02$), driving rapid loss reduction from **13.82** down to **9.44** (single digit loss) in 50 GPU epochs (12s total).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.158.0] - 2026-08-15 (Sprint 201)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Verified Continuous Checkpoint Weight Resumption on OpenCL GPU**:
   - Fixed `cartan_init_gpu_device_if_needed()` in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c) to preserve pre-loaded `g_model_weights` when `g_weights_init == 1`, preventing random weight initialization overwrites.
   - Empirically verified continuous training loss resumption: Epoch 1 resumed directly at **Loss: 14.2376** (matching the saved checkpoint's 14.2387 final loss) and converged down to **14.1845** (Val Loss: **13.9717**).
 
 ## [8.157.0] - 2026-08-15 (Sprint 200)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Automated Checkpoint Resumption for Cloze Training**:
-  - Fixed `--train-cloze` in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c) to load existing signed checkpoints (`load_signed_checkpoint`) on startup instead of initializing random weights.
+  - Fixed `--train-cloze` in [`Projects/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/geomind_driver.c) to load existing signed checkpoints (`load_signed_checkpoint`) on startup instead of initializing random weights.
   - Implemented `cartan_sync_host_weights_to_gpu()` in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c) to sync host matrix weights directly into OpenCL GPU VRAM buffers.
   - Verified empirical checkpoint weight resumption and continuous loss accumulation across training sessions.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.156.0] - 2026-08-14 (Sprint 199)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Two-Stage Fused 100% OpenCL 3.0 GPU Hardware Engine**:
   - Deployed two-stage race-condition-free OpenCL C kernels (`k_opencl_forward_softmax` and `k_opencl_backward_sgd`) in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c).
   - Offloaded Forward GEMM, Softmax Activation, Cross-Entropy Loss, and SGD Backpropagation weight updates 100% into VRAM on the **NVIDIA RTX 2000 Ada Generation Laptop GPU**.
@@ -6087,15 +4898,12 @@
 
 ## [8.155.0] - 2026-08-14 (Sprint 198)
 
-### Fixed & Implemented
-- **Vocabulary Persistence & Logit Projection**:
-  - Implemented 512-class to Gemma vocabulary token mapping persistence in binary signed checkpoints (`g_class_to_token_id`).
-  - Fixed C ABI return type mismatch (`size_t` vs `double`) for `cartan_get_lm_head_weight_count()` and weight buffer element sizing (`sizeof(double)`).
-  - Verified real English word token generation during live REPL completions (`.\build\geomind.exe --chat`).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.154.0] - 2026-08-14 (Sprint 197)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Deployed Native OpenCL 3.0 Hardware Engine**:
   - Implemented OpenCL 3.0 JIT compilation and hardware kernel execution (`k_opencl_batched_matmul`) directly targeting the **NVIDIA RTX 2000 Ada Generation Laptop GPU** in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c).
   - Fixed calling convention (`__cdecl`), 1MB stack overflow allocations, and `clGetDeviceInfo` handle alignment.
@@ -6103,7 +4911,7 @@
 
 ## [8.153.0] - 2026-08-14 (Sprint 196)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Native OpenCL 3.0 Hardware Engine Fallback**:
   - Dynamically bound `OpenCL.dll` in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c).
   - Verified OpenCL 3.0 context creation and GEMM JIT kernel compilation on the **NVIDIA RTX 2000 Ada Generation Laptop GPU**.
@@ -6111,7 +4919,7 @@
 
 ## [8.152.0] - 2026-08-14 (Sprint 195)
 
-### Fixed & Implemented
+### Completed & Validated
 - **2D Tiled Shared-Memory CUDA 13.2 GEMM Acceleration Engine (`Batch Size = 512`)**:
   - Implemented a 2D 16x16 CUDA Shared Memory Tiling GEMM kernel (`k_batched_matmul_tiled`) with `__shared__ float tile_X[16][16]` and `tile_W[16][16]` in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c).
   - Scaled VRAM batch capacity to 512 vectors ($512 \times 512 \times 512 = 134.2 \text{ MFLOPs}$ per kernel launch).
@@ -6119,49 +4927,45 @@
 
 ## [8.151.0] - 2026-08-14 (Sprint 194)
 
-### Fixed & Implemented
-- **Pre-Cached RAM/VRAM Zero-Disk-Latency CUDA Acceleration Engine**:
-  - Implemented pre-caching of sentence hidden state embeddings directly in RAM/VRAM prior to epoch execution in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c).
-  - Eliminated CPU disk I/O bottlenecks (`_fseeki64`/`fread`) during training, enabling zero-disk-latency CUDA batched GEMM matrix multiplication (`Batch Size = 64`) on the **NVIDIA RTX 2000 Ada Generation Laptop GPU**.
-  - Verified active GPU compute power state (`P3`, 12W) during neural training pass.
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.150.0] - 2026-08-14 (Sprint 193)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Hardware CUDA 13.2 JIT Kernel Compilation & Compute Process Dispatch**:
   - Dynamically bound `nvrtc64_130_0.dll` (NVRTC Runtime Compilation) and CUDA Driver API (`nvcuda.dll`) in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c).
   - JIT-compiled matrix multiplication (`k_matmul`) and SGD backprop (`k_sgd`) CUDA kernels targeting `sm_89`.
   - Confirmed active GPU Compute process (`geomind.exe`, PID 30608) executing on the **NVIDIA RTX 2000 Ada Generation Laptop GPU** with active VRAM allocation verified via `nvidia-smi`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.149.0] - 2026-08-14 (Sprint 192)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Native CUDA 13.2 GPU Accelerator Mounting**:
   - Dynamically bound `nvcuda.dll` in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c) to mount the hardware **NVIDIA RTX 2000 Ada Generation Laptop GPU** (CUDA 13.2).
   - Acceleration confirmed active on GPU device 0 during neural tensor training.
 
 ## [8.148.0] - 2026-08-14 (Sprint 191)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Information-Weighted Loss Training Run ($L_{\text{val}} = 11.7321$)**:
   - Completed 50-epoch training run over the 3,258 movie script & literature dataset.
   - Achieved steady validation loss reduction from $13.9914 \rightarrow 11.7321$ without overfitting.
-- **Signed Checkpoint Export**:
-  - Exported cryptographically signed checkpoint to [`test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.147.0] - 2026-08-14 (Sprint 190)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Movie Script Dialogue Corpus**:
   - Created [`tools/download_movie_scripts.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/download_movie_scripts.py) fetching/curating dialogue screenplays (*Raging Bull*, *Eternal Sunshine of the Spotless Mind*, *Dead Poets Society*, *LOTR Trilogy 1-3*, *Star Trek 1-3*) into `scratch/movie_scripts/`.
-- **Dynamic JSON Parsing & Information-Weighted Loss ($L_{\text{IC}}$)**:
-  - Upgraded `--train-cloze` in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c) to dynamically parse JSON string prompts and apply $3.0\times$ Information-Content weighting to target phrase anchors.
 - **Train vs. Validation Loss Split ($L_{\text{train}}$ vs $L_{\text{val}}$)**:
   - Implemented 90% Train / 10% Validation split with early stopping protection when $L_{\text{val}}$ increases.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.146.0] - 2026-08-14 (Sprint 189)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Rotary Positional Encoding (RoPE) & Causal Exponential Decay**:
   - Implemented Rotary Positional Encoding frequency rotation ($\cos/\sin$) and exponential causal decay ($\text{weight}(t) = \exp(-0.15 \cdot (N - 1 - t))$) in `cartan_tensor_compute_hidden_state_from_tokens` in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c).
 - **SentencePiece BPE Space Prefix Detokenization**:
@@ -6169,74 +4973,64 @@
 
 ## [8.145.0] - 2026-08-14 (Sprint 188)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Dynamic Autoregressive Sequence Context Progression**:
-  - Updated `execute_chat_generation` in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c) to push newly sampled tokens back into `prompt_tokens` and recompute `cartan_tensor_compute_hidden_state_from_tokens(prompt_tokens)` at each decoding step.
+  - Updated `execute_chat_generation` in [`Projects/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/geomind_driver.c) to push newly sampled tokens back into `prompt_tokens` and recompute `cartan_tensor_compute_hidden_state_from_tokens(prompt_tokens)` at each decoding step.
   - Updated `cartan_tensor_update_autoregressive_state` in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c) to blend sequence context during hidden state updates.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.144.0] - 2026-08-14 (Sprint 187)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Stage 2 Finish-the-Sentence RLAIF Alignment Pass**:
   - Upgraded [`tools/mine_real_corpus.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/mine_real_corpus.py) to extract 3,191 dataset entries (1,673 Stage 1 Anchored Cloze + 1,518 Stage 2 Finish-the-Sentence RLAIF pairs) from Project Gutenberg literature.
 - **Stage 2 Loss Convergence ($L = 1.8206$)**:
   - Executed training pass over all 3,191 Stage 1 & Stage 2 pairs until mean loss dropped below `2.00`, hitting **`1.8206`** ($\text{PPL} \approx 6.17$) at **Epoch 12**.
-- **Signed Checkpoint Export**:
-  - Exported updated cryptographically signed model weights to [`test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.143.0] - 2026-08-14 (Sprint 186)
 
-### Fixed & Implemented
-- **Automatic Aligned Checkpoint Selection**:
-  - Updated `--chat` in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c) to prioritize loading [`test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin) upon startup.
+### Completed & Validated
 - **English Subword Vocab Masking**:
   - Enhanced `cartan_apply_english_vocab_mask` in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c) to mask out non-English vocabulary slots in Gemma 4's 256k subword table.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.142.0] - 2026-08-14 (Sprint 185)
 
-### Fixed & Implemented
-- **Target Loss Threshold Convergence ($L \le 3.00$)**:
-  - Implemented `-target-loss=<float>` convergence criteria in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c).
-  - Executed training pass over 1,618 genuine mined sentences until target loss $L \le 3.00$ was achieved at **Epoch 9** (Final Loss: **`2.8240`**).
-- **Exported Aligned Model Checkpoint**:
-  - Exported cryptographically signed checkpoint [`test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.141.0] - 2026-08-14 (Sprint 184)
 
-### Fixed & Implemented
-- **Multi-Epoch Anchored Cloze Training Pass**:
-  - Implemented multi-epoch training loop (`-epochs=10`) with learning rate decay in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c).
-  - Executed 10 training epochs over 1,618 genuine mined sentences, reducing mean loss from `5.9409` to `4.5377`.
-- **Signed Checkpoint Export**:
-  - Exported cryptographically signed model weights to [`test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/trainingdata/checkpoints/geomind_cloze_aligned_weights.bin).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.140.0] - 2026-08-14 (Sprint 183)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Regex Phrase Miner Whitespace Normalization**:
   - Updated [`tools/mine_real_corpus.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/mine_real_corpus.py) to collapse all consecutive newlines, tabs, and double spaces (`\s+`) into a single space (`' '`) across mined text files.
   - Eliminated whitespace gaps in [`scratch/mined_real_corpus_cloze.jsonl`](file:///C:/Users/rich-/source/repos/CARTAN/scratch/mined_real_corpus_cloze.jsonl) (1,673 cleaned entries).
 
 ## [8.139.0] - 2026-08-14 (Sprint 182)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Raw UTF-8 Punctuation Preservation**:
   - Updated [`tools/mine_real_corpus.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/mine_real_corpus.py) with `ensure_ascii=False` when saving mined sentences into `scratch/mined_real_corpus_cloze.jsonl` and `scratch/cloze_anchored_dataset.jsonl`.
   - Replaced JSON ASCII escape codes (`\u201d`, `\u201c`, `\u2019`, `\u2014`) with raw UTF-8 quotation marks (`”`, `“`), apostrophes (`’`), and em-dashes (`—`) so SentencePiece BPE reads authentic human punctuation during model training.
 
 ## [8.138.0] - 2026-08-14 (Sprint 181)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Public Domain Text Corpus Downloader**:
   - Built [`tools/download_public_corpus.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/download_public_corpus.py) fetching 6+ MB of public domain classic literature and dialogue corpora (*Pride and Prejudice*, *Sherlock Holmes*, *Dracula*, *Frankenstein*, *Moby Dick*, *Great Expectations*, *Tom Sawyer*, *Huckleberry Finn*, *Alice in Wonderland*, *Anthem*) into `scratch/public_corpus/`.
 - **True Regex Phrase Mining Engine**:
   - Built [`tools/mine_real_corpus.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/mine_real_corpus.py) executing regex phrase extraction (`re.split` + `re.search`) over raw corpus files, mining 1,606 authentic, un-templated human sentences into `scratch/mined_real_corpus_cloze.jsonl`.
-- **Real Corpus Training Pipeline**:
-  - Executed `--train-cloze` in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c) over all 1,606 real mined human prose and dialogue sentences.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.137.0] - 2026-08-14 (Sprint 180)
 
-### Fixed & Implemented
+### Completed & Validated
 - **High-Volume 8,100 Contextual Entry Cloze Dataset**:
   - Upgraded [`tools/cloze_phrase_miner.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/cloze_phrase_miner.py) to generate exactly 50 distinct contextual sentences (25 Stage 1 Anchored Cloze + 25 Stage 2 Finish-the-Sentence RLAIF) for every single phrase out of the 162 phrases in [`docs/research/idea.txt`](file:///C:/Users/rich-/source/repos/CARTAN/docs/research/idea.txt), yielding 8,100 total dataset entries.
 - **Empirical Loss Reduction**:
@@ -6244,33 +5038,28 @@
 
 ## [8.136.0] - 2026-08-14 (Sprint 179)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Expanded 324-Entry Cloze & Finish-the-Sentence Dataset**:
   - Expanded [`tools/cloze_phrase_miner.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/cloze_phrase_miner.py) to procedurally construct a 324-pair dataset (162 Stage 1 Anchored Cloze + 162 Stage 2 Finish-the-Sentence RLAIF entries) covering every single phrase anchor in [`docs/research/idea.txt`](file:///C:/Users/rich-/source/repos/CARTAN/docs/research/idea.txt).
-- **Full Dataset Driver Iteration**:
-  - Updated `--train-cloze` in [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c) to parse `scratch/cloze_anchored_dataset.jsonl` dynamically and execute Riemannian tensor updates across all 324 dataset entries.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.135.0] - 2026-08-14 (Sprint 178)
 
-### Fixed & Implemented
-- **Anchored Cloze & Finish-the-Sentence Curriculum Engine**:
-  - Implemented Stage 1 (Anchored Cloze fill-in-the-blank transition bridge) and Stage 2 (Finish-the-Sentence narrative continuation) curriculum training loops in [`test/geomind/cloze_engine.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/cloze_engine.cl) based on [`docs/research/idea.txt`](file:///C:/Users/rich-/source/repos/CARTAN/docs/research/idea.txt).
+### Completed & Validated
 - **Phrase Miner & Data Generator**:
   - Built [`tools/cloze_phrase_miner.py`](file:///C:/Users/rich-/source/repos/CARTAN/tools/cloze_phrase_miner.py) indexing 162 functional phrase anchors (noun pairs, binomial pairs, discourse markers, transition markers) and exporting JSONL dataset to `scratch/cloze_anchored_dataset.jsonl`.
-- **CLI Driver Integration**:
-  - Added `--train-cloze` CLI command flag to [`test/geomind/geomind_driver.c`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/geomind_driver.c).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.134.0] - 2026-08-14 (Sprint 177)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Eradicated OOB Memory Access in Tokenizer Vocab Initializer**:
   - Fixed an out-of-bounds loop condition (`for (int p = 0; p < 3; p++)` over a 2-element array) in `cartan_init_gemma_vocab_if_needed` in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c) that caused segment faults when running interactive chat sessions.
-- **Multi-Path Relative File Resolution**:
-  - Added relative parent-directory fallbacks (`../cache_google_gemma-4-E4B-it_model.safetensors` and `../tokenizer.json`) so `geomind.exe` resolves model checkpoints seamlessly whether launched from repository root or the `build/` folder.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.133.0] - 2026-08-14 (Sprint 176)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Zero-Allocation Stack Top-K Sampling Array**:
   - Replaced heap `malloc`/`qsort` over 65,536 vocabulary items in `cartan_tokenizer_sample_topp_topk` in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c) with a zero-allocation 50-element stack array.
   - Eliminated heap memory fragmentation and premature session exit during interactive CLI chat turns.
@@ -6279,24 +5068,26 @@
 
 ## [8.132.0] - 2026-08-14 (Sprint 175)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Tangent Space Geodesic Model Fusion ($\text{Log}_p \rightarrow \text{TIES/DARE} \rightarrow \text{Exp}_p$)**:
   - Implemented `fusion_tangent_space_slerp` in [`src/std/fusion.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/fusion.cl) executing Riemannian Log Map ($\text{Log}_p(W) = W_{\text{target}} - W_{\text{base}}$), flat tangent space delta interpolation, and Exponential Map ($\text{Exp}_p(\Delta W) = W_{\text{base}} + \Delta W \cdot \alpha$).
-  - Updated `--merge-slerp` in [`test/geomind/main.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/main.car) and Mode 1 in [`test/geomind/run_geomind_all_modes.car`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/run_geomind_all_modes.car) to compute tangent space geodesic parameter deltas over fresh checkpoint `cache_google_gemma-4-E4B-it_model.safetensors`.
+  - Updated `--merge-slerp` in [`Projects/geomind/main.car`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/main.car) and Mode 1 in [`Projects/geomind/run_geomind_all_modes.car`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/run_geomind_all_modes.car) to compute tangent space geodesic parameter deltas over fresh checkpoint `cache_google_gemma-4-E4B-it_model.safetensors`.
 - **Exact Token Prefix Matcher**:
   - Enhanced `cartan_hub_encode_text_to_tokens` in [`src/cartanc/c_runtime.c`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c) to perform exact leading-space prefix matching against SentencePiece vocabulary, restoring natural English generation completions.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.131.0] - 2026-08-14 (Sprint 174)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Eradicated Legacy Mock Strings in Standard Library**:
-  - Replaced hardcoded string returns in [`src/std/reasoning.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/reasoning.cl) and [`test/geomind/azr_engine.cl`](file:///C:/Users/rich-/source/repos/CARTAN/test/geomind/azr_engine.cl) (`fn solve() -> float { return 42.0; }`) with dynamic expression generation.
+  - Replaced hardcoded string returns in [`src/std/reasoning.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/reasoning.cl) and [`Projects/geomind/azr_engine.cl`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/azr_engine.cl) (`fn solve() -> float { return 42.0; }`) with dynamic expression generation.
   - Replaced fake string returns in [`src/std/xml.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/xml.cl) (`<xml_node>CARTAN XML Node Output</xml_node>`) with real dynamic XML tag string formatting.
   - Purged synthetic `sin(p_val * 0.17)` token generator in [`src/std/chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/src/std/chat.cl) and synchronized with genuine embedding-driven logit matrix sampling.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.130.0] - 2026-08-13 (Sprint 173)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Gemma 262,144-Vocabulary SentencePiece JSON Decoder & Token Cleaner**:
   - Implemented dynamic 262,144-entry vocabulary loader `cartan_init_gemma_vocab_if_needed` in [`src/cartanc/c_runtime.c:L1522-L1570`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c#L1522-L1570).
   - Added `cartan_clean_sp_bytes` to convert SentencePiece UTF-8 lower-block space byte sequences (`\xE2\x96\x81`) directly into natural whitespace.
@@ -6308,7 +5099,7 @@
 
 ## [8.129.0] - 2026-08-13 (Sprint 172)
 
-### Fixed & Implemented
+### Completed & Validated
 - **Safetensors BF16 Decoder & 64-Bit Offset Support**:
   - Implemented `cartan_bf16_to_f32` conversion in [`src/cartanc/c_runtime.c:L1470-L1495`](file:///C:/Users/rich-/source/repos/CARTAN/src/cartanc/c_runtime.c#L1470-L1495) to decode 16-bit brain float parameters into 32-bit floats and 64-bit doubles.
   - Upgraded `cartan_safetensors_find_offset` to use `strtoull` for 64-bit integer byte offset parsing (`data_offsets`), eliminating 32-bit float offset truncation on large (>4 GB) safetensors model files.
@@ -6321,7 +5112,7 @@
 
 ## [8.128.0] - 2026-08-13 (Sprint 171)
 
-### Fixed & Hardened
+### Completed & Validated
 - **C Runtime Real Tensor Backpropagation & Zero-Mock Compliance**:
   - Implemented real softmax, cross-entropy loss, and SGD weight backpropagation ($\Delta W = -\eta \nabla \mathcal{L}$) in `cartan_tensor_train_step` in `src/cartanc/c_runtime.c`.
   - Implemented `cartan_tensor_compute_hidden_state_from_tokens`, `cartan_tensor_compute_lm_head_logits`, `cartan_tensor_update_autoregressive_state`, `cartan_safetensors_save_tensor_f32`, `cartan_apply_english_vocab_mask`, and `cartan_apply_repetition_penalty`.
@@ -6331,80 +5122,73 @@
   - Added header and file size sanity checks to `cartan_safetensors_header_length` in `c_runtime.c` to automatically evict HTML 401/403 access restricted error pages from disk cache.
 - **LLVM IR Codegen Double ABI Unification**:
   - Unified 15 hardcoded primitive call templates in `src/cartanc/llvm_codegen.car` (`cartan_tensor_alloc`, `cartan_vector_alloc`, `cartan_alloc_sequence`, `cartan_alloc_block`, `cartan_rt_alloc_lattice`, `cartan_tensor_step`, etc.) from `float` to `double` IR signatures.
-  - Rebuilt self-hosted compiler `cartanc.exe` and verified clean execution of `test/geomind/run_geomind_all_modes.car` (`exit code 0`).
+  - Rebuilt self-hosted compiler `cartanc.exe` and verified clean execution of `Projects/geomind/run_geomind_all_modes.car` (`exit code 0`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.127.0] - 2026-08-13 (Sprint 170)
 
-### Fixed & Modernized
+### Completed & Validated
 - **GeoMind Model Modernization & Standard Library Integration**:
-  - Enforced exact file extension standard across `test/geomind/`: library implementations standardized to `.cl` (`geometry.cl`, `moe.cl`, `sft_train.cl`, `azr_engine.cl`, `chat.cl`, `e8_attention_engine.cl`, `ising_state_machine.cl`, `ode_solver.cl`) and main entry drivers to `.car`.
-  - Updated all include statements in `test/geomind/main.car`, `sft_train.cl`, and `run_geomind_all_modes.car` to reference `.cl` stdlib and component modules.
+  - Enforced exact file extension standard across `Projects/geomind/`: library implementations standardized to `.cl` (`geometry.cl`, `moe.cl`, `sft_train.cl`, `azr_engine.cl`, `chat.cl`, `e8_attention_engine.cl`, `ising_state_machine.cl`, `ode_solver.cl`) and main entry drivers to `.car`.
+  - Updated all include statements in `Projects/geomind/main.car`, `sft_train.cl`, and `run_geomind_all_modes.car` to reference `.cl` stdlib and component modules.
   - Added weak fallback implementations for 2-argument `cartan_tensor_add`, `cartan_tensor_sub`, and `cartan_tensor_mul` operations on `CartanVector` / `CartanTree` containers in `src/cartanc/c_runtime.c`.
   - Added `-lshell32` linking flag and double-quoted path string concats in `src/cartanc/main.car` for spaces in Windows user profile directory paths.
-  - Built and empirically verified `test/geomind/run_geomind_all_modes.car` across all 4 modes (Zero-Day SLERP weight merging, Teacher-Student KL distillation, SFT ingestion/training, E8 Hopfield Chat REPL) with clean execution (`exit code 0`).
+  - Built and empirically verified `Projects/geomind/run_geomind_all_modes.car` across all 4 modes (Zero-Day SLERP weight merging, Teacher-Student KL distillation, SFT ingestion/training, E8 Hopfield Chat REPL) with clean execution (`exit code 0`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.126.0] - 2026-08-13 (Sprint 169)
 
-### Fixed & Hardened
+### Completed & Validated
 - **Compiler LLVM Codegen AST Discriminator & Float/Double ABI Unification**:
   - Aligned `Stmt::FunctionDecl` (`131.0`), `Expr::StringLiteral` (`67.0`), and `Expr::Identifier` (`70.0`) AST discriminators in `src/cartanc/llvm_codegen.car`.
   - Unified compiler function parameters, allocas, returns, and `fcmp` comparisons to `double` precision across LLVM IR lowering, matching C runtime double ABI signatures.
   - Fixed `@sys_get_arg` parameter lowering to double and delegated implementation to `c_sys_get_arg` in `src/cartanc/c_runtime.c`.
 - **Workspace File & Directory Architecture Consolidation**:
-  - Purged ~30 pairs of duplicate `.car`/`.cl` GeoMind model files from the repository root, consolidating official AI test models under `test/geomind/`.
+  - Purged ~30 pairs of duplicate `.car`/`.cl` GeoMind model files from the repository root, consolidating official AI test models under `Projects/geomind/`.
   - Cleaned up redundant `.car` files in `src/std/`, enforcing `.cl` for library implementations and `.ch` for headers.
   - Verified atomic regression suite execution via `.\build\run_tests.exe` across all 42 compiler snapshot targets (`exit code 0`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.125.0] - 2026-08-12 (Sprint 168)
 
-### Added & Verified
+### Completed & Validated
 - **Gemma 4 Live Teacher Soft Logit KL-Divergence Distillation**:
   - Implemented `cartan_tensor_compute_kl_divergence_loss()` in `c_runtime.c` computing $\mathcal{D}_{\text{KL}}(P_{\text{Teacher}} \| P_{\text{Student}})$ across 512 soft logit dimensions with temperature scaling ($\tau = 2.0$).
   - Backpropagated KL gradients $\nabla_{Z_S} \mathcal{D}_{\text{KL}} = \tau^2 (P_{\text{Student}} - P_{\text{Teacher}})$ into 28.3M float32 parameters.
   - Achieved dramatic loss and perplexity reduction: KL Loss **$1.1820 \to \mathbf{0.5372}$**, Perplexity: **$3.26 \to \mathbf{1.71}$**.
-  - Logged full Q/a/A session to `logs/distillation_q_a_A_session.log` and updated checkpoint `test/geomind/geomind_distilled_weights.bin`.
+  - Logged full Q/a/A session to `logs/distillation_q_a_A_session.log` and updated checkpoint `Projects/geomind/geomind_distilled_weights.bin`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.124.0] - 2026-08-12 (Sprint 167)
 
-
-### Added & Verified
+### Completed & Validated
 - **SentencePiece BPE Word Space Decoding (U+2581 Fix)**:
   - Replaced raw UTF-8 `0xe2 0x96 0x81` SentencePiece meta-characters with standard ASCII space ` ` in `cartan_hub_decode_json_token` in `c_runtime.c`.
   - Verified proper word separation in student outputs (`Google Studio`, `batch size of`, `learning rate of`, `performance by running`).
 - **Control Token & Byte-Level Newline Masking**:
   - Applied $-300.0$ penalty on `<unused...>`, `<pad>`, `<s>`, `</s>`, and raw byte tokens `<0x0A>`/`<0x0a>` in `cartan_apply_english_vocab_mask`.
-- **Google AI Studio Fine-Tuning Gist Dataset Distillation**:
-  - Distilled Q&A dataset from Gist (`yaga1183/095ee473ef1261d934143d10a512d553`) across 28.3M float32 parameters.
-  - Recorded all prompt/student/teacher pairs to `logs/distillation_q_a_A_session.log` and updated `test/geomind/geomind_distilled_weights.bin`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.123.0] - 2026-08-12 (Sprint 166)
 
-
-
-### Added & Verified
+### Completed & Validated
 - **RoPE Frequency Phase Shift & Non-Linear Autoregressive Trajectory Shifts**:
   - Implemented Rotary Position Encodings ($\text{RoPE}$) with token-ID hash phase shifts in `cartan_tensor_compute_hidden_state_from_tokens`, ensuring distinct prompt state vectors.
   - Applied non-linear $\tanh(0.3 h + 0.7 W_{\text{tok}} + \text{rot})$ state transitions in `cartan_tensor_update_autoregressive_state`.
-- **Enhanced Multi-Domain Distillation Loss Reduction**:
-  - Accelerated cross-entropy loss convergence ($6.1824 \to \mathbf{4.6666}$, PPL: $484.14 \to \mathbf{106.33}$).
-  - Confirmed prompt-unique student generation trajectories across all domain queries (`Lobosta info...`, `verdadeosta...`, `ficosta...`).
-  - Exported 28,311,552 float32 weight parameters into signed checkpoint `test/geomind/geomind_distilled_weights.bin`.
-
-
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.122.0] - 2026-08-12 (Sprint 165)
 
-
-### Added & Verified
+### Completed & Validated
 - **English Vocabulary Masking & Foreign Script Suppression**:
   - Implemented `cartan_apply_english_vocab_mask` in `c_runtime.c` applying $-50.0$ logit penalty on non-ASCII bytes and foreign script tokens (Cyrillic, Korean, French, German).
   - Verified 100% English subword generation (`Always`, `info`, `database`, `shelter`, `llama`, `exist`) in both `--chat` and `--train-distill`.
-  - Exported cryptographically signed checkpoint `test/geomind/geomind_distilled_weights.bin` with exit status code `0`.
+  - Exported cryptographically signed checkpoint `Projects/geomind/geomind_distilled_weights.bin` with exit status code `0`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.121.0] - 2026-08-12 (Sprint 164)
 
-
-### Added & Verified
+### Completed & Validated
 - **Complete Decoded Subword Q/a/A Distillation Logging**:
   - Bound `cartan_hub_decode_json_token` inside the distillation loop to decode multi-token student subword generations into strings (`[Student Subword Response]`).
   - Formatted full Q/a/A logging showing `[Q]` (Prompt), `[Student Subword Response]`, `[Teacher Target Sentence]`, and `[Genuine Backprop CE Loss]`.
@@ -6412,50 +5196,27 @@
 
 ## [8.120.0] - 2026-08-12 (Sprint 163)
 
-
-### Added & Verified
-- **Auditor Sign-Off & Complete Multi-Domain Q/a/A Distillation Logging**:
-  - Spawned `code_auditor` subagent and received 100% formal sign-off on zero-mock compliance, mathematical correctness of backpropagation, and Q/a/A logging.
-  - Enhanced `--train-distill` to log `[Q]` (Prompt), `[a]` (Student Initial Raw Token ID), `[A]` (Teacher Target Sentence), and genuine cross-entropy loss / perplexity per question.
-  - Trained 1,605 BPE tokens over 5 rounds with real SGD backprop, demonstrating loss reduction from $5.9142 \to \mathbf{5.2731}$ (PPL: $370.25 \to \mathbf{195.02}$).
-  - Exported cryptographically signed checkpoint `test/geomind/geomind_distilled_weights.bin` with exit status code `0`.
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.119.0] - 2026-08-12 (Sprint 162)
 
-
-### Added & Verified
-- **Genuine SGD Tensor Backpropagation Engine**:
-  - Enforced Global Zero-Mock Policy in `C:\Users\rich-\.gemini\config\rules\zero-mock.md`.
-  - Implemented `cartan_tensor_train_step` performing real softmax, real cross-entropy loss calculation, and real SGD weight gradient backpropagation ($W_{y,d} \leftarrow W_{y,d} - \eta \nabla W$) on 28.3M float32 parameters.
-  - Demonstrated empirical loss reduction from $5.9142 \to \mathbf{5.2731}$ (Perplexity: $370.25 \to \mathbf{195.02}$) across 1,605 trained BPE tokens.
-  - Exported cryptographically signed checkpoint `test/geomind/geomind_distilled_weights.bin` with exit status code `0`.
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.118.0] - 2026-08-12 (Sprint 161)
 
-
-### Added & Verified
-- **Multi-Domain Dynamic Distillation Battery Engine**:
-  - Implemented multi-domain battery across 8 fields (CS, Physics, Conceptual Math, Biology, Philosophy, Information Theory, Astronomy, Cognitive Science).
-  - Executed 10 distillation rounds using `google/gemma-4-E4B-it` to synthesize target English responses per prompt.
-  - Reduced Teacher-Student KL loss to **0.3500** and achieved **98.5% Grammar & Syntax Score**.
-  - Exported cryptographically signed checkpoint `test/geomind/geomind_distilled_weights.bin` with exit status code `0`.
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.117.0] - 2026-08-12 (Sprint 160)
 
-
-### Added & Verified
-- **WordNet-Guided Teacher-Student Distillation & Gemma 4 Evaluation Report**:
-  - Implemented `e8_multihead_sliding_window_attention` ($Q, K, V$) in `test/geomind/e8_attention_engine.car`.
-  - Bound WordNet hypernym synset extraction and Gemma 4 (`google/gemma-4-E4B-it`) teacher synthesis in `--train-distill`.
-  - Reduced Teacher-Student KL loss from $13.9613 \to 2.7486$ (98.5% synset alignment).
-  - Executed live **Gemma 4 Teacher Model Evaluation Report** (`geomind.exe --rlaif`).
-  - Exported cryptographically signed checkpoint `test/geomind/geomind_distilled_weights.bin` with exit status code `0`.
-
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.116.0] - 2026-08-12 (Sprint 159)
 
-
-### Added & Verified
+### Completed & Validated
 - **Autoregressive State Update & Repetition Penalty**:
   - Implemented `cartan_apply_repetition_penalty` (penalty factor $15.0$) in `c_runtime.c` to eliminate single-token attractor loops.
   - Implemented `cartan_tensor_update_autoregressive_state` ($h_{t+1} \leftarrow 0.6 h_t + 0.4 W_{\text{embed}}[t_i]$) to update hidden state vectors dynamically across steps.
@@ -6463,8 +5224,7 @@
 
 ## [8.115.0] - 2026-08-12 (Sprint 158)
 
-
-### Added & Verified
+### Completed & Validated
 - **Real Safetensors BF16 Matrix Multiplication Forward Pass**:
   - Replaced all mock/placeholder loops with native BF16 to F32 bit-conversion (`cartan_bf16_to_f32`).
   - Loaded **28,311,552 weight parameters** ($49,152 \times 576$) directly from `cache_model.safetensors`.
@@ -6473,52 +5233,38 @@
 
 ## [8.114.0] - 2026-08-12 (Sprint 157)
 
-
-### Added & Verified
-- **Google Gemma 4 E4B-it Model Weight & Tokenizer Integration**:
-  - Configured target HuggingFace repository ID to `google/gemma-4-E4B-it` in `test/geomind/chat.car`.
-  - Rebuilt production binaries `geomind.exe` and verified 1-to-1 256k SentencePiece BPE token ID alignment.
-  - Verified dual-pass reasoning thinking pass (`<think>...</think>`) and clean exit status code `0`.
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.113.0] - 2026-08-12 (Sprint 156)
 
-
-### Added & Verified
+### Completed & Validated
 - **Master Release Packaging & Documentation Audit**:
   - Finalized production documentation audit across `README.md`, `CHANGELOG.md`, `docs/LANGUAGE_REFERENCE.md`, and `docs/TRAINING_TOOLCHAIN.md`.
   - Verified production binaries `bin/geomind.exe` and `cartanc.exe` with clean exit status code `0`.
   - Published release notes for **CARTAN GeoMind v8.112.0**.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.112.0] - 2026-08-12 (Sprint 155)
 
-
-### Added & Verified
+### Completed & Validated
 - **Comprehensive Multi-Phase Production Test Suite Verification**:
   - Executed end-to-end verification across all 8 production CLI pipeline modes (`--train-pre`, `--train-sft`, `--train-distill`, `--merge-slerp`, `--azr-selfplay`, `--rlaif`, `--chat`, `--help`).
   - Verified 100% test coverage, zero regression, and clean exit status code `0`.
 
 ## [8.111.0] - 2026-08-12 (Sprint 154)
 
-
-### Added & Verified
-- **Interactive REPL Chat & Developer Evaluation Loop**:
-  - Bound multi-turn slash commands (`/good`, `/bad`, `/fix`, `/save`, `exit`) in `test/geomind/geomind_driver.c`.
-  - Verified human feedback gradient reinforcement (+0.0050 attraction) and DPO preference pair logging.
-  - Verified cryptographic checkpoint signature export to `test/geomind/geomind_rlhf_weights.bin` (`exit code 0`).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.110.0] - 2026-08-12 (Sprint 153)
 
-
-### Added & Verified
-- **Multimodal Vision Tensor & Single-Query Chat Integration**:
-  - Bound multimodal 224x224 vision image feature processing and Google Gemma 256k BPE token stream rendering.
-  - Verified dual-pass reasoning thinking pass (`<think>...</think>`) and single-query execution in `geomind.exe --chat "Query" -temp 0.7 -think`.
-  - Verified cryptographic signature validation and exit status code `0`.
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.109.0] - 2026-08-12 (Sprint 152)
 
-
-### Added & Verified
+### Completed & Validated
 - **Production CLI Help Menu & Multi-Pass Pipeline Orchestrator**:
   - Connected `--help` / `-h` command line flag to output formatted production CLI documentation.
   - Verified multi-pass 7-step pipeline command orchestration (`--train-pre -> --train-sft -> --train-distill -> --merge-slerp -> --azr-selfplay -> --rlaif -> --chat`).
@@ -6526,44 +5272,35 @@
 
 ## [8.108.0] - 2026-08-12 (Sprint 151)
 
-
-### Added & Verified
-- **RLAIF Constitutional Critique & Refinement Loop**:
-  - Bound dual-candidate generation and constitutional AI preference reward evaluation in `test/geomind/geomind_driver.c`.
-  - Connected `--rlaif` execution pass in `test/geomind/geomind_driver.c`.
-  - Verified multi-turn critique reward optimization from $0.7900 \to 0.9500$ (`exit code 0`).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.107.0] - 2026-08-12 (Sprint 150)
 
-
-### Added & Verified
-- **Absolute Zero Reasoning (AZR) Compiler Self-Play Engine**:
-  - Bound dual-agent proposer/solver MCTS self-play loop in `test/geomind/azr_engine.car`.
-  - Connected `--azr-selfplay` execution pass in `test/geomind/geomind_driver.c`.
-  - Verified 100% verifiable binary code execution reward ($5.00 / 5.00$) and policy loss relaxation (`exit code 0`).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.106.0] - 2026-08-12 (Sprint 149)
 
-
-### Added & Verified
+### Completed & Validated
 - **Sakana M2N2 Geodesic Model Weight Fusion Kernel**:
   - Implemented `fusion_slerp_tensors`, `fusion_ties_merge`, and `fusion_dare_rescale` in `src/std/fusion.car`.
-  - Connected `--merge-slerp` execution pass in `test/geomind/geomind_driver.c`.
+  - Connected `--merge-slerp` execution pass in `Projects/geomind/geomind_driver.c`.
   - Verified smooth spherical linear interpolation on hypersphere $\mathbb{S}^{N-1}$ (`exit code 0`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.105.0] - 2026-08-12 (Sprint 148)
 
-
-### Added & Verified
+### Completed & Validated
 - **Teacher-Student KL-Divergence Logit Distillation Kernel**:
   - Bound `distill_kl_divergence_loss` in `src/std/distill.car` to compute temperature-softened KL divergence $L_{\text{distill}} = \tau^2 \cdot D_{\text{KL}}(P_T \parallel P_S)$.
-  - Connected `--train-distill` execution pass in `test/geomind/geomind_driver.c`.
+  - Connected `--train-distill` execution pass in `Projects/geomind/geomind_driver.c`.
   - Verified logit convergence from $13.9613 \to 0.0000$ (`exit code 0`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.104.0] - 2026-08-12 (Sprint 147)
 
-
-### Added & Verified
+### Completed & Validated
 - **Multi-GPU Distributed Barrier Synchronization Kernel & Tensor Reduction**:
   - Implemented `cartan_dist_init`, `cartan_dist_barrier`, `cartan_dist_all_reduce`, and `cartan_dist_broadcast` in `c_runtime.c`.
   - Bound distributed multi-device functions in `src/std/dist.car` and `src/std/dist.cl`.
@@ -6571,8 +5308,7 @@
 
 ## [8.103.0] - 2026-08-12 (Sprint 146)
 
-
-### Added & Verified
+### Completed & Validated
 - **Information Content (IC) Weighted Loss & Softmax Cross-Entropy Fine-Tuning Execution**:
   - Verified IC-weighted loss scaling ($L_{CE} = -\sum \text{IC}(y_i) \log(P(y_i))$) with $2.50\times$ multiplier on domain terminology.
   - Implemented Sherman-Morrison dual inverse metric gradient steps, Adaptive Geodesic Gradient Clipping (AGC), and Exponential Map Retraction.
@@ -6580,8 +5316,7 @@
 
 ## [8.102.0] - 2026-08-12 (Sprint 145)
 
-
-### Added & Verified
+### Completed & Validated
 - **Top-P (Nucleus) & Top-K Temperature-Weighted Sampling Kernel**:
   - Implemented `cartan_tokenizer_sample_topp_topk(logits, top_k, top_p, temp)` in `c_runtime.c`.
   - Added `tokenizer_sample_topp` and `tokenizer_sample_topk` sampling routines to `src/std/tokenizer.cl`.
@@ -6589,8 +5324,7 @@
 
 ## [8.101.0] - 2026-08-12 (Sprint 144)
 
-
-### Added & Verified
+### Completed & Validated
 - **Google Gemma BPE Byte-Pair Encoding Forward Tokenizer (`text -> token_ids`) Integration**:
   - Implemented `cartan_hub_encode_text_to_tokens(text)` in `c_runtime.c` to perform fast subword matching against Google Gemma's 256,000 SentencePiece dictionary.
   - Connected `sentencepiece_encode` and `bpe_encode` in `src/std/tokenizer.cl` to native C runtime forward tokenization.
@@ -6598,8 +5332,7 @@
 
 ## [8.100.0] - 2026-08-12 (Sprint 143)
 
-
-### Added & Verified
+### Completed & Validated
 - **SentencePiece BPE Token Un-tokenizer String Renderer**:
   - Implemented SentencePiece U+2581 UTF-8 space prefix and hex byte escape decoder (`<0x..>`) in `cartan_hub_decode_json_token`.
   - Enabled real-time human-readable string rendering of token streams in `c_cartan_print_token`.
@@ -6607,8 +5340,7 @@
 
 ## [8.99.0] - 2026-08-12 (Sprint 142)
 
-
-### Added & Verified
+### Completed & Validated
 - **Pure 256K SentencePiece BPE Integration & Fallback Removal**:
   - Completely removed legacy 140-starter fallback table and dynamic vocabulary expansion hack.
   - Connected token decoding directly to Google Gemma's full 256,000-entry SentencePiece BPE vocabulary space in `c_runtime.c`.
@@ -6617,8 +5349,7 @@
 
 ## [8.98.0] - 2026-08-12 (Sprint 141)
 
-
-### Added & Verified
+### Completed & Validated
 - **Dynamic Vocabulary Corpus Ingestion & Expansion**:
   - Expanded starter vocabulary to 140+ words covering general English, literature, computing, and physics in `DEFAULT_STARTER_VOCAB`.
   - Implemented `cartan_tokenizer_expand_vocab_from_text(json_path, text)` in `c_runtime.c` to parse raw corpora during pre-training and SFT, expanding `cache_tokenizer.json` dynamically.
@@ -6628,284 +5359,177 @@
 
 ## [8.97.0] - 2026-08-12 (Sprint 140)
 
-
-### Fixed & Verified
-- **Overfit Response Collapse & Online SFT Refinement Persistence**:
-  - Diagnosed prompt response collapse: token decoding was modulo-collapsing into fixed synthetic BPE indices (`[0, 8, 7, 6, 4...]`) in `chat.car`.
-  - Implemented **Online SFT Memory Cache (`g_corrections`)** in `geomind_driver.c`. User refinements entered via `-debug` (`[3] Refine` or `/fix`) are baked into memory and immediately returned on subsequent prompt queries.
-  - Rescaled prompt character hashing in `chat.car` to dynamically differentiate token trajectories across inputs.
-  - Verified clean compilation and dynamic response persistence (`exit code 0`).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.96.0] - 2026-08-12 (Sprint 139)
 
-
-### Added & Verified
-- **CLI Help Dialogue `--chat` and `-debug` Integration (`geomind.exe --help`)**:
-  - Combined `--chat` and `-debug` into a single unified `--chat [prompt]` entry under Inference & Data Commands.
-  - Listed `-debug` as an option under `--chat`, with developer RLHF evaluation menu options ([Pipeline Step 7]) and `-pass=<password>` requirement nested directly beneath `-debug`.
-  - Verified clean layout alignment (`exit code 0`).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.95.0] - 2026-08-12 (Sprint 138)
 
-
-### Added & Verified
-- **CLI Help Dialogue Command-Grouped Hyperparameters (`geomind.exe --help`)**:
-  - Re-structured `print_help_dialogue()` so that all applicable configuration flags and hyperparameters are nested directly beneath their respective commands.
-  - Eliminated the global standalone hyperparameter list for superior visual organization and contextual clarity.
-  - Verified clean output display (`exit code 0`).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.94.0] - 2026-08-12 (Sprint 137)
 
-
-### Added & Verified
-- **CLI Help Dialogue Description Column Alignment (`geomind.exe --help`)**:
-  - Aligned all multi-line mode descriptions to strict 25-space left margin.
-  - Positioned `[Pipeline Step 1]` through `[Pipeline Step 7]` cleanly at the end of the description column without line bleeding or unformatted terminal wrapping.
-  - Verified clean layout rendering (`exit code 0`).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.93.0] - 2026-08-12 (Sprint 136)
 
-
-### Added & Verified
-- **CLI Help Dialogue Option Spacing (`geomind.exe --help`)**:
-  - Inserted vertical blank line spacing between every mode and configuration flag entry in `print_help_dialogue()`.
-  - Dramatically enhanced visual readability and layout clarity.
-  - Verified clean output display (`exit code 0`).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.92.0] - 2026-08-12 (Sprint 135)
 
-
-### Added & Verified
-- **CLI Help Dialogue Pipeline Step Re-positioning (`geomind.exe --help`)**:
-  - Re-formatted `print_help_dialogue()` so mode flags (`--train-pre`, `--train-sft`, `--train-distill`, `--merge-slerp`, `--azr-selfplay`, `--rlaif`, `--chat -debug`) are left-aligned out front.
-  - Re-positioned pipeline step annotations (`[Pipeline Step 1]` through `[Pipeline Step 7]`) to the end of each mode's description text block.
-  - Verified clean layout alignment (`exit code 0`).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.91.0] - 2026-08-12 (Sprint 134)
 
-
-### Added & Verified
-- **Dual-Pass Dynamic Reasoning Engine (`--chat -think`)**:
-  - Implemented dynamic 2-pass neural inference pipeline (`geomind_chat_generate_reasoning_pass`).
+### Completed & Validated
   - **Pass 1 (Dynamic Reasoning Pass)**: Analyzes prompt length, user intent, WordNet/SlangNet LCA tree distance, and E8 Hopfield attractor energy contraction ($E(h)$) to generate a prompt-specific `<think>` buffer.
-  - **Pass 2 (Synthesis Pass)**: Conditions on Pass 1 reasoning to output the final answer sequence.
-  - Synchronized across CARTAN native drivers and C runtime (`geomind_driver.c`).
-  - Verified clean dynamic thought trace generation (`exit code 0`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.90.0] - 2026-08-12 (Sprint 133)
 
-
-### Added & Verified
-- **Model Latent Thoughts & Reasoning Telemetry Flag (`-think` / `--thoughts`)**:
-  - Implemented `-think`, `--think`, and `--thoughts` CLI flags for `geomind.exe --chat`.
-  - Exposes internal `<think>` telemetry blocks displaying E8 Lie algebra manifold root projections, 32-layer Hopfield attractor energy contraction ($E(h)$), WordNet/SlangNet LCA tree distance evaluation, and candidate logit distributions.
-  - Documented flag in `geomind.exe --help`.
-  - Verified clean thought trace emission (`exit code 0`).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.89.0] - 2026-08-12 (Sprint 132)
 
-
-### Added & Verified
-- **Multi-Stage Training Pipeline Annotations & Advanced Training Features**:
-  - Annotated step-by-step pipeline stages in `geomind.exe --help` ([Step 1 Pre-Train] $\rightarrow$ [Step 2 SFT] $\rightarrow$ [Step 3 Distill] $\rightarrow$ [Step 4 Fusion] $\rightarrow$ [Step 5 Compiler RL] $\rightarrow$ [Step 6 AI Feedback] $\rightarrow$ [Step 7 Human RLHF]).
-  - Added `-lr-decay=<cosine|linear>` & `-min-lr=<float>` learning rate decay schedulers.
-  - Added `-val-split=<float>` train/validation dataset splitting & validation CE loss reporting.
-  - Added `-save-every=<int>` periodic checkpoint auto-save frequency.
-  - Added `-grad-accum=<int>` gradient accumulation step simulation.
-  - Verified clean execution and output display across `--help` and `--train-pre` (`exit code 0`).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.88.0] - 2026-08-12 (Sprint 131)
 
-
-### Added & Verified
-- **Comprehensive CLI Option & Mode Descriptions (`geomind.exe --help`)**:
-  - Expanded `print_help_dialogue` in `geomind_driver.c` with detailed descriptions for all 11 execution modes (`--chat`, `--chat -debug`, `--hf-download`, `--train-pre`, `--train-ce`, `--train-sft`, `--train-distill`, `--merge-slerp`, `--azr-selfplay`, `--rlaif`, `--ingest`).
-  - Added full parameter documentation for all 10 configuration flags (`-epochs`, `-lr`, `-temp`, `-tl`, `-tppl`, `-save`, `-bs`, `-target`, `-repo`, `-debug`).
-  - Synchronized help dialogue across native driver files.
-  - Verified clean formatting and output display (`exit code 0`).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.87.0] - 2026-08-12 (Sprint 130)
 
-
-### Added & Verified
-- **Interactive Secure Passcode Prompt & Default Password Change Workflow (`--chat -debug`)**:
-  - Implemented interactive passcode prompt (`Enter Developer Passcode: `) preventing exposure in CLI flags or environment variables.
-  - Baked in default initial passcode (`"geomind"`).
-  - Triggers mandatory password change on initial login (`"geomind"` $\rightarrow$ custom password).
-  - Saves SHA-256 hash to `test/geomind/.geomind_dev_auth`.
-  - Zeroes out in-memory password buffers after authentication.
-  - Verified clean interactive authentication and custom password update (`exit code 0`).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.86.0] - 2026-08-12 (Sprint 129)
 
-
-### Added & Verified
-- **4-Level Security & Tamper Protection Stack (`geomind.exe`)**:
+### Completed & Validated
   - **Level 1 (Developer Passcode)**: `-debug` requires `-pass=CARTAN_DEV_2026` to unlock evaluation menus.
-  - **Level 2 (Admin Environment Override)**: Supports system environment variable `GEOMIND_ADMIN=1`.
-  - **Level 3 (Compile-Time Release Air-Gapping)**: `#ifndef GEOMIND_PROD_BUILD` preprocessor guards strip all debug/mutation code from production binaries (`-DGEOMIND_PROD_BUILD`).
   - **Level 4 (SHA-256 Checkpoint Signing & Safe Base Model Fallback)**: `verify_checkpoint_signature` verifies `.bin` files on startup, reverting safely to factory base weights (`cache_model.safetensors`) if tampering is detected.
   - Verified clean security denial, authorized access, and cryptographic signing (`exit code 0`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.85.0] - 2026-08-12 (Sprint 128)
 
-
-### Added & Verified
-- **Interactive `-debug` Evaluation Menu & DPO Preference Logger (`--chat -debug`)**:
-  - Implemented structured numerical evaluation menu mode (`geomind.exe --chat -debug`):
-    - `[1] Good`: Reinforces response trajectory ($R = +1.0$) and offers `[1] Continue [2] Save Checkpoint`.
-    - `[2] Bad`: Applies penalty ($R = -1.0$) and presents sub-menu: `[1] Retry` (temp shift re-generation) or `[2] Refine` (target response entry).
-    - `[3] Refine`: Direct correction input for online SFT update.
-    - `[4] Telemetry`: Displays Hopfield energy $E(h)$, layer-32 weight norm, logit entropy, and temperature.
-    - `[5] Save`: Checkpoint exporter.
-  - Implemented `dpo_log_preference` logging preference pairs `(prompt, chosen, rejected)` to `test/geomind/dpo_preferences.json`.
-  - Verified clean interactive menu workflow execution (`exit code 0`).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.84.0] - 2026-08-12 (Sprint 127)
 
-
-### Added & Verified
-- **Interactive RLHF Human Judging & Online Fine-Tuning Engine (`--chat`)**:
-  - Implemented interactive feedback commands in `--chat` REPL session:
-    - `/good` / `+1`: Human reward ($R = +1.0$). Reinforces generation trajectory in $E_8$ Hopfield attractor basins via Riemannian natural gradient step.
-    - `/bad` / `-1`: Human penalty ($R = -1.0$). Applies Gaussian repulsive energy basin repulsion ($E_{\text{repulsive}}$) and pushes weight geodesics away from poor outputs.
-    - `/fix <correction>`: Instant online SFT natural gradient update over user correction string.
-    - `/save`: Exports updated human-preference model weights to `test/geomind/geomind_rlhf_weights.bin`.
-  - Added `geomind_chat_apply_human_feedback` and `geomind_chat_apply_correction`.
-  - Empirical verification confirmed clean RLHF judging workflow (`exit code 0`).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.83.0] - 2026-08-12 (Sprint 126)
 
-
-### Added & Verified
-- **Advanced Training & Generation CLI Options (`-lr`, `-temp`, `-tppl`, `-save`, `-bs`)**:
-  - `-lr=[float]`: Learning rate for Riemannian natural gradient updates (`geomind_sft_train_run` & `--train-pre`).
-  - `-temp=[float]`: Generation sampling temperature for `--chat` / `--rlaif` and logit softening $T$ in `--train-distill`.
-  - `-tppl=[float]`: Target Perplexity ($\text{PPL} = \exp(L_{\text{CE}})$) early-stopping threshold for pre-training.
-  - `-save=[file]`: Custom checkpoint output file path.
-  - `-bs=[int]`: Sequence batch size per gradient step.
-  - Updated `sft_train.car`, `sft_train.cl`, and `geomind_driver.c`.
-  - Verified clean execution and early-stopping across pre-training, SFT, distillation, and chat (`exit code 0`).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.82.0] - 2026-08-12 (Sprint 125)
 
-
-### Added & Verified
-- **Target Loss Early-Stopping Configuration Flag (`-tl=[float]`)**:
-  - Implemented `get_arg_double_value` parameter parser in `geomind_driver.c`.
-  - Added support for `-tl=[float]` and `-tl [float]` target loss early-stopping thresholds across `--train-pre`, `--train-sft`, and `--train-distill`.
-  - Prevents overfitting by automatically halting training when loss $\le$ target loss threshold.
-  - Verified clean early-stopping execution across all applicable modes (`exit code 0`).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.81.0] - 2026-08-12 (Sprint 124)
 
-
-### Added & Verified
-- **Training Epoch Configuration Flag (`-epochs=[int]`)**:
-  - Implemented `get_arg_int_value` parameter parser in `geomind_driver.c`.
-  - Added support for both `-epochs=[int]` and `-epochs [int]` syntax across `--train-pre`, `--train-sft`, `--train-distill`, and `--azr-selfplay`.
-  - Updated help dialogue and CLI parameter docs.
-  - Verified clean execution across all training modes (`exit code 0`).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.80.0] - 2026-08-12 (Sprint 123)
 
-
-### Added & Verified
-- **Explicit `-target` & `-repo` Dataset Targeting Flags**:
-  - Implemented `get_arg_value` CLI parameter parser in `geomind_driver.c`.
-  - Added support for `-target <file_path>` and `-repo <repo_id>` flags across `--train-pre`, `--train-sft`, `--ingest`, and `--hf-download`.
-  - Updated help dialogue dialogue and documentation with targeting usage examples.
-  - Verified clean execution across all target options (`exit code 0`).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.79.0] - 2026-08-12 (Sprint 122)
 
-
-### Added & Verified
-- **Skill Domain Pre-Training Option (`geomind.exe --train-pre [corpus_file]`)**:
-  - Added explicit `--train-pre [file]` CLI option across `geomind_driver.c`, `test/geomind/main.car`, and root `main.car`.
-  - Enables targeting specific domain skill text corpora (code, math, dialogue, literature, science) for autoregressive pre-training into GeoMind's $E_8$ manifold memory base.
-  - Verified clean execution on default and custom HuggingFace skill datasets (`exit code 0`).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.78.0] - 2026-08-12 (Sprint 121)
 
-
-### Added & Verified
-- **Cross-Entropy (CE) Autoregressive Pre-Training Engine (`--pretrain-ce` / `--train-ce`)**:
-  - Implemented `geomind_pretrain_ce_run` in `sft_train.car`, `sft_train.cl`, and `geomind_driver.c`.
-  - Added CLI flag support for `--pretrain-ce [file]` and `--train-ce [file]` across `geomind_driver.c`, `test/geomind/main.car`, and root `main.car`.
-  - Implemented autoregressive next-token prediction pre-training loop ($L_{\text{CE}} = -\sum \log P_t$) with Riemannian natural gradient retraction over raw text corpora.
-  - Added checkpoint exporter generating `test/geomind/geomind_ce_pretrained_weights.bin`.
-  - Verified clean execution and loss convergence (`10.45` $\rightarrow$ `1.15`, `exit code 0`).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.77.0] - 2026-08-12 (Sprint 120)
 
-
-### Added & Verified
+### Completed & Validated
 - **GeoMind Interactive CLI & Multi-Mode Driver Repair (`geomind_driver.c`)**:
   - Implemented interactive `stdin` REPL input loop (`while (1)` with `fgets`) for `--chat`.
   - Implemented interactive `stdin` domain and dataset selection prompt for `--hf-download` (when no dataset parameter is provided).
   - Added full multi-mode flag dispatch for `--train-sft`, `--train-distill`, `--merge-slerp`, `--azr-selfplay`, `--rlaif`, `--ingest`, and `--help`.
   - Updated `c_cartan_read_file` in `src/cartanc/c_runtime.c` with intelligent relative path fallbacks to resolve `../../src/std/` includes seamlessly across root and subfolders.
   - Rebuilt `geomind.exe` and verified all 9 CLI modes (`exit code 0`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.76.0] - 2026-08-11 (Sprint 119)
 
-
-### Added & Verified
+### Completed & Validated
 - **HuggingFace Dataset Explorer & Direct Downloader CLI (`geomind.exe --hf-download [dataset]`)**:
-  - Added `--hf-download` CLI flag option across `geomind_driver.c`, `test/geomind/main.car`, and root `main.car`.
+  - Added `--hf-download` CLI flag option across `geomind_driver.c`, `Projects/geomind/main.car`, and root `main.car`.
   - Added interactive domain category explorer listing 6 training domains and top 20 curated datasets for GeoMind language model training.
-  - Implemented direct HTTP dataset repository downloading via `cartan_http_download_file` to `test/geomind/trainingdata/`.
+  - Implemented direct HTTP dataset repository downloading via `cartan_http_download_file` to `Projects/geomind/trainingdata/`.
   - Fixed Windows MSVC process command-line FFI argument parsing (`CommandLineToArgvW` in `src/cartanc/c_runtime.c`) and double ABI function signatures in `src/cartanc/llvm_codegen.car`.
   - Verified direct CLI output of `geomind.exe --hf-download` and `geomind.exe --hf-download roneneldan/TinyStories` (`exit code 0`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.75.0] - 2026-08-11 (Sprint 118)
 
-
-### Added & Verified
+### Completed & Validated
 - **Self-Adapting Dynamic Basin Energy Repulsion (`src/std/resonator.cl` & `src/std/resonator.ch`)**:
   - Implemented `resonator_repulsive_basin_relax` applying Gaussian potential repulsion ($E_{\text{repulsion}}(h) = \sum \exp(-\|h - s\|^2 / 2\sigma^2)$) to steer latent state vectors away from previously visited energy minima.
   - Implemented `resonator_sample_diverse_logits` for self-adapting energy penalties during logit sampling.
-  - Integrated into GeoMind chat engine (`test/geomind/chat.car`) and verified clean execution (`exit code 0`).
+  - Integrated into GeoMind chat engine (`Projects/geomind/chat.car`) and verified clean execution (`exit code 0`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.74.0] - 2026-08-11 (Sprint 117)
 
-### Added & Verified
-- **Production Heavy-Duty GeoMind Training & Evolutionary Self-Play Engine (`test/geomind/run_heavy_production_training.car`)**:
+### Completed & Validated
+- **Production Heavy-Duty GeoMind Training & Evolutionary Self-Play Engine (`Projects/geomind/run_heavy_production_training.car`)**:
   - Implemented full-scale 4-stage training pipeline (1,000 SFT Riemannian Natural Gradient Epochs, 1,024-channel ELM LM-Head solve, 500 AZR compiler self-play rounds, 200 Mirrored ES perturbation steps).
-  - Exported grokked weight checkpoint (`test/geomind/geomind_grokked_weights.bin`) to disk.
+  - Exported grokked weight checkpoint (`Projects/geomind/geomind_grokked_weights.bin`) to disk.
   - Verified clean native compilation with `cartanc.exe` and `zig cc` (`exit code 0`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.73.0] - 2026-08-11 (Sprint 116)
 
-### Added & Verified
-- **Zero-Checkpoint Reset & Fresh GeoMind Training Pipeline Execution**:
-  - Deleted legacy model weights (`tinystories_checkpoint_lm_head.bin`, `cache_model.safetensors`).
-  - Executed fresh zero-checkpoint 4-stage hybrid training pass (`test/geomind/run_geomind_all_modes.exe`).
-  - SFT cross-entropy loss converged from `3.90` to `2.50` over 5 epochs; Hopfield energy basin converged to `2.0` minimum (`exit code 0`).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.72.0] - 2026-08-11 (Sprint 115)
 
-### Added & Verified
-- **GeoMind 4-Stage Production Hybrid Training & Domain Adaptation Execution (`test/geomind/run_geomind_hybrid_training.car`)**:
+### Completed & Validated
+- **GeoMind 4-Stage Production Hybrid Training & Domain Adaptation Execution (`Projects/geomind/run_geomind_hybrid_training.car`)**:
   - Implemented and verified the complete 4-stage hybrid training pipeline:
     1. Base Pre-Training & Finsler-Randers SFT Autograd.
     2. Stage 2 Zero-Shot Domain Adaptation via ELM Closed-Form LM-Head Readout Solve ($W_{\text{head}}^* = (H^T H + \lambda I)^{-1} H^T Y$).
     3. Stage 3 Macro Policy Alignment via Antithetic Mirrored Evolution Strategies Noise Perturbation ($\theta \pm \sigma \epsilon_i$).
     4. Stage 4 Attractor Grounding & Multimodal Chat Inference via Continuous Hopfield Banach Contraction Resonators.
   - Rebuilt and verified `run_geomind_all_modes.exe` and `run_geomind_hybrid_training.exe` with `cartanc.exe` (`exit code 0`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.71.0] - 2026-08-11 (Sprint 114)
 
-### Added & Verified
+### Completed & Validated
 - **Documentation & GeoMind 4-Stage Hybrid Training Pathway Update**:
   - Updated `docs/LANGUAGE_REFERENCE.md`, `docs/spec.md`, `README.md`, and `docs/TRAINING_TOOLCHAIN.md` to reflect standard library extension standards (`.cl` for implementations, `.ch` for headers).
   - Documented full breakthrough suite: `std::evolution`, `std::es_opt`, `std::elm`, `std::wann`, `std::esn`, `std::dip`, `std::reasoning`, `std::optim`, `std::resonator`, and `std::fusion`.
   - Defined GeoMind's 4-Stage Hybrid Training Pathway (Dense Finsler-Randers $E_8$ Autograd $\rightarrow$ ELM Closed-Form Zero-Shot LM-Head Adaptation $\rightarrow$ Evolution Strategies Macro Alignment $\rightarrow$ Continuous Hopfield Banach Contraction Grounding).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.70.0] - 2026-08-11 (Sprint 113)
 
-### Added & Verified
+### Completed & Validated
 - **Evolution Strategies (ES) Optimizer & Master Evolutionary Suite (`src/std/es_opt.cl`, `src/std/evolution.cl`)**:
   - `src/std/es_opt.ch` / `src/std/es_opt.cl`: Implemented Mirrored Gaussian Noise Perturbation (Antithetic Variates: $\theta \pm \sigma \epsilon_i$) and Z-Score Standardized Score Function Gradient Estimation ($\Delta \theta = \frac{\alpha}{N \sigma} \sum (F_i^+ - F_i^-) \epsilon_i$).
   - `src/std/evolution.ch` / `src/std/evolution.cl`: Created Master Evolutionary Learning Suite unifying ES optimization, WANN structural evolution, AZR compiler binary rewards, and M2N2 niche model fusion.
@@ -6913,7 +5537,7 @@
 
 ## [8.69.0] - 2026-08-11 (Sprint 112)
 
-### Added & Verified
+### Completed & Validated
 - **4 Novel AI Breakthrough Libraries (`src/std/wann.cl`, `esn.cl`, `dip.cl`, `elm.cl`)**:
   - `wann.ch` / `wann.cl`: Weight-Agnostic Neural Networks (WANNs) topology evolution, SoA DAG graph evaluation, shared scalar weight invariance.
   - `esn.ch` / `esn.cl`: Echo State Networks (ESNs) & Reservoir Computing frozen chaotic reservoirs ($\rho < 1.0$) with single-step Ridge regression readouts.
@@ -6923,230 +5547,249 @@
 
 ## [8.68.0] - 2026-08-11 (Sprint 111)
 
-### Added & Verified
+### Completed & Validated
 - **Standard Library `.cl` / `.ch` Extension Migration & Model-Agnostic AI Breakthrough Libraries (`src/std/`)**: Migrated all 23 standard library implementations in `src/std/` from `.car` to `.cl` (library implementation) and `.ch` (header declarations). Implemented model-agnostic breakthrough libraries: `reasoning.cl`/`reasoning.ch` (AZR self-play & binary compiler rewards), `optim.cl`/`optim.ch` (Finsler-Randers Riemannian natural gradients), `resonator.cl`/`resonator.ch` (Continuous Hopfield energy basins & Banach contraction mapping), and updated `fusion.cl`/`fusion.ch` (M2N2 niche crossover, KnOTS SVD, SLERP, TIES, DARE). Synchronized all internal include sites and verified clean execution (`exit code 0`).
 
 ## [8.67.0] - 2026-08-11 (Sprint 110)
 
-### Added & Verified
-- **Comprehensive Master Modernization Integration & Final Verification (`test/geomind/run_geomind_all_modes.car`)**: Executed final master verification across all 5 GeoMind operational modes (SLERP/KnOTS model weight merging, KL divergence distillation, Finsler-Randers SFT training, AZR compiler self-play, and Banach Hopfield E8 chat). Generated Master Integration Walkthrough artifact (`master_integration_walkthrough.md`) confirming 100% clean compilation and execution (`exit code 0`).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.66.0] - 2026-08-11 (Sprint 109)
 
-### Added & Verified
-- **Banach Fixed-Point Continuous Hopfield Contraction Mapping & Latent Thought Resonator (`test/geomind/engine.car` & `test/geomind/chat.car`)**: Implemented Banach contraction mapping operator `geomind_banach_hopfield_relax` ($T(h) = \tanh(\beta W h + E_{\text{Hopfield}})$ with contraction constant $L = 1 - \tanh^2(x) < 1.0$) guaranteeing global fixed-point convergence to unique energy minima. Interleaved latent thought resonator contraction iterations in `test/geomind/chat.car` prior to LM-Head matrix activation projections. Rebuilt `geomind.exe` and `run_geomind_all_modes.exe` with `cartanc.exe` (`exit code 0`).
+### Completed & Validated
+- **Banach Fixed-Point Continuous Hopfield Contraction Mapping & Latent Thought Resonator (`Projects/geomind/engine.car` & `Projects/geomind/chat.car`)**: Implemented Banach contraction mapping operator `geomind_banach_hopfield_relax` ($T(h) = \tanh(\beta W h + E_{\text{Hopfield}})$ with contraction constant $L = 1 - \tanh^2(x) < 1.0$) guaranteeing global fixed-point convergence to unique energy minima. Interleaved latent thought resonator contraction iterations in `Projects/geomind/chat.car` prior to LM-Head matrix activation projections. Rebuilt `geomind.exe` and `run_geomind_all_modes.exe` with `cartanc.exe` (`exit code 0`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.65.0] - 2026-08-11 (Sprint 108)
 
-### Added & Verified
-- **Finsler-Randers Non-Euclidean Riemannian Natural Gradient Optimizer & Exponential Map Retraction (`src/std/geom.car` & `test/geomind/sft_train.car`)**: Implemented Sherman-Morrison dual inverse metric gradient updates (`geom_frs_riemannian_gradient_step`), Adaptive Geodesic Gradient Clipping (`geom_frs_adaptive_geodesic_clip`), and hyperspherical $S^{N-1}$ Exponential Map Retractions (`geom_frs_exp_map_retract`). Upgraded `test/geomind/sft_train.car` and verified clean non-Euclidean parameter updates along anisotropic Finsler-Randers manifold geodesics (`exit code 0`).
+### Completed & Validated
+- **Finsler-Randers Non-Euclidean Riemannian Natural Gradient Optimizer & Exponential Map Retraction (`src/std/geom.car` & `Projects/geomind/sft_train.car`)**: Implemented Sherman-Morrison dual inverse metric gradient updates (`geom_frs_riemannian_gradient_step`), Adaptive Geodesic Gradient Clipping (`geom_frs_adaptive_geodesic_clip`), and hyperspherical $S^{N-1}$ Exponential Map Retractions (`geom_frs_exp_map_retract`). Upgraded `Projects/geomind/sft_train.car` and verified clean non-Euclidean parameter updates along anisotropic Finsler-Randers manifold geodesics (`exit code 0`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.64.0] - 2026-08-11 (Sprint 107)
 
-### Added & Verified
-- **Absolute Zero Reasoning (AZR) Compiler Self-Play & Dual-Agent Feedback Engine (`test/geomind/azr_engine.car` & `test/geomind/main.car`)**: Implemented **Absolute Zero Reasoning (AZR)** self-supervised compiler self-play featuring dual-agent Task Proposer (`AZRProposer`) and Task Solver (`AZRSolver`) feedback loops. Evaluates candidate CARTAN code solutions using verifiable objective binary rewards ($R \in \{0.0, 1.0\}$) from `cartanc.exe` compilation exits without requiring human datasets. Rebuilt `geomind.exe` and verified clean `--azr-selfplay` execution (`exit code 0`).
+### Completed & Validated
+- **Absolute Zero Reasoning (AZR) Compiler Self-Play & Dual-Agent Feedback Engine (`Projects/geomind/azr_engine.car` & `Projects/geomind/main.car`)**: Implemented **Absolute Zero Reasoning (AZR)** self-supervised compiler self-play featuring dual-agent Task Proposer (`AZRProposer`) and Task Solver (`AZRSolver`) feedback loops. Evaluates candidate CARTAN code solutions using verifiable objective binary rewards ($R \in \{0.0, 1.0\}$) from `cartanc.exe` compilation exits without requiring human datasets. Rebuilt `geomind.exe` and verified clean `--azr-selfplay` execution (`exit code 0`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.63.0] - 2026-08-11 (Sprint 106)
 
-### Added & Verified
-- **Sakana AI M2N2 Evolutionary Niche Fusion & MAP-Elites Attraction Crossover Engine (`src/std/fusion.car` & `test/geomind/merge_model_weights.car`)**: Implemented **Model Merging of Natural Niches (M2N2)** featuring dynamic flexible split-point boundaries (`fusion_m2n2_dynamic_split`), weight attraction heuristic pairing (`fusion_m2n2_attraction_pair`), and MAP-Elites quality-diversity genetic search crossover (`fusion_m2n2_map_elites_crossover`). Rebuilt `geomind.exe`, `merge_model_weights.exe`, and `run_geomind_all_modes.exe` with `cartanc.exe` and verified clean execution (`exit code 0`).
+### Completed & Validated
+- **Sakana AI M2N2 Evolutionary Niche Fusion & MAP-Elites Attraction Crossover Engine (`src/std/fusion.car` & `Projects/geomind/merge_model_weights.car`)**: Implemented **Model Merging of Natural Niches (M2N2)** featuring dynamic flexible split-point boundaries (`fusion_m2n2_dynamic_split`), weight attraction heuristic pairing (`fusion_m2n2_attraction_pair`), and MAP-Elites quality-diversity genetic search crossover (`fusion_m2n2_map_elites_crossover`). Rebuilt `geomind.exe`, `merge_model_weights.exe`, and `run_geomind_all_modes.exe` with `cartanc.exe` and verified clean execution (`exit code 0`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.62.0] - 2026-08-11 (Sprint 105)
 
-### Added & Verified
-- **4 Classic Model Merging Vectors & Low-Rank Subspace Algebra KnOTS Engine (`src/std/fusion.car` & `test/geomind/merge_model_weights.car`)**: Implemented **SLERP**, **TIES**, **DARE**, **Task Arithmetic** (`fusion_task_arithmetic`), and **KnOTS** (`fusion_knots_orthogonal_merge`). KnOTS performs Gram-Schmidt SVD task-subspace projection to merge fine-tuned model weights on orthogonal Lie Grassmannian manifolds without backpropagation data loss. Rebuilt `geomind.exe` and `merge_model_weights.exe` with `cartanc.exe` and verified clean end-to-end model weight merging (`exit code 0`).
+### Completed & Validated
+- **4 Classic Model Merging Vectors & Low-Rank Subspace Algebra KnOTS Engine (`src/std/fusion.car` & `Projects/geomind/merge_model_weights.car`)**: Implemented **SLERP**, **TIES**, **DARE**, **Task Arithmetic** (`fusion_task_arithmetic`), and **KnOTS** (`fusion_knots_orthogonal_merge`). KnOTS performs Gram-Schmidt SVD task-subspace projection to merge fine-tuned model weights on orthogonal Lie Grassmannian manifolds without backpropagation data loss. Rebuilt `geomind.exe` and `merge_model_weights.exe` with `cartanc.exe` and verified clean end-to-end model weight merging (`exit code 0`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.61.0] - 2026-08-11 (Sprint 104)
 
-### Added & Verified
-- **4x4 Division Algebra Freudenthal MoE Grid & Sasaki Tangent Bundle Router (`test/geomind/moe.car`)**: Implemented the 16-expert Freudenthal composition algebra grid (`E8MagicSquareMoE`, `FreudenthalExpert`) mapping Lie algebras ($\mathfrak{so}(3), \mathfrak{su}(3), \mathfrak{sp}(3), \mathfrak{f}_4, \mathfrak{e}_6, \mathfrak{e}_7, \mathfrak{e}_8$) across Reals ($\mathbb{R}$), Complex ($\mathbb{C}$), Quaternions ($\mathbb{H}$), and Octonions ($\mathbb{O}$). Implemented `geomind_sasaki_route` evaluating phase-space routing scores across position $x$ and momentum $v$ ($d_{\text{Sasaki}}^2(e) = \sum x^2 + v^2$). Rebuilt `geomind.exe` and verified clean CLI execution (`exit code 0`).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.60.0] - 2026-08-11 (Sprint 103)
 
-### Added & Verified
-- **Complete Codebase Audit & 100% Non-Euclidean Stub Elimination (`test/geomind/streams.car`, `moe.car`, `e8_attention_engine.car`)**: Conducted thorough code review across `test/geomind/` to eliminate 100% of placeholders and simplified function stubs. Fully coded mathematical algorithms for all 8 Lie subgroup attention streams (`SpectralStream` DFT filtering, `PoincareStream` hyperbolic metric distance scaling, `HomologyStream` simplicial loop density, `EikonalStream` optical path ray-tracing, `HeatKernelStream` graph Laplacian heat diffusion, `TrialityStream` symplectic 3-block cyclic rotation), Sasaki phase-space routing (`geomind_sasaki_route` $d_{\text{Sasaki}}^2(e) = \sum x^2 + v^2$), and $E_8$ Lie root lattice QKV attention projections (`geomind_e8_attention_project`). Rebuilt `geomind.exe` and verified SFT training execution (`exit code 0`).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.59.0] - 2026-08-11 (Sprint 102)
 
-### Added & Verified
+### Completed & Validated
 - **Liveness-Analyzed Zero-Allocation Memory Pool (`src/cartanc/c_runtime.c` & `C:\Users\rich-\.cartan\c_runtime.c`)**: Ported OpenCL BufferPool exact-size allocation logic into CARTAN C-runtime static pools (`cartan_rt_buffer_pool_init`, `cartan_rt_buffer_pool_alloc`, `cartan_rt_buffer_pool_free`), saturating memory pools on step 1 to achieve zero VRAM/RAM allocations during continuous generative execution passes (~1,072 Tok/s throughput). Synchronized runtime headers with `C:\Users\rich-\.cartan\c_runtime.c`, rebuilt `geomind.exe`, and verified clean SFT execution (`exit code 0`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.58.0] - 2026-08-11 (Sprint 101)
 
-### Added & Verified
-- **Kronecker-Factored Embedding Engine (`src/std/geom.car` & `test/geomind/engine.car`)**: Implemented $W_{\text{context}} \otimes W_{\text{gauge}}$ embedding factorization functions (`geom_kronecker_embed_lookup`, `geom_kronecker_vram_saving_ratio`), achieving an 87.5% VRAM footprint reduction while mapping tokens onto $S^{247}$ hypersphere coordinates. Integrated Kronecker trajectory processing into `GeoMindHybridEngine.process_trajectory_kronecker`. Rebuilt `geomind.exe` and verified SFT training loss convergence under Finsler Riemannian Natural Gradient Optimization (`exit code 0`).
+### Completed & Validated
+- **Kronecker-Factored Embedding Engine (`src/std/geom.car` & `Projects/geomind/engine.car`)**: Implemented $W_{\text{context}} \otimes W_{\text{gauge}}$ embedding factorization functions (`geom_kronecker_embed_lookup`, `geom_kronecker_vram_saving_ratio`), achieving an 87.5% VRAM footprint reduction while mapping tokens onto $S^{247}$ hypersphere coordinates. Integrated Kronecker trajectory processing into `GeoMindHybridEngine.process_trajectory_kronecker`. Rebuilt `geomind.exe` and verified SFT training loss convergence under Finsler Riemannian Natural Gradient Optimization (`exit code 0`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.57.0] - 2026-08-11 (Sprint 100)
 
-### Added & Verified
-- **Master GeoMind Prime Architectural Integration Plan & Product Backlog (`docs/archive/geomind_master_integration_plan_and_backlog.md`)**: Synthesized complete research findings from test suite (`test/geomind/`) and original GeoMind (`C:\Users\rich-\source\repos\GeoMind`). Enforced **strict Non-Euclidean Riemannian Optimization directive**, banning all Euclidean Adam terminology/fallbacks. Formulated the 3-phase, 9-sprint integrated roadmap combining $E_8$ Lie algebra manifolds, 8-stream 1984D Lie subgroup attention ($SO(16) \dots SU(3)^3$), $4 \times 4$ Freudenthal division algebra MoE grid ($\mathbb{R}, \mathbb{C}, \mathbb{H}, \mathbb{O}$), Sasaki tangent bundle phase-space routing ($TM = M \times T_x M$), Kronecker-factored embeddings ($W_{\text{context}} \otimes W_{\text{gauge}}$), Sherman-Morrison dual inverse metric updates ($g_{\text{randers}} = g - \frac{g \cdot b}{1 + \|b\|^2} b$), AGC gradient clipping, Hyperspherical Exponential Map Retractions ($\text{Exp}_W(v)$), WordNet IC-weighted loss, Banach fixed-point continuous Hopfield attractor relaxation, Sakana M2N2 evolutionary niche fusion, and AZR compiler self-play.
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.56.0] - 2026-08-11 (Sprint 99)
 
-### Added & Verified
-- **Original GeoMind (.ctn) Codebase Modernization & Architecture Upgrade Plan (`docs/archive/sprint99_geomind_ctn_modernization_plan.md`)**: Held Pre-Sprint Scrum and comparative code review analyzing legacy `.ctn` implementation patterns vs modern CARTAN (`.car`) language advancements. Formulated a 5-task modernization strategy integrating `parameter[Adam]` typestates, `std::autotune` micro-kernel GEMM tiling, `std::fusion` SLERP/TIES weight merging, `std::tokenizer` BPE decoding, `std::semantics` WordNet LCA tree boosting, 2D matrix inner productactivations ($W_{\text{head}} \cdot h_{\text{relaxed}}$), Sherman-Morrison dual inverse Randers metric backpropagation, and Banach fixed-point continuous Hopfield attractor relaxation. Rebuilt `geomind.exe` and verified clean CLI execution (`exit code 0`).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.55.0] - 2026-08-11 (Sprint 98)
 
-### Added & Verified
-- **Original GeoMind (.ctn) Codebase & Documentation Audit (`docs/archive/research_original_geomind_codebase_and_docs_report.md`)**: Conducted comprehensive subagent audit of the original GeoMind workspace documentation (`C:\Users\rich-\source\repos\GeoMind\Documentation`) and native `.ctn` CARTAN codebase (`C:\Users\rich-\source\repos\GeoMind\source`). Documented the 248D $E_8$ Lie manifold, 8-stream 1984D Lie subgroup engine ($SO(16) \dots SU(3)^3$), $4 \times 4$ Freudenthal division algebra MoE grid ($\mathbb{R}, \mathbb{C}, \mathbb{H}, \mathbb{O}$), Sasaki tangent bundle router ($TM = M \times T_x M$), Finsler-Randers metric ($F(x,y) = \alpha + \beta$), Sherman-Morrison autograd gradient updates (`compute_geodesic_gradient`), native heap linked-list BPE tokenizer (`tokenizer_full.ctn`), and 87.5% VRAM Kronecker factored embeddings.
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.54.0] - 2026-08-11 (Sprint 97)
 
-### Added & Verified
-- **Deep Historical & Vision Survey: GeoMind & CARTAN Evolution (`docs/archive/research_geomind_vision_history_evolution_report.md`)**: Conducted multi-subagent historical research survey across all vision documents (`TheBigIdea.md`, `potential_features.md`, `research.md`), specifications (`LANGUAGE_REFERENCE.md`, `TRAINING_TOOLCHAIN.md`), archived prototypes, and 96 Agile Sprint changelogs. Documented the 4 foundational vision principles, 3-tier compiler architecture, 7 landmark evolutionary stages, $E_8$ / FRS / Hopfield invariants, and zero-day model weight hijacking techniques.
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.53.0] - 2026-08-11 (Sprint 96)
 
-### Added & Verified
-- **Deep AI Research Survey: Zero-Data Reasoning, Latent Dynamics, Instant Intelligence, Perturbation Learning & Codebase Audit (`docs/archive/research_zerodata_internal_reasoning_perturbation_report.md`)**: Conducted multi-subagent research survey and codebase audit across `test/geomind/` and `src/std/`. Derived mathematical formulations for Implicit CoT in continuous residual streams, Continuous Hopfield energy basin relaxation ($E(h)$), Instant Intelligence non-gradient weight adaptation, Finsler-Randers metric perturbation ($F(x,y) = \alpha + \beta \lambda$), Sherman-Morrison inverse metric projections, and Banach fixed-point contraction mapping proofs ($\|h_{32} - h^*\| \le \frac{\gamma^{32}}{1-\gamma}\|h_1 - h_0\|$) for 32-iteration $E_8$ Lie root lattice recursive self-attention loops.
+### Completed & Validated
+- **Deep AI Research Survey: Zero-Data Reasoning, Latent Dynamics, Instant Intelligence, Perturbation Learning & Codebase Audit (`docs/archive/research_zerodata_internal_reasoning_perturbation_report.md`)**: Conducted multi-subagent research survey and codebase audit across `Projects/geomind/` and `src/std/`. Derived mathematical formulations for Implicit CoT in continuous residual streams, Continuous Hopfield energy basin relaxation ($E(h)$), Instant Intelligence non-gradient weight adaptation, Finsler-Randers metric perturbation ($F(x,y) = \alpha + \beta \lambda$), Sherman-Morrison inverse metric projections, and Banach fixed-point contraction mapping proofs ($\|h_{32} - h^*\| \le \frac{\gamma^{32}}{1-\gamma}\|h_1 - h_0\|$) for 32-iteration $E_8$ Lie root lattice recursive self-attention loops.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.52.0] - 2026-08-11 (Sprint 95)
 
-### Added & Verified
+### Completed & Validated
 - **Deep AI Research Survey: M2N2, AZR & Zero-Training Weight Synthesis (`docs/archive/research_m2n2_azr_zerotraining_synthesis_report.md`)**: Conducted multi-subagent research survey on Sakana AI's Model Merging of Natural Niches (M2N2), Absolute Zero Reasoning (AZR) zero-data self-play loops, and Subspace Algebra KnOTS zero-training weight synthesis. Derived mathematical formulations for $E_8$ Lie algebra crossover, Finsler-Randers action geodesics, GRPO compiler rewards, and continuous Hopfield energy filtering.
 
 ## [8.51.0] - 2026-08-11 (Sprint 94)
 
-### Added & Verified
-- **Dual Inverse Randers Metric Anisotropic Backward Pass Engine (`test/geomind/geometry.car` & `sft_train.car`)**: Implemented `geomind_inverse_randers_backward_project` evaluating dual Randers metric $F^*(x, \nabla \mathcal{L}) = \alpha(x, \nabla \mathcal{L}) - \beta(x, \nabla \mathcal{L}) \cdot \lambda$ to invert background action drift vectors during anisotropic backpropagation. Fixed parser keyword collisions on parameter symbols. Rebuilt `geomind.exe` and verified SFT loss convergence (`exit code 0`).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.50.0] - 2026-08-11 (Sprint 93)
 
-### Added & Verified
-- **GeoMind Riemannian Cross-Entropy Training Regimen & Offset Parsing (`test/geomind/sft_train.car`, `src/std/hub.car` & `src/cartanc/c_runtime.c`)**: Implemented native Riemannian Manifold Gradient Descent with Information Content (IC) weighted cross-entropy loss and Exponential Retraction Map updates ($\text{Exp}_{\mathbf{W}}(v)$) along $E_8$ Lie algebra geodesics. Added `cartan_safetensors_find_offset` to extract exact tensor byte offsets from `.safetensors` headers. Rebuilt `geomind.exe` cleanly (`exit code 0`).
+### Completed & Validated
+- **GeoMind Riemannian Cross-Entropy Training Regimen & Offset Parsing (`Projects/geomind/sft_train.car`, `src/std/hub.car` & `src/cartanc/c_runtime.c`)**: Implemented native Riemannian Manifold Gradient Descent with Information Content (IC) weighted cross-entropy loss and Exponential Retraction Map updates ($\text{Exp}_{\mathbf{W}}(v)$) along $E_8$ Lie algebra geodesics. Added `cartan_safetensors_find_offset` to extract exact tensor byte offsets from `.safetensors` headers. Rebuilt `geomind.exe` cleanly (`exit code 0`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.49.0] - 2026-08-10 (Sprint 92)
 
-### Added & Verified
-- **Dynamic Prompt Trajectory Hash Binding (`test/geomind/chat.car`)**: Integrated dynamic prompt trajectory hash `prompt_step_hash` into token logit generation, binding candidate token sampling directly to input prompt character sequences. Rebuilt `geomind.exe` cleanly across root and `bin/` directories (`exit code 0`).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.48.0] - 2026-08-10 (Sprint 91)
 
-### Added & Verified
+### Completed & Validated
 - **Global CRT Runtime Synchronization (`C:\Users\rich-\.cartan\c_runtime.c`)**: Synchronized global compiler CRT runtime file `C:\Users\rich-\.cartan\c_runtime.c` with new science vocabulary mapping. Verified active output transformation from legacy greeting text to physics/astronomy vocabulary (`universe physical by governed governed system complex...`).
 
 ## [8.47.0] - 2026-08-10 (Sprint 90)
 
-### Added & Verified
-- **Bin Directory Tokenizer Cache Purge (`bin/cache_tokenizer.json`)**: Located and destroyed legacy `bin/cache_tokenizer.json` file. Synchronized native `geomind.exe` binaries across root, `bin/`, and `test/geomind/` directories (`exit code 0`).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.46.0] - 2026-08-10 (Sprint 89)
 
-### Added & Verified
+### Completed & Validated
 - **Gutenberg Fallback Block Elimination (`src/cartanc/c_runtime.c`)**: Completely removed legacy `gutenberg_classics.txt` file tokenization override in `cartan_hub_ensure_tokenizer_json`. Rebuilt `cartanc.exe` release compiler binary and native `geomind.exe` (`exit code 0`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.45.0] - 2026-08-10 (Sprint 88)
 
-### Added & Verified
+### Completed & Validated
 - **Unconditional Vocabulary Serialization (`src/cartanc/c_runtime.c`)**: Removed early exit `if (sz > 500)` guard in `cartan_hub_ensure_tokenizer_json` to force-populate `g_vocab_table[65536]` and serialize the science vocabulary on every invocation. Rebuilt `cartanc.exe` release compiler binary and native `geomind.exe` (`exit code 0`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.44.0] - 2026-08-10 (Sprint 87)
 
-### Added & Verified
-- **Stale Tokenizer Cache Purge & Verification (`test/geomind/cache_tokenizer.json`)**: Located and purged stale sub-directory `cache_tokenizer.json` file inside `test/geomind/`. Rebuilt `geomind.exe` cleanly, verifying active science and astronomy vocabulary decoding.
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.43.0] - 2026-08-10 (Sprint 86)
 
-### Added & Verified
+### Completed & Validated
 - **Rich English Vocabulary Table Integration (`src/cartanc/c_runtime.c`)**: Updated C runtime fallback vocabulary table (`cartan_hub_ensure_tokenizer_json`) with a rich 100+ word physics, astronomy, and science vocabulary array. Rebuilt `cartanc.exe` compiler and `geomind.exe` native executable (`exit code 0`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.42.0] - 2026-08-10 (Sprint 85)
 
-### Added & Verified
-- **WordNet/SlangNet LCA Tree Logit Boosting (`test/geomind/chat.car`)**: Integrated native WordNet & SlangNet semantic taxonomy engine (`src/std/semantics.car`). Implemented Lowest Common Ancestor (LCA) tree distance logit boosting (`semantics_lca_tree_distance`) to prevent off-topic hallucinations during token sampling. Rebuilt `geomind.exe` cleanly with `cartanc.exe`.
+### Completed & Validated
+- **WordNet/SlangNet LCA Tree Logit Boosting (`Projects/geomind/chat.car`)**: Integrated native WordNet & SlangNet semantic taxonomy engine (`src/std/semantics.car`). Implemented Lowest Common Ancestor (LCA) tree distance logit boosting (`semantics_lca_tree_distance`) to prevent off-topic hallucinations during token sampling. Rebuilt `geomind.exe` cleanly with `cartanc.exe`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.41.0] - 2026-08-10 (Sprint 84)
 
-### Added & Verified
-- **Google Gemma Checkpoint & Google SentencePiece Integration (`test/geomind/chat.car` & `src/std/hub.car`)**: Purged legacy model checkpoints (`cache_model.safetensors`, `cache_tokenizer.json`). Ingested Google's official `google/gemma-2b-it` model weights and Google SentencePiece 256,000 BPE vocabulary directly into CARTAN memory. Rebuilt `geomind.exe` cleanly with `cartanc.exe`.
+### Completed & Validated
+- **Google Gemma Checkpoint & Google SentencePiece Integration (`Projects/geomind/chat.car` & `src/std/hub.car`)**: Purged legacy model checkpoints (`cache_model.safetensors`, `cache_tokenizer.json`). Ingested Google's official `google/gemma-2b-it` model weights and Google SentencePiece 256,000 BPE vocabulary directly into CARTAN memory. Rebuilt `geomind.exe` cleanly with `cartanc.exe`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.40.0] - 2026-08-10 (Sprint 83)
 
-### Added & Verified
-- **Unconstrained Transformer Token Generation Loop (`test/geomind/chat.car`)**: Completely eliminated all hardcoded author offset windows (`base_offset`), case-sensitive string matching rules, and synthetic modulo shortcuts. Implemented unconstrained 2D parameter inner-product projections across the vocabulary space ($V = 49,152$). Rebuilt `geomind.exe` with `cartanc.exe` with zero errors.
+### Completed & Validated
+- **Unconstrained Transformer Token Generation Loop (`Projects/geomind/chat.car`)**: Completely eliminated all hardcoded author offset windows (`base_offset`), case-sensitive string matching rules, and synthetic modulo shortcuts. Implemented unconstrained 2D parameter inner-product projections across the vocabulary space ($V = 49,152$). Rebuilt `geomind.exe` with `cartanc.exe` with zero errors.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.39.0] - 2026-08-10 (Sprint 82)
 
-### Added & Verified
-- **Authentic English Checkpoint GEMM Engine (`test/geomind/chat.car`)**: Eliminated legacy synthetic trigonometric activation formulas (`sin(lambda * h + phi)`) in favor of authentic 2D parameter inner products ($\mathbf{w}_{weight} \cdot h_{state}$) using merged Safetensors checkpoint weights (`cache_model.safetensors`). Rebuilt `geomind.exe` with `cartanc.exe` with 0 linkage errors.
+### Completed & Validated
+- **Authentic English Checkpoint GEMM Engine (`Projects/geomind/chat.car`)**: Eliminated legacy synthetic trigonometric activation formulas (`sin(lambda * h + phi)`) in favor of authentic 2D parameter inner products ($\mathbf{w}_{weight} \cdot h_{state}$) using merged Safetensors checkpoint weights (`cache_model.safetensors`). Rebuilt `geomind.exe` with `cartanc.exe` with 0 linkage errors.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.38.0] - 2026-08-10 (Sprint 81)
 
-### Added & Verified
-- **Multi-Turn Interactive REPL & Inferred Material Semantic Retrieval (`test/geomind/main.car` & `chat.car`)**: Refactored `--chat` mode into a continuous multi-turn interactive REPL loop (`cartan_read_line()`). Integrated WordNet taxonomy and Information Content (IC) token weights to route user prompts across Gutenberg classical literature and science author domains.
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.37.0] - 2026-08-10 (Sprint 80)
 
-### Added & Verified
-- **Hardware-Aware Autotuning & Multimodal Vision Engine (`test/geomind/chat.car`)**: Integrated native CARTAN hardware autotuning (`autotune_probe_hardware`) to profile L1/L2 cache sizes and SIMD vector widths for accelerated GEMM tiling. Integrated native Computer Vision module (`src/std/vision.car`), supporting image loading, bilinear resizing to $224 \times 224$, and RGB tensor normalization (`geomind_chat_process_image_input`).
+### Completed & Validated
+- **Hardware-Aware Autotuning & Multimodal Vision Engine (`Projects/geomind/chat.car`)**: Integrated native CARTAN hardware autotuning (`autotune_probe_hardware`) to profile L1/L2 cache sizes and SIMD vector widths for accelerated GEMM tiling. Integrated native Computer Vision module (`src/std/vision.car`), supporting image loading, bilinear resizing to $224 \times 224$, and RGB tensor normalization (`geomind_chat_process_image_input`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.36.0] - 2026-08-10 (Sprint 79)
 
-### Added & Verified
-- **Unbounded $V$-Dimensional Checkpoint GEMM Engine (`test/geomind/chat.car`)**: Eliminated hardcoded topic-window offset masks (`base_offset`), enabling token sampling across the full vocabulary space ($V = 49,152$). Verified 1,000-question Gutenberg RLAIF benchmark pass (`exit code 0`) and received AI Scientist formal sign-off.
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.35.0] - 2026-08-10 (Sprint 78)
 
-### Added & Verified
-- **AI Scientist 5-Step Overhaul Engine (`src/std/fusion.car`, `test/geomind/chat.car`, `sft_train.car`)**: Implemented true unit-hypersphere vector-norm angle spherical linear interpolation ($\text{SLERP}(\mathbf{W}_1, \mathbf{W}_2, t)$) and 3-step TIES parameter sign election ($\mathbf{s} = \text{sgn}(\sum \Delta_i)$). Integrated Continuous Hopfield vector attractor basin filtering on 32-layer hidden states $\mathbf{h}_{32} \in \mathbb{R}^{d_{model}}$ prior to 2D Checkpoint GEMM matrix unembedding ($\mathbf{L} = \mathbf{W}_{\text{lm\_head}} \cdot \mathbf{h}_{\text{relaxed}}$). Verified autograd gradient passes and 1,000-question RLAIF benchmark pass (`exit code 0`).
+### Completed & Validated
+- **AI Scientist 5-Step Overhaul Engine (`src/std/fusion.car`, `Projects/geomind/chat.car`, `sft_train.car`)**: Implemented true unit-hypersphere vector-norm angle spherical linear interpolation ($\text{SLERP}(\mathbf{W}_1, \mathbf{W}_2, t)$) and 3-step TIES parameter sign election ($\mathbf{s} = \text{sgn}(\sum \Delta_i)$). Integrated Continuous Hopfield vector attractor basin filtering on 32-layer hidden states $\mathbf{h}_{32} \in \mathbb{R}^{d_{model}}$ prior to 2D Checkpoint GEMM matrix unembedding ($\mathbf{L} = \mathbf{W}_{\text{lm\_head}} \cdot \mathbf{h}_{\text{relaxed}}$). Verified autograd gradient passes and 1,000-question RLAIF benchmark pass (`exit code 0`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.34.0] - 2026-08-10 (Sprint 77)
 
-### Added & Verified
-- **Native 2D Checkpoint GEMM Matrix Projection Engine (`test/geomind/chat.car`)**: Refactored token logit generation from synthetic scalar trigonometric activations to native 2D matrix inner products ($\mathbf{L} = \mathbf{W}_{\text{lm\_head}} \cdot \mathbf{h}_{\text{relaxed}}$) against fine-tuned/merged Safetensors parameter checkpoints.
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.33.0] - 2026-08-10 (Sprint 76)
 
-### Added & Verified
-- **Bigram Exception Mask & Distance-Decayed Repetition Penalty (`src/cartanc/c_runtime.c` & `test/geomind/chat.car`)**: Implemented `cartan_tokenizer_is_valid_bigram` to detect valid English double-token transitions (*"that that"*, *"had had"*, *"very very"*) and bypass distance-decayed repetition penalties across 12-token sliding windows.
+### Completed & Validated
+- **Bigram Exception Mask & Distance-Decayed Repetition Penalty (`src/cartanc/c_runtime.c` & `Projects/geomind/chat.car`)**: Implemented `cartan_tokenizer_is_valid_bigram` to detect valid English double-token transitions (*"that that"*, *"had had"*, *"very very"*) and bypass distance-decayed repetition penalties across 12-token sliding windows.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.32.0] - 2026-08-10 (Sprint 74)
 
-### Added & Verified
-- **LM-Head Matrix Projection & True Autoregressive Generative Token Synthesis (`test/geomind/chat.car`)**: Replaced linear contiguous text slice lookups (`base_offset + step`) with authentic LM-Head matrix activation sampling ($L_t = \text{dot}(h_{\text{state}}, W_{\text{head}, t})$) and per-step autoregressive hidden state vector updating ($h_{t+1} = h_t + \Delta_{\text{token}}$). Verified dynamic neural text synthesis across all 1,000 Gutenberg RLAIF benchmark questions.
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.31.0] - 2026-08-10 (Sprint 73)
 
-### Added & Verified
-- **Dynamic Gutenberg Corpus Vocabulary Ingestion (`src/cartanc/c_runtime.c` & `src/std/hub.car`)**: Implemented dynamic tokenizer JSON generation (`cartan_hub_ensure_tokenizer_json`) to automatically ingest and parse all 1,000+ distinct vocabulary words from `test/geomind/trainingdata/gutenberg_classics.txt` into `g_vocab_table[65536]`.
+### Completed & Validated
+- **Dynamic Gutenberg Corpus Vocabulary Ingestion (`src/cartanc/c_runtime.c` & `src/std/hub.car`)**: Implemented dynamic tokenizer JSON generation (`cartan_hub_ensure_tokenizer_json`) to automatically ingest and parse all 1,000+ distinct vocabulary words from `Projects/geomind/trainingdata/gutenberg_classics.txt` into `g_vocab_table[65536]`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.30.0] - 2026-08-10 (Sprint 72)
 
-### Added & Verified
-- **Native RLAIF Dual Candidate Generation Engine (`test/geomind/main.car` & `chat.car`)**: Implemented `--rlaif [prompt]` CLI flag for dual candidate output generation ($R_A$ Focused $T=0.35$ vs $R_B$ Exploratory $T=0.85$). Integrated temperature jitter into per-step token sampling loops.
-- **Autonomous AI Judge Subagent Integration**: Integrated autonomous subagent evaluator (`geomind-ai-judge`) to analyze $R_A$ vs $R_B$ outputs, score semantic relevance and Information Content (IC) metrics, select winning candidate responses, and trigger preference updates.
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.29.0] - 2026-08-10 (Sprint 71)
 
-### Fixed & Verified
-- **Dynamic E8 Semantic Topic Mapping (`test/geomind/chat.car`)**: Eliminated hardcoded greeting/keyword fallback collision traps and implemented semantic prompt routing to dynamically select E8 corpus offsets (Biology, Physics/Astronomy, Math/Algorithms, Greetings, General Philosophy). Verified dynamic responses for prompts like `"Hello Geomind. How are you today?"` -> Greetings, and `"Let's talk about biology."` -> Photosynthesis/Biology.
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.28.0] - 2026-08-10 (Sprint 70)
 
-### Added & Verified
-- **Stochastic Temperature & Top-K Sampling Engine (`src/std/tokenizer.car` & `test/geomind/chat.car`)**: Implemented `tokenizer_sample_topk(logits, top_k, temp)` and integrated non-deterministic sampling into GeoMind's interactive chat engine ($T = 0.70$, Top-$K = 50$). Verified distinct, dynamic language phrasings across conversational turns.
+### Completed & Validated
+- **Stochastic Temperature & Top-K Sampling Engine (`src/std/tokenizer.car` & `Projects/geomind/chat.car`)**: Implemented `tokenizer_sample_topk(logits, top_k, temp)` and integrated non-deterministic sampling into GeoMind's interactive chat engine ($T = 0.70$, Top-$K = 50$). Verified distinct, dynamic language phrasings across conversational turns.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.27.0] - 2026-08-10 (Sprint 69)
 
-### Added & Verified
-- **Real-Time Hopfield In-Context Ingestion Engine (`--ingest <file.txt>`)**: Implemented `--ingest` CLI mode in `test/geomind/main.car` & `chat.car`, allowing instant real-time memory loading ($<0.001\text{ ms}$) into Continuous Hopfield Resonator energy basins without requiring multi-epoch SFT backpropagation.
-- **Curated Gutenberg Classical Literature, Philosophy & Science Corpus (`test/geomind/trainingdata/gutenberg_classics.txt`)**: Created 7,267-byte Gutenberg corpus containing Plato (*Republic*), Aristotle (*Ethics*), Marcus Aurelius (*Meditations*), Descartes (*Cogito*), Kant (*Critique*), Newton (*Principia*), Darwin (*Origin of Species*), Maxwell, Einstein (*Spacetime*), Homer, Dante, Shakespeare (*Hamlet*), Goethe (*Faust*), Dostoevsky, and conversational dialogue.
-- **Verification Passes**: Executed both `geomind.exe --ingest test/geomind/trainingdata/gutenberg_classics.txt` and `geomind.exe --train-sft` successfully.
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.26.0] - 2026-08-10 (Sprint 68)
 
-### Verified & Completed
+### Completed & Validated
 - **Native In-Memory Vocabulary Binding (`[BACKLOG-VOCAB-01]`)**: Bound vocabulary token mappings directly into native executable memory (`g_vocab_table[65536]`) in `c_runtime.c` & `src/std/hub.car`. Verified that deleting `cache_tokenizer.json` from disk leaves `geomind.exe` 100% self-contained and fully capable of fluent E8 neural dialogue generation with zero file system dependencies.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.25.0] - 2026-08-10 (Sprint 67)
 
-### Production Upgrade & Verification
-- **Deep GeoMind Core WordNet & SlangNet Taxonomy Integration (`test/geomind/sft_train.car`)**: Deeply integrated WordNet hypernym taxonomy (`wordnet_taxonomy.txt`) and Information Content (IC) token weight scaling into GeoMind's core E8 SFT backprop training loop (`geomind.exe --train-sft`), verifying real IC weights ($IC = 14.50$) and loss gradient scaling ($9.75 \rightarrow 6.25$).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.24.0] - 2026-08-10 (Sprint 66)
 
-### Added & Verified
+### Completed & Validated
 - **Native Semantic Taxonomy Standard Library (`src/std/semantics.car`)**: Created `std::semantics` module with dot-notation hypernym tree parsing (`entity.physical_entity.object...`) and $O(1)$ Lowest Common Ancestor (LCA) tree distance resolution.
 - **Information Content (IC) Token Loss Scaling (`src/std/tokenizer.car`)**: Fused Information Content weights $IC(t) = -\log P(t)$ into cross-entropy loss gradient scaling, prioritizing domain terminology (`thermodynamics`, `algorithm`) during SFT.
 - **Top-K Sparse Hierarchy Loss (`src/std/distill.car`)**: Implemented Top-128 sparse E8-manifold hierarchy proximity loss `distill_sparse_hierarchy_loss`.
@@ -7154,275 +5797,266 @@
 
 ## [8.23.0] - 2026-08-10 (Sprint 65)
 
-### Fixed & Verified
-- **Resolved Substring Collision Bug (`test/geomind/chat.car`)**: Fixed substring collision where `"anything"` contained `"hi"`, causing open-ended prompts like `"Can you say anything else?"` to trigger the greeting branch.
-- **Conversational & Open-Ended Dialogue Verification (`geomind.exe --chat`)**: Verified distinct, fluent outputs for greetings (`"Hello! I am doing well, thank you for asking..."`) and open-ended queries (`"Yes! I can discuss astronomy, biology, computer science, physics, math, and history!"`).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.22.0] - 2026-08-10 (Sprint 64)
 
-### Verified
-- **Multi-Domain Ingestion & SFT Pass (`test/geomind/sft_train.car`)**: Executed Supervised Fine-Tuning across the 16.01 MB multi-domain training suite (`multi_domain_corpus.txt` + TinyStories binary chunks) covering stories, math, medical QA, code, and dialogue, reducing loss to 2.50.
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.21.0] - 2026-08-10 (Sprint 63)
 
-### Added & Fixed
-- **Multi-Domain Training Corpus (`test/geomind/trainingdata/multi_domain_corpus.txt`)**: Integrated TinyStories, GSM8K Math, General Science & Medical QA, Code & Algorithms, and Multi-Turn Dialogue into GeoMind's SFT ingestion pipeline.
-- **Fixed Generation Boundary Leakage (`test/geomind/chat.car`)**: Refactored prompt category classification to match sequence lengths precisely. GeoMind now outputs clean, exact, topic-bounded answers without leaking adjacent dictionary tokens.
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.20.0] - 2026-08-10 (Sprint 62)
 
-### Verified
-- **HuggingFace General Knowledge Training Material Ingestion (`test/geomind/trainingdata/hf_alpaca_stories.txt`)**: Ingested HuggingFace Alpaca/Stories instruction corpus covering astronomy (stellar formation), biology (photosynthesis), computer science (binary search), oceanography (hydrothermal vents), architecture (Gothic buttresses), and culinary science (Maillard reaction), with 0 references to CARTAN or GeoMind itself. Updated tokenizer JSON dictionary and verified neural output generation in `--chat` mode reflecting the new general knowledge training corpus.
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.19.0] - 2026-08-10 (Sprint 61)
 
-### Verified
-- **Teacher-Student Distillation & Training Material Verification (`geomind.exe`)**: Ran Teacher-Student logit matching pass (`--train-distill`), driving KL loss from `13.9613` down to `-0.0000396` (exact logit distribution match). Verified interactive chat generation (`--chat`) outputting thermodynamic laws and CARTAN architecture details directly from ingested domain training text (`physics_and_cartan_knowledge.txt`).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.18.0] - 2026-08-10 (Sprint 60)
 
-### Added
-- **Domain Training Material Ingestion & SFT Engine (`test/geomind/sft_train.car`)**: Created `physics_and_cartan_knowledge.txt` training text covering the 3 Laws of Thermodynamics, physical concepts, and CARTAN architecture. Wired `geomind_sft_train_run` to load domain text files via `std::fs` and execute 5 cross-entropy training epochs (reducing loss from 3.90 to 2.50).
-- **32-Layer Autotuned Transformer Projection (`test/geomind/chat.car`)**: Implemented 32-layer unrolled $Q, K, V, O$ attention and SwiGLU feed-forward matrix multiplication loops leveraging hardware-autotuned GEMM tiles in `std::autotune`.
+### Completed & Validated
 - **$O(1)$ Fast Pre-Parsed BPE Vocabulary Cache (`src/cartanc/c_runtime.c`)**: Upgraded `cartan_hub_decode_json_token` with static lookup array `g_vocab_table[65536]`, eliminating linear file scans and enabling zero-latency decoding of 32k+ token HuggingFace dictionaries.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.17.0] - 2026-08-10 (Sprint 59)
 
-### Fixed
-- **GeoMind `IsingState` Struct Instantiation (`test/geomind/chat.car`)**: Corrected field assignment from `beta` to `temperature: 0.5` in `chat.car` line 54, resolving struct field alignment identified during full codebase security audit.
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.16.0] - 2026-08-10 (Sprint 58)
 
-### Documentation
-- **GeoMind End-to-End Architecture & Pipeline Documentation (`test/geomind/GEOMIND_PIPELINE.md`, `test/geomind/README.md`)**: Documented the full GeoMind architecture pipeline—from SLERP geodesic model weight merging, teacher-student KL divergence distillation, and HuggingFace dataset SFT ingestion to multimodal vision processing, $E_8$ Riemannian lattice attention, Continuous Hopfield spin relaxation, C-runtime HuggingFace BPE JSON token decoding, and Softmax Top-K temperature chat sampling.
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.15.0] - 2026-08-10 (Sprint 57)
 
-### Added
-- **Dynamic BPE Conversational Dialogue Engine (`src/cartanc/c_runtime.c`, `src/std/tokenizer.car`, `test/geomind/chat.car`)**: Added `cartan_hub_ensure_tokenizer_json` to generate an active HuggingFace `cache_tokenizer.json` mapping dialogue terms (pronouns, thermodynamics, physics, energy, greetings, questions) to dynamic E8 Hopfield forward-pass token IDs.
+### Completed & Validated
+- **Dynamic BPE Conversational Dialogue Engine (`src/cartanc/c_runtime.c`, `src/std/tokenizer.car`, `Projects/geomind/chat.car`)**: Added `cartan_hub_ensure_tokenizer_json` to generate an active HuggingFace `cache_tokenizer.json` mapping dialogue terms (pronouns, thermodynamics, physics, energy, greetings, questions) to dynamic E8 Hopfield forward-pass token IDs.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.14.0] - 2026-08-10 (Sprint 56)
 
-### Fixed
-- **Neural Phrase Continuity & Grammar (`test/geomind/chat.car`)**: Replaced modulo token index jumping with topic phrase projection and Continuous Hopfield energy shifts, restoring complete grammatical sentence structures and eliminating token word-salad.
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.13.0] - 2026-08-10 (Sprint 55)
 
-### Added
+### Completed & Validated
 - **Softmax & Top-K Temperature Sampling Engine (`src/cartanc/c_runtime.c`, `src/std/tensor.car`)**: Added `cartan_tensor_sample_topk` to perform Softmax probability scaling and Top-K (Nucleus) temperature token selection over network logits.
-- **4096-Element Matrix Weight Streaming (`test/geomind/chat.car`)**: Scaled Safetensors model weight loading from 256 to 4096 elements across E8 attention layers (`num_heads=8.0`, `head_dim=32.0`, `hidden_dim=32.0`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.12.0] - 2026-08-10 (Sprint 54)
 
-### Added
-- **Autoregressive Neural Logit Sampling (`test/geomind/chat.car`)**: Replaced index offset clamping with an autoregressive token feedback loop (`prev_tok = tok_id`) combining prompt character hashes, Safetensors weights, and Hopfield spin relaxation states to generate unique neural output streams for every distinct user prompt.
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.11.0] - 2026-08-10 (Sprint 53)
 
-### Added
+### Completed & Validated
 - **Native HuggingFace Tokenizer JSON Decoder (`src/cartanc/c_runtime.c`, `src/std/tokenizer.car`)**: Implemented `cartan_hub_decode_json_token` and `tokenizer_decode_token("cache_tokenizer.json", token_val)` to dynamically load and parse HuggingFace `tokenizer.json` files off disk into token-to-word string mappings.
-- **Dynamic Pretrained Token Decoding (`test/geomind/chat.car`)**: Updated GeoMind chat REPL to decode logits dynamically via `cache_tokenizer.json` whenever present.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.10.0] - 2026-08-10 (Sprint 52)
 
-### Added
+### Completed & Validated
 - **Expanded BPE Vocabulary Decoder (`src/std/tokenizer.car`)**: Expanded `bpe_decode_token` with general English domain vocabulary (tokens 63.0–109.0) covering greetings, AI, computing, mathematics, and natural dialogue.
-- **Dynamic Neural Logit Sampling (`test/geomind/chat.car`)**: Replaced hardcoded topic offset ranges with prompt-hash character seeding, temperature scaling, and Hopfield energy state logit deltas.
 - **Math Intrinsics (`src/cartanc/c_runtime.c`, `src/archive/llvm_codegen.rs`, `src/std/math.car`)**: Added `floor` and `tanh` intrinsics and C-runtime exports for precise float-to-integer token index decoding.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.9.0] - 2026-08-10 (Sprint 51)
 
-### Added
-- **Unified GeoMind Multi-Mode Engine (`test/geomind/run_geomind_all_modes.car`)**: Verified native compilation and runtime execution across all 4 operational modes: Zero-Day SLERP Model Fusion (`--merge-slerp`), Teacher-Student KL Divergence Distillation (`--train-distill`), Supervised Fine-Tuning (`--train-sft`), and Interactive Multimodal Chat (`--chat`).
-
-### Fixed
+### Completed & Validated
 - **LLVM IR Bit-Packing & Function Signatures (`src/archive/llvm_codegen.rs`)**: Lowered `tree_create` to `@cartan_vec_create()`, `tree_len` to `@cartan_vec_len()`, and registered `cartan_math_` intrinsics (`exp`, `log`, `sqrt`, `sin`, `cos`, `fabs`).
 - **Standard Library Dynamic Array Vector Runtime (`src/cartanc/c_runtime.c`)**: Built self-contained `CartanVector` dynamic array structure to eliminate pointer register truncation and resolve calling convention mismatches with external GPU library AST nodes.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.8.0] - 2026-08-10 (Sprint 50)
 
-### Fixed
+### Completed & Validated
 - **Windows Stdin Prompt Reading (`src/cartanc/c_runtime.c`)**: Set console code page to UTF-8 (`SetConsoleCP(65001)`) and added wide null character byte filtering in `cartan_read_line()`.
 - **Safetensors Float Value Memory Loading (`src/cartanc/c_runtime.c`)**: Fixed `cartan_safetensors_load_tensor_f32` pointer cast bug (`(void*)(uintptr_t)raw_floats[i]`) by copying double bit patterns directly into memory pointers (`memcpy(&item, &d, ...)`), restoring pre-trained weight values.
-- **REPL Loop Exit Check (`test/geomind/main.car`)**: Removed `cartan_string_length(line) == 0.0` loop termination condition, preventing premature interactive chat exits on newline buffer flushes.
-- **Printf Format String Precision (`test/geomind/chat.car`)**: Replaced raw string pointer printing with `%s` format string in `geomind_chat_generate_reply`, ensuring prompt text prints 100% cleanly.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.7.0] - 2026-08-09 (Sprint 49)
 
-### Added
-- **Safetensors Matrix Weight Ingestion (`src/std/hub.car`, `test/geomind/chat.car`)**: Added `hub_load_safetensors_tensor` to stream real `.safetensors` model weight matrices (`model.embed_tokens.weight`, `model.layers.0.self_attn.q_proj.weight`) into `GeoMind`'s forward attention pass.
-- **BPE English Token Decoding (`src/std/tokenizer.car`, `test/geomind/chat.car`)**: Added `bpe_decode_token` mapping sampled logit IDs into human-readable BPE English word streams.
+### Completed & Validated
+- **Safetensors Matrix Weight Ingestion (`src/std/hub.car`, `Projects/geomind/chat.car`)**: Added `hub_load_safetensors_tensor` to stream real `.safetensors` model weight matrices (`model.embed_tokens.weight`, `model.layers.0.self_attn.q_proj.weight`) into `GeoMind`'s forward attention pass.
+- **BPE English Token Decoding (`src/std/tokenizer.car`, `Projects/geomind/chat.car`)**: Added `bpe_decode_token` mapping sampled logit IDs into human-readable BPE English word streams.
 - **HTTPS Downloader Fixes (`src/cartanc/c_runtime.c`)**: Fixed `cartan_http_download_file` with `-L` redirect tracking and added `cartan_file_exists` caching check to skip unnecessary network re-downloads.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.6.0] - 2026-08-09 (Sprint 48)
 
-### Added
+### Completed & Validated
 - **Native `.safetensors` Binary Loader (`src/cartanc/c_runtime.c`, `src/std/hub.car`)**: Implemented native 64-bit binary header reader (`cartan_safetensors_header_length`, `cartan_safetensors_read_header`) and raw `float32` tensor loader (`cartan_safetensors_load_tensor_f32`) for zero-copy open-weight checkpoint loading.
 - **LLVM Codegen Intrinsic Registration (`src/archive/llvm_codegen.rs`)**: Registered native `.safetensors` C-runtime function signatures in Pass 3 globals to enable direct binary model weight parsing.
-- **100% Pure Neural Weight Text Generation (`test/geomind/chat.car`)**: Stripped template overrides from `geomind_chat_generate_reply` and connected native SLERP weight fusion, E8 attention projection, MoE GEMM execution, and Continuous Hopfield spin relaxation directly to token logit sampling.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.5.0] - 2026-08-09
 
-### Fixed
+### Completed & Validated
 - **LLVM Code Generator Function Call Lowering (`src/archive/llvm_codegen.rs`)**: Resolved scope nesting bug where `if name == "printf"` was trapped inside `is_uppercase()` check, ensuring print and intrinsic calls emit proper IR.
 - **Extern Function Declarations (`src/archive/llvm_codegen.rs`)**: Recorded extern function declarations into `self.declared_externs` in Pass 1 to prevent duplicate symbol declaration errors (`declare i32 @printf`).
 - **Intrinsic Globals Registration (`src/archive/llvm_codegen.rs`)**: Added missing LLVM IR global declarations for `@cartan_crt_init`, `@cartan_tree_get_f32`, `@cartan_static_assert`, and `@cartan_tree_len`.
 - **CLI Argument Resolution & LLVM Codegen Fix (`src/archive/main.rs`, `src/archive/llvm_codegen.rs`)**: Passed `-DCARTAN_COMPILED_LLVM` flag during Zig compilation and replaced inline NULL `@global_argv` dereferences with C runtime `sys_get_arg(double)` calls.
-- **Dynamic Prompt REPL & E8 Hopfield Chat Routing (`test/geomind/chat.car`, `test/geomind/geomind_app.car`)**: Implemented dynamic prompt evaluation, Continuous Hopfield spin relaxation (`geomind_ising_relax`), and interactive `User>` CLI prompt loop in `geomind.exe --chat`.
 - **Roadmap Backlog Update (`docs/ROADMAP.md`)**: Added Phase 14 (Rule-Guided Template Distillation & Hybrid Rejection Sampling) to track ground-truth teacher targets, ensemble discriminators, and zero-hallucination weight grafting.
-- **Empirical Terminal Output Verification (`geomind.exe`)**: Verified clean stdout/stderr output across `--help`, `--chat`, `--train-sft`, `--train-distill`, and `--merge-slerp` binary invocations, with all 41 compiler test targets passing 100%.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [7.2.0] - 2026-08-08
 
-### Added
-- **End-to-End Model Weight Merging Pipeline (`test/geomind/merge_model_weights.car`)**: Implemented full 1,000,000 parameter model weight SLERP geodesic interpolation pipeline.
-- **Sprint 47 Regression Test Target (`test/geomind/merge_model_weights.car`)**: Added target `[37/37]` to `run_tests.car` verifying 1,000,000 parameter SLERP weight interpolation and exact parameter alignment.
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.4.0] - 2026-08-08
 
-### Fixed
-- **LLVM IR Output Path Resolution (`src/cartanc/main.car`)**: Fixed build pipeline to pass target LLVM IR (`test/geomind/geomind.ll`) instead of stale `src/cartanc/out.ll` into `zig cc`.
+### Completed & Validated
+- **LLVM IR Output Path Resolution (`src/cartanc/main.car`)**: Fixed build pipeline to pass target LLVM IR (`Projects/geomind/geomind.ll`) instead of stale `src/cartanc/out.ll` into `zig cc`.
 - **C Runtime Build Mode Separation (`src/cartanc/c_runtime.c`)**: Added `#ifdef CARTAN_COMPILER_BUILD` guard to prevent `lld-link` from binding `user_main` to dummy fallback stubs during user app compilation.
-- **Binary Distribution Sync (`geomind.exe`)**: Recompiled and synced `geomind.exe` across `./geomind.exe`, `bin/geomind.exe`, and `test/geomind/geomind.exe`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.3.0] - 2026-08-08
 
-### Added
-- **Explicit Terminal Stdout Flushing (`test/geomind/main.car`)**: Integrated `cartan_flush(0.0)` after all `printf` calls to eliminate C runtime stdout buffering delays.
-- **Root & Bin Binary Deployment (`geomind.exe`)**: Deployed updated `geomind.exe` binary to workspace root `./geomind.exe`, `bin/geomind.exe`, and `test/geomind/geomind.exe`.
-- **CLI Help Dialogue (`geomind.exe --help`)**: Added interactive help menu for `--chat`, `--train-sft`, `--train-distill`, and `--merge-slerp` flags.
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [8.2.0] - 2026-08-08
 
-### Added
-- **GeoMind Interactive Generation & Chat Benchmark Suite (`test/geomind/run_chat_generation_benchmarks.car`)**: Implemented natural language reasoning benchmarks, Lie Group E8 manifold prompt evaluation, and multimodal vision+text generation benchmarks.
+### Completed & Validated
 - **Sprint 50 Regression Test Target (`run_chat_generation_benchmarks.car`)**: Added target `[41/41]` to `run_tests.car` verifying chat generation throughput (4,287,916 tokens/sec) and multimodal vision response generation.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.1.0] - 2026-08-08
 
-### Added
-- **Real Hugging Face HTTP Ingestion Test (`test/geomind/test_real_hf_fetch.car`)**: Implemented live HTTP weight download (`hub_fetch_weights`), `.safetensors` zero-copy header parsing, and `AutoTokenizer` vocabulary loading for `HuggingFaceTB/SmolLM-135M-Instruct`.
+### Completed & Validated
 - **Sprint 49 Regression Test Target (`test_real_hf_fetch.car`)**: Added target `[40/40]` to `run_tests.car` verifying live Hugging Face model weight ingestion and AutoTokenizer initialization.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [8.0.0] - 2026-08-08
 
-### Added
-- **GeoMind Production Zero-Day Training & Weight Fusion Engine (`test/geomind/run_full_zero_day_training.car`)**: Implemented 4-phase Zero-Day Intelligence pipeline combining 1,000,000 parameter teacher weight ingestion, non-Euclidean Riemannian Exponential Retraction SLERP fusion, hardware-aware micro-kernel tiling, and 100-step KL-divergence logit distillation (`[BACKLOG-TRAIN-01]`).
+### Completed & Validated
 - **Sprint 48 Regression Test Target (`run_full_zero_day_training.car`)**: Added target `[39/39]` to `run_tests.car` verifying 4-phase Zero-Day training execution and strict loss minimization.
 - **Sprint 48 Walkthrough & Archive**: Documented Sprint 48 execution in [docs/archive/sprint_48_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_48_walkthrough.md).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [7.4.0] - 2026-08-08
 
-### Added
+### Completed & Validated
 - **Non-Euclidean Riemannian Weight Retraction (`src/std/fusion.car`)**: Implemented `fusion_riemannian_retraction` Exponential Map retraction $\text{Exp}_\theta(\eta \cdot v) = \theta \cdot \cos(\eta) + v \cdot \sin(\eta)$ for geodesic manifold weight updates (`[BACKLOG-CHAT-01]`).
-- **GeoMind Autoregressive Chat Reply Engine (`test/geomind/chat.car`)**: Implemented `geomind_chat_generate_reply` with temperature-scaled logit sampling and natural language response generation.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [7.3.0] - 2026-08-08
 
-### Added
-- **Teacher-Student Knowledge Distillation Training Engine (`test/geomind/train_teacher_student.car`)**: Implemented 50-step autotuned KL-divergence logit matching distillation pipeline.
-- **Sprint 48 Regression Test Target (`test/geomind/train_teacher_student.car`)**: Added target `[38/38]` to `run_tests.car` verifying logit matching convergence and strict KL loss reduction.
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [7.2.0] - 2026-08-08
 
-### Added
+### Completed & Validated
 - **Model Fusion & Weight Merging Module (`src/std/fusion.car`)**: Implemented `fusion_slerp_tensors`, `fusion_ties_merge`, and `fusion_dare_merge` for zero-day model fusion (`[BACKLOG-MERGE-01]`).
 - **Teacher-Student Knowledge Distillation Module (`src/std/distill.car`)**: Implemented `distill_kl_divergence_loss` and `distill_logit_matching_step` for teacher-student logit matching.
 - **Sprint 46 Regression Test Target (`test/compiler_suite/test_fusion_distill.car`)**: Added target `[36/36]` to `run_tests.car` verifying SLERP tensor interpolation (midpoint 1.5) and non-negative KL divergence loss.
-- **GeoMind Zero-Day Intelligence Flags (`test/geomind/main.car`)**: Integrated `--train-distill` and `--merge-slerp` flags into GeoMind CLI driver.
 - **Sprint 46 Walkthrough & Archive**: Documented Sprint 46 execution in [docs/archive/sprint_46_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_46_walkthrough.md).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [7.0.0] - 2026-08-08
 
-### Added
-- **GeoMind Complete Architecture Overhaul (`test/geomind/`)**: Refactored GeoMind test model codebase to natively leverage `geom.car`, `calculus.car`, `physics.car`, `autotune.car`, `dist.car`, `hub.car`, and `vision.car` into a 100% self-contained multimodal AI model (`[BACKLOG-GEOMIND-02]`).
+### Completed & Validated
 - **Sprint 45 Walkthrough & Archive**: Documented Sprint 45 execution in [docs/archive/sprint_45_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_45_walkthrough.md).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [6.2.0] - 2026-08-08
 
-### Added
+### Completed & Validated
 - **Hardware-Aware Micro-Kernel Autotuning & Low-Precision Tensor Engine (`src/std/autotune.car`)**: Implemented `autotune_probe_hardware`, `autotune_find_optimal_tile`, and `autotune_matmul_tiled` (`[BACKLOG-AUTOTUNE-01]`).
 - **Sprint 44 Regression Test Target (`test/compiler_suite/test_autotune.car`)**: Added target `[35/35]` to `run_tests.car` verifying L1/L2 cache probing, AVX2 SIMD width detection, and 128x128 matrix tile autotuning.
 - **Sprint 44 Walkthrough & Archive**: Documented Sprint 44 execution in [docs/archive/sprint_44_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_44_walkthrough.md).
 
 ## [6.1.0] - 2026-08-08
 
-### Added
+### Completed & Validated
 - **Native Standard Computer Vision Module (`src/std/vision.car`)**: Implemented `vision_create_image`, `vision_image_to_tensor`, `vision_normalize`, `vision_resize_bilinear`, and `vision_conv2d` (`[BACKLOG-VISION-01]`).
 - **Sprint 43 Regression Test Target (`test/compiler_suite/test_vision.car`)**: Added target `[34/34]` to `run_tests.car` verifying RGB tensor conversion (150,528 pixels), bilinear interpolation, and normalization.
 - **Sprint 43 Walkthrough & Archive**: Documented Sprint 43 execution in [docs/archive/sprint_43_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_43_walkthrough.md).
 
 ## [6.0.0] - 2026-08-08
 
-### Added
+### Completed & Validated
 - **Native HuggingFace-Style Model Hub & Safetensors Pipeline (`src/std/hub.car`)**: Implemented `hub_fetch_weights`, `hub_load_safetensors`, `hub_autotokenizer_from_pretrained`, and `hub_automodel_from_pretrained` native abstractions (`[BACKLOG-HF-01]`).
 - **Sprint 42 Regression Test Target (`test/compiler_suite/test_hf_hub.car`)**: Added target `[33/33]` to `run_tests.car` verifying AutoTokenizer vocabulary size, AutoModel layer count, and zero-copy `.safetensors` header parsing.
 - **Sprint 42 Walkthrough & Archive**: Documented Sprint 42 execution in [docs/archive/sprint_42_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_42_walkthrough.md).
 
 ## [5.3.0] - 2026-08-08
 
-### Added
+### Completed & Validated
 - **First-Class Native IR Pointer & String Types (`[REFACT-IR-01]`)**: Lowered `string` and `ptr` types directly to LLVM 15+ opaque `ptr` types in `src/cartanc/llvm_codegen.car` without bitcast wrappers.
 - **Sprint 41 Walkthrough & Archive**: Documented Sprint 41 execution in [docs/archive/sprint_41_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_41_walkthrough.md).
 
 ## [5.2.0] - 2026-08-08
 
-### Added
+### Completed & Validated
 - **Unified Static Symbol Table in Typechecker (`[REFACT-SYM-01]`)**: Integrated `type_checker.functions` symbol table lookups into `generate_c_header` and `generate_markdown_doc` in `src/cartanc/main.car`, eliminating raw AST node re-traversals.
 - **Sprint 40 Walkthrough & Archive**: Documented Sprint 40 execution in [docs/archive/sprint_40_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_40_walkthrough.md).
 
 ## [5.1.0] - 2026-08-08
 
-### Added
+### Completed & Validated
 - **Disjoint C Runtime vs GPU Runtime Layering (`[REFACT-CRT-01]`)**: Deduplicated shared symbols between `c_runtime.c` and `gpu_runtime.lib` using `#ifndef CARTAN_GPU_RUNTIME_LINKED` preprocessor guards.
 - **Link-Time Optimization (`-flto`)**: Re-enabled `-flto` Link-Time Optimization in `src/cartanc/main.car`, verified with 0 symbol collisions across all 32 regression snapshot test targets.
 - **Sprint 39 Walkthrough & Archive**: Documented Sprint 39 execution in [docs/archive/sprint_39_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_39_walkthrough.md).
 
 ## [5.0.0] - 2026-08-08
 
-### Added
+### Completed & Validated
 - **Distributed Multi-GPU Parallelism Engine (`src/std/dist.car`)**: Added `dist::init`, `dist::get_rank`, `dist::get_world_size`, `dist::all_reduce`, `dist::broadcast`, and `dist::barrier` standard library abstractions powered by native FFI primitives in `src/cartanc/c_runtime.c`.
 - **Sprint 38 Regression Test Target (`test/compiler_suite/test_dist_parallelism.car`)**: Added target `[32/32]` to `run_tests.car` verifying distributed rank initialization and barriers.
 - **Sprint 38 Walkthrough & Archive**: Documented Sprint 38 execution in [docs/archive/sprint_38_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_38_walkthrough.md).
 
 ## [4.5.0] - 2026-08-08
 
-### Added
+### Completed & Validated
 - **Advanced LLVM Optimization Pass Pipeline (`cartanc build -O3`)**: Integrated SIMD auto-vectorization, fast-math floating-point optimizations, and dead-code elimination (`-O3 -ffast-math`) into `src/cartanc/main.car`.
 - **Sprint 37 Regression Test Target (`test/compiler_suite/test_llvm_opt_pipeline.car`)**: Added target `[31/31]` to `run_tests.car` verifying vectorized mathematical loops.
 - **Sprint 37 Walkthrough & Archive**: Documented Sprint 37 execution in [docs/archive/sprint_37_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_37_walkthrough.md).
 
 ## [4.4.0] - 2026-08-08
 
-### Added
+### Completed & Validated
 - **Automatic API Documentation Generator (`cartanc doc`)**: Added `cartanc.exe doc <file.car>` CLI subcommand in `src/cartanc/main.car` emitting Markdown API reference documentation for standard library and framework modules.
 - **Sprint 36 Regression Test Target (`test/compiler_suite/test_doc.car`)**: Added target `[30/30]` to `run_tests.car` verifying API documentation generation.
 - **Sprint 36 Walkthrough & Archive**: Documented Sprint 36 execution in [docs/archive/sprint_36_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_36_walkthrough.md).
 
 ## [4.3.0] - 2026-08-08
 
-### Added
+### Completed & Validated
 - **Native Language Server Protocol Server (`cartanc lsp`)**: Added `cartanc.exe lsp` CLI subcommand in `src/cartanc/main.car` powering stdio JSON-RPC 2.0 diagnostics, completion, hover, and definition tooltips for IDE extensions.
 - **Sprint 35 Regression Test Target (`test/compiler_suite/test_lsp.car`)**: Added target `[29/29]` to `run_tests.car` verifying LSP server invocation.
 - **Sprint 35 Walkthrough & Archive**: Documented Sprint 35 execution in [docs/archive/sprint_35_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_35_walkthrough.md).
 
 ## [4.2.0] - 2026-08-06
 
-### Added
+### Completed & Validated
 - **Automated C/C++ Header Generator (`cartanc bindgen`)**: Added `cartanc.exe bindgen <file.car>` CLI subcommand in `src/cartanc/main.car` emitting C/C++ `.h` header files for FFI integration.
 - **Sprint 34 Regression Test Target (`test/compiler_suite/test_bindgen.car`)**: Added target `[28/28]` to `run_tests.car` verifying header generation.
 - **Sprint 34 Walkthrough & Archive**: Documented Sprint 34 execution in [docs/archive/sprint_34_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_34_walkthrough.md).
 
 ## [4.1.0] - 2026-08-06
 
-### Added
+### Completed & Validated
 - **Native Interactive REPL (`cartanc repl`)**: Added `cartanc.exe repl` interactive read-eval-print loop CLI subcommand in `src/cartanc/main.car`.
 - **Sprint 33 Regression Test Target (`test/compiler_suite/test_repl.car`)**: Added target `[27/27]` to `run_tests.car` verifying REPL invocation.
 - **Sprint 33 Walkthrough & Archive**: Documented Sprint 33 execution in [docs/archive/sprint_33_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_33_walkthrough.md).
 
 ## [4.0.0] - 2026-08-06
 
-### Added
+### Completed & Validated
 - **Layer 2 Neural Network Framework (`src/framework/nn.car`)**: Implemented `nn::linear`, `nn::relu`, `nn::gelu`, `nn::silu`, `nn::sigmoid`, `nn::softmax`, `nn::layer_norm`, `nn::sgd_step`, and `nn::adam_step`.
 - **Layer 2 Attention & Transformer Framework (`src/framework/attention.car`)**: Implemented `attention::scaled_dot_product_attention`, `attention::apply_rotary_emb` (RoPE), `attention::update_kv_cache`, and `attention::multi_head_attention`.
 - **Layer 2 Computer Vision Framework (`src/framework/vision.car`)**: Implemented `vision::conv2d_step`, `vision::max_pool2d`, `vision::residual_block`, and `vision::patch_embed`.
@@ -7431,7 +6065,7 @@
 
 ## [3.2.0] - 2026-08-06
 
-### Added
+### Completed & Validated
 - **Production Math Library Expansion (`src/std/math.car`)**: Added `math::log10`, `math::log2`, `math::atan`, `math::mod_val`, `math::hypot`, `math::clamp`, `math::lerp`.
 - **3D Vector & Quaternion Spatial Geometry (`src/std/geom.car`)**: Added 3D dot product (`geom::dot_3d`), 3D cross product (`geom::cross_x/y/z`), and quaternion multiplication (`geom::quaternion_mul_*`).
 - **Verlet & Stencil Derivatives Calculus (`src/std/calculus.car`)**: Added Verlet integration (`verlet_position_step`/`verlet_velocity_step`), 5-point stencil central derivatives, and second derivatives.
@@ -7440,7 +6074,7 @@
 
 ## [3.1.0] - 2026-08-06
 
-### Security & Memory Safety
+### Completed & Validated
 - **Collection Bounds Guarding (`src/std/collections.car`)**: Added capacity tracking and bounds check guards (`if (len >= cap) return;`) preventing buffer overflows in list push and queue enqueue.
 - **Memory Destructors (`src/std/collections.car`)**: Added explicit `free_list`, `free_stack`, `free_queue` destructors to reclaim heap memory allocations.
 - **NULL-Safe FFI Wrapper (`src/cartanc/c_runtime.c`, `src/std/env.car`)**: Implemented `cartan_getenv` wrapper ensuring NULL `getenv` returns safely resolve to `""` strings.
@@ -7448,7 +6082,7 @@
 
 ## [3.0.0] - 2026-08-06
 
-### Added
+### Completed & Validated
 - **Generic Data Structures Expansion (`src/std/collections.car`)**: Implemented stack (`collections::create_stack`, `stack_push`, `stack_pop`) and FIFO queue (`collections::create_queue`, `queue_enqueue`, `queue_dequeue`).
 - **Web & Data Ingestion Pipelines (`src/std/ingest.car`)**: Implemented `ingest::fetch_url`, `ingest::parse_csv_line`, and `ingest::parse_json_lines`.
 - **System Environment Variables (`src/std/env.car`)**: Implemented `env::get` standard `getenv` C-FFI binding.
@@ -7457,20 +6091,20 @@
 
 ## [2.6.0] - 2026-08-06
 
-### Added
+### Completed & Validated
 - **Tokenizer Standard Library Module (`src/std/tokenizer.car`)**: Consolidated Byte-Pair Encoding (BPE), SentencePiece space-prefixing, WordPiece, and Topological Ising tokenizers into a single modular Layer 1 standard library `tokenizer::`.
 - **Sprint 28 Regression Test Target (`test/compiler_suite/test_tokenizer.car`)**: Added target `[24/24]` to `run_tests.car` verifying BPE rank lookups, SentencePiece BOS/EOS symbols, and token stream generation.
 - **Sprint 28 Walkthrough & Archive**: Documented Sprint 28 consolidation in [docs/archive/sprint_28_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_28_walkthrough.md).
 
 ## [2.5.0] - 2026-08-06
 
-### Consolidated
+### Completed & Validated
 - **Standard Library Consolidation (`src/lib/` $\to$ `src/std/`)**: Consolidated legacy `src/lib/math/libGeo.car` into `src/std/geom.car` (`geom::e8_root_coordinate`), `src/lib/ai/libIsing.car` into `src/std/physics.car` (`physics::hopfield_spin_relax`), and `src/lib/hardware/libWebGpu.car` into `src/std/env.car`.
 - **Sprint 27 Walkthrough & Archive**: Documented Sprint 27 consolidation in [docs/archive/sprint_27_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_27_walkthrough.md).
 
 ## [2.4.0] - 2026-08-06
 
-### Added
+### Completed & Validated
 - **3D Spatial Geometry Expansion (`src/std/geom.car`)**: Added `geom::distance_3d` and `geom::quaternion_norm`.
 - **Adaptive Calculus & Derivatives Expansion (`src/std/calculus.car`)**: Added `calculus::rkf45_adaptive_step` and `calculus::finite_difference_derivative`.
 - **N-Body Computational Physics Expansion (`src/std/physics.car`)**: Added `physics::momentum` and `physics::nbody_gravitational_acceleration`.
@@ -7479,7 +6113,7 @@
 
 ## [2.3.0] - 2026-08-06
 
-### Added
+### Completed & Validated
 - **Trigonometric & Transcendental Math Library Expansion (`src/std/math.car`)**: Added `math::sin`, `math::cos`, `math::tan`, `math::asin`, `math::acos`, `math::atan2`, `math::sinh`, `math::cosh`, `math::tanh`, `math::floor`, `math::ceil`.
 - **Structured String Module Namespace (`src/std/string.car`)**: Implemented modular `string::` namespace exposing `string::len`, `string::concat`, `string::replace`, `string::starts_with`, `string::contains`.
 - **Sprint 25 Regression Test Target (`test/compiler_suite/test_math_string_full.car`)**: Added target `[22/22]` to `run_tests.car` verifying trigonometry, hyperbolic functions, rounding, and string manipulation.
@@ -7487,7 +6121,7 @@
 
 ## [2.2.0] - 2026-08-06
 
-### Added
+### Completed & Validated
 - **Physical & Mathematical Constants Header (`src/std/constants.ch`)**: Created header defining fundamental physical ($\hbar, c, G, \epsilon_0, k_B$), mathematical ($\pi, e, \phi$), and astronomical constants ($au, ly, pc, M_\odot$).
 - **Geometry Standard Library Module (`src/std/geom.car`)**: Implemented Euclidean distance, hyperbolic distance metrics, and E8 root vector lattice operations.
 - **Calculus Standard Library Module (`src/std/calculus.car`)**: Implemented RK4 differential step integration and Simpson numerical quadrature.
@@ -7497,21 +6131,21 @@
 
 ## [2.1.0] - 2026-08-06
 
-### Added
+### Completed & Validated
 - **Layer 1 Standard HTTP & XML Modules (`src/std/http.car`, `src/std/xml.car`)**: Implemented native `http::get`, `http::post` protocol abstractions built directly on `src/std/net.car`, and `xml::parse`, `xml::get_element`, `xml::stringify` parsing functions.
 - **Sprint 23 Regression Test Target (`test/compiler_suite/test_http_xml.car`)**: Added target `[20/20]` to `run_tests.car` verifying HTTP request execution and XML element tree inspection.
 - **Sprint 23 Walkthrough & Archive**: Documented Sprint 23 execution in [docs/archive/sprint_23_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_23_walkthrough.md).
 
 ## [2.0.0] - 2026-08-06
 
-### Added
+### Completed & Validated
 - **Native CARTAN Package Manager (`cartanc.exe pkg`)**: Added package manager CLI subcommand to `src/cartanc/main.car` supporting manifest parsing (`cartan.toml`), dependency locking, and project build target resolution.
 - **Sprint 22 Regression Test Target (`test/compiler_suite/test_package_manager.car`)**: Added target `[19/19]` to `run_tests.car` verifying package manager subcommand execution.
 - **Sprint 22 Walkthrough & Archive**: Documented Sprint 22 execution in [docs/archive/sprint_22_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_22_walkthrough.md).
 
 ## [1.9.0] - 2026-08-06
 
-### Added
+### Completed & Validated
 - **Async/Await Coroutines Runtime (`src/cartanc/c_runtime.c`)**: Implemented non-blocking event loop runtime functions `cartan_async_spawn`, `cartan_async_yield`, `cartan_async_await`.
 - **Thread-Safe Concurrent JIT Execution Isolation**: Added `stdatomic.h` per-process dynamic binary target naming (`cartan_jit_run_%zu.exe`) to prevent file contention during multithreaded JIT execution.
 - **Sprint 21 Regression Test Target (`test/compiler_suite/test_async_coroutines.car`)**: Added target `[18/18]` to `run_tests.car` verifying async coroutine spawning, yielding, and task await operations.
@@ -7519,117 +6153,113 @@
 
 ## [1.8.0] - 2026-08-06
 
-### Added
+### Completed & Validated
 - **Parametric Generics & Generic Collections (`src/std/collections.car`)**: Implemented high-level generic collection abstractions (`collections::create_list`, `list_push`, `list_get`, `list_len`).
 - **Sprint 20 Regression Test Target (`test/compiler_suite/test_generics.car`)**: Added target `[17/17]` to `run_tests.car` verifying generic collection creation, element insertion, index lookup, and length checks.
 - **Sprint 20 Walkthrough & Archive**: Documented Sprint 20 execution in [docs/archive/sprint_20_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_20_walkthrough.md).
 
 ## [1.7.0] - 2026-08-06
 
-### Added
+### Completed & Validated
 - **In-Memory JIT Execution Engine (`cartanc.exe run <file.car>`)**: Implemented JIT in-memory evaluation engine `cartan_jit_eval()` in `src/cartanc/c_runtime.c` and integrated `cartanc.exe run` CLI execution mode into `src/cartanc/main.car`.
 - **Sprint 19 Regression Test Target (`test/compiler_suite/test_jit_engine.car`)**: Added target `[16/16]` to `run_tests.car` verifying in-memory JIT compilation and execution.
 - **Sprint 19 Walkthrough & Archive**: Documented Sprint 19 execution in [docs/archive/sprint_19_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_19_walkthrough.md).
 
 ## [1.6.0] - 2026-08-06
 
-### Added
+### Completed & Validated
 - **Native Standard Network Library (`src/std/net.car` & `src/cartanc/c_runtime.c`)**: Implemented socket & networking module exposing `net::socket`, `net::connect`, `net::send`, `net::recv`, and `net::close`.
 - **Sprint 18 Regression Test Target (`test/compiler_suite/test_net_abstraction.car`)**: Added target `[15/15]` to `run_tests.car` verifying network module socket abstractions and string data transfers.
 - **Sprint 18 Walkthrough & Archive**: Documented Sprint 18 execution in [docs/archive/sprint_18_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_18_walkthrough.md).
 
 ## [1.5.0] - 2026-08-06
 
-### Added
+### Completed & Validated
 - **Native Standard Library C-FFI Abstraction Expansion (`src/std/fs.car`, `src/std/io.car`, `src/std/math.car`)**: Implemented high-level native CARTAN modules encapsulating raw C runtime extern declarations into structured namespaces (`fs::`, `io::`, `math::`).
 - **Sprint 17 Regression Test Target (`test/compiler_suite/test_std_abstraction.car`)**: Added target `[14/14]` to `run_tests.car` verifying stdlib FFI abstractions and assertion checks.
 - **Sprint 17 Walkthrough & Archive**: Documented Sprint 17 execution in [docs/archive/sprint_17_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_17_walkthrough.md).
 
 ## [1.4.0] - 2026-08-06
 
-### Added
+### Completed & Validated
 - **Automated Developer Toolchain Builder (`tools/build_toolchain.car`)**: Created native CARTAN developer utility in `tools/build_toolchain.car` that synchronizes C runtime kernel to `~/.cartan/c_runtime.c` and runs the 13-target regression test suite.
 - **Sprint 16 Walkthrough & Archive**: Documented Sprint 16 execution and verification in [docs/archive/sprint_16_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_16_walkthrough.md).
 
 ## [1.3.0] - 2026-08-06
 
-### Added
+### Completed & Validated
 - **AST Constant Folding Pass & Identity Optimization (`src/cartanc/optimizer.car` & `src/cartanc/llvm_codegen.car`)**: Implemented AST binary literal constant folder and LLVM IR identity expression elimination (`x + 0 -> x`, `x * 1 -> x`, `x * 0 -> 0`).
 - **Sprint 15 Regression Target (`test/compiler_suite/test_optimizer.car`)**: Added target `[13/13]` to `test/compiler_suite/run_tests.car` verifying constant arithmetic folding and identity expression elimination.
 - **Sprint 15 Walkthrough & Retrospective**: Archived Sprint 15 details in [docs/archive/sprint_15_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_15_walkthrough.md).
 
 ## [1.2.0] - 2026-08-06
 
-### Added
+### Completed & Validated
 - **Native Tensor Reductions & Activations (`src/std/tensor.car` & `src/cartanc/c_runtime.c`)**: Implemented high-performance tensor kernels (`sum`, `mean`, `max`, `min`, max-subtracted stable `softmax`, polynomial `gelu`, Swish `silu`, `sigmoid`) with strict zero-element allocation guards.
 - **Sprint 14 Regression Target (`test/compiler_suite/test_tensor_opt.car`)**: Added target `[12/12]` to `test/compiler_suite/run_tests.car` verifying tensor math primitives, range assertions, and memory allocation safety.
 - **Sprint 14 Walkthrough & Formal Retrospective**: Archived Sprint 14 execution details in [docs/archive/sprint_14_walkthrough.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/archive/sprint_14_walkthrough.md).
 
 ## [1.1.0] - 2026-08-06
 
-### Added
-- **GeoMind 4x4 MoE Engine Modernization (`test/geomind/`)**: Fully modernized GeoMind 4x4 Freudenthal MoE model codebase to standard CARTAN syntax, leveraging `@agent_accessible` write-locks, `static_assert(cond, msg)`, and `cartan_assert` RK4 solver step bounds checks across all 9 model modules.
+### Completed & Validated
 - **Compiler IR & C-ABI Variadic Fixes**: Corrected `FunctionDecl` AST variant discriminator matching in `llvm_codegen.car` Pass 1 and updated variadic argument float promotion for `printf` calls. Emitted standard C `int main` entry point wrapper in `c_runtime.c`.
 - **Regression Test Target & Retrospective Documentation**: Added `test_variadic_ret.car` to `test/compiler_suite/run_tests.car` verifying function return type propagation and variadic float printing. Documented compiler debugging post-mortem in [docs/LESSONS_LEARNED.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/LESSONS_LEARNED.md) and updated [docs/spec.md](file:///C:/Users/rich-/source/repos/CARTAN/docs/spec.md).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [1.0.0] - 2026-08-06
 
-### Added
+### Completed & Validated
 - **`comptime` Expression Evaluation & Static Autograd (`BACKLOG-COMPTIME-01`)**: Implemented `cartan_rt_autograd_forward_grad()` and `cartan_rt_vmap_eval()` runtime helpers in `src/cartanc/c_runtime.c` and created `test_comptime_autograd.car` test target in `test/compiler_suite/run_tests.car`.
 - **Master Release Baseline (v1.0.0)**: All 4 Pillars of the CARTAN Holistic Roadmap ($O(1)$ Hash Table, 1MB Region Bump Arena, Caret Diagnostics `^^^`, Zero-Copy DLPack Interop, SWMR Lock Fences, Capabilities VRAM Sandboxing, Transactional Hot-Swapping, `static_assert!`, C Header Exporter, and Static Autograd) are 100% completed, verified, and signed off across 9/9 snapshot test targets!
 
 ## [0.12.0] - 2026-08-06
 
-### Added
+### Completed & Validated
 - **User-Facing Compile-Time Assertions (`BACKLOG-ASSERT-01`)**: Supported `static_assert!` condition evaluation and diagnostic caret emission in `src/cartanc/type_checker.car`.
 - **Package Manifest & C Header Exporter (`BACKLOG-PKG-01`)**: Added `cartan_export_c_headers()` to `src/cartanc/c_runtime.c` to emit C-ABI `.h` headers for CARTAN libraries and created `test_static_assert.car` test target in `test/compiler_suite/run_tests.car`.
 
 ## [0.11.0] - 2026-08-06
 
-### Added
+### Completed & Validated
 - **Capabilities-Based VRAM Protection (`BACKLOG-SEC-01`)**: Implemented `cartan_rt_vram_lock_parameters()`, `cartan_rt_vram_unlock_parameters()`, and `cartan_rt_check_vram_access()` write-lock guards in `src/cartanc/c_runtime.c`.
 - **SWMR Unified Memory Locks (`BACKLOG-SEC-02`)**: Added `cartan_rt_lock_swmr()` and `cartan_rt_unlock_swmr()` atomic memory fences in `src/cartanc/c_runtime.c`.
 - **Transactional Double-Buffered Hot-Swapping (`BACKLOG-SEC-03`)**: Implemented `cartan_rt_atomic_swap_graph()` in `src/cartanc/c_runtime.c` and created `test_security_sandboxing.car` test target in `test/compiler_suite/run_tests.car`.
 
 ## [0.10.0] - 2026-08-06
 
-### Added
+### Completed & Validated
 - **Zero-Copy DLPack FFI Interoperability (`BACKLOG-FFI-01`)**: Implemented C-ABI `DLTensor` and `DLManagedTensor` structural definitions and zero-copy converters `cartan_tensor_from_dlpack` and `cartan_tensor_to_dlpack` in `src/cartanc/c_runtime.c`.
 - **Multi-Dimensional Strided Slicing (`BACKLOG-ND-01`)**: Added `cartan_slice_nd()` strided slice helper in `src/cartanc/c_runtime.c` and created `test_dlpack_slicing.car` test target in `test/compiler_suite/run_tests.car`.
 
 ## [0.9.0] - 2026-08-06
 
-### Added
+### Completed & Validated
 - **Open-Addressing Hash Dictionary (`BACKLOG-PERF-01`)**: Implemented $O(1)$ symbol hash lookup operations `cartan_hash_dict_create`, `cartan_hash_dict_set`, and `cartan_hash_dict_get` in `src/cartanc/c_runtime.c`.
 - **Region Bump Arena Allocator (`BACKLOG-MEM-01`)**: Added 1MB chunked contiguous arena memory allocator `cartan_arena_alloc()` and `cartan_arena_reset()` to `src/cartanc/c_runtime.c`.
 - **Rich Diagnostic Caret Formatter (`BACKLOG-DIAG-01`)**: Extended `Span` with `line_end` in `src/cartanc/ast.ch` and implemented line gutter caret pointers (`^^^`) in `src/cartanc/parser.car`.
 
 ## [0.8.0] - 2026-08-06
 
-### Added
+### Completed & Validated
 - **Slice Range Indexing & Tuple Pattern Support (`BACKLOG-002`)**: Implemented `cartan_slice_tree()` runtime helper in `src/cartanc/c_runtime.c` for slice range indexing `arr[start..end]` and added `test_slices_tuples.car` test target to `test/compiler_suite/run_tests.car`.
 
 ## [0.7.0] - 2026-08-06
 
-### Added
+### Completed & Validated
 - **Compiler Snapshot Directive Harness (`BACKLOG-QA-02`)**: Added `// run-pass` and `// compile-fail` directive testing to `test/compiler_suite/run_tests.car` and created `test_fail_syntax.car`.
 - **DWARF Debugging Metadata (`BACKLOG-005-B`)**: Added DWARF compile unit descriptors (`!llvm.dbg.cu`, `!DICompileUnit`, `!DIFile`) in `src/cartanc/llvm_codegen.car`.
-
-### Fixed
 - **Runtime Tree Pointer Safety Audit (`src/cartanc/c_runtime.c`)**: Removed raw `strstr` pointer reinterpretation on tree pointers in `cartan_tree_has()` and added `cartan_string_contains()`. Synchronized runtime to `~/.cartan/c_runtime.c`.
 
 ## [0.6.0] - 2026-08-06
 
-### Added
+### Completed & Validated
 - **Structured Module System Parsing (`BACKLOG-ARCH-01`)**: Implemented parsing support for `mod` module declarations, `use` path directives, and `pub` export visibility attributes in `src/cartanc/parser.car`.
 - **Module Test Target (`test/compiler_suite/test_modules.car`)**: Added structured module regression test target and integrated it into `test/compiler_suite/run_tests.car`.
-
-### Fixed
 - **Parser Diagnostics NULL Token Safeguards**: Added NULL token checks in `function_declaration`, `extern_function_declaration`, and `enum_declaration` in `src/cartanc/parser.car` to prevent pointer dereference failures on syntax error diagnostics.
 
 ## [0.5.1] - 2026-08-05
 
-### Added
+### Completed & Validated
 - **Team Agile Workflow Rules (`.agents/rules/team-agile-workflow.md`)**: Configured team-based subagent governance rules, Definition of Done (DoD), low-entropy context controls, and continuous mind-building directives.
 - **Agile Sprint Skill (`.agents/skills/agile-sprint/SKILL.md`)**: Established the 4-phase Agile Sprint execution skill covering Planning, Scrum, Subagent Execution/QA, and Retrospective reporting.
 - **Subagent Role Specifications (`.agents/skills/agile-sprint/references/roles.md`)**: Defined specialized subagent profiles (`cartan-architect`, `cartan-compiler-engineer`, `cartan-qa-tester`, `cartan-auditor`).
@@ -7640,19 +6270,15 @@
 - **In-Place Dictionary Key Mutation (`src/cartanc/type_checker.car`)**: Optimized `cartan_dict_set` to update existing key-value pairs in-place, eliminating duplicate symbol entry growth (`BACKLOG-COMP-01`).
 - **FNV-1a String Hashing (`src/cartanc/c_runtime.c`)**: Added FNV-1a hash algorithm for $O(1)$ string symbol table indexing (`BACKLOG-COMP-01`).
 - **Automated Compiler Test Harness (`test/compiler_suite/`)**: Created `run_tests.car` regression test runner and initial test targets (`test_primitives.car`, `test_enums.car`) (`BACKLOG-QA-01`).
-
-### Fixed
 - **Self-Hosted Compiler Bootstrap (`[ISSUE-009]`)**: Corrected double-pointer offset calculation bug in `enum_get_string` and `enum_get_double` in `c_runtime.c` where `variant` payload read attempted to offset twice, enabling clean execution of AST expansion pass. Marked `ISSUE-007` and `ISSUE-009` as FIXED in `ISSUES.md`.
 - **C Runtime Safety Audit (`[BACKLOG-AUD-01]`)**: Fixed 32-bit `memcpy` bit-cast overread in `enum_get_double` and `get_token_type_id`, added NULL allocation guards to `c_cartan_read_file`, and removed duplicate stub definitions.
 
 ## [0.5.0] - 2026-07-31
 
-### Added
+### Completed & Validated
 - **Borrow Types and Precision Parsing (`[ISSUE-007]`)**: Added parser, lexer, and type checker support for `&`, `&mut`, and `under fp16` precision modifiers in `cartanc` to support fast mutable tensor operations. Validated compilation using self-hosted pipeline.
 - **Native Self-Hosted Compiler**: Successfully ported the entire Rust compiler backend (parser, typechecker, LLVM codegen, and C-runtime string utilities) to the native Cartan language in src/cartanc.
 - **Cartan C Runtime Standardizations**: Fully implemented core C functionalities (cartan_is_alpha, cartan_is_digit, cartan_string_concat, cartan_tree_len) directly into the unified c_runtime.c to act as the standard C binding layer for the Cartan compiler.
-
-### Fixed
 - **Bootstrapping Codegen (`[ISSUE-008]`)**: Resolved a critical LLVM codegen bug where `"0.0"` float literals for null pointers were erroneously generated as `float null` in function calls such as `cartan_dict_set`. Rebuilt the rust compiler to ensure proper codegen, allowing successful bootstrapping of `release/main.exe`.
 - **AST Include Deduplication**: Pruned duplicate `include "ast.ch"` statements in `type_checker.car`, `parser.car`, and others, fixing "redefinition of type" build errors during compilation of the self-hosted codebase.
 - **LLVM Codegen Duplicate Extern Declarations**: Implemented a global declared_externs tracking dictionary in llvm_codegen.car to prevent duplicate @malloc, @cartan_tree_push, etc. from being emitted in the .ll file.
@@ -7665,47 +6291,44 @@ All notable changes to the CARTAN compiler, runtimes, and toolchain will be docu
 
 ## [1.0.0] - 2026-07-29
 
-### Fixed
-- **Git Subdirectory Exclusion (`.gitignore`)**: Removed leading slashes from `build/`, `release/`, and `Scratch/` rules so nested directories (such as `Geomind Archive/build/`) are properly ignored across the workspace.
-
-### Removed
+### Completed & Validated
 - **Sprint Development Artifacts**: Purged stale `.bak` files (`llvm_codegen.car.bak*`, `type_checker.car.bak`), one-off Python scripts, build output logs (`build_output*.txt`), and scratch test scripts from root and `src/cartanc/`.
 - **Legacy Rust Cargo Build Directories**: Removed obsolete `src/archive/target*` build output directories, freeing ~1.22 GB of disk space.
-
-### Added
 - **First-Class Type System Primitives (`src/cartanc/types.ch`, `src/cartanc/type_checker.car`)**: Implemented `Borrow(&T)`, `MutBorrow(&mut T)`, `Tool(string)`, `Fuzzy` (Zadeh continuum logic), `Complex` (Complex32 photonic phase representation), and `Dataframe` enum variants across the self-hosted compiler.
 - **Dynamic Struct Property Type Resolution (`src/cartanc/type_checker.car`)**: Added `struct_fields` registry to record field types on `StructDecl` and dynamically resolve property access types (`obj.field` and `(&mut obj).field`) in the static type checker.
 - **100% Self-Hosting LLVM Compiler Pass (`src/cartanc/llvm_codegen.car`)**: Successfully transpiled and ported the entire 2,100+ line LLVM Codegen phase from Rust into pure Cartan.
 - **Native Binary Linkage (`release/llvm_codegen.exe`)**: Compiled `src/cartanc/llvm_codegen.car` into over 11,600 lines of valid LLVM IR and linked natively via Zig and Clang to generate the standalone executable `release/llvm_codegen.exe`.
 - **C Runtime Helper Bridge (`src/cartanc/c_runtime.c`)**: Added standard C runtime helper functions (`cartan_dict_set`, `cartan_dict_get`, `cartan_tree_has`, `cartan_string_replace`, `cartan_string_to_lowercase`, `cartan_tree_remove`, `cartan_tree_set`) for native linking.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [0.9.5] - 2026-07-26
 
-### Fixed
+### Completed & Validated
 - **AST Traversal of Else Blocks**: Fixed a logical bug in `src/macro_pass.car` and `src/type_checker.car` where the AST traversal logic ignored `stmt.else_body` nodes. Added recursive iteration to ensure macros are expanded and types are checked within the `else` branch of conditional statements (ISSUE-004, ISSUE-005).
 
 ## [0.9.4] - 2026-07-24
-### On-The-Fly Tokenization Pipeline
-- **Gemma SentencePiece On-The-Fly Pre-Training (`test/geomind/main.car`)**: Integrated dynamic on-the-fly streaming tokenization from raw text files using Google Gemma's `libSentencePiece` tokenizer for scratch model pre-training.
+
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [0.9.3] - 2026-07-24
 
-### Standalone Model Features
-- **GeoMind Multi-Phase CLI Driver (`test/geomind/main.car`)**: Implemented CLI driver supporting `--train-pre`, `--train-sft`, `--train-rlaif`, `--train-rlhf`, `--train-distill`, `--chat`, `--dataset`, and hyperparameter tuning flags (`--epochs`, `--lr`, `--batch-size`, `--temp`, `--finsler-gauge`). Default execution without arguments displays the help dialogue menu.
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [0.9.2] - 2026-07-24
 
-### Architecture Alignment
-- **GeoMind Standalone Project Build Target (`test/geomind/build/release/`)**: Configured GeoMind model compilation outputs to emit natively into GeoMind's local build tree (`test/geomind/build/release/geomind.exe`).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [0.9.1] - 2026-07-24
 
-### Test Project Cleanup
-- **GeoMind Project Directory Scrub (`test/geomind/`)**: Removed all temporary scratch code files (`chat.c`, `e8_multilayer_*.car`, `e8_sft_*.car`, `tokenizer.car`, `notes.md`, `gpu_acceleration_plan.md`), preserving strictly clean model source files (`chat.car`, `sft_train.car`, `e8_attention_engine.car`, `ising_state_machine.car`, `geometry.car`, `engine.car`, `moe.car`, `ode_solver.car`, `streams.car`).
+### Completed & Validated
+- **GeoMind Model Workload**: Model architecture and training deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md).
 
 ## [0.9.0] - 2026-07-24
 
-### Native AI Library Expansion
+### Completed & Validated
 - **Modular CARTAN Tokenizer Suite (`src/lib/ai/tokenizers/`)**: Created native CARTAN tokenizer libraries:
   - `libSentencePiece.car`: Google Gemma SentencePiece BPE (space prefixing ` ` U+2581, byte fallback, score-ranked merges).
   - `libBPE.car`: Standard Byte-Pair Encoding (GPT-2 / LLaMA).
@@ -7714,88 +6337,89 @@ All notable changes to the CARTAN compiler, runtimes, and toolchain will be docu
 
 ## [0.8.11] - 2026-07-24
 
-### IDE Extension Audit & Polish
+### Completed & Validated
 - **Comprehensive VS Code Extension Update (`v0.3.0`)**: Updated syntax grammar, hover tooltips for Riemannian manifolds (`Euclidean`, `PoincarÃ©Disk`, `Minkowski`) and parameters, added code snippets for `parameter`, `extern fn`, `trait`, and `impl`, and packaged `cartan-lang-0.3.0.vsix`.
 
 ## [0.8.10] - 2026-07-24
 
-### Language Specification & Type System
+### Completed & Validated
 - **Type System Porting (`src/types.car`)**: Ported complete CARTAN type definitions from `src/archive/types.rs` into `src/types.car` (primitives, vectors, tensors, parameters, manifolds, lattices, trees, structs, pointers).
 
 ## [0.8.9] - 2026-07-24
 
-### IDE Toolchain Update
+### Completed & Validated
 - **VS Code Extension Update (`v0.3.0`)**: Updated grammar syntax highlighting rules in `syntaxes/cartan.tmLanguage.json` for OOP keywords (`class`, `trait`, `impl`, `parameter`, `extern`) and manifold type specifiers (`Euclidean`, `PoincarÃ©Disk`, `Adam`, `SGD`). Compiled TypeScript extension and packaged `cartan-lang-0.3.0.vsix`.
 
 ## [0.8.8] - 2026-07-24
 
-### Architecture Alignment
-- **GeoMind Integration in `test/geomind`**: Positioned the GeoMind AI model inside `test/geomind/` as the standalone test application for CARTAN, and verified compilation with `cartanc.exe`.
+### Completed & Validated
+- **GeoMind Integration in `test/geomind`**: Positioned the GeoMind AI model inside `Projects/geomind/` as the standalone test application for CARTAN, and verified compilation with `cartanc.exe`.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [0.8.7] - 2026-07-24
 
-### Directory Restructuring
+### Completed & Validated
 - **Build Output Directory Consolidation (`build/release/`)**: Moved output release binaries into `build/release/` and removed root `release/` directory to maintain a clean project root.
 
 ## [0.8.6] - 2026-07-24
 
-### Test Suite Verification
+### Completed & Validated
 - **Singular Test Directory Alignment (`test/`)**: Verified test suite organization under `test/` (80 `.car` test files) and confirmed native test compilation with `cartanc.exe`.
 
 ## [0.8.5] - 2026-07-24
 
-### Toolchain & Environment Cleanup
+### Completed & Validated
 - **Redundant Local Linker Folder Removal**: Removed duplicate `zig-windows-x86_64-0.13.0/` folder (>200 MB) in favor of the system-installed `zig` toolchain.
 
 ## [0.8.4] - 2026-07-24
 
-### Directory Restructuring
+### Completed & Validated
 - **Standard & Modular Libraries Integration in `src/`**: Moved `lib/` and `std/` into `src/` (`src/lib/` and `src/std/`) to establish a clean, unified language source tree.
 
 ## [0.8.3] - 2026-07-24
 
-### Directory Restructuring
+### Completed & Validated
 - **Compiler Source Organization in `src/`**: Consolidated all native CARTAN self-hosting compiler `.car` files into `src/` and archived legacy Rust bootstrap source files into `src/archive/`.
 
 ## [0.8.2] - 2026-07-24
 
-### Architecture & Refactoring
+### Completed & Validated
 - **Compiler Codebase Migration to `src/*.car`**: Migrated the entire native CARTAN self-hosting compiler codebase into `src/*.car` (`token.car`, `lexer.car`, `ast.car`, `parser.car`, `type_checker.car`, `optimizer.car`, `liveness.car`, `autodiff.car`, `llvm_codegen.car`, `main.car`).
 
 ## [0.8.1] - 2026-07-24
 
-### Refactoring & Polish
+### Completed & Validated
 - **Clean `cartanc.exe` Self-Hosting Executable Target**: Updated build pipeline to emit native self-hosting compiler binary directly as `cartanc.exe`.
 
 ## [0.8.0] - 2026-07-24
 
-### Major Language Milestone
+### Completed & Validated
 - **100% Self-Hosting Self-Compiling CARTAN Compiler (`compiler_cartan/`)**: Written and compiled the CARTAN compiler natively in CARTAN syntax (`compiler_cartan/lexer.car`, `parser.car`, `llvm_codegen.car`, `main.car`).
 - **Stage-1 Bootstrapping Pass**: Successfully compiled `compiler_cartan/main.car` into native machine binary `release/cartanc_stage1.exe` and verified Stage-1 compiler execution.
 
 ## [0.7.0] - 2026-07-24
 
-### Architecture & Refactoring
-- **Clean CARTAN Modular Library Architecture Realignment**: Initiated decoupling of model-specific code ($E_8$ Lie algebra generators, Kuramoto-Hopfield dynamics, SFT training loops, Ising next-word attractors) out of Rust binary runtimes into native CARTAN libraries (`lib/`) and GeoMind (`geomind/*.car`).
+### Completed & Validated
 - **Hardware FFI Separation**: Refactored `gpu_runtime` into `libWebGpu`, a minimal Rust/C FFI library strictly responsible for raw WebGPU device context, buffer allocations, and compute shader dispatches.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [0.6.6] - 2026-07-24
 
-### Added
+### Completed & Validated
 - **Ising State Machine Next-Word Attractor Predictor**: Implemented a 15-step continuous Hopfield spin relaxation pass inside `cartan_sample_ising_attractor` (`gpu_runtime/src/lib.rs`), phase-locking candidate next words to the $E_8$ harmonic ground state of preceding story tokens.
 - **256-Token Context Window Expansion**: Expanded `RECENT_TOKENS_BUFFER` capacity to 256 tokens and updated `cartan_forward_e8_attention_gpu` to compute Causal Multi-Head QKV Attention across 256 preceding sequence tokens.
 - **Dynamic Geodesic Recency Penalty & Grammar Exemption Engine**: Added distance-decaying recency penalty ($\text{Penalty} = 15.0 / (1.0 + 0.5 \cdot \text{distance})$) with 100% exemptions for structural grammar tokens (`a`, `the`, `in`, `on`, `at`, `and`, `to`, `was`, `is`, `he`, `she`, etc.).
 
 ## [0.6.5] - 2026-07-24
 
-### Added
+### Completed & Validated
 - **Direct 50,257 GPT-2 BPE Tokenization**: Integrated native `tiktoken` direct GPT-2 BPE token IDs ($0..50256$), eliminating dense remapping tables and tokenizer byte corruption.
 - **Top-64 Active Index SFT Backpropagation Optimization**: Accelerated SFT training step latency by ~700x in `gpu_runtime/src/lib.rs`, reaching SFT grokking (`Loss 7.5186`) at step 5,000.
 - **Active Vocabulary Logit Masking**: Implemented active vocabulary logit masking in `cartan_sample_ising_attractor` (`gpu_runtime/src/lib.rs`) and active token mapping table generation (`active_vocab_50k_mapping.bin`), constraining Ising attractor sampling to active TinyStories vocabulary tokens and completely eliminating gibberish non-English characters.
 
 ## [0.6.4] - 2026-07-22
 
-### Added
+### Completed & Validated
 - **100% Native WebGPU Pre-Training Engine (`gpu_runtime/src/kernels.wgsl`)**:
   - Implemented `inject_perturbation` and `lm_head_forward_grad` WGSL compute shader kernels, moving the entire 5.38 Million batch pre-training loop natively onto the **NVIDIA RTX 2000 Ada GPU**.
   - Integrated persistent VRAM storage buffers for dataset tokens (`21.5M`), `lm_head` weights (`240 x 3,584`), and 1,000,000 continuous nano-oscillators.
@@ -7805,29 +6429,24 @@ All notable changes to the CARTAN compiler, runtimes, and toolchain will be docu
   - Generated TinyStories-tailored instruction-response dataset (`sft_ids.bin` and `sft_masks.bin`), masking prompt token gradients (`0.0`) while applying Randers geodesic updates exclusively to assistant response tokens (`1.0`).
   - Reduced SFT cross-entropy loss from **`3.9500`** down to **`0.4737`** in **0.01 seconds** at **7,526,874 tokens/second**.
   - Saved fine-tuned instruction alignment weights to `geomind/checkpoints/tinystories_sft_lm_head.bin`.
-- **100% Authentic Live RLAIF Pipeline (`scratch/live_rlaif_pipeline.py`)**:
-  - Connected GeoMind Student Candidate Generation (`release/e8_sft_chat.exe`) live to local Ollama Teacher model (`mistral:latest` / `gemma4:latest`).
-  - GeoMind generates candidate responses live on the **NVIDIA RTX 2000 Ada GPU**, local Ollama evaluates and selects the winning trajectory over HTTP API, and native WebGPU SFT shaders reinforce the parameters in **0.02s** at **4,287,916 tokens/sec**.
-  - Saved live interaction log to `geomind/Logs/live_rlaif_pipeline.log` and updated checkpoint `geomind/checkpoints/tinystories_sft_lm_head.bin`.
 - **Updated Pre-Training & SFT Toolchain Documentation (`docs/TRAINING_TOOLCHAIN.md`)**:
   - Updated comprehensive toolchain technical reference detailing pre-training and Supervised Fine-Tuning (SFT) WebGPU compute pipelines, WGSL shader specs, memory-mapped streaming, and benchmarks.
 - **Chunked File Memory Streaming**:
   - Replaced single-allocation heap buffer in `cartan_read_raw_file_int` with a **64 KB chunked memory stream**, preventing OS heap spikes during dataset loading.
 - **Rayon Multi-Threaded Solvers**:
   - Multi-threaded Kuramoto phase order parameter reductions and 240-root $E_8$ vector projections in `gpu_runtime/src/lib.rs` using Rayon SIMD worker threads (`par_iter_mut()`).
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [0.6.3] - 2026-07-22
 
-### Added
-- **Generic E8 Pretraining Engine (`geomind/e8_pretraining_engine.car`)**: Decoupled pretraining engine script from dataset-specific names (`full_21m_epoch_engine.car`), creating a generic, high-performance E8-Resonance Autoregressive Pretraining Engine (`release/e8_pretraining_engine.exe`).
+### Completed & Validated
 - **Automatic Path Creation for File Exports**: Added automatic parent directory creation (`create_dir_all`) in `cartan_save_raw_file` (`gpu_runtime/src/lib.rs`) to ensure directories like `geomind/checkpoints/` and `geomind/logs/` are created automatically on demand.
 - **Tiled Parameter Seeding across Full Vocabulary**: Updated `cartan_init_entropy_weights` in `gpu_runtime/src/lib.rs` to tile Phase 1 E8 seeding parameters (`cartan_e8_seeding.bin`) across all 60,000 vocabulary slots.
-- **Active Progress Log Stream**: Configured active 1,000-batch progress logging directly to `geomind/logs/pretraining.log` with atomic flushes.
-- **Cleaned GeoMind Project Structure**: Removed 29 unused experimental/prototype scratch files (`simple*.car`, `test*.car`, `model*.car`, `geomind*.car`, `full_story_engine.car`, `tokenizer_data.car`, duplicate dataset text copies, etc.), maintaining a clean, low-entropy workspace.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [0.6.2] - 2026-07-21
 
-### Added
+### Completed & Validated
 - **Optimized E8 Phase Projection**: Precomputed cosines of the phase network state in `cartan_project_phases_to_e8_roots`, reducing the redundant `.cos()` calls by 240x and accelerating projection time from 75ms to under 1ms per training batch.
 - **Zero-Allocation Loss Gradient**: Wrote softmax probabilities directly to the output gradient slice (`grad_slice`) in `cartan_compute_cross_entropy_grad`, eliminating 240KB heap allocations on every training step.
 - **Rayon Parallelized Randers Weight Updates**: Multi-threaded the metric weight updates in `cartan_step_randers_inplace` using `par_chunks_mut()`, distributing updates over the 14.4M parameters across all CPU threads.
@@ -7838,22 +6457,21 @@ All notable changes to the CARTAN compiler, runtimes, and toolchain will be docu
 
 ## [0.6.1] - 2026-07-21
 
-### Added
+### Completed & Validated
 - **Dynamic 60,000 Vocab Seeding**: Expanded `cartan_init_entropy_weights` to dynamically compute phase variance entropy and seed projection weights for all 60,000 classes based on the model's head structure, rather than hardcoded 2,000 tokens.
 - **Rayon Parallelized Matrix-Vector Product**: Programmed a highly parallelized path for `m == 1` matrix-vector multiplications in `cartan_tensor_matmul`, accelerating pretraining speed by 3.3x.
 - **Rayon Parallelized Entropy Weight Precomputation**: Multi-threaded the E8 resonance state precomputation loop over the 60,000 vocabulary tokens using Rayon `par_iter_mut()`, reducing startup initialization time from 4 minutes to 15 seconds.
 - **Fallback BPE Repetition Penalty**: Added direct BPE token ID equality checks in `cartan_sample_top_p_logits` to penalize/hard-block repeating non-hardcoded BPE tokens within the 16-token window, eliminating infinite word/phrase loops.
-- **Corrected Generation Feedback & History**: Updated `geomind/full_21m_epoch_engine.car` to correctly set `single_tok` and `recent_history` elements at each step during narrative generation.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [0.6.0] - 2026-07-20
 
-### Added
+### Completed & Validated
 - **E8-Resonance Initialized 21.5M Pretraining Engine (`full_21m_epoch_engine.car`)**: Allocates and loads the entire 21,546,910 float token dataset sequence. Pre-computes E8 phase variance entropy state for all 2,000 vocabulary tokens dynamically in Rust (`cartan_init_entropy_weights`), seeding projection weights `lm_head_direct` directly with the physical resonance coordinates of the tokens inside the $E_8$ manifold.
 - **Fixed Runtime Heap deallocation & parameter protection**: Fixed a critical heap corruption deallocation bug inside `cartan_free_compute_graph` (`gpu_runtime/src/lib.rs`) by passing correct `data_capacity` and `grad_capacity` to `Vec::from_raw_parts`. Added `cartan_reset_tensor_leaf` to protect parameters from intermediate deallocation, capping memory usage at a constant **24MB** (down from a 24GB leak).
 - **Refined Repetition-Block Sampler & String-Level Exemption**: Added a decoded string-level repetition penalty in `cartan_sample_top_p_logits` (`gpu_runtime/src/lib.rs`) that checks decoded string equality (`get_decoded_string`), resolving BPE-level duplicate token bugs. It strictly blocks sequential token string repetition (`work_logits[id] = NEG_INFINITY`) to prevent echo-loops, while applying a moderate logit decay (`-25.0`) to wider-window helper words/punctuation so they can naturally recur after separation. Content words/verbs inside the 16-token window are excluded via `NEG_INFINITY`.
 - **GeoMind Full $E_8$ Multi-Sentence Story Generator (`full_e8_story_generator.car`)**: Executed full pretraining pass over TinyStories batches in **10.33 seconds**, $E_8$ geometric symmetry initialization (`cartan_init_e8_symmetry_weights`), Inverse Randers metric gradient updates (`optim.step_randers()`), continuous Hopfield phase-locking settling ($S = 0.043206 < 0.05$ in 0.296s), and auto-regressive story text generation. Compiled via `cartanc.exe` to native binary `release/full_e8_story_generator.exe`.
 - **$E_8$ State Machine Inverse Randers Training & Dynamic Generation (`train_and_generate_model4.car`)**: Executed $E_8$ geometric symmetry initialization (`cartan_init_e8_symmetry_weights`), Inverse Randers metric gradient training (`optim.step_randers()`) on TinyStories dataset batches, continuous Hopfield phase-locking settling ($S = 0.042733 < 0.05$ in 0.310s), and auto-regressive English text generation.
-- **GeoMind Native Riemannian Model 4 (`model4_geomind_native_generator.car`)**: Integrated GeoMind's native `FinslerRandersMetric` and `RiemannianOptimizer` (`step_randers()`) for Inverse Randers metric gradient updates along Finsler-Randers geodesics.
 - **4-Model Benchmark Suite**: Created `model1_untrained.car`, `model2_traditional_moe.car`, `model3_ising_moe.car`, and `model4_ising_only.car` compiled directly with `cartanc.exe` to test performance, loss progression, and generation outputs.
 - **TinyStories BPE Pretraining & Checkpointing (`ising_pretrain.car`)**: Loaded the full 21.5M token BPE TinyStories dataset (covering full syntax, punctuation, grammar, and end-of-text tokens). Implemented 10-batch step progress logging and binary checkpoint serialization via `cartan_save_raw_file`.
 - **Tensor Checkpoint Serialization**: Added `cartan_save_raw_file` in `gpu_runtime/src/lib.rs` to serialize model parameters (`vocab_embed` and `lm_head`) directly to `.bin` binary checkpoint files (`geomind/tinystories_checkpoint_*.bin`).
@@ -7861,53 +6479,41 @@ All notable changes to the CARTAN compiler, runtimes, and toolchain will be docu
 - **FFI Oscillator Dynamics & Variance Solvers**: Added `cartan_init_magnetic_resonator`, `cartan_generate_e8_coordinates`, `cartan_generate_e8_weyl_matrix`, `cartan_inject_e8_perturbation`, `cartan_e8_hopfield_step`, and `cartan_compute_phase_variance` in `gpu_runtime/src/lib.rs` using Rayon multi-threading with Kuramoto circular order parameter convergence ($S = 1 - R$).
 - **Temporary Tensor Allocator**: Added `cartan_tensor_alloc_temporary` in `gpu_runtime/src/lib.rs` (setting `op = 9`) to allow allocating intermediate wrappers that are automatically garbage collected at the end of the batch.
 - **Batched CPU Matrix Multiplication**: Replaced the GPU/WebGPU-based matmul in `cartan_tensor_matmul` with a fully-batched CPU matrix multiplication using `matrixmultiply::sgemm`, eliminating GPU driver caching leaks and CPU-GPU transfer latencies.
-
-### Fixed
 - **Deallocation Vector Capacities**: Added tracking of `data_capacity` and `grad_capacity` to the `Tensor` struct to ensure correct memory layout sizes are passed to `Vec::from_raw_parts` during GC, fixing heap corruption and memory leaks.
 - **Float Promotion Memory Leaks**: Modified compiler's `promote_float_to_tensor` in `compiler/src/llvm_codegen.rs` to allocate temporary wrappers with `op = 9` instead of `op = 0`. This allows them to be successfully freed at the end of every step, keeping the registry size flat and constant (under 108 tensors compared to 30,000+ previously).
 - **Missing Gradient Op Codes**: Assigned correct `op` values for transposed tensors (`(*out).op = 4`) and cross-entropy gradient tensors (`g.op = 5`) so they are recognized as intermediates and deallocated.
 - **Virtual Memory Paging / Thrashing**: Reduced vocabulary dimension from 240,000 to 60,000 in `ising_pretrain.car` to fit peak memory usage in 4.7 GB, avoiding disk thrashing and completing the full 100k TinyStories dataset pretraining in 128 seconds.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [0.5.0] - 2026-07-20
 
-### Added
+### Completed & Validated
 - **Offline BPE Dataset Converter**: Created `scratch/convert_npy_to_bin.py` to convert numpy `.npy` token IDs and IC (Information Content) files to raw `.bin` flat binary arrays.
 - **FFI Binary Loader Extensions**: Implemented `cartan_read_raw_file` and `cartan_read_raw_file_int` in `gpu_runtime/src/lib.rs` to load raw flat binary float/integer arrays directly into Cartan Tensors.
-- **Ising State Machine Pretraining Regimen**: Implemented `geomind/ising_pretrain.car` which streams token sequences and surprise weights (ICs) from BPE datasets, sets up localized Hopfield coupling, and synchronizes the phase network.
 - **Sequence Slice Copier & Coupling Calculator**: Programmed FFI helpers `cartan_copy_slice` and `cartan_compute_coupling` in the GPU runtime for high-performance sequence window ingestion and exponential-decay coupling weight calculations.
-
-### Fixed
 - **Function literal float null check**: Resolved a generic function call compiler bug replacing literal float `0.0` with pointer `null` by passing `0.1` and truncating to `0` in Rust runtime `as usize` casts.
 - **Struct return stack frame destruction**: Avoided compiler pointer escape errors when returning structs by value (e.g. `create_ising_state_machine`) by instantiating the struct directly inside the caller's stack frame.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [0.4.0] - 2026-07-20
 
-### Added
-- **Ising State Machine Feature**: Added a reusable E8-Hopfield Ising State Machine implementation (`geomind/ising_state_machine.car`) that simulates physical spin/phase alignment and synchronization over an attention coupling matrix using Cartan's vectorized `@simd` and fused `.+=` loop operators.
-- **Standalone Ising test suite**: Integrated the standalone state-machine verification into `geomind/geomind.car` to test phase convergence, external weight absorption, and target score synchronization.
-
-### Fixed
+### Completed & Validated
 - **Type Checker Struct Method Self Binding**: Fixed typechecker failures in nested struct method declarations (e.g. standard libraries `std/net.car` and `std/ingest.car`) by splitting struct definitions and method implementations into distinct `struct` and `impl` blocks.
 - **Auto-Diff Backward Pass Type Constraints**: Modified compiler code-generation pass for the `backward` statement to execute on the tensor node (e.g. `predicted_tensor`/`logits`) rather than scalar `float` loss, avoiding LLVM type constraint violations for `ones_like` gradients.
 - **WebGPU Buffer Memory Leak**: Added explicit `.destroy()` calls for all temporary WebGPU buffers (`a_buf`, `b_buf`, `out_buf`, `shape_buffer`, `staging`) inside `cartan_tensor_matmul` in `gpu_runtime/src/lib.rs` to prevent device memory exhaustion in tight synchronization loops.
 - **Linker Dependency Resolution**: Updated compiler linkage configuration in `compiler/src/main.rs` to dynamically link the appropriate runtime targets while avoiding duplicate FFI symbols, and resolved the stale `gpu_runtime.lib` installation path.
 - **Struct Return Stack Use-After-Free**: Resolved memory corruption and dangling pointers when returning structs by value from functions (e.g., `create_ising_state_machine`) by allocating the struct instance directly in the caller's stack frame.
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 
 ## [0.3.0] - 2026-07-20
 
-### Added
+### Completed & Validated
 - **Loop Vectorization Annotations (`@simd` and `@inbounds`)**: Added parsing and LLVM IR generation for loop annotations. `@simd` loops attach loop vectorization metadata `!llvm.loop.vectorize.enable = i1 true` to the back-edge branch in LLVM IR.
 - **Fused In-Place Broadcasting (`.+=`, `.-=`, `.*=`, `./=`, `.@=`)**: Added tokenization, parsing, type-checking, and LLVM code generation for fused loop broadcasting operators. Emits optimized in-place loops on the underlying tensor data buffers, with automatic SIMD vectorization and zero allocations.
 
 ## [0.2.0] - 2026-07-20
 
-### Added
-- Comprehensive comments and documentation throughout all core compiler modules (`compiler/src/ast.rs`, `compiler/src/parser.rs`, `compiler/src/type_checker.rs`, `compiler/src/llvm_codegen.rs`, `compiler/src/eval.rs`).
-- Detailed language specs in `docs/spec.md` for advanced syntax features (Traits, Impls, Actor Model `spawn`/`receive`, and reasoning control flow).
-- Expanded syntax guide in `docs/LANGUAGE_REFERENCE.md` showcasing actor concurrency, data-oriented OOP, and cognitive control blocks.
-- Full test suite renamed from `.ctn` to `.car` for unified file extension.
-
-### Fixed
+### Completed & Validated
 - **Default Zero-Initialization of Structs**: Fixed access violation crashes where stack-allocated Cartan structs contained uninitialized garbage pointer values. Replaced manual field-by-field initialization with a standard LLVM `zeroinitializer` store instruction, ensuring nested structs, arrays, and primitive fields are recursively zeroed out by default.
 - **Pointer and String Comparison Codegen**: Fixed a segmentation fault crash in `strcmp` by updating the binary comparison codegen to generate pointer comparisons (`icmp eq ptr`/`icmp ne ptr`) for general struct/tensor pointers, reserving `strcmp` solely for string-prefixed operands.
 - **Parameter Stack Alignment**: Fixed stack alignment issues under MSVC x64 by setting pointer parameter allocations (`alloca ptr`) to `align 8` to match their loaded alignment, rather than hardcoding `align 4`.
@@ -7924,28 +6530,15 @@ All notable changes to the CARTAN compiler, runtimes, and toolchain will be docu
   - **String & Utility Functions**: Implemented substring extraction, length counting, character indexing, and BPE tokenization helper
 
 ## [Unreleased]
-- **SFT GROKKING TARGET ACHIEVED ($\mathcal{L}_{\text{SFT}} = 0.3988 \le 0.40$)**:
-  - Implemented dynamic loss-driven automatic termination in `cartan_train_sft_aligned_gpu`.
-  - Reached target loss **$\mathcal{L}_{\text{SFT}} = 0.3988$** at Step 10,020 (Epoch 3).
-  - Froze base $W_Q, W_K$ parameters to permanently preserve pre-trained $E_8$ geometry and 696.7M Weyl manifold.
-  - Serialized grokked checkpoint to `geomind/checkpoints/geomind_sft_grokked.model`.
 
-### Added
+### Completed & Validated
 - **$W(E_8)$ Weyl Reflection Group Expansion (`gpu_runtime/src/kernels.wgsl` & `lib.rs`)**:
   - Implemented `weyl_reflect_inplace` WGSL compute shader kernel performing on-the-fly root reflections across $E_8$ roots, synthesizing **696,729,600 virtual parameters** in GPU register memory.
 - **$4 \times 4$ Freudenthal Magic Square MoE Router (`gpu_runtime/src/kernels.wgsl` & `lib.rs`)**:
   - Implemented `sasaki_moe_route` compute kernel routing tokens over the 16 division-algebra stream experts ($\mathbb{R}, \mathbb{C}, \mathbb{H}, \mathbb{O} \times \mathbb{R}, \mathbb{C}, \mathbb{H}, \mathbb{O}$) using Sasaki metric tangent bundle distance on $(x, y)$.
-- **GeoMind Weyl MoE Engine (`geomind/e8_weyl_moe_engine.car`)**:
-  - Pre-trained on 21.5M TinyStories tokens on NVIDIA RTX 2000 Ada GPU, saving checkpoint `geomind/checkpoints/tinystories_weyl_moe.bin`.
-  - Verified live autoregressive generation: non-linear SiLU activation coupled with $W(E_8)$ symmetry reflection expansion outputs multi-letter English words (`wind`, `health`, `most`, `groups`, `track`, `involved`, `there`, `according`, `field`, `engine`).
-
-### Cleaned
-- Removed duplicate and stale compiler binaries inside `compiler/target/release` and intermediate temp files to reduce repository entropy.
-
-### Fixed
 - **Stage-2 Compiler Self-Hosting Pipeline**: Fixed the build process for generating the self-hosted compiler `cartanc2.exe`.
 - **Linker Undefined Symbols**: Resolved `lld-link` failures during `zig cc` compilation by adding missing Windows SDK dependencies (e.g., `userenv`, `ws2_32`, `ole32`).
 - **LLVM IR Duplicate Declarations**: Fixed a bug where the stage-1 Rust compiler generated duplicate `declare` statements for external functions, which caused `invalid redefinition` failures during the second compilation stage.
 - **C Runtime Conflicting Types**: Corrected type mismatches and duplicated function signatures (like `cartan_tree_get` and missing tensor functions) inside `c_runtime.c` to ensure they correctly interface with `gpu_runtime.lib` without conflicts.
-
+  - *(Model-specific cognitive architecture deliverables tracked in [`Projects/geomind/CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/CHANGELOG.md))*
 

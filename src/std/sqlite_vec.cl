@@ -46,6 +46,9 @@ fn sqlite_vec_open(filepath: string) -> ptr {
     }
     let db = cartan_ptr_at(pp_db, 0.0);
     free(pp_db);
+    sqlite3_exec(db, "PRAGMA journal_mode = WAL;", 0.0, 0.0, 0.0);
+    sqlite3_exec(db, "PRAGMA synchronous = NORMAL;", 0.0, 0.0, 0.0);
+    sqlite3_exec(db, "PRAGMA busy_timeout = 5000;", 0.0, 0.0, 0.0);
     return db;
 }
 
@@ -554,7 +557,10 @@ fn sqlite_vec_init_domain10(db: ptr) -> float {
     // Seed User:Rick (Creator / Root Profile) if not already present
     let r_name = sqlite_vec_get_entity_state(db, 10.0, "User:Rick", "preferred_name");
     if (cartan_string_length(r_name) == 0.0) {
+        sqlite_vec_upsert_entity_state(db, 10.0, "User:Rick", "first_name", "Richard", 1.0);
+        sqlite_vec_upsert_entity_state(db, 10.0, "User:Rick", "surname", "Weber", 1.0);
         sqlite_vec_upsert_entity_state(db, 10.0, "User:Rick", "preferred_name", "Rick", 1.0);
+        sqlite_vec_upsert_entity_state(db, 10.0, "User:Rick", "nicknames", "Rich", 1.0);
         sqlite_vec_upsert_entity_state(db, 10.0, "User:Rick", "role", "Creator & Architect", 1.0);
         sqlite_vec_upsert_entity_state(db, 10.0, "User:Rick", "relationship", "Father / Primary Creator", 1.0);
         sqlite_vec_upsert_entity_state(db, 10.0, "User:Rick", "permission_tier", "root", 1.0);
@@ -564,7 +570,10 @@ fn sqlite_vec_init_domain10(db: ptr) -> float {
     // Seed User:Guest (Unverified Profile) if not already present
     let g_name = sqlite_vec_get_entity_state(db, 10.0, "User:Guest", "preferred_name");
     if (cartan_string_length(g_name) == 0.0) {
+        sqlite_vec_upsert_entity_state(db, 10.0, "User:Guest", "first_name", "Guest", 1.0);
+        sqlite_vec_upsert_entity_state(db, 10.0, "User:Guest", "surname", "", 1.0);
         sqlite_vec_upsert_entity_state(db, 10.0, "User:Guest", "preferred_name", "Guest", 1.0);
+        sqlite_vec_upsert_entity_state(db, 10.0, "User:Guest", "nicknames", "", 1.0);
         sqlite_vec_upsert_entity_state(db, 10.0, "User:Guest", "role", "Visitor", 1.0);
         sqlite_vec_upsert_entity_state(db, 10.0, "User:Guest", "relationship", "Unverified Interlocutor", 1.0);
         sqlite_vec_upsert_entity_state(db, 10.0, "User:Guest", "permission_tier", "guest", 1.0);
@@ -607,6 +616,16 @@ fn sqlite_vec_prepare_registered_face_users(db: ptr) -> ptr {
     return sqlite_vec_prepare(db, sql);
 }
 
+// Prepare statement to enumerate all custom/semantic user profile attributes (excluding technical metadata)
+fn sqlite_vec_prepare_user_custom_attrs(db: ptr, user_id: string) -> ptr {
+    if (db == 0.0 || user_id == 0.0) { return 0.0; }
+    var sql = "SELECT attribute_name, attribute_value FROM entity_states WHERE domain_id = 10.0 AND entity_name = '";
+    sql = cartan_string_concat(sql, user_id);
+    sql = cartan_string_concat(sql, "' AND attribute_name NOT IN ('face_embedding', 'face_registered', 'permission_tier') ORDER BY attribute_name ASC;");
+    let stmt = sqlite_vec_prepare(db, sql);
+    return stmt;
+}
+
 // -------------------------------------------------------------------------
 // Backward-Compatible Aliases for Legacy cartan_sqlite_* Callers
 // -------------------------------------------------------------------------
@@ -646,4 +665,5 @@ fn cartan_sqlite_set_user_attr(db: ptr, user_id: string, attr: string, val: stri
 fn cartan_sqlite_save_user_face_embedding(db: ptr, user_id: string, emb_str: string) -> float { return sqlite_vec_save_user_face_embedding(db, user_id, emb_str); }
 fn cartan_sqlite_get_user_face_embedding(db: ptr, user_id: string) -> string { return sqlite_vec_get_user_face_embedding(db, user_id); }
 fn cartan_sqlite_prepare_registered_face_users(db: ptr) -> ptr { return sqlite_vec_prepare_registered_face_users(db); }
+fn cartan_sqlite_prepare_user_custom_attrs(db: ptr, user_id: string) -> ptr { return sqlite_vec_prepare_user_custom_attrs(db, user_id); }
 

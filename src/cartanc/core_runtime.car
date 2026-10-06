@@ -25,6 +25,9 @@ extern fn cartan_f32_at(p: ptr, offset: float) -> float;
 extern fn cartan_set_f32(p: ptr, offset: float, val: float) -> void;
 extern fn cartan_ptr_at(p: ptr, offset: float) -> ptr;
 extern fn cartan_set_ptr(p: ptr, offset: float, val: ptr) -> void;
+extern fn cartan_atomic_f32_at(p: ptr, offset: float) -> float;
+extern fn cartan_atomic_set_f32(p: ptr, offset: float, val: float) -> void;
+extern fn cartan_memory_fence() -> void;
 extern fn cartan_c_tree_create() -> ptr;
 extern fn cartan_c_tree_len_f(t: ptr) -> float;
 extern fn cartan_c_tree_get(t: ptr, idx: float) -> ptr;
@@ -65,6 +68,8 @@ extern fn CreateThread(lpThreadAttributes: ptr, dwStackSize: float, lpStartAddre
 extern fn WaitForSingleObject(hHandle: ptr, dwMilliseconds: float) -> float;
 extern fn CloseHandle(hObject: ptr) -> float;
 extern fn Sleep(dwMilliseconds: float) -> void;
+extern fn _kbhit() -> float;
+extern fn _getch() -> float;
 
 // --- String Operations ---
 fn cartan_string_length(s: string) -> float {
@@ -222,6 +227,7 @@ fn cartan_llvm_format_string_literal(s: string, id: float) -> string {
             if (next == 110.0) { b = 10.0; i = i + 1.0; }
             else if (next == 114.0) { b = 13.0; i = i + 1.0; }
             else if (next == 116.0) { b = 9.0; i = i + 1.0; }
+            else if (next == 101.0 || next == 69.0) { b = 27.0; i = i + 1.0; }
             else if (next == 92.0) { b = 92.0; i = i + 1.0; }
             else if (next == 34.0) { b = 34.0; i = i + 1.0; }
         }
