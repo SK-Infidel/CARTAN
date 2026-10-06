@@ -22,7 +22,7 @@ fn main(argc: float, argv: ptr) -> float {
     printf("  Compiling Structured Domain Triplets into Validated .car_graph Flat Binaries\n");
     printf("=================================================================================\n\n");
 
-    var out_path = "test/geomind/trainingdata/nses_knowledge.car_graph";
+    var out_path = "Projects/geomind/trainingdata/nses_knowledge.car_graph";
     let num_args = sys_get_arg_count();
     if (num_args >= 2.0) {
         out_path = sys_get_arg(1.0);

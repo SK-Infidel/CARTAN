@@ -83,7 +83,7 @@ fn main() -> float {
             if (arg_count > 2.0) {
                 let repo_id = sys_get_arg(2.0);
                 printf("[HF Downloader] Target Dataset Repo: %s\n", repo_id);
-                let out_filename = cartan_concat("test/geomind/trainingdata/hf_", repo_id);
+                let out_filename = cartan_concat("Projects/geomind/trainingdata/hf_", repo_id);
                 let safe_out_path = cartan_string_replace(out_filename, "/", "_");
                 let final_path = cartan_concat(safe_out_path, ".txt");
 

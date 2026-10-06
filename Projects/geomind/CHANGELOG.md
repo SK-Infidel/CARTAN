@@ -4,6 +4,15 @@ This changelog records the complete development history, cognitive architecture 
 
 Core CARTAN programming language, compiler, runtime, and general-purpose standard library releases are tracked in the root [`CHANGELOG.md`](file:///C:/Users/rich-/source/repos/CARTAN/CHANGELOG.md).
 
+## [1.0.2] - 2026-10-06 (Post-Sprint 541 Path Hardening: Canonical Path Realignment & Multi-Directory Asset Resolution)
+
+### Completed & Validated
+- **Multi-Directory Asset Path Resolution & Special-Token Babble Fix (`[ISSUE-406]`)**:
+  - Overhauled [`geomind_chat_resolve_path`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/chat.cl), [`geomind_resolve_path`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/train.cl), and [`geomind_resolve_stream_path`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/streams.cl) to recursively resolve across root, `bin/`, `Projects/geomind/`, and `scratch/` contexts.
+  - Normalized all hardcoded legacy `test/geomind/` path strings across [`chat.cl`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/chat.cl), [`train.cl`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/train.cl), [`streams.cl`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/streams.cl), and [`geomind_app.cl`](file:///C:/Users/rich-/source/repos/CARTAN/Projects/geomind/geomind_app.cl) to canonical `Projects/geomind/`.
+  - Normalized developer utilities ([`tools/cargraph_ingest.car`](file:///C:/Users/rich-/source/repos/CARTAN/tools/cargraph_ingest.car), [`tools/check_tokens.car`](file:///C:/Users/rich-/source/repos/CARTAN/tools/check_tokens.car), [`tools/quantize_manifold_int4.car`](file:///C:/Users/rich-/source/repos/CARTAN/tools/quantize_manifold_int4.car), [`tools/quantize_manifold_int8.car`](file:///C:/Users/rich-/source/repos/CARTAN/tools/quantize_manifold_int8.car)) to emit and consume `Projects/geomind/trainingdata/`.
+  - Recompiled [`bin/geomind.exe`](file:///C:/Users/rich-/source/repos/CARTAN/bin/geomind.exe) and synced to [`build/geomind.exe`](file:///C:/Users/rich-/source/repos/CARTAN/build/geomind.exe); verified full 42-layer GDDR6 mounting, signed checkpoint authentication, Latin/Universal vocab masks, continuous Hopfield recall, biometric face recognition, and fluent generative responses when executed from either root or `bin/`.
+
 ## [1.0.1] - 2026-10-05 (Sprint 541: Workspace Realignment to Projects Hierarchy: Model Include & Dataset Path Normalization)
 
 ### Completed & Validated

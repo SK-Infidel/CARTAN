@@ -3711,3 +3711,15 @@ Core CARTAN programming language, compiler, runtime, and general-purpose standar
   4. Updated documentation links across GeoMind README, user guide, roadmap, pipeline, and file-by-file references.
 
 ---
+
+## [ISSUE-406] [FIXED] GeoMind Silent Asset Resolution Failure & Special-Token Babble from Non-Root CWD
+
+- **Severity**: Critical (Model Integrity & Deployment Usability)
+- **Component**: `Projects/geomind/chat.cl`, `Projects/geomind/train.cl`, `Projects/geomind/streams.cl`, `Projects/geomind/geomind_app.cl`, `tools/`
+- **Description**: When executing `geomind.exe` from inside the `bin/` directory or an arbitrary working directory, relative path resolvers failed to locate `geomind_grafted_multimodal.bin`, `geomind_vocab_scripts.bin`, `geomind_stream_masks.bin`, `cognitive_memory.db`, and `wordnet_slangnet_dag.txt`. Due to silent fallbacks, the model defaulted to uninitialized Freudenthal manifold weights with unmasked vocabulary, producing gibberish special control tokens (`<unused28><tool|><unused35>...`) on user prompts and failing biometric identity verification.
+- **Resolution (Post-Sprint 541)**:
+  1. Overhauled `geomind_chat_resolve_path`, `geomind_resolve_path`, and `geomind_resolve_stream_path` to support multi-level relative navigation (`Projects/geomind/`, `../Projects/geomind/`, `../../Projects/geomind/`).
+  2. Normalized all legacy `test/geomind/` hardcoded path literals across `chat.cl`, `train.cl`, `streams.cl`, and `geomind_app.cl` to canonical `Projects/geomind/`.
+  3. Normalized developer utilities in `tools/` to emit and consume `Projects/geomind/trainingdata/`.
+  4. Recompiled `bin/geomind.exe` and verified 100% fluent inference and biometric authentication from both root and `bin/`.
+

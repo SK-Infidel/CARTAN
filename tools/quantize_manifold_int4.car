@@ -119,10 +119,10 @@ fn copy_fp32_vector(fin: ptr, fout: ptr, count: float, name: string) -> float {
 
 fn quantize_layer_i4(layer_idx: float) -> float {
     let l_str = cartan_int_to_string(layer_idx);
-    let in_path = cartan_string_concat("test/geomind/trainingdata/checkpoints/layers/manifold_layer_", l_str);
+    let in_path = cartan_string_concat("Projects/geomind/trainingdata/checkpoints/layers/manifold_layer_", l_str);
     let full_in_path = cartan_string_concat(in_path, ".bin");
 
-    let out_path = cartan_string_concat("test/geomind/trainingdata/checkpoints/layers/manifold_layer_", l_str);
+    let out_path = cartan_string_concat("Projects/geomind/trainingdata/checkpoints/layers/manifold_layer_", l_str);
     let full_out_path = cartan_string_concat(out_path, "_int4.bin");
 
     if (cartan_file_exists(full_in_path) == 0.0) {
@@ -218,7 +218,7 @@ fn main() -> float {
     var layer_idx = 0.0;
     while (layer_idx < 42.0) {
         let l_str = cartan_int_to_string(layer_idx);
-        let out_path = cartan_string_concat("test/geomind/trainingdata/checkpoints/layers/manifold_layer_", l_str);
+        let out_path = cartan_string_concat("Projects/geomind/trainingdata/checkpoints/layers/manifold_layer_", l_str);
         let full_out_path = cartan_string_concat(out_path, "_int4.bin");
 
         quantize_layer_i4(layer_idx);

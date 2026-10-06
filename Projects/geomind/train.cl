@@ -262,15 +262,21 @@ fn webgpu_get_causal_loss_shader() -> string {
     return cartan_string_concat(r1, r2);
 }
 
-// Detects repository root vs test/geomind subdirectory context
+// Detects repository root vs Projects/geomind subdirectory context
 fn geomind_get_base_prefix() -> string {
-    if (cartan_file_exists("test/geomind/main.car") == 1.0) {
-        return "test/geomind/";
+    if (cartan_file_exists("Projects/geomind/main.car") == 1.0) {
+        return "Projects/geomind/";
     }
-    return "";
+    if (cartan_file_exists("main.car") == 1.0 && cartan_file_exists("geometry.cl") == 1.0) {
+        return "";
+    }
+    if (cartan_file_exists("../Projects/geomind/main.car") == 1.0) {
+        return "../Projects/geomind/";
+    }
+    return "Projects/geomind/";
 }
 
-// Resolves relative path across repo root, bin/, and test/geomind working directories
+// Resolves relative path across repo root, bin/, and Projects/geomind working directories
 fn geomind_resolve_path(path: string) -> string {
     if (cartan_string_length(path) == 0.0) { return ""; }
 
@@ -285,16 +291,40 @@ fn geomind_resolve_path(path: string) -> string {
     let p_up2 = cartan_string_concat("../../", path);
     if (cartan_file_exists(p_up2) == 1.0) { return p_up2; }
 
-    // 4. If path starts with "test/geomind/", try stripping it (when running from test/geomind/)
+    // 4. If path starts with "test/geomind/", translate to "Projects/geomind/" and check variants
     if (cartan_string_starts_with(path, "test/geomind/") == 1.0) {
+        let try_proj = cartan_string_replace(path, "test/geomind/", "Projects/geomind/");
+        if (cartan_file_exists(try_proj) == 1.0) { return try_proj; }
+        let try_proj_up = cartan_string_concat("../", try_proj);
+        if (cartan_file_exists(try_proj_up) == 1.0) { return try_proj_up; }
+        let try_proj_up2 = cartan_string_concat("../../", try_proj);
+        if (cartan_file_exists(try_proj_up2) == 1.0) { return try_proj_up2; }
         let sub = cartan_string_substring(path, 13.0, cartan_string_length(path));
         if (cartan_file_exists(sub) == 1.0) { return sub; }
         let sub_up = cartan_string_concat("../", sub);
         if (cartan_file_exists(sub_up) == 1.0) { return sub_up; }
     }
 
-    // 5. If path starts with "trainingdata/", try prepending "test/geomind/" or "../test/geomind/"
+    // 5. If path starts with "Projects/geomind/", check parent directory variants
+    if (cartan_string_starts_with(path, "Projects/geomind/") == 1.0) {
+        let sub = cartan_string_substring(path, 17.0, cartan_string_length(path));
+        if (cartan_file_exists(sub) == 1.0) { return sub; }
+        let sub_up = cartan_string_concat("../", sub);
+        if (cartan_file_exists(sub_up) == 1.0) { return sub_up; }
+        let p_up_proj = cartan_string_concat("../", path);
+        if (cartan_file_exists(p_up_proj) == 1.0) { return p_up_proj; }
+        let p_up2_proj = cartan_string_concat("../../", path);
+        if (cartan_file_exists(p_up2_proj) == 1.0) { return p_up2_proj; }
+    }
+
+    // 6. If path starts with "trainingdata/", try prepending "Projects/geomind/" or "test/geomind/"
     if (cartan_string_starts_with(path, "trainingdata/") == 1.0) {
+        let pg = cartan_string_concat("Projects/geomind/", path);
+        if (cartan_file_exists(pg) == 1.0) { return pg; }
+        let up_pg = cartan_string_concat("../Projects/geomind/", path);
+        if (cartan_file_exists(up_pg) == 1.0) { return up_pg; }
+        let up2_pg = cartan_string_concat("../../Projects/geomind/", path);
+        if (cartan_file_exists(up2_pg) == 1.0) { return up2_pg; }
         let tg = cartan_string_concat("test/geomind/", path);
         if (cartan_file_exists(tg) == 1.0) { return tg; }
         let up_tg = cartan_string_concat("../test/geomind/", path);
@@ -351,7 +381,7 @@ fn train_sync_salient_attractors_to_gpu(active_domain: float, cg: CarGraphFile) 
         collections_free_list(rule_indices);
     } else {
         // Fallback to offline Hopfield basins when graph file is not loaded
-        let basins_path = geomind_resolve_path("test/geomind/trainingdata/hopfield_basins.bin");
+        let basins_path = geomind_resolve_path("Projects/geomind/trainingdata/hopfield_basins.bin");
         var num_basins = cartan_tree_len_f(g_hopfield_key_bank);
         if (num_basins <= 0.0 && cartan_file_exists(basins_path) == 1.0) {
             num_basins = cartan_hopfield_load_basins(basins_path);
@@ -1304,7 +1334,7 @@ fn webgpu_run_causal_training_pipeline(dataset_path: string, num_steps: float) -
 
     var target_file = dataset_path;
     if (cartan_string_length(target_file) == 0.0) {
-        target_file = "test/geomind/trainingdata/gutenberg_classics.txt";
+        target_file = geomind_resolve_path("Projects/geomind/trainingdata/gutenberg_classics.txt");
     }
 
     geomind_load_e8_assets_if_needed();
@@ -1316,10 +1346,7 @@ fn webgpu_run_causal_training_pipeline(dataset_path: string, num_steps: float) -
     if (cartan_file_exists(target_file) == 1.0) {
         file_text = cartan_read_file(target_file);
     } else {
-        target_file = "test/geomind/trainingdata/gutenberg_classics.txt";
-        if (cartan_file_exists(target_file) == 0.0) {
-            target_file = "../test/geomind/trainingdata/gutenberg_classics.txt";
-        }
+        target_file = geomind_resolve_path("Projects/geomind/trainingdata/gutenberg_classics.txt");
         if (cartan_file_exists(target_file) == 1.0) {
             file_text = cartan_read_file(target_file);
         }
@@ -1770,11 +1797,11 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
         }
     }
 
-    var manifest_path = geomind_resolve_path("test/geomind/trainingdata/corpus.json");
+    var manifest_path = geomind_resolve_path("Projects/geomind/trainingdata/corpus.json");
     if (stage_mode == 1.0) {
-        manifest_path = geomind_resolve_path("test/geomind/trainingdata/cloze_manifest.json");
+        manifest_path = geomind_resolve_path("Projects/geomind/trainingdata/cloze_manifest.json");
     } else if (stage_mode == 3.0) {
-        manifest_path = geomind_resolve_path("test/geomind/trainingdata/sft_manifest.json");
+        manifest_path = geomind_resolve_path("Projects/geomind/trainingdata/sft_manifest.json");
     }
     var datasets_list = cartan_tree_create();
     var offsets_list = cartan_vec_create();
@@ -1964,11 +1991,11 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
 
     cartan_init_cortical_weights_if_needed();
     let base_pfx = geomind_get_base_prefix();
-    let ckpt_path = cartan_string_concat(base_pfx, "trainingdata/checkpoints/geomind_steady_state_weights.bin");
-    let bak_path = cartan_string_concat(base_pfx, "trainingdata/checkpoints/geomind_steady_state_weights.bin.bak");
-    let emb_ckpt_path = cartan_string_concat(base_pfx, "trainingdata/checkpoints/geomind_embedding_weights.bin");
-    let emb_bak_path = cartan_string_concat(base_pfx, "trainingdata/checkpoints/geomind_embedding_weights.bin.bak");
-    let status_path = cartan_string_concat(base_pfx, "trainingdata/checkpoints/checkpoint_status.txt");
+    let ckpt_path = geomind_resolve_path(cartan_string_concat(base_pfx, "trainingdata/checkpoints/geomind_steady_state_weights.bin"));
+    let bak_path = geomind_resolve_path(cartan_string_concat(base_pfx, "trainingdata/checkpoints/geomind_steady_state_weights.bin.bak"));
+    let emb_ckpt_path = geomind_resolve_path(cartan_string_concat(base_pfx, "trainingdata/checkpoints/geomind_embedding_weights.bin"));
+    let emb_bak_path = geomind_resolve_path(cartan_string_concat(base_pfx, "trainingdata/checkpoints/geomind_embedding_weights.bin.bak"));
+    let status_path = geomind_resolve_path(cartan_string_concat(base_pfx, "trainingdata/checkpoints/checkpoint_status.txt"));
 
     var prior_clean = 0.0;
     if (cartan_file_exists(status_path) == 1.0) {
@@ -2036,7 +2063,7 @@ fn geomind_train_streaming_steady_state(stage_mode: float, custom_dataset: strin
         train_sync_weights_host_to_gpu();
     }
 
-    let tax_path = cartan_string_concat(base_pfx, "trainingdata/wordnet_taxonomy.txt");
+    let tax_path = geomind_resolve_path(cartan_string_concat(base_pfx, "trainingdata/wordnet_taxonomy.txt"));
     if (cartan_file_exists(tax_path) == 1.0) {
         semantics_load_taxonomy(tax_path);
         printf("[Steady-State Stage: %s] WordNet Semantic Taxonomy: %s synset nodes active.\n",

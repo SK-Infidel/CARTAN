@@ -6,7 +6,7 @@ fn main() -> float {
     printf("Initializing BPE trie...\n");
     cartan_hub_init_bpe_trie_if_needed();
 
-    let content = cartan_read_file("test/geomind/trainingdata/mined_expanded_corpus_cloze_part01.txt");
+    let content = cartan_read_file("Projects/geomind/trainingdata/mined_expanded_corpus_cloze_part01.txt");
     if (content == 0.0) {
         printf("Failed to read file!\n");
         return 1.0;

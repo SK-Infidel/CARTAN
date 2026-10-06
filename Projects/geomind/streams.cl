@@ -228,11 +228,29 @@ var g_stream_raw_out: ptr = 0.0;
 var g_stream_sub_y: ptr = 0.0;
 
 fn geomind_resolve_stream_path(path: string) -> string {
+    if (cartan_string_length(path) == 0.0) { return ""; }
     if (cartan_file_exists(path) == 1.0) { return path; }
     let p_up = cartan_string_concat("../", path);
     if (cartan_file_exists(p_up) == 1.0) { return p_up; }
     let p_up2 = cartan_string_concat("../../", path);
     if (cartan_file_exists(p_up2) == 1.0) { return p_up2; }
+
+    if (cartan_string_starts_with(path, "test/geomind/") == 1.0) {
+        let try_proj = cartan_string_replace(path, "test/geomind/", "Projects/geomind/");
+        if (cartan_file_exists(try_proj) == 1.0) { return try_proj; }
+        let try_proj_up = cartan_string_concat("../", try_proj);
+        if (cartan_file_exists(try_proj_up) == 1.0) { return try_proj_up; }
+        let try_proj_up2 = cartan_string_concat("../../", try_proj);
+        if (cartan_file_exists(try_proj_up2) == 1.0) { return try_proj_up2; }
+    }
+
+    if (cartan_string_starts_with(path, "Projects/geomind/") == 1.0) {
+        let p_up_proj = cartan_string_concat("../", path);
+        if (cartan_file_exists(p_up_proj) == 1.0) { return p_up_proj; }
+        let p_up2_proj = cartan_string_concat("../../", path);
+        if (cartan_file_exists(p_up2_proj) == 1.0) { return p_up2_proj; }
+    }
+
     return path;
 }
 
@@ -240,7 +258,7 @@ fn geomind_load_stream_adapters_if_needed() -> float {
     if (g_stream_adapters_loaded == 1.0) { return 1.0; }
     if (g_stream_adapters_loaded == -1.0) { return 0.0; }
 
-    var p = geomind_resolve_stream_path("test/geomind/trainingdata/checkpoints/geomind_stream_adapters.bin");
+    var p = geomind_resolve_stream_path("Projects/geomind/trainingdata/checkpoints/geomind_stream_adapters.bin");
     if (cartan_file_exists(p) == 0.0) {
         g_stream_adapters_loaded = -1.0;
         return 0.0;

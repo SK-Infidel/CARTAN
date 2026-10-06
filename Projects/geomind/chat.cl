@@ -33,7 +33,7 @@ include "../../src/std/cargraph_consolidate.cl";
 include "../../src/std/nses_pipeline.cl";
 include "../../src/std/saliency_attractor.cl";
 
-// Resolves relative path across repo root, bin/, and test/geomind working directories
+// Resolves relative path across repo root, bin/, and Projects/geomind working directories
 fn geomind_chat_resolve_path(path: string) -> string {
     if (cartan_string_length(path) == 0.0) { return ""; }
 
@@ -44,32 +44,44 @@ fn geomind_chat_resolve_path(path: string) -> string {
     let p_up = cartan_string_concat("../", path);
     if (cartan_file_exists(p_up) == 1.0) { return p_up; }
 
-    // 3. Two levels up (e.g. running from test/compiler_suite/ or deep subdirs)
+    // 3. Two levels up (e.g. running from deep subdirs)
     let p_up2 = cartan_string_concat("../../", path);
     if (cartan_file_exists(p_up2) == 1.0) { return p_up2; }
 
-    // 4. If path starts with "Projects/geomind/" or "test/geomind/", try stripping it
-    if (cartan_string_starts_with(path, "Projects/geomind/") == 1.0) {
-        let sub = cartan_string_substring(path, 17.0, cartan_string_length(path));
-        if (cartan_file_exists(sub) == 1.0) { return sub; }
-        let sub_up = cartan_string_concat("../", sub);
-        if (cartan_file_exists(sub_up) == 1.0) { return sub_up; }
-    }
+    // 4. If path starts with "test/geomind/", translate to "Projects/geomind/" and check variants
     if (cartan_string_starts_with(path, "test/geomind/") == 1.0) {
         let try_proj = cartan_string_replace(path, "test/geomind/", "Projects/geomind/");
         if (cartan_file_exists(try_proj) == 1.0) { return try_proj; }
+        let try_proj_up = cartan_string_concat("../", try_proj);
+        if (cartan_file_exists(try_proj_up) == 1.0) { return try_proj_up; }
+        let try_proj_up2 = cartan_string_concat("../../", try_proj);
+        if (cartan_file_exists(try_proj_up2) == 1.0) { return try_proj_up2; }
         let sub = cartan_string_substring(path, 13.0, cartan_string_length(path));
         if (cartan_file_exists(sub) == 1.0) { return sub; }
         let sub_up = cartan_string_concat("../", sub);
         if (cartan_file_exists(sub_up) == 1.0) { return sub_up; }
     }
 
-    // 5. If path starts with "trainingdata/", try prepending "Projects/geomind/" or "test/geomind/"
+    // 5. If path starts with "Projects/geomind/", try stripping it or checking ../
+    if (cartan_string_starts_with(path, "Projects/geomind/") == 1.0) {
+        let sub = cartan_string_substring(path, 17.0, cartan_string_length(path));
+        if (cartan_file_exists(sub) == 1.0) { return sub; }
+        let sub_up = cartan_string_concat("../", sub);
+        if (cartan_file_exists(sub_up) == 1.0) { return sub_up; }
+        let p_up_proj = cartan_string_concat("../", path);
+        if (cartan_file_exists(p_up_proj) == 1.0) { return p_up_proj; }
+        let p_up2_proj = cartan_string_concat("../../", path);
+        if (cartan_file_exists(p_up2_proj) == 1.0) { return p_up2_proj; }
+    }
+
+    // 6. If path starts with "trainingdata/", check Projects/geomind prefixes
     if (cartan_string_starts_with(path, "trainingdata/") == 1.0) {
         let pg = cartan_string_concat("Projects/geomind/", path);
         if (cartan_file_exists(pg) == 1.0) { return pg; }
         let up_pg = cartan_string_concat("../Projects/geomind/", path);
         if (cartan_file_exists(up_pg) == 1.0) { return up_pg; }
+        let up2_pg = cartan_string_concat("../../Projects/geomind/", path);
+        if (cartan_file_exists(up2_pg) == 1.0) { return up2_pg; }
         let tg = cartan_string_concat("test/geomind/", path);
         if (cartan_file_exists(tg) == 1.0) { return tg; }
         let up_tg = cartan_string_concat("../test/geomind/", path);
@@ -342,7 +354,7 @@ fn geomind_chat_set_rolling_threshold(val: float) {
 
 fn geomind_load_stream_masks_if_needed() -> float {
     if (g_stream_masks_loaded == 1.0) { return 1.0; }
-    var path = geomind_chat_resolve_path("test/geomind/trainingdata/checkpoints/geomind_stream_masks.bin");
+    var path = geomind_chat_resolve_path("Projects/geomind/trainingdata/checkpoints/geomind_stream_masks.bin");
     if (cartan_file_exists(path) == 1.0) {
         g_stream_masks_buf = cartan_read_binary_file_data_sized(path, 2097152.0);
         g_stream_masks_loaded = 1.0;
@@ -353,7 +365,7 @@ fn geomind_load_stream_masks_if_needed() -> float {
 
 fn geomind_load_vocab_scripts_if_needed() -> float {
     if (g_vocab_scripts_buf != 0.0) { return 1.0; }
-    var path = geomind_chat_resolve_path("test/geomind/trainingdata/checkpoints/geomind_vocab_scripts.bin");
+    var path = geomind_chat_resolve_path("Projects/geomind/trainingdata/checkpoints/geomind_vocab_scripts.bin");
     if (cartan_file_exists(path) == 1.0) {
         g_vocab_scripts_buf = cartan_read_binary_file_data_sized(path, 262144.0);
     }
@@ -481,7 +493,7 @@ fn geomind_get_stream_pruned_vocab_mask(target_script: float, stream_idx: float,
 fn geomind_load_e8_assets_if_needed() -> float {
     if (g_e8_loaded == 1.0) { return 1.0; }
 
-    var emb_path = geomind_chat_resolve_path("test/geomind/trainingdata/checkpoints/geomind_e8_embeddings.bin");
+    var emb_path = geomind_chat_resolve_path("Projects/geomind/trainingdata/checkpoints/geomind_e8_embeddings.bin");
     let f_emb = fopen(emb_path, "rb");
     if (f_emb != 0.0) {
         let total_bytes = 260046848.0;
@@ -490,7 +502,7 @@ fn geomind_load_e8_assets_if_needed() -> float {
         fclose(f_emb);
     }
 
-    var ics_path = geomind_chat_resolve_path("test/geomind/trainingdata/checkpoints/geomind_ics.bin");
+    var ics_path = geomind_chat_resolve_path("Projects/geomind/trainingdata/checkpoints/geomind_ics.bin");
     let f_ics = fopen(ics_path, "rb");
     if (f_ics != 0.0) {
         let ics_bytes = 1048576.0;
@@ -499,7 +511,7 @@ fn geomind_load_e8_assets_if_needed() -> float {
         fclose(f_ics);
     }
 
-    var mask_path = geomind_chat_resolve_path("test/geomind/trainingdata/checkpoints/geomind_vocab_mask.bin");
+    var mask_path = geomind_chat_resolve_path("Projects/geomind/trainingdata/checkpoints/geomind_vocab_mask.bin");
     let f_mask = fopen(mask_path, "rb");
     if (f_mask != 0.0) {
         let mask_bytes = 262144.0;
@@ -509,7 +521,7 @@ fn geomind_load_e8_assets_if_needed() -> float {
     }
 
     // Ingest authentic final layernorm weights (2560 dims)
-    var fn_path = geomind_chat_resolve_path("test/geomind/trainingdata/checkpoints/geomind_final_norm.bin");
+    var fn_path = geomind_chat_resolve_path("Projects/geomind/trainingdata/checkpoints/geomind_final_norm.bin");
     if (cartan_file_exists(fn_path) == 1.0 && g_final_norm_w == 0.0) {
         let f_fn = fopen(fn_path, "rb");
         if (f_fn != 0.0) {
@@ -530,9 +542,9 @@ fn geomind_load_e8_assets_if_needed() -> float {
     }
 
     // Verify presence of full 262,144-vocabulary embedding matrix (2.68 GB)
-    var full_path = geomind_chat_resolve_path("test/geomind/trainingdata/checkpoints/geomind_embeddings_full_262k.bin");
+    var full_path = geomind_chat_resolve_path("Projects/geomind/trainingdata/checkpoints/geomind_embeddings_full_262k.bin");
     if (cartan_file_exists(full_path) == 0.0) {
-        full_path = geomind_chat_resolve_path("test/geomind/trainingdata/checkpoints/geomind_embeddings_centered_262k.bin");
+        full_path = geomind_chat_resolve_path("Projects/geomind/trainingdata/checkpoints/geomind_embeddings_centered_262k.bin");
     }
     if (cartan_file_exists(full_path) == 1.0) {
         g_full_emb_path = full_path;
@@ -555,15 +567,15 @@ var g_ple_loaded: float = 0.0;
 
 fn geomind_load_ple_assets_if_needed() -> float {
     if (g_ple_loaded == 1.0) { return 1.0; }
-    var ple_path = geomind_chat_resolve_path("test/geomind/trainingdata/checkpoints/geomind_ple_embeddings_full_262k.bin");
+    var ple_path = geomind_chat_resolve_path("Projects/geomind/trainingdata/checkpoints/geomind_ple_embeddings_full_262k.bin");
     if (cartan_file_exists(ple_path) == 1.0) {
         let ple_ok = cartan_mmap_ple(ple_path);
         if (ple_ok == 1.0) {
             printf("  [Host-RAM] Initialized 64-bit authentic 262k Per-Layer Embedding table stream (11.27 GB).\n");
         }
     }
-    var proj_path = geomind_chat_resolve_path("test/geomind/trainingdata/checkpoints/geomind_ple_model_proj.bin");
-    var norm_path = geomind_chat_resolve_path("test/geomind/trainingdata/checkpoints/geomind_ple_proj_norm.bin");
+    var proj_path = geomind_chat_resolve_path("Projects/geomind/trainingdata/checkpoints/geomind_ple_model_proj.bin");
+    var norm_path = geomind_chat_resolve_path("Projects/geomind/trainingdata/checkpoints/geomind_ple_proj_norm.bin");
     if (cartan_file_exists(proj_path) == 1.0 && cartan_file_exists(norm_path) == 1.0) {
         cartan_mmap_ple_projection(proj_path, norm_path);
     }
@@ -1130,7 +1142,7 @@ fn geomind_chat_get_db() -> ptr {
         g_active_user_verified = 1.0;
     }
     if (g_chat_db_init == 0.0) {
-        let db_path = geomind_chat_resolve_path("test/geomind/trainingdata/cognitive_memory.db");
+        let db_path = geomind_chat_resolve_path("Projects/geomind/trainingdata/cognitive_memory.db");
         g_chat_db = sqlite_vec_open(db_path);
         if (g_chat_db != 0.0) {
             sqlite_vec_init_schema(g_chat_db);
@@ -3185,7 +3197,7 @@ fn geomind_chat_run_sleep_consolidation() -> float {
     printf("[Phase B Consolidation] Applied Ebbinghaus synaptic decay to non-strict beliefs.\n");
 
     // 3. Re-materialize clean .car_graph v2 from updated SQLite database
-    let out_path = geomind_chat_resolve_path("test/geomind/trainingdata/nses_knowledge.car_graph");
+    let out_path = geomind_chat_resolve_path("Projects/geomind/trainingdata/nses_knowledge.car_graph");
     let mat_ok = sqlite_vec_materialize_to_cargraph(db, 1.0, out_path);
     if (mat_ok == 1.0) {
         printf("[Phase B Consolidation] Successfully re-materialized hot Tier 1 '%s' (v2 cacheline aligned).\n", out_path);
@@ -3194,7 +3206,7 @@ fn geomind_chat_run_sleep_consolidation() -> float {
     }
 
     // 3.5. Detect angular voids and synthesize SLERP discovery bridge attractors on S^247
-    let basins_file = geomind_chat_resolve_path("test/geomind/trainingdata/hopfield_basins.bin");
+    let basins_file = geomind_chat_resolve_path("Projects/geomind/trainingdata/hopfield_basins.bin");
     let epiphanies = sleep_detect_attractor_voids(basins_file, 248.0);
     if (epiphanies > 0.0) {
         printf("[Phase B Consolidation] Synthesized %s SLERP discovery bridge attractors across cognitive voids on S^247.\n",
@@ -3210,9 +3222,9 @@ fn geomind_chat_run_sleep_consolidation() -> float {
 
 fn geomind_chat_get_nses_pipeline() -> NSES_Pipeline {
     if (g_chat_nses_init == 0.0) {
-        var nses_path = geomind_chat_resolve_path("test/geomind/trainingdata/atomic_discourse.car_graph");
+        var nses_path = geomind_chat_resolve_path("Projects/geomind/trainingdata/atomic_discourse.car_graph");
         if (cartan_file_exists(nses_path) == 0.0) {
-            nses_path = geomind_chat_resolve_path("test/geomind/trainingdata/nses_knowledge.car_graph");
+            nses_path = geomind_chat_resolve_path("Projects/geomind/trainingdata/nses_knowledge.car_graph");
         }
         g_chat_nses_pipe = nses_pipeline_create(nses_path);
         g_chat_nses_init = 1.0;
@@ -3258,7 +3270,7 @@ fn geomind_chat_start() -> float {
         }
     }
 
-    let grafted_path = geomind_chat_resolve_path("test/geomind/trainingdata/checkpoints/geomind_grafted_multimodal.bin");
+    let grafted_path = geomind_chat_resolve_path("Projects/geomind/trainingdata/checkpoints/geomind_grafted_multimodal.bin");
     if (cartan_file_exists(grafted_path) == 1.0) {
         let loaded_ok = cartan_load_signed_checkpoint(grafted_path);
         printf("[GeoMind Chat] Loaded signed 42-Layer Multimodal Checkpoint: %s (Status: %s)\n",
@@ -3267,7 +3279,7 @@ fn geomind_chat_start() -> float {
         printf("[GeoMind Chat] Operating on baseline Freudenthal manifold weights.\n");
     }
 
-    let basins_path = geomind_chat_resolve_path("test/geomind/trainingdata/hopfield_basins.bin");
+    let basins_path = geomind_chat_resolve_path("Projects/geomind/trainingdata/hopfield_basins.bin");
     if (cartan_file_exists(basins_path) == 1.0) {
         let loaded_count = cartan_hopfield_load_basins(basins_path);
         printf("[GeoMind Chat] Continuous Hopfield Memory: %s active basins loaded from %s\n",
@@ -3276,7 +3288,7 @@ fn geomind_chat_start() -> float {
         printf("[GeoMind Chat] Continuous Hopfield Memory: Initialized empty attractor bank.\n");
     }
 
-    let tax_path = geomind_chat_resolve_path("test/geomind/trainingdata/wordnet_slangnet_dag.txt");
+    let tax_path = geomind_chat_resolve_path("Projects/geomind/trainingdata/wordnet_slangnet_dag.txt");
     if (cartan_file_exists(tax_path) == 1.0) {
         semantics_load_taxonomy(tax_path);
         printf("[GeoMind Chat] WordNet & SlangNet Taxonomy DAG: %s synset nodes active.\n",
@@ -3449,7 +3461,7 @@ fn geomind_get_layer_buffer(layer_idx: float) -> ptr {
     var buf = cartan_tree_get_f32(g_manifold_layer_buffers, layer_idx);
     if (buf == 0.0) {
         let l_str = cartan_int_to_string(layer_idx);
-        var layer_path_int4 = cartan_string_concat("test/geomind/trainingdata/checkpoints/layers/manifold_layer_", l_str);
+        var layer_path_int4 = cartan_string_concat("Projects/geomind/trainingdata/checkpoints/layers/manifold_layer_", l_str);
         layer_path_int4 = cartan_string_concat(layer_path_int4, "_int4.bin");
         layer_path_int4 = geomind_chat_resolve_path(layer_path_int4);
         if (cartan_file_exists(layer_path_int4) == 1.0) {
@@ -3461,7 +3473,7 @@ fn geomind_get_layer_buffer(layer_idx: float) -> ptr {
                 cartan_tree_set(g_manifold_layer_buffers, layer_idx, buf);
             }
         } else {
-            var layer_path_int8 = cartan_string_concat("test/geomind/trainingdata/checkpoints/layers/manifold_layer_", l_str);
+            var layer_path_int8 = cartan_string_concat("Projects/geomind/trainingdata/checkpoints/layers/manifold_layer_", l_str);
             layer_path_int8 = cartan_string_concat(layer_path_int8, "_int8.bin");
             layer_path_int8 = geomind_chat_resolve_path(layer_path_int8);
             if (cartan_file_exists(layer_path_int8) == 1.0) {
@@ -3473,7 +3485,7 @@ fn geomind_get_layer_buffer(layer_idx: float) -> ptr {
                     cartan_tree_set(g_manifold_layer_buffers, layer_idx, buf);
                 }
             } else {
-                var layer_path = cartan_string_concat("test/geomind/trainingdata/checkpoints/layers/manifold_layer_", l_str);
+                var layer_path = cartan_string_concat("Projects/geomind/trainingdata/checkpoints/layers/manifold_layer_", l_str);
                 layer_path = cartan_string_concat(layer_path, ".bin");
                 layer_path = geomind_chat_resolve_path(layer_path);
                 if (cartan_file_exists(layer_path) == 1.0) {
@@ -4957,7 +4969,7 @@ fn geomind_chat_generate_reply_multimodal(prompt: string, max_tokens: float, tem
         if (veto_res.is_vetoed == 0.0 && g_ephemeral_memory == 0.0) {
             let burst_len = cartan_vec_len(response_burst_vec);
             cartan_hopfield_store_attractor_burst(cur_h, cur_h, response_burst_vec, burst_len);
-            cartan_hopfield_save_basins(geomind_chat_resolve_path("test/geomind/trainingdata/hopfield_basins.bin"));
+            cartan_hopfield_save_basins(geomind_chat_resolve_path("Projects/geomind/trainingdata/hopfield_basins.bin"));
         }
     }
     prompt_scaffold_free(gen_buffer);
@@ -4981,7 +4993,7 @@ fn geomind_chat_remember_fact(fact_text: string) -> float {
     let h_fact = cartan_tensor_compute_hidden_state_from_tokens(toks);
     let h_stepped = e8_attention_forward_step(h_fact, 0.70);
     cartan_hopfield_store_pair_vec(h_fact, h_stepped);
-    cartan_hopfield_save_basins(geomind_chat_resolve_path("test/geomind/trainingdata/hopfield_basins.bin"));
+    cartan_hopfield_save_basins(geomind_chat_resolve_path("Projects/geomind/trainingdata/hopfield_basins.bin"));
     let total_count = cartan_hopfield_attractor_count();
 
     // Persist remembered fact into Tier 2 Cognitive Memory
@@ -5004,7 +5016,7 @@ fn geomind_hopfield_ingest_semantic(path: string) -> float {
     geomind_load_e8_assets_if_needed();
     cartan_hopfield_init_if_needed();
 
-    let basins_path = geomind_chat_resolve_path("test/geomind/trainingdata/hopfield_basins.bin");
+    let basins_path = geomind_chat_resolve_path("Projects/geomind/trainingdata/hopfield_basins.bin");
     if (cartan_file_exists(basins_path) == 1.0) {
         cartan_hopfield_load_basins(basins_path);
     }
