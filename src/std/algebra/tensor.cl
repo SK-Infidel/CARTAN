@@ -893,6 +893,16 @@ fn alg_mat_symmetric_eigenvalues(A: AlgMat, out_evals: ptr, out_evecs: AlgMat) {
     alg_mat_free(S);
 }
 
+// Returns the number of rows of a matrix
+fn alg_mat_rows(m: AlgMat) -> float {
+    return m.rows;
+}
+
+// Returns the number of columns of a matrix
+fn alg_mat_cols(m: AlgMat) -> float {
+    return m.cols;
+}
+
 // Returns the raw float buffer pointer of a matrix
 fn alg_mat_data(m: AlgMat) -> ptr {
     return m.data;

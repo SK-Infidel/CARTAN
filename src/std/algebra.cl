@@ -11,6 +11,6 @@ include "src/std/algebra/geometric.cl";
 // Pillar 3: Lie Algebras, Roots, Superalgebras & Poisson Brackets
 include "src/std/algebra/lie.cl";
 
-// Pillar 4 will be re-exported here as it is established:
-// include "src/std/algebra/abstract.cl";  // Pillar 4: Jordan, Tropical & Logic
+// Pillar 4: Abstract, Jordan, Tropical, Boolean & Universal Algebras
+include "src/std/algebra/abstract.cl";
 
